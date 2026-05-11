@@ -1,0 +1,44 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+  <f:entry title="Octane server" field="serverId">
+    <f:select />
+  </f:entry>
+  <f:entry title="Suite run ID" field="suiteRunId">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Criteria" field="criteria">
+    <f:textarea />
+  </f:entry>
+  <f:entry title="Scopes">
+    <f:repeatableProperty field="scopes" />
+  </f:entry>
+  <f:advanced>
+    <f:entry title="Shared space ID override" field="sharedSpaceId">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Workspace ID override" field="workspaceId">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Poll interval seconds" field="pollIntervalSeconds">
+      <f:number />
+    </f:entry>
+    <f:entry title="Timeout minutes" field="timeoutMinutes">
+      <f:number />
+    </f:entry>
+    <f:entry title="Mark unstable instead of failed" field="markUnstable">
+      <f:checkbox />
+    </f:entry>
+    <f:entry title="Passed statuses" field="passedStatuses">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Failed statuses" field="failedStatuses">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Neutral terminal statuses" field="neutralStatuses">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Running statuses" field="runningStatuses">
+      <f:textbox />
+    </f:entry>
+  </f:advanced>
+</j:jelly>

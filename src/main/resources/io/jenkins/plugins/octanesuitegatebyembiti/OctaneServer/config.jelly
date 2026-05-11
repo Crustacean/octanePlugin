@@ -1,0 +1,18 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+  <f:entry title="Server ID" field="serverId">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Base URL" field="baseUrl">
+    <f:textbox placeholder="https://octane.example.com" />
+  </f:entry>
+  <f:entry title="Default shared space ID" field="sharedSpaceId">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Default workspace ID" field="workspaceId">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="API key credentials" field="credentialsId">
+    <c:select />
+  </f:entry>
+</j:jelly>
