@@ -1,0 +1,63 @@
+pipeline {
+  agent any
+
+  parameters {
+    string(
+        name: 'OCTANE_SUITE_RUN_ID',
+        defaultValue: '1196',
+        description: 'Existing ALM Octane suite run to gate on')
+  }
+
+  stages {
+    stage('Build') {
+      steps {
+        echo 'Build or deploy your testable artifact here.'
+      }
+    }
+
+    stage('Run Tests') {
+      steps {
+        echo 'Trigger the system that creates or updates the ALM Octane suite run here.'
+      }
+    }
+
+    stage('Approve Octane Gate') {
+      steps {
+        input(
+            message: "Continue and wait for ALM Octane suite run ${params.OCTANE_SUITE_RUN_ID}?",
+            ok: 'Wait for Octane')
+      }
+    }
+
+    stage('Wait For Octane Suite') {
+      steps {
+        script {
+          Map gateResult =
+              octaneSuiteGate(
+                  serverId: 'octane-prod',
+                  suiteRunId: params.OCTANE_SUITE_RUN_ID,
+                  criteria:
+                      '(executionRate == 100 AND passRate >= 95) OR (payments.passRate == 100)',
+                  scopes: [
+                    octaneGateScope(
+                        name: 'payments',
+                        query: "test EQ {product_area EQ {id EQ 2001}}")
+                  ],
+                  pollIntervalSeconds: 30,
+                  timeoutMinutes: 120,
+                  markUnstable: false)
+
+          echo "Octane gate passed for suite run ${gateResult.suiteRunId}"
+          echo "Execution rate: ${gateResult.executionRate}"
+          echo "Pass rate: ${gateResult.passRate}"
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        echo 'Continue with the next stage once the Octane gate passes.'
+      }
+    }
+  }
+}
