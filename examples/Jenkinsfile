@@ -1,11 +1,8 @@
 pipeline {
   agent any
 
-  parameters {
-    string(
-        name: 'OCTANE_SUITE_RUN_ID',
-        defaultValue: '1196',
-        description: 'Existing ALM Octane suite run to gate on')
+  environment {
+    OCTANE_SUITE_RUN_ID = '1196'
   }
 
   stages {
@@ -24,7 +21,7 @@ pipeline {
     stage('Approve Octane Gate') {
       steps {
         input(
-            message: "Continue and wait for ALM Octane suite run ${params.OCTANE_SUITE_RUN_ID}?",
+            message: "Continue and wait for ALM Octane suite run ${env.OCTANE_SUITE_RUN_ID}?",
             ok: 'Wait for Octane')
       }
     }
@@ -35,7 +32,7 @@ pipeline {
           Map gateResult =
               octaneSuiteGate(
                   serverId: 'octane-prod',
-                  suiteRunId: params.OCTANE_SUITE_RUN_ID,
+                  suiteRunId: env.OCTANE_SUITE_RUN_ID,
                   criteria:
                       '(executionRate == 100 AND passRate >= 95) OR (payments.passRate == 100)',
                   scopes: [
