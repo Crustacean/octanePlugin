@@ -6,6 +6,11 @@
   <f:entry title="Base URL" field="baseUrl">
     <f:textbox placeholder="https://octane.example.com" />
   </f:entry>
+  <f:validateButton
+      title="Test Base URL"
+      progress="Testing Base URL..."
+      method="testBaseUrl"
+      with="baseUrl" />
   <f:entry title="Default shared space ID" field="sharedSpaceId">
     <f:textbox />
   </f:entry>

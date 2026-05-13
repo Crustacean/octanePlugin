@@ -47,6 +47,9 @@ each Pipeline select a configured server by `serverId`.
    - **Default shared space ID**: the shared space that contains the suite run data
    - **Default workspace ID**: the workspace inside that shared space
    - **API key credentials**: the Jenkins credential created in the previous step
+4. Click **Test Base URL** to verify Jenkins can reach the URL. The result shows
+   **OK** for HTTP 2xx/3xx responses and **Not OK** for HTTP 4xx/5xx responses
+   or connection errors.
 
 The base URL should be the host root used by Octane authentication and API requests, such as:
 

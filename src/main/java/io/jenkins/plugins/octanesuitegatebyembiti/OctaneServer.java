@@ -8,9 +8,14 @@ import hudson.model.Descriptor;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import jenkins.model.Jenkins;
 import org.jenkinsci.Symbol;
@@ -63,6 +68,8 @@ public class OctaneServer extends AbstractDescribableImpl<OctaneServer> implemen
   @Extension
   @Symbol("octaneServer")
   public static class DescriptorImpl extends Descriptor<OctaneServer> {
+    private static final Duration CONNECTIVITY_TIMEOUT = Duration.ofSeconds(10);
+
     @Override
     public String getDisplayName() {
       return "ALM Octane server";
@@ -111,6 +118,43 @@ public class OctaneServer extends AbstractDescribableImpl<OctaneServer> implemen
         return FormValidation.ok();
       } catch (URISyntaxException e) {
         return FormValidation.error("Base URL is not a valid URI.");
+      }
+    }
+
+    public FormValidation doTestBaseUrl(@QueryParameter String baseUrl) {
+      Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+      FormValidation validation = doCheckBaseUrl(baseUrl);
+      if (validation.kind != FormValidation.Kind.OK) {
+        return validation;
+      }
+
+      String normalizedBaseUrl = Util.trimTrailingSlash(Util.trimToEmpty(baseUrl));
+      HttpClient httpClient =
+          HttpClient.newBuilder()
+              .connectTimeout(CONNECTIVITY_TIMEOUT)
+              .followRedirects(HttpClient.Redirect.NORMAL)
+              .build();
+      HttpRequest request =
+          HttpRequest.newBuilder(URI.create(normalizedBaseUrl))
+              .timeout(CONNECTIVITY_TIMEOUT)
+              .GET()
+              .build();
+      try {
+        HttpResponse<Void> response =
+            httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+        int status = response.statusCode();
+        if (status >= 200 && status < 400) {
+          return FormValidation.ok("OK: HTTP " + status + " from " + normalizedBaseUrl);
+        }
+        return FormValidation.error("Not OK: HTTP " + status + " from " + normalizedBaseUrl);
+      } catch (IOException e) {
+        return FormValidation.error(
+            "Not OK: could not connect to " + normalizedBaseUrl + ". " + e.getMessage());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return FormValidation.error("Not OK: connectivity test was interrupted.");
+      } catch (IllegalArgumentException e) {
+        return FormValidation.error("Not OK: Base URL is not a valid URI.");
       }
     }
 
