@@ -3,6 +3,9 @@
 Jenkins plugin that waits for an existing ALM Octane suite run to reach a configured
 quality gate before the next Pipeline stage or Freestyle build step proceeds.
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the installed-plugin design, runtime
+flow, Octane API calls, metrics model, and criteria evaluation behavior.
+
 ## Pipeline
 
 ```groovy
