@@ -159,7 +159,7 @@ public class OctaneSuiteGateStep extends Step {
 
   @Override
   public StepExecution start(StepContext context) {
-    return new Execution(this, context);
+    return new Execution(toRequest(), context);
   }
 
   GateRequest toRequest() {
@@ -186,12 +186,12 @@ public class OctaneSuiteGateStep extends Step {
   private static class Execution extends StepExecution {
     private static final long serialVersionUID = 1L;
 
-    private final OctaneSuiteGateStep step;
+    private final GateRequest request;
     private transient Future<?> future;
 
-    Execution(OctaneSuiteGateStep step, StepContext context) {
+    Execution(GateRequest request, StepContext context) {
       super(context);
-      this.step = step;
+      this.request = request;
     }
 
     @Override
@@ -221,7 +221,7 @@ public class OctaneSuiteGateStep extends Step {
       try {
         StepContext context = getContext();
         TaskListener listener = context.get(TaskListener.class);
-        GateResult result = new OctaneGateRunner().run(step.toRequest(), listener);
+        GateResult result = new OctaneGateRunner().run(request, listener);
         context.onSuccess(result.toPipelineMap());
       } catch (GateFailedException e) {
         handleGateFailure(e);
@@ -232,7 +232,7 @@ public class OctaneSuiteGateStep extends Step {
 
     private void handleGateFailure(GateFailedException exception) {
       try {
-        if (step.isMarkUnstable()) {
+        if (request.isMarkUnstable()) {
           Run<?, ?> run = getContext().get(Run.class);
           TaskListener listener = getContext().get(TaskListener.class);
           run.setResult(Result.UNSTABLE);
