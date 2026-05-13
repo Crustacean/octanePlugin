@@ -82,8 +82,19 @@ class OctaneGateRunner {
 
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
     for (OctaneGateScope scope : request.getScopes()) {
-      List<RunRecord> scopedRuns =
-          client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
+      List<RunRecord> scopedRuns;
+      try {
+        scopedRuns =
+            client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
+      } catch (IOException e) {
+        throw new AbortException(
+            "ALM Octane scope '"
+                + scope.getName()
+                + "' query failed: "
+                + scope.getQuery()
+                + ". "
+                + e.getMessage());
+      }
       scopedMetrics.put(scope.getName(), GateMetrics.fromRuns(scopedRuns, classifier));
     }
 

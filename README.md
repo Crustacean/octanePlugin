@@ -11,12 +11,21 @@ octaneSuiteGate(
   suiteRunId: '1196',
   criteria: '100% execution AND 95% pass OR payments.pass == 100%',
   scopes: [
-    octaneGateScope(name: 'payments', query: "test EQ {product_area EQ {id EQ 2001}}")
+    octaneGateScope(name: 'payments', query: 'test={((product_areas={id=1004}))}')
   ],
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
   markUnstable: false
 )
+```
+
+Scope queries are ALM Octane REST API query fragments that the plugin applies to the suite
+run's child runs. To filter runs by a test's application module, use the `product_areas`
+relationship on `test`. Replace `1004` with the product area/application module ID from
+your workspace. You can list product areas with:
+
+```text
+GET https://your-octane-host/api/shared_spaces/<space_id>/workspaces/<workspace_id>/product_areas?fields=id,name
 ```
 
 Configure Octane servers from **Manage Jenkins > System**. Store Octane API keys as

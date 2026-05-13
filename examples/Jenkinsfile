@@ -3,6 +3,7 @@ pipeline {
 
   environment {
     OCTANE_SUITE_RUN_ID = '1196'
+    OCTANE_PAYMENTS_PRODUCT_AREA_ID = '1004'
   }
 
   stages {
@@ -38,7 +39,8 @@ pipeline {
                   scopes: [
                     octaneGateScope(
                         name: 'payments',
-                        query: "test EQ {product_area EQ {id EQ 2001}}")
+                        query:
+                            "test={((product_areas={id=${env.OCTANE_PAYMENTS_PRODUCT_AREA_ID}}))}")
                   ],
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
