@@ -22,6 +22,8 @@ class OctaneClient implements AutoCloseable {
   private static final int PAGE_SIZE = 200;
   private static final int QUERY_CHUNK_SIZE = 40;
   private static final int MAX_ATTEMPTS = 3;
+  private static final int RESPONSE_BODY_LIMIT = 1_000;
+  private static final String TECH_PREVIEW_HEADER = "ALM-OCTANE-TECH-PREVIEW";
   private static final String RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},runs_in_suite";
 
@@ -57,7 +59,11 @@ class OctaneClient implements AutoCloseable {
     HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     if (response.statusCode() != 200) {
       throw new AbortException(
-          "ALM Octane authentication failed with HTTP " + response.statusCode());
+          "ALM Octane authentication failed with HTTP "
+              + response.statusCode()
+              + " for "
+              + request.uri()
+              + responseBodyMessage(response.body()));
     }
     rememberCookies(response);
   }
@@ -136,6 +142,7 @@ class OctaneClient implements AutoCloseable {
             + parameter("fields", RUN_FIELDS)
             + "&"
             + parameter("limit", "1");
+    IOException runsLookupFailure = null;
     try {
       JsonNode collection = getJson(path);
       JsonNode data = collection.path("data");
@@ -144,15 +151,28 @@ class OctaneClient implements AutoCloseable {
       }
     } catch (IOException e) {
       // Some Octane versions reject querying suite runs through the aggregate collection.
+      runsLookupFailure = e;
     }
 
     String fallbackPath =
         workspacePath(sharedSpaceId, workspaceId)
-            + "/suite_run/"
+            + "/suite_runs/"
             + encode(suiteRunId)
             + "?"
             + parameter("fields", RUN_FIELDS);
-    JsonNode node = getJson(fallbackPath);
+    JsonNode node;
+    try {
+      node = getJson(fallbackPath);
+    } catch (IOException e) {
+      if (runsLookupFailure != null) {
+        throw new AbortException(
+            "ALM Octane suite run lookup failed. Runs collection lookup failed: "
+                + runsLookupFailure.getMessage()
+                + ". suite_runs fallback failed: "
+                + e.getMessage());
+      }
+      throw e;
+    }
     JsonNode data = node.path("data");
     if (data.isArray() && !data.isEmpty()) {
       return data.get(0);
@@ -223,16 +243,28 @@ class OctaneClient implements AutoCloseable {
   private JsonNode getJson(String path) throws IOException, InterruptedException {
     HttpResponse<String> response =
         sendWithRetry(() -> requestBuilder(baseUrl + path).GET().build());
-    return objectMapper.readTree(response.body());
+    try {
+      return objectMapper.readTree(response.body());
+    } catch (IOException e) {
+      throw new IOException(
+          "ALM Octane returned malformed JSON for "
+              + response.request().uri()
+              + responseBodyMessage(response.body()),
+          e);
+    }
   }
 
   private HttpResponse<String> sendWithRetry(RequestFactory requestFactory)
       throws IOException, InterruptedException {
     IOException lastException = null;
+    HttpRequest lastRequest = null;
+    HttpResponse<String> lastResponse = null;
     for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      HttpRequest request = requestFactory.create();
+      lastRequest = request;
       HttpResponse<String> response;
       try {
-        response = httpClient.send(requestFactory.create(), HttpResponse.BodyHandlers.ofString());
+        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
       } catch (IOException e) {
         lastException = e;
         pauseBeforeRetry(attempt);
@@ -244,13 +276,17 @@ class OctaneClient implements AutoCloseable {
         continue;
       }
       if (response.statusCode() == 429 || response.statusCode() >= 500) {
+        lastResponse = response;
         pauseBeforeRetry(attempt);
         continue;
       }
       if (response.statusCode() >= 400) {
-        throw new AbortException("ALM Octane request failed with HTTP " + response.statusCode());
+        throw requestFailure(request, response);
       }
       return response;
+    }
+    if (lastResponse != null) {
+      throw requestFailure(lastRequest, lastResponse);
     }
     if (lastException != null) {
       throw lastException;
@@ -262,11 +298,32 @@ class OctaneClient implements AutoCloseable {
     HttpRequest.Builder builder =
         HttpRequest.newBuilder(URI.create(uri))
             .timeout(Duration.ofSeconds(60))
-            .header("Accept", "application/json");
+            .header("Accept", "application/json")
+            .header(TECH_PREVIEW_HEADER, "true");
     if (!cookieHeader.isEmpty()) {
       builder.header("Cookie", cookieHeader);
     }
     return builder;
+  }
+
+  private AbortException requestFailure(HttpRequest request, HttpResponse<String> response) {
+    return new AbortException(
+        "ALM Octane request failed with HTTP "
+            + response.statusCode()
+            + " for "
+            + request.uri()
+            + responseBodyMessage(response.body()));
+  }
+
+  private String responseBodyMessage(String body) {
+    if (body == null || body.isBlank()) {
+      return ". Response body: <empty>";
+    }
+    String normalized = body.replaceAll("\\s+", " ").trim();
+    if (normalized.length() > RESPONSE_BODY_LIMIT) {
+      normalized = normalized.substring(0, RESPONSE_BODY_LIMIT) + "...";
+    }
+    return ". Response body: " + normalized;
   }
 
   private void rememberCookies(HttpResponse<?> response) {

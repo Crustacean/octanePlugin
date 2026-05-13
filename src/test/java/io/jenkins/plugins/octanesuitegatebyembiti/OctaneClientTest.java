@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import hudson.AbortException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -40,7 +41,8 @@ public class OctaneClientTest {
         "/api/shared_spaces/1001/workspaces/2002/runs",
         exchange -> {
           String query = exchange.getRequestURI().getRawQuery();
-          assertTrue(exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
+          assertTrue(
+              exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
           if (query.contains("limit=1")) {
             json(
                 exchange,
@@ -97,7 +99,7 @@ public class OctaneClientTest {
           }
         });
     server.createContext(
-        "/api/shared_spaces/1001/workspaces/2002/suite_run/55",
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/55",
         exchange ->
             json(
                 exchange,
@@ -125,6 +127,7 @@ public class OctaneClientTest {
           assertEquals("fields=id&limit=1", exchange.getRequestURI().getRawQuery());
           assertTrue(
               exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
+          assertEquals("true", exchange.getRequestHeaders().getFirst("ALM-OCTANE-TECH-PREVIEW"));
           json(exchange, 200, "{\"data\":[]}");
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
@@ -134,6 +137,63 @@ public class OctaneClientTest {
 
       assertEquals(200, client.testWorkspaceAccess("1001", "2002"));
     }
+  }
+
+  @Test
+  public void fallsBackToPluralSuiteRunsEndpointWithTechnicalPreviewHeader() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> json(exchange, 400, "{\"error\":\"unsupported runs query\"}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/55",
+        exchange -> {
+          assertEquals("true", exchange.getRequestHeaders().getFirst("ALM-OCTANE-TECH-PREVIEW"));
+          json(
+              exchange,
+              200,
+              "{\"id\":\"55\",\"name\":\"suite\","
+                  + "\"native_status\":{\"logical_name\":\"passed\"}}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
+
+      assertEquals(1, records.size());
+      assertEquals("55", records.get(0).getId());
+      assertEquals("passed", records.get(0).getStatus());
+    }
+  }
+
+  @Test
+  public void reportsSuiteRunLookupRequestDetails() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> json(exchange, 400, "{\"error\":\"bad runs query\"}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/55",
+        exchange -> json(exchange, 400, "{\"error\":\"bad suite run\"}"));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      try {
+        client.fetchSuiteChildRuns("1001", "2002", "55");
+      } catch (AbortException e) {
+        String message = e.getMessage();
+        assertTrue(message.contains("Runs collection lookup failed"));
+        assertTrue(message.contains("/api/shared_spaces/1001/workspaces/2002/runs?"));
+        assertTrue(message.contains("bad runs query"));
+        assertTrue(message.contains("/api/shared_spaces/1001/workspaces/2002/suite_runs/55?"));
+        assertTrue(message.contains("bad suite run"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected suite run lookup to fail.");
   }
 
   private void json(HttpExchange exchange, int status, String body) throws IOException {
