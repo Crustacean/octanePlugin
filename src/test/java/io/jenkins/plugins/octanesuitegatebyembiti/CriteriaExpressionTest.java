@@ -57,6 +57,23 @@ public class CriteriaExpressionTest {
             .evaluate(context));
   }
 
+  @Test
+  public void criteriaReadsCombinedScopeMetrics() {
+    Map<String, GateMetrics> scopes = new LinkedHashMap<>();
+    scopes.put(
+        "payments",
+        GateMetrics.fromRuns(
+            List.of(
+                new RunRecord("101", "product area 1004 run", "passed"),
+                new RunRecord("102", "product area 1005 run", "failed")),
+            classifier));
+    MetricsContext context =
+        new MetricsContext(GateMetrics.fromRuns(List.of(), classifier), scopes);
+
+    assertTrue(CriteriaExpression.parse("payments.total == 2").evaluate(context));
+    assertTrue(CriteriaExpression.parse("payments.passRate == 50").evaluate(context));
+  }
+
   @Test(expected = CriteriaException.class)
   public void rejectsUnknownMetrics() {
     CriteriaExpression.parse("unknownMetric >= 10").evaluate(context(List.of()));

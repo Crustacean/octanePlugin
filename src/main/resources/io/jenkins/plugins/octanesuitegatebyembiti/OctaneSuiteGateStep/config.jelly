@@ -3,8 +3,8 @@
   <f:entry title="Octane server" field="serverId">
     <f:select />
   </f:entry>
-  <f:entry title="Suite run ID" field="suiteRunId">
-    <f:textbox />
+  <f:entry title="Suite run ID(s)" field="suiteRunId">
+    <f:textbox placeholder="1196,1200" />
   </f:entry>
   <f:entry title="Criteria" field="criteria">
     <f:textarea />

@@ -9,6 +9,7 @@ import hudson.AbortException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -194,6 +195,34 @@ public class OctaneClientTest {
       }
     }
     throw new AssertionError("Expected suite run lookup to fail.");
+  }
+
+  @Test
+  public void passesMultipleProductAreaIdsThroughScopeQuery() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          assertTrue(query.contains("(id EQ 101||id EQ 102)"));
+          assertTrue(query.contains("test={((product_areas={id=1004||id=1005}))}"));
+          json(exchange, 200, "{\"data\":[]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      List<RunRecord> records =
+          client.fetchScopedRuns(
+              "1001",
+              "2002",
+              List.of("101", "102"),
+              "test={((product_areas={id=1004||id=1005}))}");
+
+      assertEquals(0, records.size());
+    }
   }
 
   private void json(HttpExchange exchange, int status, String body) throws IOException {

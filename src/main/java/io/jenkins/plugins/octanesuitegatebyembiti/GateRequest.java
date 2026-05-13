@@ -39,6 +39,10 @@ public class GateRequest implements Serializable {
     return suiteRunId;
   }
 
+  public List<String> getSuiteRunIds() {
+    return Util.splitIdList(suiteRunId);
+  }
+
   public String getSharedSpaceId() {
     return sharedSpaceId;
   }

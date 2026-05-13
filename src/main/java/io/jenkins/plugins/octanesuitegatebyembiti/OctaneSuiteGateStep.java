@@ -279,8 +279,8 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     public FormValidation doCheckSuiteRunId(@QueryParameter String value) {
-      if (Util.isBlank(value)) {
-        return FormValidation.error("Suite run ID is required.");
+      if (Util.splitIdList(value).isEmpty()) {
+        return FormValidation.error("At least one suite run ID is required.");
       }
       return FormValidation.ok();
     }

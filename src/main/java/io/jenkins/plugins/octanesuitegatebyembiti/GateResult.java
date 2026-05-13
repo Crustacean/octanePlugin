@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class GateResult implements Serializable {
@@ -52,6 +53,7 @@ public class GateResult implements Serializable {
   public Map<String, Object> toPipelineMap() {
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("suiteRunId", suiteRunId);
+    result.put("suiteRunIds", List.copyOf(Util.splitIdList(suiteRunId)));
     result.put("criteria", criteria);
     result.put("passed", passed);
     result.put("terminal", terminal);

@@ -8,10 +8,10 @@ quality gate before the next Pipeline stage or Freestyle build step proceeds.
 ```groovy
 octaneSuiteGate(
   serverId: 'octane-prod',
-  suiteRunId: '1196',
+  suiteRunId: '1196,1200',
   criteria: '100% execution AND 95% pass OR payments.pass == 100%',
   scopes: [
-    octaneGateScope(name: 'payments', query: 'test={((product_areas={id=1004}))}')
+    octaneGateScope(name: 'payments', query: 'test={((product_areas={id=1004||id=1005}))}')
   ],
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
@@ -21,12 +21,22 @@ octaneSuiteGate(
 
 Scope queries are ALM Octane REST API query fragments that the plugin applies to the suite
 run's child runs. To filter runs by a test's application module, use the `product_areas`
-relationship on `test`. Replace `1004` with the product area/application module ID from
-your workspace. You can list product areas with:
+relationship on `test`. Replace `1004` and `1005` with the product area/application module
+IDs from your workspace. You can list product areas with:
 
 ```text
 GET https://your-octane-host/api/shared_spaces/<space_id>/workspaces/<workspace_id>/product_areas?fields=id,name
 ```
+
+When `suiteRunId` contains multiple IDs, the plugin polls each suite run and combines their
+child runs into one global metric set. When one scope query contains multiple product area IDs,
+for example `id=1004||id=1005`, Octane returns the union of matching child runs and the plugin
+stores the combined metrics under that scope name. Criteria such as `payments.passRate == 100`
+therefore evaluates against the combined `payments` scope, not each product area individually.
+Create separate scope names if each product area needs its own criteria term.
+The Pipeline return map includes `suiteRunIds`, `metrics`, and `scopes`; for example,
+`gateResult.scopes.payments.passRate` is the combined pass rate for every run matched by
+the `payments` scope query.
 
 Configure Octane servers from **Manage Jenkins > System**. Store Octane API keys as
 Jenkins username/password credentials, with the username as `client_id` and the password as
@@ -80,6 +90,8 @@ octaneSuiteGate(
   criteria: '100% execution AND 95% pass'
 )
 ```
+
+`suiteRunId` may be a single ID or a comma/space-separated list such as `1196,1200`.
 
 ### 4. Optionally override shared space and workspace per pipeline
 
