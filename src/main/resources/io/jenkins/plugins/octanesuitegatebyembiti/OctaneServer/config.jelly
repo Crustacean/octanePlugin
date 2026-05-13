@@ -20,4 +20,9 @@
   <f:entry title="API key credentials" field="credentialsId">
     <c:select />
   </f:entry>
+  <f:validateButton
+      title="Test Octane Workspace"
+      progress="Testing Octane workspace..."
+      method="testOctaneWorkspace"
+      with="baseUrl,sharedSpaceId,workspaceId,credentialsId" />
 </j:jelly>

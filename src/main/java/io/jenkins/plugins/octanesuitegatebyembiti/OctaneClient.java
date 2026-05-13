@@ -91,6 +91,22 @@ class OctaneClient implements AutoCloseable {
     return runIds;
   }
 
+  int testWorkspaceAccess(String sharedSpaceId, String workspaceId)
+      throws IOException, InterruptedException {
+    String path =
+        workspacePath(sharedSpaceId, workspaceId)
+            + "/runs?"
+            + parameter("fields", "id")
+            + "&"
+            + parameter("limit", "1");
+    HttpResponse<Void> response =
+        httpClient.send(
+            requestBuilder(baseUrl + path).GET().build(),
+            HttpResponse.BodyHandlers.discarding());
+    rememberCookies(response);
+    return response.statusCode();
+  }
+
   @Override
   public void close() throws IOException {
     if (cookieHeader.isEmpty()) {

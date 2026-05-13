@@ -1,5 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import hudson.Extension;
@@ -158,6 +160,62 @@ public class OctaneServer extends AbstractDescribableImpl<OctaneServer> implemen
       }
     }
 
+    public FormValidation doTestOctaneWorkspace(
+        @QueryParameter("baseUrl") String baseUrl,
+        @QueryParameter("sharedSpaceId") String sharedSpaceId,
+        @QueryParameter("workspaceId") String workspaceId,
+        @QueryParameter("credentialsId") String credentialsId) {
+      Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+      FormValidation validation = doCheckBaseUrl(baseUrl);
+      if (validation.kind != FormValidation.Kind.OK) {
+        return validation;
+      }
+      validation = doCheckSharedSpaceId(sharedSpaceId);
+      if (validation.kind != FormValidation.Kind.OK) {
+        return validation;
+      }
+      validation = doCheckWorkspaceId(workspaceId);
+      if (validation.kind != FormValidation.Kind.OK) {
+        return validation;
+      }
+      validation = doCheckCredentialsId(credentialsId);
+      if (validation.kind != FormValidation.Kind.OK) {
+        return validation;
+      }
+
+      String normalizedBaseUrl = Util.trimTrailingSlash(Util.trimToEmpty(baseUrl));
+      String pathLabel =
+          workspaceTestPath(normalizedBaseUrl, sharedSpaceId, workspaceId, credentialsId);
+      StandardUsernamePasswordCredentials credentials = resolveCredentials(credentialsId);
+      if (credentials == null) {
+        return FormValidation.error("Not OK: credentials were not found for " + pathLabel);
+      }
+
+      HttpClient httpClient = HttpClient.newBuilder().connectTimeout(CONNECTIVITY_TIMEOUT).build();
+      OctaneClient client =
+          new OctaneClient(
+              httpClient,
+              normalizedBaseUrl,
+              credentials.getUsername(),
+              credentials.getPassword().getPlainText());
+      try {
+        client.authenticate();
+        int status = client.testWorkspaceAccess(sharedSpaceId, workspaceId);
+        if (status >= 200 && status < 400) {
+          return FormValidation.ok("OK: HTTP " + status + " from " + pathLabel);
+        }
+        return FormValidation.error("Not OK: HTTP " + status + " from " + pathLabel);
+      } catch (IOException e) {
+        return FormValidation.error(
+            "Not OK: could not test " + pathLabel + ". " + e.getMessage());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return FormValidation.error("Not OK: workspace connectivity test was interrupted.");
+      } finally {
+        closeQuietly(client);
+      }
+    }
+
     public FormValidation doCheckSharedSpaceId(@QueryParameter String value) {
       Jenkins.get().checkPermission(Jenkins.ADMINISTER);
       return checkRequiredNumber("Shared space ID", value);
@@ -177,6 +235,33 @@ public class OctaneServer extends AbstractDescribableImpl<OctaneServer> implemen
         return FormValidation.ok();
       } catch (NumberFormatException e) {
         return FormValidation.error(label + " must be numeric.");
+      }
+    }
+
+    private StandardUsernamePasswordCredentials resolveCredentials(String credentialsId) {
+      return CredentialsMatchers.firstOrNull(
+          CredentialsProvider.lookupCredentialsInItemGroup(
+              StandardUsernamePasswordCredentials.class, Jenkins.get(), ACL.SYSTEM2, List.of()),
+          CredentialsMatchers.withId(credentialsId));
+    }
+
+    private String workspaceTestPath(
+        String normalizedBaseUrl, String sharedSpaceId, String workspaceId, String credentialsId) {
+      return normalizedBaseUrl
+          + "/api/shared_spaces/"
+          + Util.trimToEmpty(sharedSpaceId)
+          + "/workspaces/"
+          + Util.trimToEmpty(workspaceId)
+          + "/runs?fields=id&limit=1 using credentials "
+          + Util.trimToEmpty(credentialsId)
+          + " {TEST}";
+    }
+
+    private void closeQuietly(OctaneClient client) {
+      try {
+        client.close();
+      } catch (IOException e) {
+        // Keep the validation result focused on the API check, not best-effort sign-out.
       }
     }
   }

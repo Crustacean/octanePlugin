@@ -50,6 +50,10 @@ each Pipeline select a configured server by `serverId`.
 4. Click **Test Base URL** to verify Jenkins can reach the URL. The result shows
    **OK** for HTTP 2xx/3xx responses and **Not OK** for HTTP 4xx/5xx responses
    or connection errors.
+5. Click **Test Octane Workspace** to verify the Base URL, default shared space,
+   default workspace, and selected API key credentials together. The result shows
+   the test path, such as
+   `https://your-octane-host/api/shared_spaces/1001/workspaces/2002/runs?fields=id&limit=1 using credentials octane-api-prod {TEST}`.
 
 The base URL should be the host root used by Octane authentication and API requests, such as:
 

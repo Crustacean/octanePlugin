@@ -116,6 +116,26 @@ public class OctaneClientTest {
     }
   }
 
+  @Test
+  public void testsWorkspaceAccessWithAuthenticatedCookie() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          assertEquals("fields=id&limit=1", exchange.getRequestURI().getRawQuery());
+          assertTrue(
+              exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
+          json(exchange, 200, "{\"data\":[]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(200, client.testWorkspaceAccess("1001", "2002"));
+    }
+  }
+
   private void json(HttpExchange exchange, int status, String body) throws IOException {
     exchange.getResponseHeaders().add("Content-Type", "application/json");
     exchange.getResponseHeaders().add("Set-Cookie", "LWSSO_COOKIE_KEY=test; Path=/");
