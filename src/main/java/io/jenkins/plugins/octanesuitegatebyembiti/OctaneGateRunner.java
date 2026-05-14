@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,10 +38,11 @@ class OctaneGateRunner {
     CriteriaExpression criteria = CriteriaExpression.parse(request.getCriteria());
     StatusClassifier classifier = request.createStatusClassifier();
     Instant deadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
+    List<String> suiteRunIds = request.getSuiteRunIds();
 
     listener
         .getLogger()
-        .println("Waiting for ALM Octane suite run " + request.getSuiteRunId() + ".");
+        .println("Waiting for ALM Octane suite run(s) " + String.join(", ", suiteRunIds) + ".");
 
     try (OctaneClient client =
         new OctaneClient(
@@ -50,7 +52,7 @@ class OctaneGateRunner {
       client.authenticate();
       while (true) {
         GateResult result =
-            poll(client, request, sharedSpaceId, workspaceId, criteria, classifier);
+            poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
         logPollResult(listener, result);
         if (result.isPassed()) {
           listener.getLogger().println("ALM Octane suite gate passed.");
@@ -70,20 +72,32 @@ class OctaneGateRunner {
   private GateResult poll(
       OctaneClient client,
       GateRequest request,
+      List<String> suiteRunIds,
       String sharedSpaceId,
       String workspaceId,
       CriteriaExpression criteria,
       StatusClassifier classifier)
       throws IOException, InterruptedException {
     List<RunRecord> childRuns =
-        client.fetchSuiteChildRuns(sharedSpaceId, workspaceId, request.getSuiteRunId());
+        fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, suiteRunIds);
     GateMetrics globalMetrics = GateMetrics.fromRuns(childRuns, classifier);
     List<String> childRunIds = childRuns.stream().map(RunRecord::getId).toList();
 
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
     for (OctaneGateScope scope : request.getScopes()) {
-      List<RunRecord> scopedRuns =
-          client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
+      List<RunRecord> scopedRuns;
+      try {
+        scopedRuns =
+            client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
+      } catch (IOException e) {
+        throw new AbortException(
+            "ALM Octane scope '"
+                + scope.getName()
+                + "' query failed: "
+                + scope.getQuery()
+                + ". "
+                + e.getMessage());
+      }
       scopedMetrics.put(scope.getName(), GateMetrics.fromRuns(scopedRuns, classifier));
     }
 
@@ -100,6 +114,18 @@ class OctaneGateRunner {
         globalMetrics,
         scopedMetrics,
         clock.instant());
+  }
+
+  private List<RunRecord> fetchSuiteChildRuns(
+      OctaneClient client, String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
+      throws IOException, InterruptedException {
+    Map<String, RunRecord> recordsById = new LinkedHashMap<>();
+    for (String suiteRunId : suiteRunIds) {
+      for (RunRecord record : client.fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunId)) {
+        recordsById.putIfAbsent(record.getId(), record);
+      }
+    }
+    return new ArrayList<>(recordsById.values());
   }
 
   private void logPollResult(TaskListener listener, GateResult result) {
@@ -124,8 +150,8 @@ class OctaneGateRunner {
     if (Util.isBlank(request.getServerId())) {
       throw new AbortException("Octane server ID is required.");
     }
-    if (Util.isBlank(request.getSuiteRunId())) {
-      throw new AbortException("Octane suite run ID is required.");
+    if (request.getSuiteRunIds().isEmpty()) {
+      throw new AbortException("At least one Octane suite run ID is required.");
     }
   }
 

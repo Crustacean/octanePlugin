@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 final class Util {
@@ -34,6 +35,22 @@ final class Util {
       }
     }
     return values;
+  }
+
+  static List<String> splitIdList(String value) {
+    String trimmed = trimToEmpty(value);
+    if (trimmed.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    LinkedHashSet<String> values = new LinkedHashSet<>();
+    for (String part : trimmed.split("[,\\s]+")) {
+      String item = trimToEmpty(part);
+      if (!item.isEmpty()) {
+        values.add(item);
+      }
+    }
+    return new ArrayList<>(values);
   }
 
   static String normalizeStatus(String value) {

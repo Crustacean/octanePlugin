@@ -1,0 +1,25 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+  <style>
+    .octane-suite-gate-servers .octane-suite-gate-server-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding-bottom: 1rem;
+    }
+
+    .octane-suite-gate-servers .repeatable-add {
+      margin-bottom: 1rem;
+    }
+  </style>
+  <f:section title="Octane Suite Gate by Embiti">
+    <div class="octane-suite-gate-servers">
+      <f:repeatableProperty field="servers" add="Add server">
+        <f:block>
+          <div class="octane-suite-gate-server-actions">
+            <f:repeatableDeleteButton value="Remove server" />
+          </div>
+        </f:block>
+      </f:repeatableProperty>
+    </div>
+  </f:section>
+</j:jelly>

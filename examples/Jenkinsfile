@@ -1,0 +1,80 @@
+pipeline {
+  agent any
+
+  environment {
+    OCTANE_SUITE_RUN_ID = '1196,1200'
+    OCTANE_CRITICAL_PRODUCT_AREA_ID = '1004,1005'
+  }
+
+  stages {
+    stage('Build') {
+      steps {
+        echo 'Build or deploy your testable artifact here.'
+      }
+    }
+
+    stage('Run Tests') {
+      steps {
+        echo 'Trigger the system that creates or updates the ALM Octane suite run here.'
+      }
+    }
+
+    stage('Approve Octane Gate') {
+      steps {
+        input(
+            message: "Continue and wait for ALM Octane suite run(s) ${env.OCTANE_SUITE_RUN_ID}?",
+            ok: 'Wait for Octane')
+      }
+    }
+
+    stage('Wait For Octane Suite') {
+      steps {
+        script {
+          def suiteRunIds =
+              env.OCTANE_SUITE_RUN_ID.split(/[,\s]+/).collect { it.trim() }.findAll { it }
+          def criticalProductAreaIds =
+              env.OCTANE_CRITICAL_PRODUCT_AREA_ID
+                  .split(/[,\s]+/)
+                  .collect { it.trim() }
+                  .findAll { it }
+          if (suiteRunIds.isEmpty()) {
+            error 'OCTANE_SUITE_RUN_ID must contain at least one ID.'
+          }
+          if (criticalProductAreaIds.isEmpty()) {
+            error 'OCTANE_CRITICAL_PRODUCT_AREA_ID must contain at least one ID.'
+          }
+
+          def criticalProductAreaFilter =
+              criticalProductAreaIds.collect { "id=${it}" }.join('||')
+          def criticalScopeQuery = "test={((product_areas={${criticalProductAreaFilter}}))}"
+
+          Map gateResult =
+              octaneSuiteGate(
+                  serverId: 'octane-prod',
+                  suiteRunId: suiteRunIds.join(','),
+                  criteria:
+                      '(executionRate == 100 AND passRate >= 95) OR (critical.passRate == 100)',
+                  scopes: [
+                    octaneGateScope(
+                        name: 'critical',
+                        query: criticalScopeQuery)
+                  ],
+                  pollIntervalSeconds: 30,
+                  timeoutMinutes: 120,
+                  markUnstable: false)
+
+          echo "Octane gate passed for suite run(s) ${gateResult.suiteRunIds.join(', ')}"
+          echo "Execution rate: ${gateResult.metrics.executionRate}"
+          echo "Pass rate: ${gateResult.metrics.passRate}"
+          echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        echo 'Continue with the next stage once the Octane gate passes.'
+      }
+    }
+  }
+}
