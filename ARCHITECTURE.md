@@ -43,11 +43,22 @@ target/octane-suite-gate-by-embiti.hpi
 After installation, Jenkins discovers the plugin extensions through Jenkins
 annotations:
 
-- `OctaneSuiteGateConfiguration`: global Jenkins configuration section.
-- `OctaneServer`: repeatable Octane server configuration entries.
-- `OctaneSuiteGateStep`: Pipeline step named `octaneSuiteGate`.
-- `OctaneSuiteGateBuilder`: Freestyle build step named `ALM Octane Suite Gate`.
-- `OctaneGateScope`: nested scope object named `octaneGateScope`.
+- `configs.OctaneSuiteGateConfiguration`: global Jenkins configuration section.
+- `configs.OctaneServer`: repeatable Octane server configuration entries.
+- `controllers.OctaneSuiteGateStep`: Pipeline step named `octaneSuiteGate`.
+- `controllers.OctaneSuiteGateBuilder`: Freestyle build step named `ALM Octane Suite Gate`.
+- `models.OctaneGateScope`: nested scope object named `octaneGateScope`.
+
+The Java sources are organized under the base package into focused folders:
+
+- `configs`: global Jenkins configuration and Octane server definitions.
+- `controllers`: Pipeline and Freestyle entry points.
+- `entities`: ALM Octane API record shapes.
+- `listeners`: Jenkins build-log output helpers.
+- `models`: gate request, result, metrics, scope, and status models.
+- `repositories`: low-level ALM Octane REST API access.
+- `services`: gate orchestration and criteria evaluation.
+- `utils`: shared string and parsing helpers.
 
 ## Configuration Model
 
@@ -119,7 +130,7 @@ Pipeline step, so both entry points share the same gate behavior.
 5. The runner creates `OctaneClient` and signs in to Octane.
 6. The runner polls until the gate passes, fails, or times out.
 7. Each poll fetches suite child runs and computes metrics.
-8. Optional scopes fetch filtered child-run subsets and compute scoped metrics.
+8. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
 9. `CriteriaExpression` evaluates the criteria against global and scoped metrics.
 10. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
     when `markUnstable` is enabled.
@@ -225,6 +236,8 @@ the plugin:
 2. Fetches child runs for each suite run.
 3. Deduplicates child runs by run ID.
 4. Computes one global `GateMetrics` object from the combined child runs.
+5. Keeps the child-run status list grouped by the original suite run ID for
+   build-log and Pipeline-result diagnostics.
 
 The Pipeline return map includes both:
 
@@ -233,20 +246,25 @@ The Pipeline return map includes both:
 
 ## Scopes
 
-Scopes are named Octane query fragments applied to the combined child-run set.
+Scopes are named metric buckets. A scope can be backed by its own suite run IDs
+or by an Octane query fragment applied to the global child-run set.
 
 Example:
 
 ```groovy
 octaneGateScope(
   name: 'critical',
-  query: 'test={((product_areas={id=1004||id=1005}))}'
+  suiteRunId: '450303,450204'
 )
 ```
 
-For this scope, the plugin fetches child runs whose related test belongs to
-product area `1004` or `1005`. The matching runs are combined into one metrics
-bucket named `critical`.
+For this scope, the plugin fetches child runs for suite runs `450303` and
+`450204`. The matching child runs are combined into one metrics bucket named
+`critical`.
+
+Scoped suite run IDs and child statuses are tracked separately from the global
+suite-run metrics. If a suite run ID appears in both the global `suiteRunId`
+input and a scoped `suiteRunId`, it contributes to both metric buckets.
 
 Criteria references the bucket by name:
 
@@ -254,10 +272,21 @@ Criteria references the bucket by name:
 critical.passRate == 100
 ```
 
-This expression evaluates the combined `critical` metrics. It does not evaluate
-each product area independently. To gate product areas separately, create
-separate scopes, such as `criticalApi` and `criticalUi`, and reference both in
-the criteria.
+This expression evaluates the combined `critical` metrics. The criteria
+expression controls whether critical metrics override or combine with global
+metrics. With `OR`, either side can pass the gate; with `AND`, both sides must
+pass.
+
+Query-backed scopes remain supported for compatibility:
+
+```groovy
+octaneGateScope(
+  name: 'legacyArea',
+  query: 'test={((product_areas={id=1004}))}'
+)
+```
+
+Query-backed scopes are applied to the combined global child-run set.
 
 ## Criteria Engine
 
@@ -333,6 +362,46 @@ receives a map shaped like:
       passRate: 100.0,
       failRate: 0.0
     ]
+  ],
+  scopeDetails: [
+    critical: [
+      name: 'critical',
+      query: '',
+      queryIds: [],
+      suiteRunId: '450303,450204',
+      suiteRunIds: ['450303', '450204'],
+      runIds: ['101', '102', '103', '104'],
+      metrics: [
+        total: 4,
+        executed: 4,
+        passed: 4,
+        failed: 0,
+        skipped: 0,
+        running: 0,
+        executionRate: 100.0,
+        passRate: 100.0,
+        failRate: 0.0
+      ],
+      runs: [
+        [id: '101', name: 'critical api', status: 'passed']
+      ],
+      suiteRuns: [
+        '450303': [
+          [id: '101', name: 'critical api', status: 'passed']
+        ],
+        '450204': [
+          [id: '104', name: 'critical ui', status: 'passed']
+        ]
+      ]
+    ]
+  ],
+  suiteRuns: [
+    '1196': [
+      [id: '101', name: 'critical api', status: 'passed']
+    ],
+    '1200': [
+      [id: '104', name: 'critical ui', status: 'passed']
+    ]
   ]
 ]
 ```
@@ -353,22 +422,23 @@ containing API secrets are not logged.
 
 | Class | Responsibility |
 | --- | --- |
-| `OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
-| `OctaneServer` | One configured Octane server and its validation endpoints. |
-| `OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
-| `OctaneSuiteGateBuilder` | Freestyle `ALM Octane Suite Gate` build step. |
-| `GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
-| `OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
-| `OctaneClient` | Low-level authenticated Octane REST client. |
-| `GateMetrics` | Global or scoped computed run metrics. |
-| `MetricsContext` | Resolves global and scoped metrics during criteria evaluation. |
-| `CriteriaExpression` | Safe criteria parser and evaluator. |
-| `GateResult` | Pipeline result map model. |
-| `OctaneGateScope` | Named scoped query model. |
+| `configs.OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
+| `configs.OctaneServer` | One configured Octane server and its validation endpoints. |
+| `controllers.OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
+| `controllers.OctaneSuiteGateBuilder` | Freestyle `ALM Octane Suite Gate` build step. |
+| `models.GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
+| `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
+| `repositories.OctaneClient` | Low-level authenticated Octane REST client. |
+| `models.GateMetrics` | Global or scoped computed run metrics. |
+| `models.GateScopeResult` | Scoped suite/query source, matched run statuses, and scoped metrics. |
+| `models.MetricsContext` | Resolves global and scoped metrics during criteria evaluation. |
+| `services.CriteriaExpression` | Safe criteria parser and evaluator. |
+| `models.GateResult` | Pipeline result map model. |
+| `models.OctaneGateScope` | Named scoped suite-run or query model. |
 
 ## Examples
 
-- `examples/Jenkinsfile`: scoped gate with a `critical` product-area scope.
+- `examples/Jenkinsfile`: scoped gate with a `critical` suite-run scope.
 - `examples/Jenkinsfile2`: global-only gate with no scoped query.
 
 ## Verification
@@ -381,6 +451,7 @@ The test suite covers:
 - workspace probing
 - suite-run fallback endpoint behavior
 - multi-ID scoped query forwarding
+- suite-run-backed scoped metrics
 - Pipeline result map shape
 
 Run:

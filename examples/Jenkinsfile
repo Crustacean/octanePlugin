@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   environment {
-    OCTANE_SUITE_RUN_ID = '1196,1200'
-    OCTANE_CRITICAL_PRODUCT_AREA_ID = '1004,1005'
+    OCTANE_SUITE_RUN_ID = '1196,1200,1204'
+    OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
   }
 
   stages {
@@ -22,7 +22,9 @@ pipeline {
     stage('Approve Octane Gate') {
       steps {
         input(
-            message: "Continue and wait for ALM Octane suite run(s) ${env.OCTANE_SUITE_RUN_ID}?",
+            message:
+                "Continue and wait for ALM Octane suite run(s) ${env.OCTANE_SUITE_RUN_ID}"
+                    + " with critical suite run(s) ${env.OCTANE_CRITICAL_SUITE_RUN_ID}?",
             ok: 'Wait for Octane')
       }
     }
@@ -32,32 +34,32 @@ pipeline {
         script {
           def suiteRunIds =
               env.OCTANE_SUITE_RUN_ID.split(/[,\s]+/).collect { it.trim() }.findAll { it }
-          def criticalProductAreaIds =
-              env.OCTANE_CRITICAL_PRODUCT_AREA_ID
+          def criticalSuiteRunIds =
+              env.OCTANE_CRITICAL_SUITE_RUN_ID
                   .split(/[,\s]+/)
                   .collect { it.trim() }
                   .findAll { it }
           if (suiteRunIds.isEmpty()) {
             error 'OCTANE_SUITE_RUN_ID must contain at least one ID.'
           }
-          if (criticalProductAreaIds.isEmpty()) {
-            error 'OCTANE_CRITICAL_PRODUCT_AREA_ID must contain at least one ID.'
+          if (criticalSuiteRunIds.isEmpty()) {
+            error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain at least one ID.'
           }
 
-          def criticalProductAreaFilter =
-              criticalProductAreaIds.collect { "id=${it}" }.join('||')
-          def criticalScopeQuery = "test={((product_areas={${criticalProductAreaFilter}}))}"
+          echo "Octane suite run IDs: ${suiteRunIds.join(', ')}"
+          echo "Octane critical suite run IDs: ${criticalSuiteRunIds.join(', ')}"
 
           Map gateResult =
               octaneSuiteGate(
                   serverId: 'octane-prod',
                   suiteRunId: suiteRunIds.join(','),
                   criteria:
-                      '(executionRate == 100 AND passRate >= 95) OR (critical.passRate == 100)',
+                      '(executionRate == 100 AND passRate >= 95) '
+                          + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
                   scopes: [
                     octaneGateScope(
                         name: 'critical',
-                        query: criticalScopeQuery)
+                        suiteRunId: criticalSuiteRunIds.join(','))
                   ],
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
@@ -66,7 +68,11 @@ pipeline {
           echo "Octane gate passed for suite run(s) ${gateResult.suiteRunIds.join(', ')}"
           echo "Execution rate: ${gateResult.metrics.executionRate}"
           echo "Pass rate: ${gateResult.metrics.passRate}"
+          echo "Critical scope execution rate: ${gateResult.scopes.critical.executionRate}"
           echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
+          echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"
+          def criticalChildRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
+          echo "Critical scope child run IDs: ${criticalChildRunIds}"
         }
       }
     }
