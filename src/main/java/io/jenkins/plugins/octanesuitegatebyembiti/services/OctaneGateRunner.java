@@ -101,26 +101,10 @@ public class OctaneGateRunner {
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
     Map<String, GateScopeResult> scopedResults = new LinkedHashMap<>();
     for (OctaneGateScope scope : request.getScopes()) {
-      List<RunRecord> scopedRuns;
-      try {
-        scopedRuns =
-            client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
-      } catch (IOException e) {
-        throw new AbortException(
-            "ALM Octane scope '"
-                + scope.getName()
-                + "' query failed: "
-                + scope.getQuery()
-                + ". "
-                + scopeQueryHint(scope)
-                + e.getMessage());
-      }
-      GateMetrics metrics = GateMetrics.fromRuns(scopedRuns, classifier);
-      scopedMetrics.put(scope.getName(), metrics);
-      scopedResults.put(
-          scope.getName(),
-          new GateScopeResult(
-              scope.getName(), scope.getQuery(), scope.getReferencedIds(), metrics, scopedRuns));
+      GateScopeResult scopeResult =
+          pollScope(client, sharedSpaceId, workspaceId, childRunIds, classifier, scope);
+      scopedMetrics.put(scope.getName(), scopeResult.getMetrics());
+      scopedResults.put(scope.getName(), scopeResult);
     }
 
     MetricsContext metricsContext = new MetricsContext(globalMetrics, scopedMetrics);
@@ -138,6 +122,48 @@ public class OctaneGateRunner {
         suiteRuns,
         scopedResults,
         clock.instant());
+  }
+
+  private GateScopeResult pollScope(
+      OctaneClient client,
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> childRunIds,
+      StatusClassifier classifier,
+      OctaneGateScope scope)
+      throws IOException, InterruptedException {
+    if (scope.isSuiteRunScope()) {
+      Map<String, List<RunRecord>> scopeSuiteRuns =
+          fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, scope.getSuiteRunIds());
+      List<RunRecord> scopeRuns = flattenAndDedupeRuns(scopeSuiteRuns);
+      GateMetrics metrics = GateMetrics.fromRuns(scopeRuns, classifier);
+      return new GateScopeResult(
+          scope.getName(),
+          "",
+          List.of(),
+          scope.getSuiteRunId(),
+          scope.getSuiteRunIds(),
+          metrics,
+          scopeRuns,
+          scopeSuiteRuns);
+    }
+
+    List<RunRecord> scopedRuns;
+    try {
+      scopedRuns = client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
+    } catch (IOException e) {
+      throw new AbortException(
+          "ALM Octane scope '"
+              + scope.getName()
+              + "' query failed: "
+              + scope.getQuery()
+              + ". "
+              + scopeQueryHint(scope)
+              + e.getMessage());
+    }
+    GateMetrics metrics = GateMetrics.fromRuns(scopedRuns, classifier);
+    return new GateScopeResult(
+        scope.getName(), scope.getQuery(), scope.getReferencedIds(), metrics, scopedRuns);
   }
 
   private Map<String, List<RunRecord>> fetchSuiteChildRuns(
@@ -174,6 +200,30 @@ public class OctaneGateRunner {
     }
     if (request.getSuiteRunIds().isEmpty()) {
       throw new AbortException("At least one Octane suite run ID is required.");
+    }
+    for (OctaneGateScope scope : request.getScopes()) {
+      validateScope(scope);
+    }
+  }
+
+  private void validateScope(OctaneGateScope scope) throws AbortException {
+    if (Util.isBlank(scope.getName())) {
+      throw new AbortException("Octane scope name is required.");
+    }
+
+    boolean hasSuiteRunIds = scope.isSuiteRunScope();
+    boolean hasQuery = scope.isQueryScope();
+    if (!hasSuiteRunIds && !hasQuery) {
+      throw new AbortException(
+          "Octane scope '"
+              + scope.getName()
+              + "' must define suite run ID(s) or an Octane query.");
+    }
+    if (hasSuiteRunIds && hasQuery) {
+      throw new AbortException(
+          "Octane scope '"
+              + scope.getName()
+              + "' must define either suite run ID(s) or an Octane query, not both.");
     }
   }
 

@@ -11,10 +11,11 @@ flow, Octane API calls, metrics model, and criteria evaluation behavior.
 ```groovy
 octaneSuiteGate(
   serverId: 'octane-prod',
-  suiteRunId: '1196,1200',
-  criteria: '100% execution AND 95% pass OR critical.passRate == 100%',
+  suiteRunId: '1196,1200,1204',
+  criteria: '(executionRate == 100 AND passRate >= 95) '
+      + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
   scopes: [
-    octaneGateScope(name: 'critical', query: 'test={((product_areas={id=1004||id=1005}))}')
+    octaneGateScope(name: 'critical', suiteRunId: '1204,1210')
   ],
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
@@ -22,32 +23,29 @@ octaneSuiteGate(
 )
 ```
 
-Scope queries are ALM Octane REST API query fragments that the plugin applies to the suite
-run's child runs. To filter runs by a test's application module, use the `product_areas`
-relationship on `test`. Replace `1004` and `1005` with the product area/application module
-IDs from your workspace. You can list product areas with:
-
-```text
-GET https://your-octane-host/api/shared_spaces/<space_id>/workspaces/<workspace_id>/product_areas?fields=id,name
-```
-
 When `suiteRunId` contains multiple IDs, the plugin polls each suite run and combines their
-child runs into one global metric set. When one scope query contains multiple product area IDs,
-for example `id=1004||id=1005`, Octane returns the union of matching child runs and the plugin
-stores the combined metrics under that scope name. Criteria such as `critical.passRate == 100`
-therefore evaluates against the combined `critical` scope, not each product area individually.
-Create separate scope names if each product area needs its own criteria term.
+child runs into one global metric set. A scope can also name suite run IDs. The plugin polls
+those suite runs independently and stores their combined child-run metrics under that scope
+name. If a suite run appears in both the global `suiteRunId` value and a scoped `suiteRunId`,
+it contributes to both metric sets.
 The Pipeline return map includes `suiteRunIds`, `metrics`, and `scopes`; for example,
-`gateResult.scopes.critical.passRate` is the combined pass rate for every run matched by
-the `critical` scope query. The return map also includes `scopeDetails`, `runs`, and
+`gateResult.scopes.critical.passRate` is the combined pass rate for every child run in
+the critical suite runs. The return map also includes `scopeDetails`, `runs`, and
 `suiteRuns` so logs and Pipeline code can inspect the IDs and statuses that fed each metric
-bucket. For example, `gateResult.scopeDetails.critical.queryIds` contains the IDs parsed from
-the critical scope query, and `gateResult.scopeDetails.critical.runIds` contains the Octane
-run IDs that matched the scope.
+bucket. For example, `gateResult.scopeDetails.critical.suiteRunIds` contains the critical
+suite run IDs, and `gateResult.scopeDetails.critical.runIds` contains the Octane child run IDs
+that fed the critical metrics.
 
 Build logs print the same separation: configured suite run IDs, each suite run's child-run
-statuses, each scope's query IDs, each scope's matched run statuses, and whether the configured
-criteria evaluated to true on that poll.
+statuses, each suite-run-backed scope's suite run IDs and child statuses, and whether the
+configured criteria evaluated to true on that poll.
+
+Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API
+query fragments applied to the global suite runs' child runs:
+
+```groovy
+octaneGateScope(name: 'legacyArea', query: 'test={((product_areas={id=1004}))}')
+```
 
 Configure Octane servers from **Manage Jenkins > System**. Store Octane API keys as
 Jenkins username/password credentials, with the username as `client_id` and the password as
@@ -123,7 +121,7 @@ octaneSuiteGate(
 
 Examples with a manual `input` confirmation before the Octane gate:
 
-- [examples/Jenkinsfile](examples/Jenkinsfile): uses a `critical` product-area scope.
+- [examples/Jenkinsfile](examples/Jenkinsfile): uses a `critical` suite-run scope.
 - [examples/Jenkinsfile2](examples/Jenkinsfile2): uses only global suite metrics, with no scope.
 
 ## Local Development

@@ -14,6 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 public class OctaneGateScope extends AbstractDescribableImpl<OctaneGateScope>
@@ -23,12 +24,17 @@ public class OctaneGateScope extends AbstractDescribableImpl<OctaneGateScope>
       Pattern.compile("(?i)\\bid\\s*(?:=|EQ)\\s*([A-Za-z0-9_.:-]+)");
 
   private final String name;
-  private final String query;
+  private String query = "";
+  private String suiteRunId = "";
 
   @DataBoundConstructor
-  public OctaneGateScope(String name, String query) {
+  public OctaneGateScope(String name) {
     this.name = Util.trimToEmpty(name);
-    this.query = Util.trimToEmpty(query);
+  }
+
+  public OctaneGateScope(String name, String query) {
+    this(name);
+    setQuery(query);
   }
 
   public String getName() {
@@ -37,6 +43,32 @@ public class OctaneGateScope extends AbstractDescribableImpl<OctaneGateScope>
 
   public String getQuery() {
     return query;
+  }
+
+  @DataBoundSetter
+  public void setQuery(String query) {
+    this.query = Util.trimToEmpty(query);
+  }
+
+  public String getSuiteRunId() {
+    return suiteRunId;
+  }
+
+  @DataBoundSetter
+  public void setSuiteRunId(String suiteRunId) {
+    this.suiteRunId = Util.trimToEmpty(suiteRunId);
+  }
+
+  public List<String> getSuiteRunIds() {
+    return Util.splitIdList(suiteRunId);
+  }
+
+  public boolean isQueryScope() {
+    return !Util.isBlank(query);
+  }
+
+  public boolean isSuiteRunScope() {
+    return !getSuiteRunIds().isEmpty();
   }
 
   public List<String> getReferencedIds() {
@@ -63,9 +95,24 @@ public class OctaneGateScope extends AbstractDescribableImpl<OctaneGateScope>
       return FormValidation.ok();
     }
 
-    public FormValidation doCheckQuery(@QueryParameter String value) {
-      if (Util.isBlank(value)) {
-        return FormValidation.error("Octane query is required.");
+    public FormValidation doCheckSuiteRunId(
+        @QueryParameter String value, @QueryParameter String query) {
+      return checkScopeSource(value, query);
+    }
+
+    public FormValidation doCheckQuery(
+        @QueryParameter String value, @QueryParameter String suiteRunId) {
+      return checkScopeSource(suiteRunId, value);
+    }
+
+    private FormValidation checkScopeSource(String suiteRunId, String query) {
+      boolean hasSuiteRunId = !Util.splitIdList(suiteRunId).isEmpty();
+      boolean hasQuery = !Util.isBlank(query);
+      if (!hasSuiteRunId && !hasQuery) {
+        return FormValidation.error("Either suite run ID(s) or an Octane query is required.");
+      }
+      if (hasSuiteRunId && hasQuery) {
+        return FormValidation.error("Use either suite run ID(s) or an Octane query, not both.");
       }
       return FormValidation.ok();
     }

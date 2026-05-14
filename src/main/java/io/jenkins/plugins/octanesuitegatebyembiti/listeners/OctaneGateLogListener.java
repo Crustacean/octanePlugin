@@ -30,11 +30,19 @@ public class OctaneGateLogListener {
     }
 
     for (OctaneGateScope scope : request.getScopes()) {
-      listener
-          .getLogger()
-          .printf(
-              "Octane gate scope '%s' query IDs: %s. Query: %s%n",
-              scope.getName(), describeIds(scope.getReferencedIds()), scope.getQuery());
+      if (scope.isSuiteRunScope()) {
+        listener
+            .getLogger()
+            .printf(
+                "Octane gate scope '%s' suite run IDs: %s.%n",
+                scope.getName(), describeIds(scope.getSuiteRunIds()));
+      } else {
+        listener
+            .getLogger()
+            .printf(
+                "Octane gate scope '%s' query IDs: %s. Query: %s%n",
+                scope.getName(), describeIds(scope.getReferencedIds()), scope.getQuery());
+      }
     }
   }
 
@@ -64,27 +72,7 @@ public class OctaneGateLogListener {
     }
 
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
-      GateMetrics scopeMetrics = scopeResult.getMetrics();
-      listener
-          .getLogger()
-          .printf(
-              "Octane scope '%s' query IDs %s metrics: execution %.2f%%, pass %.2f%%,"
-                  + " total %d, executed %d, passed %d, failed %d, skipped %d, running %d.%n",
-              scopeResult.getName(),
-              describeIds(scopeResult.getQueryIds()),
-              scopeMetrics.getExecutionRate(),
-              scopeMetrics.getPassRate(),
-              scopeMetrics.getTotal(),
-              scopeMetrics.getExecuted(),
-              scopeMetrics.getPassed(),
-              scopeMetrics.getFailed(),
-              scopeMetrics.getSkipped(),
-              scopeMetrics.getRunning());
-      listener
-          .getLogger()
-          .printf(
-              "Octane scope '%s' matched run statuses: %s%n",
-              scopeResult.getName(), describeRuns(scopeResult.getRuns()));
+      logScopeResult(listener, scopeResult);
     }
 
     listener
@@ -96,6 +84,56 @@ public class OctaneGateLogListener {
 
   public void logPassed(TaskListener listener) {
     listener.getLogger().println("ALM Octane suite gate passed.");
+  }
+
+  private void logScopeResult(TaskListener listener, GateScopeResult scopeResult) {
+    GateMetrics scopeMetrics = scopeResult.getMetrics();
+    if (scopeResult.isSuiteRunScope()) {
+      listener
+          .getLogger()
+          .printf(
+              "Octane scope '%s' suite run IDs %s metrics: execution %.2f%%, pass %.2f%%,"
+                  + " total %d, executed %d, passed %d, failed %d, skipped %d, running %d.%n",
+              scopeResult.getName(),
+              describeIds(scopeResult.getSuiteRunIds()),
+              scopeMetrics.getExecutionRate(),
+              scopeMetrics.getPassRate(),
+              scopeMetrics.getTotal(),
+              scopeMetrics.getExecuted(),
+              scopeMetrics.getPassed(),
+              scopeMetrics.getFailed(),
+              scopeMetrics.getSkipped(),
+              scopeMetrics.getRunning());
+      for (Map.Entry<String, List<RunRecord>> entry : scopeResult.getSuiteRuns().entrySet()) {
+        listener
+            .getLogger()
+            .printf(
+                "Octane scope '%s' suite run %s child run statuses: %s%n",
+                scopeResult.getName(), entry.getKey(), describeRuns(entry.getValue()));
+      }
+      return;
+    }
+
+    listener
+        .getLogger()
+        .printf(
+            "Octane scope '%s' query IDs %s metrics: execution %.2f%%, pass %.2f%%,"
+                + " total %d, executed %d, passed %d, failed %d, skipped %d, running %d.%n",
+            scopeResult.getName(),
+            describeIds(scopeResult.getQueryIds()),
+            scopeMetrics.getExecutionRate(),
+            scopeMetrics.getPassRate(),
+            scopeMetrics.getTotal(),
+            scopeMetrics.getExecuted(),
+            scopeMetrics.getPassed(),
+            scopeMetrics.getFailed(),
+            scopeMetrics.getSkipped(),
+            scopeMetrics.getRunning());
+    listener
+        .getLogger()
+        .printf(
+            "Octane scope '%s' matched run statuses: %s%n",
+            scopeResult.getName(), describeRuns(scopeResult.getRuns()));
   }
 
   private String describeIds(List<String> ids) {

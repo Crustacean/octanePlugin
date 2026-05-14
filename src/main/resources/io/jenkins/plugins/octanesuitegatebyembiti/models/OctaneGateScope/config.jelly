@@ -3,6 +3,9 @@
   <f:entry title="Name" field="name">
     <f:textbox />
   </f:entry>
+  <f:entry title="Suite run ID(s)" field="suiteRunId">
+    <f:textbox />
+  </f:entry>
   <f:entry title="Octane query" field="query">
     <f:textarea />
   </f:entry>

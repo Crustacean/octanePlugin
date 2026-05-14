@@ -78,6 +78,60 @@ public class CriteriaExpressionTest {
     assertTrue(CriteriaExpression.parse("payments.passRate == 50").evaluate(context));
   }
 
+  @Test
+  public void evaluatesGlobalAndCriticalSuiteRunMetricsIndependently() {
+    Map<String, GateMetrics> scopes = new LinkedHashMap<>();
+    scopes.put(
+        "critical",
+        GateMetrics.fromRuns(
+            List.of(
+                new RunRecord("450304", "overlap critical child", "passed"),
+                new RunRecord("450205", "critical child", "passed")),
+            classifier));
+    MetricsContext context =
+        new MetricsContext(
+            GateMetrics.fromRuns(
+                List.of(
+                    new RunRecord("450298", "normal child", "passed"),
+                    new RunRecord("450299", "normal child", "passed"),
+                    new RunRecord("450304", "overlap critical child", "passed")),
+                classifier),
+            scopes);
+
+    assertTrue(
+        CriteriaExpression.parse(
+                "(executionRate == 100 AND passRate >= 95) "
+                    + "AND (critical.executionRate == 100 AND critical.passRate == 100)")
+            .evaluate(context));
+  }
+
+  @Test
+  public void criticalSuiteRunMetricsCanKeepCriteriaFalse() {
+    Map<String, GateMetrics> scopes = new LinkedHashMap<>();
+    scopes.put(
+        "critical",
+        GateMetrics.fromRuns(
+            List.of(
+                new RunRecord("450304", "overlap critical child", "passed"),
+                new RunRecord("450205", "critical child", "planned")),
+            classifier));
+    MetricsContext context =
+        new MetricsContext(
+            GateMetrics.fromRuns(
+                List.of(
+                    new RunRecord("450298", "normal child", "passed"),
+                    new RunRecord("450299", "normal child", "passed"),
+                    new RunRecord("450304", "overlap critical child", "passed")),
+                classifier),
+            scopes);
+
+    assertFalse(
+        CriteriaExpression.parse(
+                "(executionRate == 100 AND passRate >= 95) "
+                    + "AND (critical.executionRate == 100 AND critical.passRate == 100)")
+            .evaluate(context));
+  }
+
   @Test(expected = CriteriaException.class)
   public void rejectsUnknownMetrics() {
     CriteriaExpression.parse("unknownMetric >= 10").evaluate(context(List.of()));

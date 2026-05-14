@@ -13,16 +13,34 @@ public class GateScopeResult implements Serializable {
   private final String name;
   private final String query;
   private final List<String> queryIds;
+  private final String suiteRunId;
+  private final List<String> suiteRunIds;
   private final GateMetrics metrics;
   private final List<RunRecord> runs;
+  private final Map<String, List<RunRecord>> suiteRuns;
 
   public GateScopeResult(
       String name, String query, List<String> queryIds, GateMetrics metrics, List<RunRecord> runs) {
+    this(name, query, queryIds, "", List.of(), metrics, runs, Map.of());
+  }
+
+  public GateScopeResult(
+      String name,
+      String query,
+      List<String> queryIds,
+      String suiteRunId,
+      List<String> suiteRunIds,
+      GateMetrics metrics,
+      List<RunRecord> runs,
+      Map<String, List<RunRecord>> suiteRuns) {
     this.name = name;
     this.query = query;
     this.queryIds = List.copyOf(queryIds);
+    this.suiteRunId = suiteRunId;
+    this.suiteRunIds = List.copyOf(suiteRunIds);
     this.metrics = metrics;
     this.runs = List.copyOf(runs);
+    this.suiteRuns = copySuiteRuns(suiteRuns);
   }
 
   public String getName() {
@@ -37,6 +55,14 @@ public class GateScopeResult implements Serializable {
     return queryIds;
   }
 
+  public String getSuiteRunId() {
+    return suiteRunId;
+  }
+
+  public List<String> getSuiteRunIds() {
+    return suiteRunIds;
+  }
+
   public GateMetrics getMetrics() {
     return metrics;
   }
@@ -45,11 +71,21 @@ public class GateScopeResult implements Serializable {
     return runs;
   }
 
+  public Map<String, List<RunRecord>> getSuiteRuns() {
+    return copySuiteRuns(suiteRuns);
+  }
+
+  public boolean isSuiteRunScope() {
+    return !suiteRunIds.isEmpty();
+  }
+
   public Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("name", name);
     values.put("query", query);
     values.put("queryIds", queryIds);
+    values.put("suiteRunId", suiteRunId);
+    values.put("suiteRunIds", suiteRunIds);
     values.put("metrics", metrics.toMap());
     values.put("runIds", runs.stream().map(RunRecord::getId).toList());
 
@@ -58,6 +94,32 @@ public class GateScopeResult implements Serializable {
       runMaps.add(run.toMap());
     }
     values.put("runs", runMaps);
+    values.put("suiteRuns", toSuiteRunMaps(suiteRuns));
     return values;
+  }
+
+  private static Map<String, List<RunRecord>> copySuiteRuns(
+      Map<String, List<RunRecord>> suiteRuns) {
+    Map<String, List<RunRecord>> copy = new LinkedHashMap<>();
+    for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
+      copy.put(entry.getKey(), List.copyOf(entry.getValue()));
+    }
+    return copy;
+  }
+
+  private static Map<String, Object> toSuiteRunMaps(Map<String, List<RunRecord>> suiteRuns) {
+    Map<String, Object> suiteRunMaps = new LinkedHashMap<>();
+    for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
+      suiteRunMaps.put(entry.getKey(), toRunMaps(entry.getValue()));
+    }
+    return suiteRunMaps;
+  }
+
+  private static List<Map<String, Object>> toRunMaps(List<RunRecord> runs) {
+    List<Map<String, Object>> runMaps = new ArrayList<>();
+    for (RunRecord run : runs) {
+      runMaps.add(run.toMap());
+    }
+    return runMaps;
   }
 }
