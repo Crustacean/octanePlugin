@@ -13,6 +13,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListene
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
@@ -25,6 +26,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import jenkins.model.Jenkins;
 
@@ -54,7 +56,7 @@ public class OctaneGateRunner {
     Instant deadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
     List<String> suiteRunIds = request.getSuiteRunIds();
 
-    logListener.logWaiting(listener, suiteRunIds);
+    logListener.logWaiting(listener, request, suiteRunIds);
 
     try (OctaneClient client =
         new OctaneClient(
@@ -90,12 +92,14 @@ public class OctaneGateRunner {
       CriteriaExpression criteria,
       StatusClassifier classifier)
       throws IOException, InterruptedException {
-    List<RunRecord> childRuns =
+    Map<String, List<RunRecord>> suiteRuns =
         fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, suiteRunIds);
+    List<RunRecord> childRuns = flattenAndDedupeRuns(suiteRuns);
     GateMetrics globalMetrics = GateMetrics.fromRuns(childRuns, classifier);
     List<String> childRunIds = childRuns.stream().map(RunRecord::getId).toList();
 
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
+    Map<String, GateScopeResult> scopedResults = new LinkedHashMap<>();
     for (OctaneGateScope scope : request.getScopes()) {
       List<RunRecord> scopedRuns;
       try {
@@ -108,9 +112,15 @@ public class OctaneGateRunner {
                 + "' query failed: "
                 + scope.getQuery()
                 + ". "
+                + scopeQueryHint(scope)
                 + e.getMessage());
       }
-      scopedMetrics.put(scope.getName(), GateMetrics.fromRuns(scopedRuns, classifier));
+      GateMetrics metrics = GateMetrics.fromRuns(scopedRuns, classifier);
+      scopedMetrics.put(scope.getName(), metrics);
+      scopedResults.put(
+          scope.getName(),
+          new GateScopeResult(
+              scope.getName(), scope.getQuery(), scope.getReferencedIds(), metrics, scopedRuns));
     }
 
     MetricsContext metricsContext = new MetricsContext(globalMetrics, scopedMetrics);
@@ -124,20 +134,38 @@ public class OctaneGateRunner {
         passed,
         terminal,
         globalMetrics,
-        scopedMetrics,
+        childRuns,
+        suiteRuns,
+        scopedResults,
         clock.instant());
   }
 
-  private List<RunRecord> fetchSuiteChildRuns(
+  private Map<String, List<RunRecord>> fetchSuiteChildRuns(
       OctaneClient client, String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
       throws IOException, InterruptedException {
-    Map<String, RunRecord> recordsById = new LinkedHashMap<>();
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
     for (String suiteRunId : suiteRunIds) {
-      for (RunRecord record : client.fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunId)) {
+      suiteRuns.put(suiteRunId, client.fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunId));
+    }
+    return suiteRuns;
+  }
+
+  private List<RunRecord> flattenAndDedupeRuns(Map<String, List<RunRecord>> suiteRuns) {
+    Map<String, RunRecord> recordsById = new LinkedHashMap<>();
+    for (List<RunRecord> records : suiteRuns.values()) {
+      for (RunRecord record : records) {
         recordsById.putIfAbsent(record.getId(), record);
       }
     }
     return new ArrayList<>(recordsById.values());
+  }
+
+  private String scopeQueryHint(OctaneGateScope scope) {
+    String query = scope.getQuery().toLowerCase(Locale.ROOT);
+    if (query.contains("product_area") && !query.contains("product_areas")) {
+      return "Use product_areas for Octane test product-area filters. ";
+    }
+    return "";
   }
 
   private void validateRequest(GateRequest request) throws AbortException {

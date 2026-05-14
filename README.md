@@ -39,7 +39,15 @@ therefore evaluates against the combined `critical` scope, not each product area
 Create separate scope names if each product area needs its own criteria term.
 The Pipeline return map includes `suiteRunIds`, `metrics`, and `scopes`; for example,
 `gateResult.scopes.critical.passRate` is the combined pass rate for every run matched by
-the `critical` scope query.
+the `critical` scope query. The return map also includes `scopeDetails`, `runs`, and
+`suiteRuns` so logs and Pipeline code can inspect the IDs and statuses that fed each metric
+bucket. For example, `gateResult.scopeDetails.critical.queryIds` contains the IDs parsed from
+the critical scope query, and `gateResult.scopeDetails.critical.runIds` contains the Octane
+run IDs that matched the scope.
+
+Build logs print the same separation: configured suite run IDs, each suite run's child-run
+statuses, each scope's query IDs, each scope's matched run statuses, and whether the configured
+criteria evaluated to true on that poll.
 
 Configure Octane servers from **Manage Jenkins > System**. Store Octane API keys as
 Jenkins username/password credentials, with the username as `client_id` and the password as

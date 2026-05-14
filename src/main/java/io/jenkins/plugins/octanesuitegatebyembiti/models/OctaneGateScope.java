@@ -6,6 +6,12 @@ import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -13,6 +19,8 @@ import org.kohsuke.stapler.QueryParameter;
 public class OctaneGateScope extends AbstractDescribableImpl<OctaneGateScope>
     implements Serializable {
   private static final long serialVersionUID = 1L;
+  private static final Pattern ID_CONDITION =
+      Pattern.compile("(?i)\\bid\\s*(?:=|EQ)\\s*([A-Za-z0-9_.:-]+)");
 
   private final String name;
   private final String query;
@@ -29,6 +37,15 @@ public class OctaneGateScope extends AbstractDescribableImpl<OctaneGateScope>
 
   public String getQuery() {
     return query;
+  }
+
+  public List<String> getReferencedIds() {
+    Set<String> ids = new LinkedHashSet<>();
+    Matcher matcher = ID_CONDITION.matcher(query);
+    while (matcher.find()) {
+      ids.add(matcher.group(1));
+    }
+    return new ArrayList<>(ids);
   }
 
   @Extension

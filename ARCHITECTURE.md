@@ -236,6 +236,8 @@ the plugin:
 2. Fetches child runs for each suite run.
 3. Deduplicates child runs by run ID.
 4. Computes one global `GateMetrics` object from the combined child runs.
+5. Keeps the child-run status list grouped by the original suite run ID for
+   build-log and Pipeline-result diagnostics.
 
 The Pipeline return map includes both:
 
@@ -258,6 +260,11 @@ octaneGateScope(
 For this scope, the plugin fetches child runs whose related test belongs to
 product area `1004` or `1005`. The matching runs are combined into one metrics
 bucket named `critical`.
+
+The scope query IDs and matched run statuses are tracked separately from the
+global suite-run metrics. The `critical` scope therefore has its own metrics and
+status list, while the global metrics still represent all child runs from the
+configured suite run IDs.
 
 Criteria references the bucket by name:
 
@@ -344,6 +351,36 @@ receives a map shaped like:
       passRate: 100.0,
       failRate: 0.0
     ]
+  ],
+  scopeDetails: [
+    critical: [
+      name: 'critical',
+      query: 'test={((product_areas={id=1004||id=1005}))}',
+      queryIds: ['1004', '1005'],
+      runIds: ['101', '102', '103', '104'],
+      metrics: [
+        total: 4,
+        executed: 4,
+        passed: 4,
+        failed: 0,
+        skipped: 0,
+        running: 0,
+        executionRate: 100.0,
+        passRate: 100.0,
+        failRate: 0.0
+      ],
+      runs: [
+        [id: '101', name: 'critical api', status: 'passed']
+      ]
+    ]
+  ],
+  suiteRuns: [
+    '1196': [
+      [id: '101', name: 'critical api', status: 'passed']
+    ],
+    '1200': [
+      [id: '104', name: 'critical ui', status: 'passed']
+    ]
   ]
 ]
 ```
@@ -372,6 +409,7 @@ containing API secrets are not logged.
 | `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
 | `repositories.OctaneClient` | Low-level authenticated Octane REST client. |
 | `models.GateMetrics` | Global or scoped computed run metrics. |
+| `models.GateScopeResult` | Scoped query IDs, matched run statuses, and scoped metrics. |
 | `models.MetricsContext` | Resolves global and scoped metrics during criteria evaluation. |
 | `services.CriteriaExpression` | Safe criteria parser and evaluator. |
 | `models.GateResult` | Pipeline result map model. |

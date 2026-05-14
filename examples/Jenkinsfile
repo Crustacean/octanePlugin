@@ -22,7 +22,9 @@ pipeline {
     stage('Approve Octane Gate') {
       steps {
         input(
-            message: "Continue and wait for ALM Octane suite run(s) ${env.OCTANE_SUITE_RUN_ID}?",
+            message:
+                "Continue and wait for ALM Octane suite run(s) ${env.OCTANE_SUITE_RUN_ID}"
+                    + " with critical product area(s) ${env.OCTANE_CRITICAL_PRODUCT_AREA_ID}?",
             ok: 'Wait for Octane')
       }
     }
@@ -48,6 +50,10 @@ pipeline {
               criticalProductAreaIds.collect { "id=${it}" }.join('||')
           def criticalScopeQuery = "test={((product_areas={${criticalProductAreaFilter}}))}"
 
+          echo "Octane suite run IDs: ${suiteRunIds.join(', ')}"
+          echo "Octane critical product area IDs: ${criticalProductAreaIds.join(', ')}"
+          echo "Octane critical scope query: ${criticalScopeQuery}"
+
           Map gateResult =
               octaneSuiteGate(
                   serverId: 'octane-prod',
@@ -67,6 +73,9 @@ pipeline {
           echo "Execution rate: ${gateResult.metrics.executionRate}"
           echo "Pass rate: ${gateResult.metrics.passRate}"
           echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
+          echo "Critical scope query IDs: ${gateResult.scopeDetails.critical.queryIds.join(', ')}"
+          def criticalMatchedRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
+          echo "Critical scope matched run IDs: ${criticalMatchedRunIds}"
         }
       }
     }

@@ -2,6 +2,8 @@ package io.jenkins.plugins.octanesuitegatebyembiti.entities;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class RunRecord implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -26,5 +28,13 @@ public class RunRecord implements Serializable {
 
   public String getStatus() {
     return status;
+  }
+
+  public Map<String, Object> toMap() {
+    Map<String, Object> values = new LinkedHashMap<>();
+    values.put("id", id);
+    values.put("name", name);
+    values.put("status", status);
+    return values;
   }
 }
