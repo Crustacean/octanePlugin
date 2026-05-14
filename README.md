@@ -45,6 +45,9 @@ Global suite runs: 450312, 450309
 Critical suite runs: 450306
 Global suite runs: execution 0.00%, pass 0.00%, total 4, executed 0, passed 0, failed 0, skipped 0, running 4.
 Critical suite runs: execution 100.00%, pass 100.00%, total 2, executed 2, passed 2, failed 0, skipped 0, running 0.
+
+Global suite runs: execution 50.00%, pass 100.00%, total 4, executed 2, passed 2, failed 0, skipped 0, running 2.
+Critical suite runs: execution 100.00%, pass 100.00%, total 2, executed 2, passed 2, failed 0, skipped 0, running 0.
 ```
 
 Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API

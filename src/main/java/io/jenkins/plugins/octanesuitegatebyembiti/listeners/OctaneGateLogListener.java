@@ -57,6 +57,7 @@ public class OctaneGateLogListener {
             scopeResult.getMetrics());
       }
     }
+    listener.getLogger().println();
   }
 
   public void logPassed(TaskListener listener) {
