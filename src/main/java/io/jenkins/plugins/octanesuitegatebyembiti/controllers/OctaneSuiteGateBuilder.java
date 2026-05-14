@@ -1,4 +1,4 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import hudson.AbortException;
 import hudson.EnvVars;
@@ -13,6 +13,10 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;

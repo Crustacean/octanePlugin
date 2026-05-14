@@ -1,4 +1,4 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.configs;
 
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
@@ -10,6 +10,8 @@ import hudson.model.Descriptor;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;

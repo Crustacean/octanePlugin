@@ -1,4 +1,4 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.configs;
 
 import hudson.Extension;
 import hudson.util.ListBoxModel;

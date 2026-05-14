@@ -1,8 +1,12 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

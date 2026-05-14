@@ -1,29 +1,30 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.entities;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 
-class RunRecord implements Serializable {
+public class RunRecord implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private final String id;
   private final String name;
   private final String status;
 
-  RunRecord(String id, String name, String status) {
+  public RunRecord(String id, String name, String status) {
     this.id = Util.trimToEmpty(id);
     this.name = Util.trimToEmpty(name);
     this.status = Util.trimToEmpty(status);
   }
 
-  String getId() {
+  public String getId() {
     return id;
   }
 
-  String getName() {
+  public String getName() {
     return name;
   }
 
-  String getStatus() {
+  public String getStatus() {
     return status;
   }
 }

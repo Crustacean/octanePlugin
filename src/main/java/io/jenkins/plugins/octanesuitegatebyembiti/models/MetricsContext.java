@@ -1,21 +1,23 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaException;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-class MetricsContext implements Serializable {
+public class MetricsContext implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private final GateMetrics globalMetrics;
   private final Map<String, GateMetrics> scopes;
 
-  MetricsContext(GateMetrics globalMetrics, Map<String, GateMetrics> scopes) {
+  public MetricsContext(GateMetrics globalMetrics, Map<String, GateMetrics> scopes) {
     this.globalMetrics = globalMetrics;
     this.scopes = new LinkedHashMap<>(scopes);
   }
 
-  double value(String metricReference) {
+  public double value(String metricReference) {
     String trimmed = Util.trimToEmpty(metricReference);
     int dot = trimmed.indexOf('.');
     if (dot < 0) {

@@ -1,18 +1,19 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
-class StatusClassifier implements Serializable {
+public class StatusClassifier implements Serializable {
   private static final long serialVersionUID = 1L;
 
-  static final String DEFAULT_PASSED_STATUSES = "passed,list_node.run_native_status.passed";
-  static final String DEFAULT_FAILED_STATUSES =
+  public static final String DEFAULT_PASSED_STATUSES = "passed,list_node.run_native_status.passed";
+  public static final String DEFAULT_FAILED_STATUSES =
       "failed,blocked,error,list_node.run_native_status.failed";
-  static final String DEFAULT_NEUTRAL_STATUSES =
+  public static final String DEFAULT_NEUTRAL_STATUSES =
       "skipped,not_completed,list_node.run_native_status.skipped";
-  static final String DEFAULT_RUNNING_STATUSES =
+  public static final String DEFAULT_RUNNING_STATUSES =
       "planned,in_progress,running,list_node.run_native_status.planned";
 
   private final Set<String> passedStatuses;
@@ -20,7 +21,7 @@ class StatusClassifier implements Serializable {
   private final Set<String> neutralStatuses;
   private final Set<String> runningStatuses;
 
-  StatusClassifier(
+  public StatusClassifier(
       String passedStatuses,
       String failedStatuses,
       String neutralStatuses,

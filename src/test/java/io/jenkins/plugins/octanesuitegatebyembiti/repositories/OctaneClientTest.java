@@ -1,4 +1,4 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import hudson.AbortException;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;

@@ -1,5 +1,8 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaException;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,7 +18,7 @@ public class GateMetrics implements Serializable {
   private final int skipped;
   private final int running;
 
-  GateMetrics(int total, int executed, int passed, int failed, int skipped, int running) {
+  public GateMetrics(int total, int executed, int passed, int failed, int skipped, int running) {
     this.total = total;
     this.executed = executed;
     this.passed = passed;
@@ -24,7 +27,7 @@ public class GateMetrics implements Serializable {
     this.running = running;
   }
 
-  static GateMetrics fromRuns(List<RunRecord> runs, StatusClassifier classifier) {
+  public static GateMetrics fromRuns(List<RunRecord> runs, StatusClassifier classifier) {
     int passed = 0;
     int failed = 0;
     int skipped = 0;

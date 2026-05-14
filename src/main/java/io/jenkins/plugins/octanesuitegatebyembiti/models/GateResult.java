@@ -1,5 +1,6 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -17,7 +18,7 @@ public class GateResult implements Serializable {
   private final Map<String, GateMetrics> scopedMetrics;
   private final Instant polledAt;
 
-  GateResult(
+  public GateResult(
       String suiteRunId,
       String criteria,
       boolean passed,

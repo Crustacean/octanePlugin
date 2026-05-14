@@ -1,4 +1,4 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.utils;
 
 import static org.junit.Assert.assertEquals;
 

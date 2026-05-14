@@ -1,5 +1,6 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -8,9 +9,9 @@ import java.util.List;
 public class GateRequest implements Serializable {
   private static final long serialVersionUID = 1L;
 
-  static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
-  static final int DEFAULT_TIMEOUT_MINUTES = 120;
-  static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
+  public static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
+  public static final int DEFAULT_TIMEOUT_MINUTES = 120;
+  public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
 
   private final String serverId;
   private final String suiteRunId;

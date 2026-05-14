@@ -1,5 +1,7 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +22,7 @@ public class CriteriaExpression implements Serializable {
     return parsed;
   }
 
-  boolean evaluate(MetricsContext context) {
+  public boolean evaluate(MetricsContext context) {
     return root.evaluate(context);
   }
 

@@ -1,9 +1,11 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import hudson.AbortException;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -18,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-class OctaneClient implements AutoCloseable {
+public class OctaneClient implements AutoCloseable {
   private static final int PAGE_SIZE = 200;
   private static final int QUERY_CHUNK_SIZE = 40;
   private static final int MAX_ATTEMPTS = 3;
@@ -34,19 +36,20 @@ class OctaneClient implements AutoCloseable {
   private final String clientSecret;
   private String cookieHeader = "";
 
-  OctaneClient(String baseUrl, String clientId, String clientSecret) {
+  public OctaneClient(String baseUrl, String clientId, String clientSecret) {
     this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build(), baseUrl, clientId,
         clientSecret);
   }
 
-  OctaneClient(HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
+  public OctaneClient(
+      HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
     this.httpClient = httpClient;
     this.baseUrl = Util.trimTrailingSlash(baseUrl);
     this.clientId = clientId;
     this.clientSecret = clientSecret;
   }
 
-  void authenticate() throws IOException, InterruptedException {
+  public void authenticate() throws IOException, InterruptedException {
     ObjectNode payload = objectMapper.createObjectNode();
     payload.put("client_id", clientId);
     payload.put("client_secret", clientSecret);
@@ -68,7 +71,8 @@ class OctaneClient implements AutoCloseable {
     rememberCookies(response);
   }
 
-  List<RunRecord> fetchSuiteChildRuns(String sharedSpaceId, String workspaceId, String suiteRunId)
+  public List<RunRecord> fetchSuiteChildRuns(
+      String sharedSpaceId, String workspaceId, String suiteRunId)
       throws IOException, InterruptedException {
     JsonNode suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
     List<String> runIds = parseRunsInSuite(suiteRun);
@@ -78,7 +82,7 @@ class OctaneClient implements AutoCloseable {
     return fetchRunsByIds(sharedSpaceId, workspaceId, runIds, "");
   }
 
-  List<RunRecord> fetchScopedRuns(
+  public List<RunRecord> fetchScopedRuns(
       String sharedSpaceId, String workspaceId, List<String> runIds, String scopeQuery)
       throws IOException, InterruptedException {
     if (runIds.isEmpty()) {
@@ -87,7 +91,8 @@ class OctaneClient implements AutoCloseable {
     return fetchRunsByIds(sharedSpaceId, workspaceId, runIds, scopeQuery);
   }
 
-  List<String> fetchSuiteChildRunIds(String sharedSpaceId, String workspaceId, String suiteRunId)
+  public List<String> fetchSuiteChildRunIds(
+      String sharedSpaceId, String workspaceId, String suiteRunId)
       throws IOException, InterruptedException {
     JsonNode suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
     List<String> runIds = parseRunsInSuite(suiteRun);
@@ -97,7 +102,7 @@ class OctaneClient implements AutoCloseable {
     return runIds;
   }
 
-  int testWorkspaceAccess(String sharedSpaceId, String workspaceId)
+  public int testWorkspaceAccess(String sharedSpaceId, String workspaceId)
       throws IOException, InterruptedException {
     String path =
         workspacePath(sharedSpaceId, workspaceId)

@@ -43,11 +43,22 @@ target/octane-suite-gate-by-embiti.hpi
 After installation, Jenkins discovers the plugin extensions through Jenkins
 annotations:
 
-- `OctaneSuiteGateConfiguration`: global Jenkins configuration section.
-- `OctaneServer`: repeatable Octane server configuration entries.
-- `OctaneSuiteGateStep`: Pipeline step named `octaneSuiteGate`.
-- `OctaneSuiteGateBuilder`: Freestyle build step named `ALM Octane Suite Gate`.
-- `OctaneGateScope`: nested scope object named `octaneGateScope`.
+- `configs.OctaneSuiteGateConfiguration`: global Jenkins configuration section.
+- `configs.OctaneServer`: repeatable Octane server configuration entries.
+- `controllers.OctaneSuiteGateStep`: Pipeline step named `octaneSuiteGate`.
+- `controllers.OctaneSuiteGateBuilder`: Freestyle build step named `ALM Octane Suite Gate`.
+- `models.OctaneGateScope`: nested scope object named `octaneGateScope`.
+
+The Java sources are organized under the base package into focused folders:
+
+- `configs`: global Jenkins configuration and Octane server definitions.
+- `controllers`: Pipeline and Freestyle entry points.
+- `entities`: ALM Octane API record shapes.
+- `listeners`: Jenkins build-log output helpers.
+- `models`: gate request, result, metrics, scope, and status models.
+- `repositories`: low-level ALM Octane REST API access.
+- `services`: gate orchestration and criteria evaluation.
+- `utils`: shared string and parsing helpers.
 
 ## Configuration Model
 
@@ -353,18 +364,18 @@ containing API secrets are not logged.
 
 | Class | Responsibility |
 | --- | --- |
-| `OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
-| `OctaneServer` | One configured Octane server and its validation endpoints. |
-| `OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
-| `OctaneSuiteGateBuilder` | Freestyle `ALM Octane Suite Gate` build step. |
-| `GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
-| `OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
-| `OctaneClient` | Low-level authenticated Octane REST client. |
-| `GateMetrics` | Global or scoped computed run metrics. |
-| `MetricsContext` | Resolves global and scoped metrics during criteria evaluation. |
-| `CriteriaExpression` | Safe criteria parser and evaluator. |
-| `GateResult` | Pipeline result map model. |
-| `OctaneGateScope` | Named scoped query model. |
+| `configs.OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
+| `configs.OctaneServer` | One configured Octane server and its validation endpoints. |
+| `controllers.OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
+| `controllers.OctaneSuiteGateBuilder` | Freestyle `ALM Octane Suite Gate` build step. |
+| `models.GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
+| `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
+| `repositories.OctaneClient` | Low-level authenticated Octane REST client. |
+| `models.GateMetrics` | Global or scoped computed run metrics. |
+| `models.MetricsContext` | Resolves global and scoped metrics during criteria evaluation. |
+| `services.CriteriaExpression` | Safe criteria parser and evaluator. |
+| `models.GateResult` | Pipeline result map model. |
+| `models.OctaneGateScope` | Named scoped query model. |
 
 ## Examples
 

@@ -1,8 +1,9 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import hudson.AbortException;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 
-class GateFailedException extends AbortException {
+public class GateFailedException extends AbortException {
   private static final long serialVersionUID = 1L;
 
   private final transient GateResult result;
@@ -12,7 +13,7 @@ class GateFailedException extends AbortException {
     this.result = result;
   }
 
-  GateResult getResult() {
+  public GateResult getResult() {
     return result;
   }
 }

@@ -1,18 +1,18 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.utils;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 
-final class Util {
+public final class Util {
   private Util() {}
 
-  static String trimToEmpty(String value) {
+  public static String trimToEmpty(String value) {
     return value == null ? "" : value.trim();
   }
 
-  static String trimTrailingSlash(String value) {
+  public static String trimTrailingSlash(String value) {
     String trimmed = trimToEmpty(value);
     while (trimmed.endsWith("/")) {
       trimmed = trimmed.substring(0, trimmed.length() - 1);
@@ -20,7 +20,7 @@ final class Util {
     return trimmed;
   }
 
-  static List<String> splitCsv(String value) {
+  public static List<String> splitCsv(String value) {
     String trimmed = trimToEmpty(value);
     if (trimmed.isEmpty()) {
       return Collections.emptyList();
@@ -37,7 +37,7 @@ final class Util {
     return values;
   }
 
-  static List<String> splitIdList(String value) {
+  public static List<String> splitIdList(String value) {
     String trimmed = trimToEmpty(value);
     if (trimmed.isEmpty()) {
       return Collections.emptyList();
@@ -53,11 +53,11 @@ final class Util {
     return new ArrayList<>(values);
   }
 
-  static String normalizeStatus(String value) {
+  public static String normalizeStatus(String value) {
     return trimToEmpty(value).toLowerCase().replace('-', '_').replace(' ', '_');
   }
 
-  static boolean isBlank(String value) {
+  public static boolean isBlank(String value) {
     return trimToEmpty(value).isEmpty();
   }
 }

@@ -1,4 +1,4 @@
-package io.jenkins.plugins.octanesuitegatebyembiti;
+package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
@@ -6,6 +6,18 @@ import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredenti
 import hudson.AbortException;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
+import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServer;
+import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
@@ -16,18 +28,20 @@ import java.util.List;
 import java.util.Map;
 import jenkins.model.Jenkins;
 
-class OctaneGateRunner {
+public class OctaneGateRunner {
   private final Clock clock;
+  private final OctaneGateLogListener logListener;
 
-  OctaneGateRunner() {
-    this(Clock.systemUTC());
+  public OctaneGateRunner() {
+    this(Clock.systemUTC(), new OctaneGateLogListener());
   }
 
-  OctaneGateRunner(Clock clock) {
+  OctaneGateRunner(Clock clock, OctaneGateLogListener logListener) {
     this.clock = clock;
+    this.logListener = logListener;
   }
 
-  GateResult run(GateRequest request, TaskListener listener)
+  public GateResult run(GateRequest request, TaskListener listener)
       throws IOException, InterruptedException {
     validateRequest(request);
     OctaneServer server = resolveServer(request.getServerId());
@@ -40,9 +54,7 @@ class OctaneGateRunner {
     Instant deadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
     List<String> suiteRunIds = request.getSuiteRunIds();
 
-    listener
-        .getLogger()
-        .println("Waiting for ALM Octane suite run(s) " + String.join(", ", suiteRunIds) + ".");
+    logListener.logWaiting(listener, suiteRunIds);
 
     try (OctaneClient client =
         new OctaneClient(
@@ -53,9 +65,9 @@ class OctaneGateRunner {
       while (true) {
         GateResult result =
             poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
-        logPollResult(listener, result);
+        logListener.logPollResult(listener, result);
         if (result.isPassed()) {
-          listener.getLogger().println("ALM Octane suite gate passed.");
+          logListener.logPassed(listener);
           return result;
         }
         if (result.isTerminal()) {
@@ -126,24 +138,6 @@ class OctaneGateRunner {
       }
     }
     return new ArrayList<>(recordsById.values());
-  }
-
-  private void logPollResult(TaskListener listener, GateResult result) {
-    GateMetrics metrics = result.getMetrics();
-    listener
-        .getLogger()
-        .printf(
-            "Octane suite run %s: execution %.2f%%, pass %.2f%%, total %d, executed %d,"
-                + " passed %d, failed %d, skipped %d, running %d.%n",
-            result.getSuiteRunId(),
-            metrics.getExecutionRate(),
-            metrics.getPassRate(),
-            metrics.getTotal(),
-            metrics.getExecuted(),
-            metrics.getPassed(),
-            metrics.getFailed(),
-            metrics.getSkipped(),
-            metrics.getRunning());
   }
 
   private void validateRequest(GateRequest request) throws AbortException {
