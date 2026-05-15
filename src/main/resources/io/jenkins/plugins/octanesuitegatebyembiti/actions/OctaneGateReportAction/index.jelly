@@ -25,7 +25,7 @@
         .octane-timer-zone,
         .octane-report-zone {
           align-items: stretch;
-          border: 1px solid var(--input-border);
+          border: 1px solid var(--background);
           border-radius: 8px;
           box-sizing: border-box;
           display: flex;
@@ -392,7 +392,7 @@
                   <section class="octane-chart-card" draggable="true">
                     <div class="octane-card-header">
                       <div>
-                        <h2 class="octane-card-title">${section.name} status distribution</h2>
+                        <h2 class="octane-card-title">${section.statusDistributionTitle}</h2>
                         <div class="octane-muted">Total Testcases: ${section.metrics.total}</div>
                       </div>
                       <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
@@ -406,7 +406,7 @@
                       <j:otherwise>
                         <div class="octane-donut-wrap">
                           <svg class="octane-donut" viewBox="0 0 100 100" role="img"
-                              aria-label="${section.name} status distribution">
+                              aria-label="${section.statusDistributionTitle}">
                             <j:forEach var="slice" items="${section.pieSlices}">
                               <j:choose>
                                 <j:when test="${slice.fullCircle}">
@@ -443,7 +443,7 @@
                   <section class="octane-chart-card" draggable="true">
                     <div class="octane-card-header">
                       <div>
-                        <h2 class="octane-card-title">${section.name} by suite run</h2>
+                        <h2 class="octane-card-title">${section.suiteRunChartTitle}</h2>
                         <div class="octane-muted">Total Suiteruns: ${section.suiteRunCount}</div>
                       </div>
                       <span class="octane-card-tools" title="Drag to move. Resize from the corner.">

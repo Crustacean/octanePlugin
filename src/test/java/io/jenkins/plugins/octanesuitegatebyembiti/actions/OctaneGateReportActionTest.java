@@ -50,7 +50,8 @@ public class OctaneGateReportActionTest {
     String text = page.asNormalizedText();
     String xml = page.asXml();
     assertTrue(text.contains("Octane Gate Report"));
-    assertTrue(text.contains("Global suite runs"));
+    assertTrue(text.contains("Grouped Status Distribution"));
+    assertTrue(text.contains("Testing progress per Tester Suite Runs"));
     assertTrue(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Time to next Poll"));
     assertTrue(text.contains("Execution Progress"));
@@ -83,6 +84,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-timer-mid-stop=\"true\""));
     assertTrue(xml.contains("octane-timer-zone octane-card-zone"));
     assertTrue(xml.contains("octane-report-zone octane-card-zone"));
+    assertTrue(xml.contains("border: 1px solid var(--background)"));
     assertTrue(xml.contains("id=\"octane-report-zone\""));
     assertTrue(xml.contains("data-octane-progress=\"execution\""));
     assertTrue(xml.contains("data-progress-value=\"100.0\""));

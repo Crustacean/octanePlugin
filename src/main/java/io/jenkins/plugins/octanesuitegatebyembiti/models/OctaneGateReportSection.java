@@ -141,6 +141,26 @@ public class OctaneGateReportSection implements Serializable {
     return String.join(", ", suiteRunIds);
   }
 
+  public String getStatusDistributionTitle() {
+    if ("global".equalsIgnoreCase(source)) {
+      return "Grouped Status Distribution";
+    }
+    if ("critical".equalsIgnoreCase(source)) {
+      return "Grouped Status Distribution_CRITICAL RUNs";
+    }
+    return name + " status distribution";
+  }
+
+  public String getSuiteRunChartTitle() {
+    if ("global".equalsIgnoreCase(source)) {
+      return "Testing progress per Tester Suite Runs";
+    }
+    if ("critical".equalsIgnoreCase(source)) {
+      return "Testing progress per Tester Suite Runs_CRITICAL";
+    }
+    return name + " by suite run";
+  }
+
   private static List<OctaneGateStatusCount> totalsFromMetrics(GateMetrics metrics) {
     Map<OctaneGateStatusBucket, Integer> counts = OctaneGateSuiteRunChart.emptyCounts();
     counts.put(OctaneGateStatusBucket.PASSED, metrics.getPassed());

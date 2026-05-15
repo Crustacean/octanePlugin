@@ -44,7 +44,7 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-report-zone {
           align-items: stretch;
-          border: 1px solid #d7dde6;
+          border: 1px solid #f5f7fb;
           border-radius: 8px;
           display: flex;
           flex-wrap: wrap;
@@ -223,8 +223,8 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<section class=\"octane-chart-card\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
-    html.append(escapeHtml(section.getName()));
-    html.append(" status distribution</h2>");
+    html.append(escapeHtml(section.getStatusDistributionTitle()));
+    html.append("</h2>");
     html.append("<div class=\"octane-muted\">Total Testcases: ");
     html.append(section.getMetrics().getTotal());
     html.append("</div>");
@@ -235,8 +235,8 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("<div class=\"octane-donut-wrap\">\n");
       html.append("<svg class=\"octane-donut\" viewBox=\"0 0 100 100\" role=\"img\" ");
       html.append("aria-label=\"");
-      html.append(escapeAttribute(section.getName()));
-      html.append(" status distribution\">\n");
+      html.append(escapeAttribute(section.getStatusDistributionTitle()));
+      html.append("\">\n");
       for (OctaneGatePieSlice slice : section.getPieSlices()) {
         renderSlice(html, slice);
       }
@@ -286,8 +286,8 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<section class=\"octane-chart-card\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
-    html.append(escapeHtml(section.getName()));
-    html.append(" by suite run</h2>");
+    html.append(escapeHtml(section.getSuiteRunChartTitle()));
+    html.append("</h2>");
     html.append("<div class=\"octane-muted\">Total Suiteruns: ");
     html.append(section.getSuiteRunCount());
     html.append("</div>");

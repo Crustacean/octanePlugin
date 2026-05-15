@@ -33,10 +33,13 @@ public class OctaneReportZoneHtmlRendererTest {
     String html = new OctaneReportZoneHtmlRenderer().render(snapshot);
 
     assertTrue(html.contains("id=\"octane-report-zone\""));
-    assertTrue(html.contains("Global suite runs status distribution"));
-    assertTrue(html.contains("Critical suite runs by suite run"));
+    assertTrue(html.contains("Grouped Status Distribution"));
+    assertTrue(html.contains("Grouped Status Distribution_CRITICAL RUNs"));
+    assertTrue(html.contains("Testing progress per Tester Suite Runs"));
+    assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertTrue(html.contains("Total Testcases: 3"));
     assertTrue(html.contains("Total Suiteruns: 2"));
+    assertTrue(html.contains("border: 1px solid #f5f7fb"));
     assertTrue(html.contains("#78c679"));
     assertTrue(html.contains("octane-donut"));
     assertTrue(html.contains("octane-vertical-bars"));
