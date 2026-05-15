@@ -375,11 +375,11 @@
                     <linearGradient id="octane-execution-progress-gradient" x1="32" y1="208"
                         x2="208" y2="32" gradientUnits="userSpaceOnUse">
                       <stop data-execution-gradient-stop="true" offset="0%"
-                          stop-color="#ff7e5f" />
+                          stop-color="#fb4b4b" />
                       <stop data-execution-gradient-stop="true" offset="50%"
-                          stop-color="#e57155" />
+                          stop-color="#e14343" />
                       <stop data-execution-gradient-stop="true" offset="100%"
-                          stop-color="#cc644c" />
+                          stop-color="#e14343" />
                     </linearGradient>
                   </defs>
                   <circle class="octane-timer-track" cx="120" cy="120" r="84" />
@@ -392,7 +392,7 @@
                       stroke="url(#octane-execution-progress-gradient)" stroke-dasharray="0 100"
                       transform="rotate(-90 120 120)" />
                   <circle class="octane-timer-head" data-execution-progress-head="true"
-                      cx="120" cy="36" r="9.6" fill="#cc644c" />
+                      cx="120" cy="36" r="9.6" fill="#e14343" />
                   <text class="octane-timer-value" data-execution-progress-value="true"
                       x="120" y="118">
                     ${snapshot.executionProgressText}
@@ -536,27 +536,28 @@
           var TIMER_RADIUS = 84;
           var PROGRESS_COLOR_PHASES = {
             execution: [
+              {limit: 5, colors: ["#fb4b4b", "#e14343"]},
               {limit: 30, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
               {limit: 70, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 100, colors: ["#4caf50", "#449d48", "#3c8c40"]}
+              {limit: 100, colors: ["#4bfb4b", "#43e143", "#3cc83c"]}
             ],
             poll: [
               {
-                limit: 99.999,
+                limit: 100,
                 colors: ["#757575", "#696969", "#5d5d5d", "#bbdefb", "#a8c7e1", "#95b1c8"]
-              },
-              {limit: 100, colors: ["#00e676", "#00cf6a", "#00b85e"]}
+              }
             ],
             timeout: [
               {limit: 30, colors: ["#4caf50", "#449d48", "#3c8c40"]},
               {limit: 70, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 100, colors: ["#ff7e5f", "#e57155", "#cc644c"]}
+              {limit: 95, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
+              {limit: 100, colors: ["#fb4b4b", "#e14343"]}
             ]
           };
           var COMPLETE_PROGRESS_COLORS = {
-            execution: "#3c8c40",
-            poll: "#00b85e",
-            timeout: "#cc644c"
+            execution: "#3cc83c",
+            poll: "#95b1c8",
+            timeout: "#e14343"
           };
           var wallClockAnchor = Date.now();
           var performanceClockAnchor = hasPerformanceClock ? window.performance.now() : 0;
