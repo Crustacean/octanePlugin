@@ -40,16 +40,13 @@ public class CriteriaExpressionTest {
     scopes.put(
         "payments",
         GateMetrics.fromRuns(
-            List.of(
-                new RunRecord("1", "first", "passed"),
-                new RunRecord("2", "second", "passed")),
+            List.of(new RunRecord("1", "first", "passed"), new RunRecord("2", "second", "passed")),
             classifier));
     MetricsContext context =
         new MetricsContext(
             GateMetrics.fromRuns(
                 List.of(
-                    new RunRecord("1", "first", "passed"),
-                    new RunRecord("2", "second", "failed")),
+                    new RunRecord("1", "first", "passed"), new RunRecord("2", "second", "failed")),
                 classifier),
             scopes);
 

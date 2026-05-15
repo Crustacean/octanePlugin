@@ -35,8 +35,7 @@ public class OctaneGateReportSection implements Serializable {
     this.suiteRuns = List.copyOf(suiteRuns);
   }
 
-  public static OctaneGateReportSection global(
-      GateResult result, StatusClassifier classifier) {
+  public static OctaneGateReportSection global(GateResult result, StatusClassifier classifier) {
     return fromSuiteRuns(
         "Global suite runs",
         "global",
@@ -80,8 +79,7 @@ public class OctaneGateReportSection implements Serializable {
         chartSuiteRuns.entrySet().stream()
             .map(
                 entry ->
-                    OctaneGateSuiteRunChart.fromRuns(
-                        entry.getKey(), entry.getValue(), classifier))
+                    OctaneGateSuiteRunChart.fromRuns(entry.getKey(), entry.getValue(), classifier))
             .toList();
     int maxSuiteRunTotal =
         suiteRunCharts.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);

@@ -43,8 +43,7 @@ public class OctaneClientTest {
         "/api/shared_spaces/1001/workspaces/2002/runs",
         exchange -> {
           String query = exchange.getRequestURI().getRawQuery();
-          assertTrue(
-              exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
+          assertTrue(exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
           if (query.contains("limit=1")) {
             json(
                 exchange,
@@ -127,8 +126,7 @@ public class OctaneClientTest {
         "/api/shared_spaces/1001/workspaces/2002/runs",
         exchange -> {
           assertEquals("fields=id&limit=1", exchange.getRequestURI().getRawQuery());
-          assertTrue(
-              exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
+          assertTrue(exchange.getRequestHeaders().getFirst("Cookie").contains("LWSSO_COOKIE_KEY"));
           assertEquals("true", exchange.getRequestHeaders().getFirst("ALM-OCTANE-TECH-PREVIEW"));
           json(exchange, 200, "{\"data\":[]}");
         });
@@ -217,10 +215,7 @@ public class OctaneClientTest {
 
       List<RunRecord> records =
           client.fetchScopedRuns(
-              "1001",
-              "2002",
-              List.of("101", "102"),
-              "test={((product_areas={id=1004||id=1005}))}");
+              "1001", "2002", List.of("101", "102"), "test={((product_areas={id=1004||id=1005}))}");
 
       assertEquals(0, records.size());
     }

@@ -37,12 +37,14 @@ public class OctaneClient implements AutoCloseable {
   private String cookieHeader = "";
 
   public OctaneClient(String baseUrl, String clientId, String clientSecret) {
-    this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build(), baseUrl, clientId,
+    this(
+        HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build(),
+        baseUrl,
+        clientId,
         clientSecret);
   }
 
-  public OctaneClient(
-      HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
+  public OctaneClient(HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
     this.httpClient = httpClient;
     this.baseUrl = Util.trimTrailingSlash(baseUrl);
     this.clientId = clientId;
@@ -112,8 +114,7 @@ public class OctaneClient implements AutoCloseable {
             + parameter("limit", "1");
     HttpResponse<Void> response =
         httpClient.send(
-            requestBuilder(baseUrl + path).GET().build(),
-            HttpResponse.BodyHandlers.discarding());
+            requestBuilder(baseUrl + path).GET().build(), HttpResponse.BodyHandlers.discarding());
     rememberCookies(response);
     return response.statusCode();
   }
@@ -364,10 +365,7 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private String workspacePath(String sharedSpaceId, String workspaceId) {
-    return "/api/shared_spaces/"
-        + encode(sharedSpaceId)
-        + "/workspaces/"
-        + encode(workspaceId);
+    return "/api/shared_spaces/" + encode(sharedSpaceId) + "/workspaces/" + encode(workspaceId);
   }
 
   private String parameter(String name, String value) {

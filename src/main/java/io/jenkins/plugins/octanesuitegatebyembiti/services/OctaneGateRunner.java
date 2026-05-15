@@ -16,8 +16,8 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
-import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -267,9 +267,7 @@ public class OctaneGateRunner {
     boolean hasQuery = scope.isQueryScope();
     if (!hasSuiteRunIds && !hasQuery) {
       throw new AbortException(
-          "Octane scope '"
-              + scope.getName()
-              + "' must define suite run ID(s) or an Octane query.");
+          "Octane scope '" + scope.getName() + "' must define suite run ID(s) or an Octane query.");
     }
     if (hasSuiteRunIds && hasQuery) {
       throw new AbortException(

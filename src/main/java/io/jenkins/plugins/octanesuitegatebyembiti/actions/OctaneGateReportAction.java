@@ -32,7 +32,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
     action.run = run;
     action.configureTimers(request);
-    action.snapshot = OctaneGateReportSnapshot.waiting(request, action.refreshSeconds, action.startedAt);
+    action.snapshot =
+        OctaneGateReportSnapshot.waiting(request, action.refreshSeconds, action.startedAt);
     run.addOrReplaceAction(action);
     action.saveRun();
     return action;
