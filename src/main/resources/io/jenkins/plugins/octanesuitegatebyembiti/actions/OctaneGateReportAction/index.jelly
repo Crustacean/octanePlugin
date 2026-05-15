@@ -1,0 +1,787 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+  <l:layout title="${it.displayName}">
+    <j:if test="${it.autoRefresh}">
+      <meta http-equiv="refresh" content="${it.refreshSeconds}" />
+    </j:if>
+    <l:main-panel>
+      <style>
+        .octane-report {
+          max-width: 100%;
+        }
+        .octane-report h1 {
+          margin-bottom: 0.25rem;
+        }
+        .octane-muted {
+          color: var(--text-color-secondary);
+        }
+        .octane-dashboard {
+          align-items: stretch;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+          margin-top: 1rem;
+        }
+        .octane-timer-zone,
+        .octane-report-zone {
+          align-items: stretch;
+          border: 1px solid var(--input-border);
+          border-radius: 8px;
+          box-sizing: border-box;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+          padding: 1rem;
+          width: 100%;
+        }
+        .octane-chart-card {
+          background: var(--background);
+          border: 1px solid var(--input-border);
+          border-radius: 14px;
+          box-shadow: 0 1px 7px rgba(0, 0, 0, 0.14);
+          flex: 0 1 calc(50% - 0.5rem);
+          min-height: 310px;
+          min-width: 360px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding: 1rem;
+          resize: horizontal;
+          width: calc(50% - 0.5rem);
+        }
+        .octane-chart-card:active {
+          cursor: grabbing;
+        }
+        .octane-card-header {
+          align-items: center;
+          display: flex;
+          gap: 0.75rem;
+          justify-content: space-between;
+          margin-bottom: 0.75rem;
+        }
+        .octane-card-title {
+          font-size: 1rem;
+          font-weight: 600;
+          margin: 0;
+        }
+        .octane-card-tools {
+          color: var(--text-color-secondary);
+          cursor: grab;
+          font-size: 1.1rem;
+          letter-spacing: 0.2rem;
+          user-select: none;
+        }
+        .octane-chart-card.octane-dragging {
+          opacity: 0.45;
+        }
+        .octane-timer-card {
+          flex: 1 1 calc(33.333% - 0.67rem);
+          min-height: 280px;
+          min-width: 280px;
+          width: calc(33.333% - 0.67rem);
+        }
+        .octane-timer-wrap {
+          align-items: center;
+          display: flex;
+          justify-content: center;
+          min-height: 215px;
+        }
+        .octane-timer-donut {
+          display: block;
+          height: auto;
+          max-width: 220px;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: 100%;
+        }
+        .octane-timer-track {
+          fill: none;
+          opacity: 0.5;
+          stroke: var(--panel-border-color);
+          stroke-width: 4;
+        }
+        .octane-timer-progress-halo {
+          fill: none;
+          opacity: 0.22;
+          stroke-linecap: round;
+          stroke-width: 20;
+        }
+        .octane-timer-progress {
+          fill: none;
+          filter: drop-shadow(0 0 1px rgba(30, 167, 255, 0.35));
+          stroke-linecap: round;
+          stroke-width: 16;
+        }
+        .octane-timer-head {
+          transition: fill 0.25s ease;
+        }
+        .octane-timer-value {
+          fill: var(--text-color);
+          font-size: 2.6082rem;
+          font-weight: 700;
+          text-anchor: middle;
+        }
+        .octane-timer-unit {
+          fill: var(--text-color-secondary);
+          font-size: 0.91875rem;
+          text-anchor: middle;
+        }
+        .octane-donut-wrap {
+          align-items: center;
+          display: grid;
+          gap: 0.75rem;
+          grid-template-columns: minmax(180px, 240px) max-content;
+          justify-content: center;
+        }
+        .octane-donut {
+          display: block;
+          height: auto;
+          justify-self: center;
+          max-width: 240px;
+          width: 100%;
+        }
+        .octane-donut-hole {
+          fill: var(--background);
+        }
+        .octane-legend {
+          display: grid;
+          gap: 0.35rem;
+          justify-self: start;
+        }
+        .octane-legend-row {
+          align-items: center;
+          display: grid;
+          column-gap: 0.35rem;
+          grid-template-columns: 0.8rem max-content max-content;
+          justify-content: start;
+        }
+        .octane-legend-value {
+          color: var(--text-color-secondary);
+        }
+        .octane-swatch {
+          border-radius: 2px;
+          display: inline-block;
+          height: 0.8rem;
+          width: 0.8rem;
+        }
+        .octane-vertical-bars {
+          align-items: end;
+          display: flex;
+          gap: 1rem;
+          justify-content: flex-start;
+          min-height: 270px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding: 1rem 0.25rem 0;
+          width: 100%;
+        }
+        .octane-vertical-bars::before,
+        .octane-vertical-bars::after {
+          content: "";
+          flex: 1 1 0;
+          min-width: 0;
+        }
+        .octane-suite-column {
+          align-items: center;
+          display: grid;
+          flex: 0 0 4.2rem;
+          gap: 0.5rem;
+          grid-template-rows: 210px 1.2rem 3rem;
+          justify-items: center;
+          min-width: 4.2rem;
+        }
+        .octane-vertical-bar {
+          align-items: stretch;
+          align-self: end;
+          background: var(--panel-border-color);
+          border-radius: 4px 4px 0 0;
+          display: flex;
+          flex-direction: column-reverse;
+          height: 210px;
+          overflow: hidden;
+          width: 2.35rem;
+        }
+        .octane-vertical-segment {
+          display: block;
+          width: 100%;
+        }
+        .octane-suite-label {
+          display: block;
+          max-width: 5.6rem;
+          min-height: 1rem;
+          overflow: hidden;
+          text-align: right;
+          text-overflow: ellipsis;
+          transform: rotate(-45deg);
+          transform-origin: center;
+          white-space: nowrap;
+        }
+        .octane-total {
+          font-weight: 600;
+        }
+        .octane-empty {
+          border: 1px dashed var(--input-border);
+          border-radius: 8px;
+          color: var(--text-color-secondary);
+          padding: 1rem;
+        }
+        @media (max-width: 840px) {
+          .octane-chart-card {
+            flex-basis: 100%;
+            min-width: 280px;
+            width: 100%;
+          }
+          .octane-timer-card {
+            flex-basis: 100%;
+            width: 100%;
+          }
+          .octane-donut-wrap {
+            grid-template-columns: 1fr;
+          }
+        }
+      </style>
+      <j:set var="snapshot" value="${it.snapshot}" />
+      <div class="octane-report">
+        <h1>Octane Gate Report</h1>
+        <p class="octane-muted">
+          State: ${snapshot.stateLabel} |
+          Last update: ${snapshot.updatedAtText}
+        </p>
+        <p>${snapshot.message}</p>
+        <j:if test="${!empty(snapshot.criteria)}">
+          <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
+        </j:if>
+
+        <div class="octane-dashboard octane-card-zone" id="octane-dashboard">
+          <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone">
+            <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-octane-timer="timeout"
+                data-total-seconds="${snapshot.timeoutSeconds}"
+                data-started-at="${snapshot.startedAt}"
+                data-updated-at="${snapshot.updatedAt}"
+                data-active="${snapshot.building}">
+              <div class="octane-card-header">
+                <div>
+                  <h2 class="octane-card-title">Testing Time Remaining</h2>
+                  <div class="octane-muted">Timeout window</div>
+                </div>
+                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                  :::
+                </span>
+              </div>
+              <div class="octane-timer-wrap">
+                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                    aria-label="Testing time remaining">
+                  <defs>
+                    <linearGradient id="octane-timeout-gradient" x1="32" y1="208" x2="208"
+                        y2="32" gradientUnits="userSpaceOnUse">
+                      <stop data-timer-tail-stop="true" offset="0%" stop-color="#47e8ff" />
+                      <stop data-timer-mid-stop="true" offset="58%" stop-color="#1ea7ff" />
+                      <stop data-timer-head-stop="true" offset="100%" stop-color="#1f5fff" />
+                    </linearGradient>
+                  </defs>
+                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                  <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-progress" data-timer-progress="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-head" data-timer-head="true"
+                      cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                  <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
+                    --
+                  </text>
+                  <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
+                    minutes
+                  </text>
+                </svg>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-octane-timer="poll"
+                data-total-seconds="${snapshot.refreshSeconds}"
+                data-started-at="${snapshot.updatedAt}"
+                data-updated-at="${snapshot.updatedAt}"
+                data-active="${snapshot.building}">
+              <div class="octane-card-header">
+                <div>
+                  <h2 class="octane-card-title">Time to next Poll</h2>
+                  <div class="octane-muted">Polling interval</div>
+                </div>
+                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                  :::
+                </span>
+              </div>
+              <div class="octane-timer-wrap">
+                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                    aria-label="Time to next Poll">
+                  <defs>
+                    <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208" y2="32"
+                        gradientUnits="userSpaceOnUse">
+                      <stop data-timer-tail-stop="true" offset="0%" stop-color="#47e8ff" />
+                      <stop data-timer-mid-stop="true" offset="58%" stop-color="#1ea7ff" />
+                      <stop data-timer-head-stop="true" offset="100%" stop-color="#1f5fff" />
+                    </linearGradient>
+                  </defs>
+                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                  <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-progress" data-timer-progress="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-head" data-timer-head="true"
+                      cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                  <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
+                    --
+                  </text>
+                  <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
+                    seconds
+                  </text>
+                </svg>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-octane-progress="execution"
+                data-progress-value="${snapshot.executionProgress}">
+              <div class="octane-card-header">
+                <div>
+                  <h2 class="octane-card-title">Execution Progress</h2>
+                  <div class="octane-muted">All Testcase execution</div>
+                </div>
+                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                  :::
+                </span>
+              </div>
+              <div class="octane-timer-wrap">
+                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                    aria-label="Execution Progress">
+                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                  <circle class="octane-timer-progress-halo" data-execution-progress-halo="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="#F32013" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-progress" data-execution-progress-circle="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="#F32013" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-head" data-execution-progress-head="true"
+                      cx="120" cy="36" r="9.6" fill="#F32013" />
+                  <text class="octane-timer-value" data-execution-progress-value="true"
+                      x="120" y="118">
+                    ${snapshot.executionProgressText}
+                  </text>
+                  <text class="octane-timer-unit" x="120" y="132.4">
+                    execution
+                  </text>
+                </svg>
+              </div>
+            </section>
+          </div>
+
+          <div class="octane-report-zone octane-card-zone" id="octane-report-zone">
+            <j:choose>
+              <j:when test="${snapshot.hasSections()}">
+                <j:forEach var="section" items="${snapshot.sections}">
+                  <section class="octane-chart-card" draggable="true">
+                    <div class="octane-card-header">
+                      <div>
+                        <h2 class="octane-card-title">${section.name} status distribution</h2>
+                        <div class="octane-muted">Total Testcases: ${section.metrics.total}</div>
+                      </div>
+                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                        :::
+                      </span>
+                    </div>
+                    <j:choose>
+                      <j:when test="${section.noRuns}">
+                        <div class="octane-empty">No run results have been returned yet.</div>
+                      </j:when>
+                      <j:otherwise>
+                        <div class="octane-donut-wrap">
+                          <svg class="octane-donut" viewBox="0 0 100 100" role="img"
+                              aria-label="${section.name} status distribution">
+                            <j:forEach var="slice" items="${section.pieSlices}">
+                              <j:choose>
+                                <j:when test="${slice.fullCircle}">
+                                  <circle cx="50" cy="50" r="42" fill="${slice.color}">
+                                    <title>${slice.title}</title>
+                                  </circle>
+                                </j:when>
+                                <j:otherwise>
+                                  <path d="${slice.path}" fill="${slice.color}">
+                                    <title>${slice.title}</title>
+                                  </path>
+                                </j:otherwise>
+                              </j:choose>
+                            </j:forEach>
+                            <circle class="octane-donut-hole" cx="50" cy="50" r="27" />
+                          </svg>
+                          <div class="octane-legend">
+                            <j:forEach var="status" items="${section.totals}">
+                              <div class="octane-legend-row">
+                                <span class="octane-swatch"
+                                    style="background: ${status.color};"></span>
+                                <span>${status.label}</span>
+                                <span class="octane-legend-value">
+                                  ${status.count} (${status.formattedPercentage}%)
+                                </span>
+                              </div>
+                            </j:forEach>
+                          </div>
+                        </div>
+                      </j:otherwise>
+                    </j:choose>
+                  </section>
+
+                  <section class="octane-chart-card" draggable="true">
+                    <div class="octane-card-header">
+                      <div>
+                        <h2 class="octane-card-title">${section.name} by suite run</h2>
+                        <div class="octane-muted">Total Suiteruns: ${section.suiteRunCount}</div>
+                      </div>
+                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                        :::
+                      </span>
+                    </div>
+                    <j:choose>
+                      <j:when test="${section.noRuns}">
+                        <div class="octane-empty">No run results have been returned yet.</div>
+                      </j:when>
+                      <j:otherwise>
+                        <div class="octane-vertical-bars">
+                          <j:forEach var="suiteRun" items="${section.suiteRuns}">
+                            <div class="octane-suite-column">
+                              <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}"
+                                  title="${suiteRun.total} tests">
+                                <j:forEach var="status" items="${suiteRun.statuses}">
+                                  <j:if test="${status.count > 0}">
+                                    <span class="octane-vertical-segment"
+                                        style="${status.heightStyle}"
+                                        title="${status.title}"></span>
+                                  </j:if>
+                                </j:forEach>
+                              </div>
+                              <span class="octane-total">${suiteRun.total}</span>
+                              <span class="octane-suite-label" title="${suiteRun.suiteRunId}">
+                                ${suiteRun.suiteRunId}
+                              </span>
+                            </div>
+                          </j:forEach>
+                        </div>
+                      </j:otherwise>
+                    </j:choose>
+                  </section>
+                </j:forEach>
+              </j:when>
+              <j:otherwise>
+                <section class="octane-chart-card" draggable="true">
+                  <div class="octane-card-header">
+                    <div>
+                      <h2 class="octane-card-title">Suite run charts</h2>
+                      <div class="octane-muted">Waiting for first poll</div>
+                    </div>
+                    <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                      :::
+                    </span>
+                  </div>
+                  <div class="octane-empty">The report will populate after the first Octane poll.</div>
+                </section>
+              </j:otherwise>
+            </j:choose>
+          </div>
+        </div>
+      </div>
+      <script>
+        //<![CDATA[
+        (function () {
+          var dashboard = document.getElementById("octane-dashboard");
+          if (!dashboard) {
+            return;
+          }
+          var timerCards = dashboard.querySelectorAll("[data-octane-timer]");
+          var progressCards = dashboard.querySelectorAll("[data-octane-progress]");
+          var hasPerformanceClock =
+              window.performance && typeof window.performance.now === "function";
+          var requestFrame = window.requestAnimationFrame || function (callback) {
+            return window.setTimeout(callback, 16);
+          };
+          var TIMER_CENTER = 120;
+          var TIMER_RADIUS = 84;
+          var NORMAL_TIMER_COLORS = {
+            tail: "#47e8ff",
+            mid: "#1ea7ff",
+            head: "#1f5fff"
+          };
+          var EXPIRED_TIMER_COLORS = {
+            tail: "#ffb5ad",
+            mid: "#ff665a",
+            head: "#F32013"
+          };
+          var EXECUTION_PROGRESS_COLORS = {
+            start: "#F32013",
+            middle: "#ffb74d",
+            fourthQuadrant: "#78c679",
+            complete: "#78c679"
+          };
+          var wallClockAnchor = Date.now();
+          var performanceClockAnchor = hasPerformanceClock ? window.performance.now() : 0;
+          function currentWallTime() {
+            if (!hasPerformanceClock) {
+              return Date.now();
+            }
+            return wallClockAnchor + window.performance.now() - performanceClockAnchor;
+          }
+          function parseTimestamp(value) {
+            var parsed = Date.parse(value || "");
+            return isNaN(parsed) ? currentWallTime() : parsed;
+          }
+          function clamp(value, minimum, maximum) {
+            return Math.min(maximum, Math.max(minimum, value));
+          }
+          function trimNumber(value) {
+            return value.toFixed(3).replace(/\.?0+$/, "");
+          }
+          function hexToRgb(hex) {
+            return {
+              blue: parseInt(hex.substring(5, 7), 16),
+              green: parseInt(hex.substring(3, 5), 16),
+              red: parseInt(hex.substring(1, 3), 16)
+            };
+          }
+          function interpolateColor(startHex, endHex, ratio) {
+            var start = hexToRgb(startHex);
+            var end = hexToRgb(endHex);
+            var boundedRatio = clamp(ratio, 0, 1);
+            var red = Math.round(start.red + (end.red - start.red) * boundedRatio);
+            var green = Math.round(start.green + (end.green - start.green) * boundedRatio);
+            var blue = Math.round(start.blue + (end.blue - start.blue) * boundedRatio);
+            return "rgb(" + red + ", " + green + ", " + blue + ")";
+          }
+          function executionProgressColor(progress) {
+            var ratio = clamp(progress / 100, 0, 1);
+            if (ratio >= 1) {
+              return EXECUTION_PROGRESS_COLORS.complete;
+            }
+            if (ratio < 0.75) {
+              return interpolateColor(
+                  EXECUTION_PROGRESS_COLORS.start,
+                  EXECUTION_PROGRESS_COLORS.middle,
+                  ratio / 0.75);
+            }
+            return interpolateColor(
+                EXECUTION_PROGRESS_COLORS.middle,
+                EXECUTION_PROGRESS_COLORS.fourthQuadrant,
+                (ratio - 0.75) / 0.25);
+          }
+          function createTimerState(card) {
+            var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
+            if (isNaN(totalSeconds)) {
+              totalSeconds = 1;
+            }
+            var totalMillis = Math.max(1, totalSeconds) * 1000;
+            var startedAt = parseTimestamp(card.getAttribute("data-started-at"));
+            var updatedAt = parseTimestamp(card.getAttribute("data-updated-at"));
+            var active = card.getAttribute("data-active") === "true";
+            var mode = card.getAttribute("data-octane-timer");
+            return {
+              active: active,
+              card: card,
+              endAt: startedAt + totalMillis,
+              head: card.querySelector("[data-timer-head]"),
+              headStop: card.querySelector("[data-timer-head-stop]"),
+              lastDisplayedUnit: "",
+              lastDisplayedValue: "",
+              mode: mode,
+              midStop: card.querySelector("[data-timer-mid-stop]"),
+              progressHalo: card.querySelector("[data-timer-progress-halo]"),
+              progressCircle: card.querySelector("[data-timer-progress]"),
+              tailStop: card.querySelector("[data-timer-tail-stop]"),
+              totalMillis: totalMillis,
+              unit: card.querySelector("[data-timer-unit]"),
+              updatedAt: updatedAt,
+              value: card.querySelector("[data-timer-value]")
+            };
+          }
+          function remainingMillis(state, now) {
+            if (!state.active && state.mode === "poll") {
+              return 0;
+            }
+            var sampleTime = state.active ? now : state.updatedAt;
+            return clamp(state.endAt - sampleTime, 0, state.totalMillis);
+          }
+          function setTimerText(state, remaining) {
+            if (!state.value || !state.unit) {
+              return;
+            }
+            var displayValue;
+            var displayUnit;
+            if (remaining < 60000) {
+              displayValue = String(Math.ceil(remaining / 1000));
+              displayUnit = displayValue === "1" ? "second" : "seconds";
+            } else {
+              displayValue = String(Math.ceil(remaining / 60000));
+              displayUnit = displayValue === "1" ? "minute" : "minutes";
+            }
+            if (displayValue !== state.lastDisplayedValue) {
+              state.value.textContent = displayValue;
+              state.lastDisplayedValue = displayValue;
+            }
+            if (displayUnit !== state.lastDisplayedUnit) {
+              state.unit.textContent = displayUnit;
+              state.lastDisplayedUnit = displayUnit;
+            }
+          }
+          function applyTimerGradient(state, colors) {
+            if (state.tailStop) {
+              state.tailStop.setAttribute("stop-color", colors.tail);
+            }
+            if (state.midStop) {
+              state.midStop.setAttribute("stop-color", colors.mid);
+            }
+            if (state.headStop) {
+              state.headStop.setAttribute("stop-color", colors.head);
+            }
+          }
+          function updateTimer(state, now) {
+            var remaining = remainingMillis(state, now);
+            var elapsed = state.totalMillis - remaining;
+            var progress = clamp((elapsed / state.totalMillis) * 100, 0, 100);
+            var expired = remaining <= 0 || (!state.active && state.mode === "poll");
+            var finalMinute = remaining > 0 && remaining < 60000;
+            var colors = expired ? EXPIRED_TIMER_COLORS : NORMAL_TIMER_COLORS;
+            if (state.progressCircle) {
+              state.progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
+              state.progressCircle.style.opacity = progress <= 0 ? "0" : "1";
+            }
+            if (state.progressHalo) {
+              state.progressHalo.style.strokeDasharray = trimNumber(progress) + " 100";
+              state.progressHalo.style.opacity = progress <= 0 ? "0" : "0.22";
+            }
+            applyTimerGradient(state, finalMinute ? {
+              tail: colors.tail,
+              mid: colors.mid,
+              head: "#F32013"
+            } : colors);
+            var headColor = expired || finalMinute ? "#F32013" : NORMAL_TIMER_COLORS.head;
+            if (state.head) {
+              var angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
+              state.head.setAttribute(
+                  "cx", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle)));
+              state.head.setAttribute(
+                  "cy", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle)));
+              state.head.setAttribute("fill", headColor);
+              state.head.style.display = progress <= 0 ? "none" : "block";
+            }
+            setTimerText(state, remaining);
+          }
+          var timers = [];
+          var hasActiveTimer = false;
+          for (var timerIndex = 0; timerIndex < timerCards.length; timerIndex += 1) {
+            var state = createTimerState(timerCards[timerIndex]);
+            timers.push(state);
+            hasActiveTimer = hasActiveTimer || state.active;
+          }
+          function animateTimers() {
+            var now = currentWallTime();
+            var activeTimerStillRunning = false;
+            for (var index = 0; index < timers.length; index += 1) {
+              updateTimer(timers[index], now);
+              activeTimerStillRunning =
+                  activeTimerStillRunning || remainingMillis(timers[index], now) > 0;
+            }
+            if (hasActiveTimer && activeTimerStillRunning) {
+              requestFrame(animateTimers);
+            }
+          }
+          if (timers.length > 0) {
+            animateTimers();
+          }
+          function updateExecutionProgress(card) {
+            var progress = parseFloat(card.getAttribute("data-progress-value") || "0");
+            if (isNaN(progress)) {
+              progress = 0;
+            }
+            progress = clamp(progress, 0, 100);
+            var progressCircle = card.querySelector("[data-execution-progress-circle]");
+            var progressHalo = card.querySelector("[data-execution-progress-halo]");
+            var head = card.querySelector("[data-execution-progress-head]");
+            var value = card.querySelector("[data-execution-progress-value]");
+            var displayValue = String(Math.round(progress)) + "%";
+            var executionColor = executionProgressColor(progress);
+            if (value) {
+              value.textContent = displayValue;
+            }
+            if (progressCircle) {
+              progressCircle.setAttribute("stroke", executionColor);
+              progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
+              progressCircle.style.opacity = progress <= 0 ? "0" : "1";
+            }
+            if (progressHalo) {
+              progressHalo.setAttribute("stroke", executionColor);
+              progressHalo.style.strokeDasharray = trimNumber(progress) + " 100";
+              progressHalo.style.opacity = progress <= 0 ? "0" : "0.22";
+            }
+            if (head) {
+              var angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
+              head.setAttribute(
+                  "cx", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle)));
+              head.setAttribute(
+                  "cy", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle)));
+              head.setAttribute("fill", executionColor);
+            }
+          }
+          for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
+            updateExecutionProgress(progressCards[progressIndex]);
+          }
+          var dragged = null;
+          var draggedZone = null;
+          function zoneForCard(card) {
+            return card.parentElement ? card.parentElement.closest(".octane-card-zone") : null;
+          }
+          dashboard.addEventListener("dragstart", function (event) {
+            var card = event.target.closest(".octane-chart-card");
+            if (!card) {
+              return;
+            }
+            dragged = card;
+            draggedZone = zoneForCard(card);
+            card.classList.add("octane-dragging");
+            event.dataTransfer.effectAllowed = "move";
+          });
+          dashboard.addEventListener("dragend", function () {
+            if (dragged) {
+              dragged.classList.remove("octane-dragging");
+            }
+            dragged = null;
+            draggedZone = null;
+          });
+          dashboard.addEventListener("dragover", function (event) {
+            if (!dragged) {
+              return;
+            }
+            var target = event.target.closest(".octane-chart-card");
+            if (!target || target === dragged) {
+              return;
+            }
+            var targetZone = zoneForCard(target);
+            if (!draggedZone || targetZone !== draggedZone) {
+              return;
+            }
+            event.preventDefault();
+            var rect = target.getBoundingClientRect();
+            var before = event.clientY < rect.top + rect.height / 2;
+            draggedZone.insertBefore(dragged, before ? target : target.nextSibling);
+          });
+        })();
+        //]]>
+      </script>
+    </l:main-panel>
+  </l:layout>
+</j:jelly>

@@ -10,12 +10,14 @@ import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServer;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
+import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPublisher;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -25,9 +27,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import jenkins.model.Jenkins;
 
 public class OctaneGateRunner {
@@ -45,6 +49,12 @@ public class OctaneGateRunner {
 
   public GateResult run(GateRequest request, TaskListener listener)
       throws IOException, InterruptedException {
+    return run(request, listener, new OctaneGateReportPublisher() {});
+  }
+
+  public GateResult run(
+      GateRequest request, TaskListener listener, OctaneGateReportPublisher reportPublisher)
+      throws IOException, InterruptedException {
     validateRequest(request);
     OctaneServer server = resolveServer(request.getServerId());
     String sharedSpaceId = chooseValue(request.getSharedSpaceId(), server.getSharedSpaceId());
@@ -57,6 +67,7 @@ public class OctaneGateRunner {
     List<String> suiteRunIds = request.getSuiteRunIds();
 
     logListener.logWaiting(listener, request, suiteRunIds);
+    reportPublisher.onWaiting(request, suiteRunIds);
 
     try (OctaneClient client =
         new OctaneClient(
@@ -68,15 +79,22 @@ public class OctaneGateRunner {
         GateResult result =
             poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
         logListener.logPollResult(listener, result);
+        reportPublisher.onPoll(result, classifier);
         if (result.isPassed()) {
           logListener.logPassed(listener);
+          reportPublisher.onFinal(
+              OctaneGateReportState.PASSED, "ALM Octane suite gate passed.", result, classifier);
           return result;
         }
         if (result.isTerminal()) {
-          throw new GateFailedException("ALM Octane suite gate failed.", result);
+          String message = "ALM Octane suite gate failed.";
+          reportPublisher.onFinal(failureState(request), message, result, classifier);
+          throw new GateFailedException(message, result);
         }
         if (!clock.instant().isBefore(deadline)) {
-          throw new GateFailedException("Timed out waiting for ALM Octane suite gate.", result);
+          String message = "Timed out waiting for ALM Octane suite gate.";
+          reportPublisher.onFinal(timeoutState(request), message, result, classifier);
+          throw new GateFailedException(message, result);
         }
         Thread.sleep(Duration.ofSeconds(request.getPollIntervalSeconds()).toMillis());
       }
@@ -102,7 +120,7 @@ public class OctaneGateRunner {
     Map<String, GateScopeResult> scopedResults = new LinkedHashMap<>();
     for (OctaneGateScope scope : request.getScopes()) {
       GateScopeResult scopeResult =
-          pollScope(client, sharedSpaceId, workspaceId, childRunIds, classifier, scope);
+          pollScope(client, sharedSpaceId, workspaceId, childRunIds, suiteRuns, classifier, scope);
       scopedMetrics.put(scope.getName(), scopeResult.getMetrics());
       scopedResults.put(scope.getName(), scopeResult);
     }
@@ -129,6 +147,7 @@ public class OctaneGateRunner {
       String sharedSpaceId,
       String workspaceId,
       List<String> childRunIds,
+      Map<String, List<RunRecord>> globalSuiteRuns,
       StatusClassifier classifier,
       OctaneGateScope scope)
       throws IOException, InterruptedException {
@@ -150,7 +169,8 @@ public class OctaneGateRunner {
 
     List<RunRecord> scopedRuns;
     try {
-      scopedRuns = client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
+      scopedRuns =
+          client.fetchScopedRuns(sharedSpaceId, workspaceId, childRunIds, scope.getQuery());
     } catch (IOException e) {
       throw new AbortException(
           "ALM Octane scope '"
@@ -163,7 +183,24 @@ public class OctaneGateRunner {
     }
     GateMetrics metrics = GateMetrics.fromRuns(scopedRuns, classifier);
     return new GateScopeResult(
-        scope.getName(), scope.getQuery(), scope.getReferencedIds(), metrics, scopedRuns);
+        scope.getName(),
+        scope.getQuery(),
+        scope.getReferencedIds(),
+        "",
+        List.of(),
+        metrics,
+        scopedRuns,
+        groupScopedRunsBySuiteRun(globalSuiteRuns, scopedRuns));
+  }
+
+  private OctaneGateReportState failureState(GateRequest request) {
+    return request.isMarkUnstable() ? OctaneGateReportState.UNSTABLE : OctaneGateReportState.FAILED;
+  }
+
+  private OctaneGateReportState timeoutState(GateRequest request) {
+    return request.isMarkUnstable()
+        ? OctaneGateReportState.UNSTABLE
+        : OctaneGateReportState.TIMED_OUT;
   }
 
   private Map<String, List<RunRecord>> fetchSuiteChildRuns(
@@ -184,6 +221,21 @@ public class OctaneGateRunner {
       }
     }
     return new ArrayList<>(recordsById.values());
+  }
+
+  private Map<String, List<RunRecord>> groupScopedRunsBySuiteRun(
+      Map<String, List<RunRecord>> suiteRuns, List<RunRecord> scopedRuns) {
+    Set<String> scopedRunIds =
+        new LinkedHashSet<>(scopedRuns.stream().map(RunRecord::getId).toList());
+    Map<String, List<RunRecord>> groupedRuns = new LinkedHashMap<>();
+    for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
+      List<RunRecord> matchingRuns =
+          entry.getValue().stream().filter(run -> scopedRunIds.contains(run.getId())).toList();
+      if (!matchingRuns.isEmpty()) {
+        groupedRuns.put(entry.getKey(), matchingRuns);
+      }
+    }
+    return groupedRuns;
   }
 
   private String scopeQueryHint(OctaneGateScope scope) {

@@ -67,6 +67,10 @@ public class GateResult implements Serializable {
     return suiteRunId;
   }
 
+  public String getCriteria() {
+    return criteria;
+  }
+
   public boolean isPassed() {
     return passed;
   }
@@ -97,6 +101,10 @@ public class GateResult implements Serializable {
 
   public Map<String, GateScopeResult> getScopedResults() {
     return new LinkedHashMap<>(scopedResults);
+  }
+
+  public Instant getPolledAt() {
+    return polledAt;
   }
 
   public Map<String, Object> toPipelineMap() {

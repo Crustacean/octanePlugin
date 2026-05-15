@@ -1,0 +1,138 @@
+package io.jenkins.plugins.octanesuitegatebyembiti.actions;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import org.htmlunit.html.HtmlPage;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+
+public class OctaneGateReportActionTest {
+  @Rule public JenkinsRule jenkins = new JenkinsRule();
+
+  @Test
+  public void attachesToBuildAndRendersReportPage() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setPollIntervalSeconds(15);
+    request.setTimeoutMinutes(45);
+
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    action.onFinal(
+        OctaneGateReportState.PASSED,
+        "ALM Octane suite gate passed.",
+        result(),
+        new StatusClassifier(
+            StatusClassifier.DEFAULT_PASSED_STATUSES,
+            StatusClassifier.DEFAULT_FAILED_STATUSES,
+            StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+            StatusClassifier.DEFAULT_RUNNING_STATUSES));
+
+    assertSame(action, build.getAction(OctaneGateReportAction.class));
+    assertNotNull(build.getAction(OctaneGateReportAction.class).getSnapshot());
+
+    HtmlPage page = jenkins.createWebClient().getPage(build, OctaneGateReportAction.URL_NAME);
+    String text = page.asNormalizedText();
+    String xml = page.asXml();
+    assertTrue(text.contains("Octane Gate Report"));
+    assertTrue(text.contains("Global suite runs"));
+    assertTrue(text.contains("Testing Time Remaining"));
+    assertTrue(text.contains("Time to next Poll"));
+    assertTrue(text.contains("Execution Progress"));
+    assertTrue(text.contains("All Testcase execution"));
+    assertTrue(text.contains("Total Testcases: 2"));
+    assertTrue(text.contains("Total Suiteruns: 1"));
+    assertFalse(text.contains("Global + Critical execution"));
+    assertFalse(text.contains("Execution 100.0%, pass"));
+    assertFalse(text.contains("Suite runs: 4501"));
+    assertTrue(xml.contains("#78c679"));
+    assertTrue(xml.contains("octane-donut"));
+    assertTrue(xml.contains("border-radius: 14px"));
+    assertFalse(xml.contains("border-radius: 6px"));
+    assertFalse(xml.contains("total runs"));
+    assertTrue(xml.contains("grid-template-columns: minmax(180px, 240px) max-content"));
+    assertTrue(xml.contains("octane-legend-value"));
+    assertTrue(xml.contains("octane-vertical-bars"));
+    assertTrue(xml.contains("octane-timer-donut"));
+    assertTrue(xml.contains("viewBox=\"0 0 240 240\"") || xml.contains("viewbox=\"0 0 240 240\""));
+    assertTrue(xml.contains("shape-rendering: geometricPrecision"));
+    assertFalse(xml.contains("octane-timer-border"));
+    assertTrue(xml.contains("octane-timer-progress-halo"));
+    assertTrue(xml.contains("data-timer-progress-halo=\"true\""));
+    assertTrue(xml.contains("data-total-seconds=\"2700\""));
+    assertTrue(xml.contains("data-total-seconds=\"15\""));
+    assertTrue(xml.contains("data-timer-value=\"true\""));
+    assertTrue(xml.contains("data-timer-progress=\"true\""));
+    assertTrue(xml.contains("data-timer-head=\"true\""));
+    assertTrue(xml.contains("data-timer-tail-stop=\"true\""));
+    assertTrue(xml.contains("data-timer-mid-stop=\"true\""));
+    assertTrue(xml.contains("octane-timer-zone octane-card-zone"));
+    assertTrue(xml.contains("octane-report-zone octane-card-zone"));
+    assertTrue(xml.contains("id=\"octane-report-zone\""));
+    assertTrue(xml.contains("data-octane-progress=\"execution\""));
+    assertTrue(xml.contains("data-progress-value=\"100.0\""));
+    assertTrue(xml.contains("data-execution-progress-circle=\"true\""));
+    assertTrue(xml.contains("data-execution-progress-head=\"true\""));
+    assertFalse(xml.contains("octane-execution-gradient"));
+    assertTrue(xml.contains("font-size: 2.6082rem"));
+    assertTrue(xml.contains("font-size: 0.91875rem"));
+    assertTrue(xml.contains("data-timer-value=\"true\" x=\"120\" y=\"118\""));
+    assertTrue(xml.contains("data-timer-unit=\"true\" x=\"120\" y=\"132.4\""));
+    assertTrue(xml.contains("#F32013"));
+    assertTrue(xml.contains("stroke-width: 16"));
+    assertTrue(xml.contains("style=\"height: 100.00%;\""));
+    assertTrue(xml.contains("title=\"2 tests\""));
+    assertTrue(xml.contains("TIMER_CENTER = 120"));
+    assertTrue(xml.contains("TIMER_RADIUS = 84"));
+    assertTrue(xml.contains("EXPIRED_TIMER_COLORS"));
+    assertTrue(xml.contains("#ffb5ad"));
+    assertTrue(xml.contains("#ff665a"));
+    assertTrue(xml.contains("EXECUTION_PROGRESS_COLORS"));
+    assertTrue(xml.contains("start: \"#F32013\""));
+    assertTrue(xml.contains("fourthQuadrant: \"#78c679\""));
+    assertTrue(xml.contains("complete: \"#78c679\""));
+    assertTrue(xml.contains("ratio < 0.75"));
+    assertTrue(xml.contains("progressCircle.setAttribute(\"stroke\", executionColor)"));
+    assertTrue(xml.contains("progressHalo.setAttribute(\"stroke\", executionColor)"));
+    assertTrue(xml.contains("requestAnimationFrame"));
+    assertTrue(xml.contains("performance.now"));
+    assertFalse(xml.contains("setInterval(updateTimers, 1000)"));
+    assertFalse(xml.contains("transition: stroke-dasharray"));
+    assertTrue(xml.contains("draggable=\"true\""));
+    assertTrue(xml.contains("overflow-y: hidden"));
+    assertTrue(xml.contains("text-overflow: ellipsis"));
+    assertTrue(xml.contains(".octane-vertical-bars::before"));
+    assertTrue(xml.contains("zoneForCard"));
+    assertTrue(xml.contains("targetZone !== draggedZone"));
+  }
+
+  private GateResult result() {
+    return new GateResult(
+        "4501",
+        "100% pass",
+        true,
+        true,
+        new GateMetrics(2, 2, 1, 1, 0, 0),
+        List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed")),
+        Map.of(
+            "4501",
+            List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed"))),
+        Map.of(),
+        Instant.parse("2026-05-15T00:00:00Z"));
+  }
+}

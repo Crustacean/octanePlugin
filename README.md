@@ -50,6 +50,19 @@ Global suite runs: execution 50.00%, pass 100.00%, total 4, executed 2, passed 2
 Critical suite runs: execution 100.00%, pass 100.00%, total 2, executed 2, passed 2, failed 0, skipped 0, running 0.
 ```
 
+Each build also gets an **Octane Gate Report** link. The report refreshes while the gate is
+polling and remains available after the build finishes. It renders a resizable, draggable
+countdown donut for testing time remaining, a countdown donut for the next poll, a donut
+chart for the total status distribution, and a vertical bar chart for each suite run. Suite-run
+bar heights are relative to the suite run with the most tests in that section. The
+countdown donuts animate smoothly between displayed second/minute changes and use high-resolution
+SVG rings with a subtle halo stroke to reduce jagged circular edges. Status colors are:
+
+- Passed: `#78c679`
+- Failed: `#ff6361`
+- Skipped: `#ffb74d`
+- Running: `#778899`
+
 Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API
 query fragments applied to the global suite runs' child runs:
 
