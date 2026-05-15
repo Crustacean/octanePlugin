@@ -1,6 +1,5 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
-import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;

@@ -208,8 +208,7 @@ public class OctaneServer extends AbstractDescribableImpl<OctaneServer> implemen
         }
         return FormValidation.error("Not OK: HTTP " + status + " from " + pathLabel);
       } catch (IOException e) {
-        return FormValidation.error(
-            "Not OK: could not test " + pathLabel + ". " + e.getMessage());
+        return FormValidation.error("Not OK: could not test " + pathLabel + ". " + e.getMessage());
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         return FormValidation.error("Not OK: workspace connectivity test was interrupted.");

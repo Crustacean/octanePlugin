@@ -117,8 +117,7 @@ public class GateResultTest {
     assertEquals(List.of("450303", "450204"), criticalDetails.get("suiteRunIds"));
     assertEquals(List.of("450304", "450205"), criticalDetails.get("runIds"));
 
-    Map<String, Object> criticalSuiteRuns =
-        (Map<String, Object>) criticalDetails.get("suiteRuns");
+    Map<String, Object> criticalSuiteRuns = (Map<String, Object>) criticalDetails.get("suiteRuns");
     assertTrue(criticalSuiteRuns.containsKey("450303"));
     assertTrue(criticalSuiteRuns.containsKey("450204"));
   }

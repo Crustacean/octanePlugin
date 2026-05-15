@@ -63,6 +63,29 @@ SVG rings with a subtle halo stroke to reduce jagged circular edges. Status colo
 - Skipped: `#ffb74d`
 - Running: `#778899`
 
+To email the report image in a later Pipeline stage, use `octaneEmailReport` after
+`octaneSuiteGate`:
+
+```groovy
+octaneEmailReport(
+  to: 'qa-team@example.com,dev-team@example.com',
+  subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+  body: 'Attached is the Octane report-zone screenshot.',
+  onFailure: 'UNSTABLE'
+)
+```
+
+The step captures only the `octane-report-zone` chart area, saves it in the workspace as
+`.octane-suite-gate/report-email/octane-report-zone.png`, archives it by default, and sends it
+through Jenkins Email Extension. `onFailure` controls notification failures:
+
+- `UNSTABLE`: mark the build unstable and continue. This is the default.
+- `FAILURE`: fail the stage/build.
+- `WARN`: print a warning and continue.
+
+Optional parameters are `cc`, `bcc`, `browserPath`, `viewportWidth`, and `archiveScreenshot`.
+Chrome or Chromium must be available on the Jenkins agent, or `browserPath` must point to it.
+
 Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API
 query fragments applied to the global suite runs' child runs:
 

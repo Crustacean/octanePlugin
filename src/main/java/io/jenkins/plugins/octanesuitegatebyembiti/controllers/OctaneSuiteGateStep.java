@@ -1,7 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.AbortException;
 import hudson.Extension;
 import hudson.model.Result;
 import hudson.model.Run;

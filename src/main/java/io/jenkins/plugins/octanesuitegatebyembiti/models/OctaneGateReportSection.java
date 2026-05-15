@@ -35,8 +35,7 @@ public class OctaneGateReportSection implements Serializable {
     this.suiteRuns = List.copyOf(suiteRuns);
   }
 
-  public static OctaneGateReportSection global(
-      GateResult result, StatusClassifier classifier) {
+  public static OctaneGateReportSection global(GateResult result, StatusClassifier classifier) {
     return fromSuiteRuns(
         "Global suite runs",
         "global",
@@ -80,8 +79,7 @@ public class OctaneGateReportSection implements Serializable {
         chartSuiteRuns.entrySet().stream()
             .map(
                 entry ->
-                    OctaneGateSuiteRunChart.fromRuns(
-                        entry.getKey(), entry.getValue(), classifier))
+                    OctaneGateSuiteRunChart.fromRuns(entry.getKey(), entry.getValue(), classifier))
             .toList();
     int maxSuiteRunTotal =
         suiteRunCharts.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);
@@ -141,6 +139,26 @@ public class OctaneGateReportSection implements Serializable {
       return "<none>";
     }
     return String.join(", ", suiteRunIds);
+  }
+
+  public String getStatusDistributionTitle() {
+    if ("global".equalsIgnoreCase(source)) {
+      return "Grouped Status Distribution";
+    }
+    if ("critical".equalsIgnoreCase(source)) {
+      return "Grouped Status Distribution_CRITICAL RUNs";
+    }
+    return name + " status distribution";
+  }
+
+  public String getSuiteRunChartTitle() {
+    if ("global".equalsIgnoreCase(source)) {
+      return "Testing progress per Tester Suite Runs";
+    }
+    if ("critical".equalsIgnoreCase(source)) {
+      return "Testing progress per Tester Suite Runs_CRITICAL";
+    }
+    return name + " by suite run";
   }
 
   private static List<OctaneGateStatusCount> totalsFromMetrics(GateMetrics metrics) {

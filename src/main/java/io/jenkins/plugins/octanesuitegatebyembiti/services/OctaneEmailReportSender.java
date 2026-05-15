@@ -1,0 +1,13 @@
+package io.jenkins.plugins.octanesuitegatebyembiti.services;
+
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+
+public interface OctaneEmailReportSender {
+  void send(
+      StepContext context,
+      String recipients,
+      String subject,
+      String body,
+      String attachmentsPattern)
+      throws Exception;
+}
