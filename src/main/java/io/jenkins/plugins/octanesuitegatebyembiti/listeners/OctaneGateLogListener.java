@@ -64,6 +64,10 @@ public class OctaneGateLogListener {
     listener.getLogger().println("ALM Octane suite gate passed.");
   }
 
+  public void logReportLink(TaskListener listener, String reportUrl) {
+    listener.getLogger().println("Octane Gate Report: " + reportUrl);
+  }
+
   private void logMetrics(TaskListener listener, String label, GateMetrics metrics) {
     listener
         .getLogger()

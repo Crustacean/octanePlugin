@@ -8,7 +8,9 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
+import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
@@ -228,14 +230,21 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     private void run() {
+      OctaneGateReportAction reportAction = null;
       try {
         StepContext context = getContext();
+        Run<?, ?> run = context.get(Run.class);
         TaskListener listener = context.get(TaskListener.class);
-        GateResult result = new OctaneGateRunner().run(request, listener);
+        reportAction = OctaneGateReportAction.attachTo(run, request);
+        new OctaneGateLogListener().logReportLink(listener, reportAction.getReportUrl());
+        GateResult result = new OctaneGateRunner().run(request, listener, reportAction);
         context.onSuccess(result.toPipelineMap());
       } catch (GateFailedException e) {
         handleGateFailure(e);
       } catch (Throwable t) {
+        if (reportAction != null) {
+          reportAction.onError(t.getMessage(), request);
+        }
         getContext().onFailure(t);
       }
     }

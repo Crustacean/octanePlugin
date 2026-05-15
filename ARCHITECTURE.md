@@ -51,6 +51,7 @@ annotations:
 
 The Java sources are organized under the base package into focused folders:
 
+- `actions`: per-build Jenkins report actions and chart pages.
 - `configs`: global Jenkins configuration and Octane server definitions.
 - `controllers`: Pipeline and Freestyle entry points.
 - `entities`: ALM Octane API record shapes.
@@ -128,12 +129,46 @@ Pipeline step, so both entry points share the same gate behavior.
 3. `OctaneGateRunner` resolves the configured `OctaneServer` by `serverId`.
 4. The runner resolves Jenkins credentials by `credentialsId`.
 5. The runner creates `OctaneClient` and signs in to Octane.
-6. The runner polls until the gate passes, fails, or times out.
-7. Each poll fetches suite child runs and computes metrics.
-8. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
-9. `CriteriaExpression` evaluates the criteria against global and scoped metrics.
-10. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
+6. The step attaches an `Octane Gate Report` action to the current build.
+7. The runner polls until the gate passes, fails, or times out.
+8. Each poll fetches suite child runs, computes metrics, and updates the report snapshot.
+9. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
+10. `CriteriaExpression` evaluates the criteria against global and scoped metrics.
+11. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
     when `markUnstable` is enabled.
+
+## Build Report
+
+Every Pipeline and Freestyle run gets a build-side **Octane Gate Report** at:
+
+```text
+<build-url>/octaneSuiteGateReport/
+```
+
+The report is backed by a persisted Jenkins `RunAction`. It is attached before
+polling starts, updated after every poll, and left on the build after pass,
+failure, unstable, timeout, or unexpected error.
+
+The report contains chart cards for global suite runs and each scope. Cards are
+resizable and can be reordered by dragging. Two cards fit per row by default;
+when one card is resized wide enough, the neighboring card wraps below. The
+report also shows two centered countdown donut cards: Testing Time Remaining
+from `timeoutMinutes`, and Time to next Poll from `pollIntervalSeconds`. Timer
+ring movement uses browser animation frames for smooth millisecond-based motion,
+while the center text remains rounded to minutes or seconds. Timer SVGs render at
+a higher internal resolution with geometric precision hints and a subtle progress
+halo to reduce jagged circular edges. Each section renders:
+
+- a donut chart for total Passed, Failed, Skipped, and Running counts.
+- a vertical bar chart for the same counts per suite run, with bar height
+  scaled against the suite run with the most tests in that section.
+
+The chart colors are fixed:
+
+- Passed: `#78c679`
+- Failed: `#ff6361`
+- Skipped: `#ffb74d`
+- Running: `#778899`
 
 ## Octane API Flow
 
@@ -422,6 +457,7 @@ containing API secrets are not logged.
 
 | Class | Responsibility |
 | --- | --- |
+| `actions.OctaneGateReportAction` | Per-build chart report and live snapshot holder. |
 | `configs.OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
 | `configs.OctaneServer` | One configured Octane server and its validation endpoints. |
 | `controllers.OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
@@ -435,6 +471,7 @@ containing API secrets are not logged.
 | `services.CriteriaExpression` | Safe criteria parser and evaluator. |
 | `models.GateResult` | Pipeline result map model. |
 | `models.OctaneGateScope` | Named scoped suite-run or query model. |
+| `models.OctaneGateReportSnapshot` | Report sections, pie data, and bar data for the build page. |
 
 ## Examples
 
@@ -452,6 +489,7 @@ The test suite covers:
 - suite-run fallback endpoint behavior
 - multi-ID scoped query forwarding
 - suite-run-backed scoped metrics
+- Octane Gate Report chart snapshots and Jenkins build-page rendering
 - Pipeline result map shape
 
 Run:

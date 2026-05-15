@@ -13,7 +13,10 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
+import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
@@ -150,8 +153,11 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
       Launcher launcher,
       TaskListener listener)
       throws InterruptedException, IOException {
+    GateRequest request = delegate.toRequest();
+    OctaneGateReportAction reportAction = OctaneGateReportAction.attachTo(run, request);
+    new OctaneGateLogListener().logReportLink(listener, reportAction.getReportUrl());
     try {
-      new OctaneGateRunner().run(delegate.toRequest(), listener);
+      new OctaneGateRunner().run(request, listener, reportAction);
     } catch (GateFailedException e) {
       if (delegate.isMarkUnstable()) {
         run.setResult(Result.UNSTABLE);
@@ -159,6 +165,12 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
       } else {
         throw e;
       }
+    } catch (IOException | InterruptedException e) {
+      reportAction.onError(e.getMessage(), request);
+      throw e;
+    } catch (RuntimeException e) {
+      reportAction.onError(e.getMessage(), request);
+      throw e;
     }
   }
 
