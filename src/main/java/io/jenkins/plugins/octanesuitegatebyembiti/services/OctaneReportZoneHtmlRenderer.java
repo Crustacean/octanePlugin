@@ -99,12 +99,14 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           gap: 12px;
           justify-content: center;
+          padding: 12px 24px;
         }
         .octane-donut {
           display: block;
           height: auto;
           justify-self: center;
-          max-width: 240px;
+          max-width: 280px;
+          overflow: visible;
           width: 100%;
         }
         .octane-donut-label {
@@ -262,7 +264,7 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("<div class=\"octane-empty\">No run results have been returned yet.</div>\n");
     } else {
       html.append("<div class=\"octane-donut-wrap\">\n");
-      html.append("<svg class=\"octane-donut\" viewBox=\"0 0 100 100\" role=\"img\" ");
+      html.append("<svg class=\"octane-donut\" viewBox=\"-10 -10 120 120\" role=\"img\" ");
       html.append("aria-label=\"");
       html.append(escapeAttribute(section.getStatusDistributionTitle()));
       html.append("\">\n");

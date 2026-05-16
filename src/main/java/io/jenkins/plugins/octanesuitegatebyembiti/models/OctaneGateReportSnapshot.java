@@ -216,7 +216,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     int total = 0;
     int executed = 0;
     for (OctaneGateReportSection section : sections) {
-      if (isExecutionProgressSection(section)) {
+      if (isProjectProgressSection(section)) {
         total += section.getMetrics().getTotal();
         executed += section.getMetrics().getExecuted();
       }
@@ -231,7 +231,43 @@ public class OctaneGateReportSnapshot implements Serializable {
     return String.format(Locale.ROOT, "%.0f%%", getExecutionProgress());
   }
 
-  private static boolean isExecutionProgressSection(OctaneGateReportSection section) {
+  public int getPassRateTotal() {
+    int total = 0;
+    for (OctaneGateReportSection section : sections) {
+      if (isProjectProgressSection(section)) {
+        total += section.getMetrics().getTotal();
+      }
+    }
+    return total;
+  }
+
+  public int getPassRatePassed() {
+    int passed = 0;
+    for (OctaneGateReportSection section : sections) {
+      if (isProjectProgressSection(section)) {
+        passed += section.getMetrics().getPassed();
+      }
+    }
+    return passed;
+  }
+
+  public double getPassRateProgress() {
+    int total = getPassRateTotal();
+    if (total == 0) {
+      return 0.0;
+    }
+    return getPassRatePassed() * 100.0 / total;
+  }
+
+  public String getPassRateProgressText() {
+    return String.format(Locale.ROOT, "%.0f%%", getPassRateProgress());
+  }
+
+  public String getPassRateLabel() {
+    return "All Testcase Pass Rate (" + getPassRatePassed() + " / " + getPassRateTotal() + ")";
+  }
+
+  private static boolean isProjectProgressSection(OctaneGateReportSection section) {
     String source = section.getSource();
     return "global".equalsIgnoreCase(source) || "critical".equalsIgnoreCase(source);
   }

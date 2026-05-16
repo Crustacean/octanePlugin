@@ -76,10 +76,10 @@
           opacity: 0.45;
         }
         .octane-timer-card {
-          flex: 1 1 calc(33.333% - 0.67rem);
+          flex: 1 1 calc(25% - 0.75rem);
           min-height: 280px;
           min-width: 280px;
-          width: calc(33.333% - 0.67rem);
+          width: calc(25% - 0.75rem);
         }
         .octane-timer-wrap {
           align-items: center;
@@ -132,12 +132,14 @@
           display: flex;
           gap: 0.75rem;
           justify-content: center;
+          padding: 0.75rem 1.5rem;
         }
         .octane-donut {
           display: block;
           height: auto;
           justify-self: center;
-          max-width: 240px;
+          max-width: 280px;
+          overflow: visible;
           width: 100%;
         }
         .octane-donut-label {
@@ -405,21 +407,73 @@
                   </defs>
                   <circle class="octane-timer-track" cx="120" cy="120" r="84" />
                   <circle class="octane-timer-progress-halo" data-execution-progress-halo="true"
+                      data-progress-halo="true"
                       cx="120" cy="120" r="84" pathLength="100"
                       stroke="url(#octane-execution-progress-gradient)" stroke-dasharray="0 100"
                       transform="rotate(-90 120 120)" />
                   <circle class="octane-timer-progress" data-execution-progress-circle="true"
+                      data-progress-circle="true"
                       cx="120" cy="120" r="84" pathLength="100"
                       stroke="url(#octane-execution-progress-gradient)" stroke-dasharray="0 100"
                       transform="rotate(-90 120 120)" />
                   <circle class="octane-timer-head" data-execution-progress-head="true"
+                      data-progress-head="true"
                       cx="120" cy="36" r="9.6" fill="#e14343" />
                   <text class="octane-timer-value" data-execution-progress-value="true"
-                      x="120" y="118">
+                      data-progress-value-text="true" x="120" y="118">
                     ${snapshot.executionProgressText}
                   </text>
                   <text class="octane-timer-unit" x="120" y="132.4">
                     execution
+                  </text>
+                </svg>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-octane-progress="pass-rate"
+                data-progress-value="${snapshot.passRateProgress}">
+              <div class="octane-card-header">
+                <div>
+                  <h2 class="octane-card-title">Execution Pass Rate</h2>
+                  <div class="octane-muted" data-pass-rate-label="true">
+                    ${snapshot.passRateLabel}
+                  </div>
+                </div>
+                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                  :::
+                </span>
+              </div>
+              <div class="octane-timer-wrap">
+                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                    aria-label="Execution Pass Rate">
+                  <defs>
+                    <linearGradient id="octane-pass-rate-progress-gradient" x1="32" y1="208"
+                        x2="208" y2="32" gradientUnits="userSpaceOnUse">
+                      <stop data-progress-gradient-stop="true" offset="0%" stop-color="#fb4b4b" />
+                      <stop data-progress-gradient-stop="true" offset="50%"
+                          stop-color="#e14343" />
+                      <stop data-progress-gradient-stop="true" offset="100%"
+                          stop-color="#e14343" />
+                    </linearGradient>
+                  </defs>
+                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                  <circle class="octane-timer-progress-halo" data-progress-halo="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="url(#octane-pass-rate-progress-gradient)" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-progress" data-progress-circle="true"
+                      cx="120" cy="120" r="84" pathLength="100"
+                      stroke="url(#octane-pass-rate-progress-gradient)" stroke-dasharray="0 100"
+                      transform="rotate(-90 120 120)" />
+                  <circle class="octane-timer-head" data-progress-head="true"
+                      cx="120" cy="36" r="9.6" fill="#e14343" />
+                  <text class="octane-timer-value" data-progress-value-text="true"
+                      x="120" y="118">
+                    ${snapshot.passRateProgressText}
+                  </text>
+                  <text class="octane-timer-unit" x="120" y="132.4">
+                    passed
                   </text>
                 </svg>
               </div>
@@ -459,7 +513,7 @@
                       </j:when>
                       <j:otherwise>
                         <div class="octane-donut-wrap">
-                          <svg class="octane-donut" viewBox="0 0 100 100" role="img"
+                          <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
                               aria-label="${section.statusDistributionTitle}">
                             <j:forEach var="slice" items="${section.pieSlices}">
                               <j:choose>
@@ -582,6 +636,12 @@
               {limit: 70, colors: ["#fff47f", "#e5db72", "#ccc365"]},
               {limit: 100, colors: ["#4bfb4b", "#43e143", "#3cc83c"]}
             ],
+            passRate: [
+              {limit: 20, colors: ["#fb4b4b", "#e14343"]},
+              {limit: 60, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
+              {limit: 94, colors: ["#fff47f", "#e5db72", "#ccc365"]},
+              {limit: 100, colors: ["#4bfb4b", "#43e143", "#3cc83c"]}
+            ],
             poll: [
               {
                 limit: 100,
@@ -597,6 +657,7 @@
           };
           var COMPLETE_PROGRESS_COLORS = {
             execution: "#3cc83c",
+            passRate: "#3cc83c",
             poll: "#95b1c8",
             timeout: "#e14343"
           };
@@ -826,8 +887,18 @@
               reportZone.replaceWith(updatedReportZone);
             }
             for (var index = 0; index < progressCards.length; index += 1) {
-              progressCards[index].setAttribute(
-                  "data-progress-value", String(payload.executionProgress || 0));
+              var progressKind = progressCards[index].getAttribute("data-octane-progress");
+              var progressValue =
+                  progressKind === "pass-rate"
+                      ? payload.passRateProgress || 0
+                      : payload.executionProgress || 0;
+              progressCards[index].setAttribute("data-progress-value", String(progressValue));
+              if (progressKind === "pass-rate") {
+                var passRateLabel = progressCards[index].querySelector("[data-pass-rate-label]");
+                if (passRateLabel) {
+                  passRateLabel.textContent = payload.passRateLabel || "";
+                }
+              }
               updateExecutionProgress(progressCards[index]);
             }
             hasActiveTimer = payload.building === true;
@@ -897,13 +968,26 @@
               progress = 0;
             }
             progress = clamp(progress, 0, 100);
-            var progressCircle = card.querySelector("[data-execution-progress-circle]");
-            var progressHalo = card.querySelector("[data-execution-progress-halo]");
-            var gradientStops = card.querySelectorAll("[data-execution-gradient-stop]");
-            var head = card.querySelector("[data-execution-progress-head]");
-            var value = card.querySelector("[data-execution-progress-value]");
+            var progressKind = card.getAttribute("data-octane-progress") || "execution";
+            var progressCircle =
+                card.querySelector("[data-progress-circle]")
+                || card.querySelector("[data-execution-progress-circle]");
+            var progressHalo =
+                card.querySelector("[data-progress-halo]")
+                || card.querySelector("[data-execution-progress-halo]");
+            var gradientStops = card.querySelectorAll("[data-progress-gradient-stop]");
+            if (!gradientStops.length) {
+              gradientStops = card.querySelectorAll("[data-execution-gradient-stop]");
+            }
+            var head =
+                card.querySelector("[data-progress-head]")
+                || card.querySelector("[data-execution-progress-head]");
+            var value =
+                card.querySelector("[data-progress-value-text]")
+                || card.querySelector("[data-execution-progress-value]");
             var displayValue = String(Math.round(progress)) + "%";
-            var executionColors = colorsForProgress("execution", progress);
+            var colorKind = progressKind === "pass-rate" ? "passRate" : progressKind;
+            var executionColors = colorsForProgress(colorKind, progress);
             var executionColor = executionColors[executionColors.length - 1];
             if (value) {
               value.textContent = displayValue;

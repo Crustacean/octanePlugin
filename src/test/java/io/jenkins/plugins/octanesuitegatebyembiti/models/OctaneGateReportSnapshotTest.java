@@ -41,6 +41,11 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("height: 66.67%;", global.getSuiteRuns().get(1).getBarHeightStyle());
     assertEquals(87.5, snapshot.getExecutionProgress(), 0.001);
     assertEquals("88%", snapshot.getExecutionProgressText());
+    assertEquals(8, snapshot.getPassRateTotal());
+    assertEquals(4, snapshot.getPassRatePassed());
+    assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
+    assertEquals("50%", snapshot.getPassRateProgressText());
+    assertEquals("All Testcase Pass Rate (4 / 8)", snapshot.getPassRateLabel());
     assertFalse(global.getPieSlices().isEmpty());
   }
 
@@ -147,6 +152,11 @@ public class OctaneGateReportSnapshotTest {
     assertTrue(global.isEmpty());
     assertEquals(0.0, snapshot.getExecutionProgress(), 0.001);
     assertEquals("0%", snapshot.getExecutionProgressText());
+    assertEquals(0, snapshot.getPassRateTotal());
+    assertEquals(0, snapshot.getPassRatePassed());
+    assertEquals(0.0, snapshot.getPassRateProgress(), 0.001);
+    assertEquals("0%", snapshot.getPassRateProgressText());
+    assertEquals("All Testcase Pass Rate (0 / 0)", snapshot.getPassRateLabel());
     assertTrue(global.getPieSlices().isEmpty());
     assertEquals(1, global.getSuiteRuns().size());
     assertEquals(0, global.getSuiteRuns().get(0).getTotal());
