@@ -282,7 +282,7 @@
               <div class="octane-card-header">
                 <div>
                   <h2 class="octane-card-title">Testing Time Remaining</h2>
-                  <div class="octane-muted">Timeout window</div>
+                  <div class="octane-muted">Testing Session Timer</div>
                 </div>
                 <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
                   :::
@@ -331,7 +331,7 @@
                 data-active="${snapshot.building}">
               <div class="octane-card-header">
                 <div>
-                  <h2 class="octane-card-title">Time to next Poll</h2>
+                  <h2 class="octane-card-title">Status Check</h2>
                   <div class="octane-muted">
                     Polling interval
                     <span class="octane-live-update" data-live-update-status="true"></span>
@@ -343,7 +343,7 @@
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                    aria-label="Time to next Poll">
+                    aria-label="Status Check">
                   <defs>
                     <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208" y2="32"
                         gradientUnits="userSpaceOnUse">

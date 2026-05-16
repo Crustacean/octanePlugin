@@ -108,7 +108,7 @@ public class OctaneGateReportSnapshot implements Serializable {
       int timeoutSeconds,
       String startedAt) {
     List<OctaneGateReportSection> sections = new ArrayList<>();
-    sections.add(OctaneGateReportSection.global(result, classifier));
+    sections.add(OctaneGateReportSection.regressions(result, classifier));
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
       sections.add(OctaneGateReportSection.scoped(scopeResult, classifier));
     }
@@ -260,7 +260,7 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   private static boolean isProjectProgressSection(OctaneGateReportSection section) {
     String source = section.getSource();
-    return "global".equalsIgnoreCase(source) || "critical".equalsIgnoreCase(source);
+    return isRegressionSection(section) || "critical".equalsIgnoreCase(source);
   }
 
   private ProjectProgressCounts projectProgressCounts() {
@@ -275,7 +275,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         continue;
       }
       for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
-        if (isGlobalSection(section) && criticalSuiteRunIds.contains(suiteRun.getSuiteRunId())) {
+        if (isRegressionSection(section) && criticalSuiteRunIds.contains(suiteRun.getSuiteRunId())) {
           continue;
         }
         counts.add(suiteRun);
@@ -294,8 +294,9 @@ public class OctaneGateReportSnapshot implements Serializable {
     return criticalSuiteRunIds;
   }
 
-  private static boolean isGlobalSection(OctaneGateReportSection section) {
-    return "global".equalsIgnoreCase(section.getSource());
+  private static boolean isRegressionSection(OctaneGateReportSection section) {
+    String source = section.getSource();
+    return "regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source);
   }
 
   private static class ProjectProgressCounts {

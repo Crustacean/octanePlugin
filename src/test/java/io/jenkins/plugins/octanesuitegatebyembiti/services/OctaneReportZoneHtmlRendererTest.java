@@ -33,9 +33,9 @@ public class OctaneReportZoneHtmlRendererTest {
     String html = new OctaneReportZoneHtmlRenderer().render(snapshot);
 
     assertTrue(html.contains("id=\"octane-report-zone\""));
-    assertTrue(html.contains("Grouped Status Distribution"));
-    assertTrue(html.contains("Grouped Status Distribution_CRITICAL RUNs"));
-    assertTrue(html.contains("Testing progress per Tester Suite Runs"));
+    assertTrue(html.contains("REGRESSIONS Status Distribution"));
+    assertTrue(html.contains("CRITICAL Distribution_CRITICAL"));
+    assertTrue(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertTrue(html.contains("Total: 3"));
     assertTrue(html.contains("Total Suiteruns: 2"));
@@ -56,6 +56,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-vertical-bars"));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
     assertFalse(html.contains("Testing Time Remaining"));
+    assertFalse(html.contains("Status Check"));
     assertFalse(html.contains("Time to next Poll"));
     assertFalse(html.contains("Execution Progress"));
   }
@@ -70,7 +71,7 @@ public class OctaneReportZoneHtmlRendererTest {
 
     assertTrue(html.contains("id=\"octane-report-zone\""));
     assertTrue(html.contains("draggable=\"true\""));
-    assertTrue(html.contains("Grouped Status Distribution"));
+    assertTrue(html.contains("REGRESSIONS Status Distribution"));
     assertFalse(html.contains("<html>"));
     assertFalse(html.contains("<body>"));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
@@ -130,17 +131,17 @@ public class OctaneReportZoneHtmlRendererTest {
 
     String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
 
-    assertFalse(html.contains("Grouped Status Distribution</h2>"));
-    assertFalse(html.contains("Testing progress per Tester Suite Runs</h2>"));
-    assertTrue(html.contains("Grouped Status Distribution_CRITICAL RUNs"));
+    assertFalse(html.contains("REGRESSIONS Status Distribution</h2>"));
+    assertFalse(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS</h2>"));
+    assertTrue(html.contains("CRITICAL Distribution_CRITICAL"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertFalse(html.contains("No run results have been returned yet."));
   }
 
   @Test
   public void skipsEmptyCriticalSectionInReportZone() {
-    Map<String, List<RunRecord>> globalSuiteRuns = new LinkedHashMap<>();
-    globalSuiteRuns.put("4501", List.of(new RunRecord("1", "one", "passed")));
+    Map<String, List<RunRecord>> regressionSuiteRuns = new LinkedHashMap<>();
+    regressionSuiteRuns.put("4501", List.of(new RunRecord("1", "one", "passed")));
     GateResult result =
         new GateResult(
             "4501",
@@ -148,8 +149,8 @@ public class OctaneReportZoneHtmlRendererTest {
             true,
             true,
             new GateMetrics(1, 1, 1, 0, 0, 0),
-            globalSuiteRuns.get("4501"),
-            globalSuiteRuns,
+            regressionSuiteRuns.get("4501"),
+            regressionSuiteRuns,
             Map.of(
                 "critical",
                 new GateScopeResult(
@@ -168,18 +169,18 @@ public class OctaneReportZoneHtmlRendererTest {
 
     String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
 
-    assertTrue(html.contains("Grouped Status Distribution</h2>"));
-    assertTrue(html.contains("Testing progress per Tester Suite Runs</h2>"));
-    assertFalse(html.contains("Grouped Status Distribution_CRITICAL RUNs"));
+    assertTrue(html.contains("REGRESSIONS Status Distribution</h2>"));
+    assertTrue(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS</h2>"));
+    assertFalse(html.contains("CRITICAL Distribution_CRITICAL"));
     assertFalse(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertFalse(html.contains("No run results have been returned yet."));
   }
 
   private GateResult result() {
-    Map<String, List<RunRecord>> globalSuiteRuns = new LinkedHashMap<>();
-    globalSuiteRuns.put(
+    Map<String, List<RunRecord>> regressionSuiteRuns = new LinkedHashMap<>();
+    regressionSuiteRuns.put(
         "4501", List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed")));
-    globalSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "planned")));
+    regressionSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "planned")));
 
     Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
     criticalSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "passed")));
@@ -194,7 +195,7 @@ public class OctaneReportZoneHtmlRendererTest {
             new RunRecord("1", "one", "passed"),
             new RunRecord("2", "two", "failed"),
             new RunRecord("3", "three", "planned")),
-        globalSuiteRuns,
+        regressionSuiteRuns,
         Map.of(
             "critical",
             new GateScopeResult(

@@ -16,7 +16,7 @@ public class OctaneGateLogListener {
 
   public void logWaiting(TaskListener listener, GateRequest request, List<String> suiteRunIds) {
     listener.getLogger().println("Waiting for ALM Octane suite run(s)");
-    listener.getLogger().println("Global suite runs: " + describeIds(suiteRunIds));
+    listener.getLogger().println("Regressions suite runs: " + describeIds(suiteRunIds));
     if (request == null) {
       return;
     }
@@ -44,7 +44,7 @@ public class OctaneGateLogListener {
   }
 
   public void logPollResult(TaskListener listener, GateResult result) {
-    logMetrics(listener, "Global suite runs", result.getMetrics());
+    logMetrics(listener, "Regressions suite runs", result.getMetrics());
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
       if (scopeResult.isSuiteRunScope()) {
         logMetrics(

@@ -35,10 +35,11 @@ public class OctaneGateReportSection implements Serializable {
     this.suiteRuns = List.copyOf(suiteRuns);
   }
 
-  public static OctaneGateReportSection global(GateResult result, StatusClassifier classifier) {
+  public static OctaneGateReportSection regressions(
+      GateResult result, StatusClassifier classifier) {
     return fromSuiteRuns(
-        "Global suite runs",
-        "global",
+        "Regressions suite runs",
+        "regressions",
         result.getSuiteRunId(),
         result.getMetrics(),
         result.getSuiteRuns(),
@@ -143,18 +144,18 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   public String getStatusDistributionTitle() {
-    if ("global".equalsIgnoreCase(source)) {
-      return "Grouped Status Distribution";
+    if ("regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source)) {
+      return "REGRESSIONS Status Distribution";
     }
     if ("critical".equalsIgnoreCase(source)) {
-      return "Grouped Status Distribution_CRITICAL RUNs";
+      return "CRITICAL Distribution_CRITICAL";
     }
     return name + " status distribution";
   }
 
   public String getSuiteRunChartTitle() {
-    if ("global".equalsIgnoreCase(source)) {
-      return "Testing progress per Tester Suite Runs";
+    if ("regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source)) {
+      return "Testing progress per Tester Suite Runs_REGRESSIONS";
     }
     if ("critical".equalsIgnoreCase(source)) {
       return "Testing progress per Tester Suite Runs_CRITICAL";

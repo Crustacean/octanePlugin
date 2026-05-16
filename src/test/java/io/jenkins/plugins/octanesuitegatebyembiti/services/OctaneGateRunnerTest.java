@@ -30,19 +30,19 @@ import org.junit.Test;
 
 public class OctaneGateRunnerTest {
   @Test
-  public void criticalSuiteRunsOwnOverlappingGlobalIdsForCriteria() {
+  public void criticalSuiteRunsOwnOverlappingRegressionIdsForCriteria() {
     GateRequest request = new GateRequest("octane-prod", "450297,450300,450303,450303");
     OctaneGateScope critical = new OctaneGateScope("critical");
     critical.setSuiteRunId("450303,450204,450204");
     request.setScopes(List.of(critical));
 
     assertEquals(
-        List.of("450297", "450300"), OctaneGateRunner.globalSuiteRunIdsForCriteria(request));
+        List.of("450297", "450300"), OctaneGateRunner.regressionSuiteRunIdsForCriteria(request));
     assertEquals(List.of("450303", "450204"), critical.getSuiteRunIds());
   }
 
   @Test
-  public void nonCriticalSuiteRunScopesDoNotOwnGlobalIds() {
+  public void nonCriticalSuiteRunScopesDoNotOwnRegressionIds() {
     GateRequest request = new GateRequest("octane-prod", "450297,450300,450303");
     OctaneGateScope smoke = new OctaneGateScope("smoke");
     smoke.setSuiteRunId("450303");
@@ -50,7 +50,7 @@ public class OctaneGateRunnerTest {
 
     assertEquals(
         List.of("450297", "450300", "450303"),
-        OctaneGateRunner.globalSuiteRunIdsForCriteria(request));
+        OctaneGateRunner.regressionSuiteRunIdsForCriteria(request));
   }
 
   @Test

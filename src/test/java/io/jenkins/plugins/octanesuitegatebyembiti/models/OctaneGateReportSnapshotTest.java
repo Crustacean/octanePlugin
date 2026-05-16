@@ -20,25 +20,26 @@ public class OctaneGateReportSnapshotTest {
           StatusClassifier.DEFAULT_RUNNING_STATUSES);
 
   @Test
-  public void aggregatesGlobalPieTotalsAndSuiteRunBars() {
+  public void aggregatesRegressionPieTotalsAndSuiteRunBars() {
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(
             OctaneGateReportState.POLLING, "Polling", result(), classifier, 30);
 
-    OctaneGateReportSection global = snapshot.getSections().get(0);
-    assertEquals("Global suite runs", global.getName());
-    assertEquals(5, global.getMetrics().getTotal());
-    assertEquals(2, count(global, OctaneGateStatusBucket.PASSED));
-    assertEquals(1, count(global, OctaneGateStatusBucket.FAILED));
-    assertEquals(0, count(global, OctaneGateStatusBucket.BLOCKED));
-    assertEquals(1, count(global, OctaneGateStatusBucket.SKIPPED));
-    assertEquals(1, count(global, OctaneGateStatusBucket.RUNNING));
-    assertEquals(2, global.getSuiteRuns().size());
-    assertEquals("4501", global.getSuiteRuns().get(0).getSuiteRunId());
-    assertEquals(2, global.getSuiteRunCount());
-    assertEquals(3, global.getSuiteRuns().get(0).getTotal());
-    assertEquals("height: 100.00%;", global.getSuiteRuns().get(0).getBarHeightStyle());
-    assertEquals("height: 66.67%;", global.getSuiteRuns().get(1).getBarHeightStyle());
+    OctaneGateReportSection regressions = snapshot.getSections().get(0);
+    assertEquals("Regressions suite runs", regressions.getName());
+    assertEquals("regressions", regressions.getSource());
+    assertEquals(5, regressions.getMetrics().getTotal());
+    assertEquals(2, count(regressions, OctaneGateStatusBucket.PASSED));
+    assertEquals(1, count(regressions, OctaneGateStatusBucket.FAILED));
+    assertEquals(0, count(regressions, OctaneGateStatusBucket.BLOCKED));
+    assertEquals(1, count(regressions, OctaneGateStatusBucket.SKIPPED));
+    assertEquals(1, count(regressions, OctaneGateStatusBucket.RUNNING));
+    assertEquals(2, regressions.getSuiteRuns().size());
+    assertEquals("4501", regressions.getSuiteRuns().get(0).getSuiteRunId());
+    assertEquals(2, regressions.getSuiteRunCount());
+    assertEquals(3, regressions.getSuiteRuns().get(0).getTotal());
+    assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(0).getBarHeightStyle());
+    assertEquals("height: 66.67%;", regressions.getSuiteRuns().get(1).getBarHeightStyle());
     assertEquals(83.333, snapshot.getExecutionProgress(), 0.001);
     assertEquals("83%", snapshot.getExecutionProgressText());
     assertEquals(6, snapshot.getPassRateTotal());
@@ -46,7 +47,7 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
     assertEquals("50%", snapshot.getPassRateProgressText());
     assertEquals("All Testcase Pass Rate (3 / 6)", snapshot.getPassRateLabel());
-    assertFalse(global.getPieSlices().isEmpty());
+    assertFalse(regressions.getPieSlices().isEmpty());
   }
 
   @Test
@@ -107,13 +108,13 @@ public class OctaneGateReportSnapshotTest {
         OctaneGateReportSnapshot.fromResult(
             OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
 
-    OctaneGateReportSection global = snapshot.getSections().get(0);
-    assertEquals(1, count(global, OctaneGateStatusBucket.PASSED));
-    assertEquals(1, count(global, OctaneGateStatusBucket.FAILED));
-    assertEquals(1, count(global, OctaneGateStatusBucket.BLOCKED));
-    assertEquals(0, count(global, OctaneGateStatusBucket.SKIPPED));
-    assertEquals(0, count(global, OctaneGateStatusBucket.RUNNING));
-    assertEquals(1, suiteRunStatusCount(global, OctaneGateStatusBucket.BLOCKED));
+    OctaneGateReportSection regressions = snapshot.getSections().get(0);
+    assertEquals(1, count(regressions, OctaneGateStatusBucket.PASSED));
+    assertEquals(1, count(regressions, OctaneGateStatusBucket.FAILED));
+    assertEquals(1, count(regressions, OctaneGateStatusBucket.BLOCKED));
+    assertEquals(0, count(regressions, OctaneGateStatusBucket.SKIPPED));
+    assertEquals(0, count(regressions, OctaneGateStatusBucket.RUNNING));
+    assertEquals(1, suiteRunStatusCount(regressions, OctaneGateStatusBucket.BLOCKED));
   }
 
   @Test
@@ -148,8 +149,8 @@ public class OctaneGateReportSnapshotTest {
         OctaneGateReportSnapshot.fromResult(
             OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
 
-    OctaneGateReportSection global = snapshot.getSections().get(0);
-    assertTrue(global.isEmpty());
+    OctaneGateReportSection regressions = snapshot.getSections().get(0);
+    assertTrue(regressions.isEmpty());
     assertEquals(0.0, snapshot.getExecutionProgress(), 0.001);
     assertEquals("0%", snapshot.getExecutionProgressText());
     assertEquals(0, snapshot.getPassRateTotal());
@@ -157,12 +158,12 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(0.0, snapshot.getPassRateProgress(), 0.001);
     assertEquals("0%", snapshot.getPassRateProgressText());
     assertEquals("All Testcase Pass Rate (0 / 0)", snapshot.getPassRateLabel());
-    assertTrue(global.getPieSlices().isEmpty());
+    assertTrue(regressions.getPieSlices().isEmpty());
     assertTrue(snapshot.getReportSections().isEmpty());
     assertFalse(snapshot.hasReportSections());
-    assertEquals(1, global.getSuiteRuns().size());
-    assertEquals(0, global.getSuiteRuns().get(0).getTotal());
-    assertEquals("height: 0%;", global.getSuiteRuns().get(0).getBarHeightStyle());
+    assertEquals(1, regressions.getSuiteRuns().size());
+    assertEquals(0, regressions.getSuiteRuns().get(0).getTotal());
+    assertEquals("height: 0%;", regressions.getSuiteRuns().get(0).getBarHeightStyle());
   }
 
   @Test
@@ -222,14 +223,14 @@ public class OctaneGateReportSnapshotTest {
   }
 
   private GateResult result() {
-    Map<String, List<RunRecord>> globalSuiteRuns = new LinkedHashMap<>();
-    globalSuiteRuns.put(
+    Map<String, List<RunRecord>> regressionSuiteRuns = new LinkedHashMap<>();
+    regressionSuiteRuns.put(
         "4501",
         List.of(
             new RunRecord("1", "one", "passed"),
             new RunRecord("2", "two", "failed"),
             new RunRecord("3", "three", "planned")));
-    globalSuiteRuns.put(
+    regressionSuiteRuns.put(
         "4502",
         List.of(new RunRecord("4", "four", "passed"), new RunRecord("5", "five", "skipped")));
 
@@ -251,7 +252,7 @@ public class OctaneGateReportSnapshotTest {
             new RunRecord("3", "three", "planned"),
             new RunRecord("4", "four", "passed"),
             new RunRecord("5", "five", "skipped")),
-        globalSuiteRuns,
+        regressionSuiteRuns,
         Map.of(
             "critical",
             new GateScopeResult(

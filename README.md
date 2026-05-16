@@ -12,7 +12,7 @@ flow, Octane API calls, metrics model, and criteria evaluation behavior.
 octaneSuiteGate(
   serverId: 'octane-prod',
   suiteRunId: '1196,1200,1204',
-  criteria: '(executionRate == 100 AND passRate >= 95) '
+  criteria: '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
       + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
   scopes: [
     octaneGateScope(name: 'critical', suiteRunId: '1204,1210')
@@ -24,11 +24,12 @@ octaneSuiteGate(
 ```
 
 When `suiteRunId` contains multiple IDs, the plugin polls each suite run and combines their
-child runs into one global metric set. A scope can also name suite run IDs. The plugin polls
+child runs into one regression metric set. A scope can also name suite run IDs. The plugin polls
 those suite runs independently and stores their combined child-run metrics under that scope
-name. If a suite run appears in both the global `suiteRunId` value and a scoped `suiteRunId`,
-it contributes to both metric sets.
-The Pipeline return map includes `suiteRunIds`, `metrics`, and `scopes`; for example,
+name. If a suite run appears in both the regression `suiteRunId` value and a scoped `suiteRunId`,
+the scoped suite run owns that ID for criteria and report calculations. For a `critical` scope,
+that means the ID contributes to the critical bucket and is excluded from the regression bucket.
+The Pipeline return map includes `suiteRunIds`, `metrics`, `regressions`, and `scopes`; for example,
 `gateResult.scopes.critical.passRate` is the combined pass rate for every child run in
 the critical suite runs. The return map also includes `scopeDetails`, `runs`, and
 `suiteRuns` so logs and Pipeline code can inspect the IDs and statuses that fed each metric
@@ -37,31 +38,32 @@ suite run IDs, and `gateResult.scopeDetails.critical.runIds` contains the Octane
 that fed the critical metrics.
 
 Build logs start with the suite run IDs under consideration, then each poll prints compact
-metric lines for the global suite runs and each suite-run-backed scope. For example:
+metric lines for the regression suite runs and each suite-run-backed scope. For example:
 
 ```text
 Waiting for ALM Octane suite run(s)
-Global suite runs: 450312, 450309
+Regressions suite runs: 450312, 450309
 Critical suite runs: 450306
-Global suite runs: execution 0.00%, pass 0.00%, total 4, executed 0, passed 0, failed 0, skipped 0, running 4.
+Regressions suite runs: execution 0.00%, pass 0.00%, total 4, executed 0, passed 0, failed 0, skipped 0, running 4.
 Critical suite runs: execution 100.00%, pass 100.00%, total 2, executed 2, passed 2, failed 0, skipped 0, running 0.
 
-Global suite runs: execution 50.00%, pass 100.00%, total 4, executed 2, passed 2, failed 0, skipped 0, running 2.
+Regressions suite runs: execution 50.00%, pass 100.00%, total 4, executed 2, passed 2, failed 0, skipped 0, running 2.
 Critical suite runs: execution 100.00%, pass 100.00%, total 2, executed 2, passed 2, failed 0, skipped 0, running 0.
 ```
 
 Each build also gets an **Octane Gate Report** link. The report refreshes while the gate is
 polling and remains available after the build finishes. It renders a resizable, draggable
-countdown donut for testing time remaining, a countdown donut for the next poll, a donut
+countdown donut for testing time remaining, a Status Check countdown donut, a donut
 chart for the total status distribution, and a vertical bar chart for each suite run. Suite-run
 bar heights are relative to the suite run with the most tests in that section. The
 countdown donuts animate smoothly between displayed second/minute changes and use high-resolution
 SVG rings with a subtle halo stroke to reduce jagged circular edges. Status colors are:
 
-- Passed: `#78c679`
-- Failed: `#ff6361`
+- Passed: `#009900`
+- Failed: `#990000`
+- Blocked: `#631919`
 - Skipped: `#ffb74d`
-- Running: `#778899`
+- Running: `#808080`
 
 To email the report image in a later Pipeline stage, use `octaneEmailReport` after
 `octaneSuiteGate`:
@@ -87,7 +89,7 @@ Optional parameters are `cc`, `bcc`, `browserPath`, `viewportWidth`, and `archiv
 Chrome or Chromium must be available on the Jenkins agent, or `browserPath` must point to it.
 
 Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API
-query fragments applied to the global suite runs' child runs:
+query fragments applied to the regression suite runs' child runs:
 
 ```groovy
 octaneGateScope(name: 'legacyArea', query: 'test={((product_areas={id=1004}))}')
@@ -141,8 +143,8 @@ Once the server is configured, the pipeline only needs the `serverId` and the su
 ```groovy
 octaneSuiteGate(
   serverId: 'octane-prod',
-  suiteRunId: params.OCTANE_SUITE_RUN_ID,
-  criteria: '100% execution AND 95% pass'
+  suiteRunId: params.OCTANE_REGRESSION_SUITE_RUN_ID,
+  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95'
 )
 ```
 
@@ -156,10 +158,10 @@ If a job needs to point at a different Octane location than the global default, 
 ```groovy
 octaneSuiteGate(
   serverId: 'octane-prod',
-  suiteRunId: params.OCTANE_SUITE_RUN_ID,
+  suiteRunId: params.OCTANE_REGRESSION_SUITE_RUN_ID,
   sharedSpaceId: '1001',
   workspaceId: '2002',
-  criteria: '100% execution AND 95% pass'
+  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95'
 )
 ```
 
@@ -168,7 +170,7 @@ octaneSuiteGate(
 Examples with a manual `input` confirmation before the Octane gate:
 
 - [examples/Jenkinsfile](examples/Jenkinsfile): uses a `critical` suite-run scope.
-- [examples/Jenkinsfile2](examples/Jenkinsfile2): uses only global suite metrics, with no scope.
+- [examples/Jenkinsfile2](examples/Jenkinsfile2): uses only regression suite metrics, with no scope.
 
 ## Local Development
 

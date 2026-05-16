@@ -27,6 +27,25 @@ public class GateResultTest {
 
   @Test
   @SuppressWarnings("unchecked")
+  public void exposesRegressionMetricsAliasInPipelineMap() {
+    GateResult result =
+        new GateResult(
+            "1196,1200",
+            "regressions.passRate == 100",
+            true,
+            true,
+            new GateMetrics(2, 2, 2, 0, 0, 0),
+            Map.of(),
+            Instant.parse("2026-05-13T00:00:00Z"));
+
+    Map<String, Object> regressions =
+        (Map<String, Object>) result.toPipelineMap().get("regressions");
+    assertEquals(100.0, regressions.get("passRate"));
+    assertEquals(100.0, regressions.get("executionRate"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
   public void keepsScopedMetricsCompatibleAndAddsScopeDetails() {
     GateResult result =
         new GateResult(
