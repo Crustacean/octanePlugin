@@ -96,9 +96,8 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-donut-wrap {
           align-items: center;
-          display: grid;
+          display: flex;
           gap: 12px;
-          grid-template-columns: minmax(180px, 240px) max-content;
           justify-content: center;
         }
         .octane-donut {
@@ -108,23 +107,37 @@ public class OctaneReportZoneHtmlRenderer {
           max-width: 240px;
           width: 100%;
         }
+        .octane-donut-label {
+          fill: #1f2937;
+          font-size: 4.5px;
+          font-weight: 700;
+          pointer-events: none;
+          text-anchor: middle;
+        }
         .octane-donut-hole {
           fill: #ffffff;
         }
+        .octane-distribution-meta {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 12px;
+          margin-top: 4px;
+        }
+        .octane-total-label {
+          color: #5f6b7a;
+        }
         .octane-legend {
-          display: grid;
-          gap: 6px;
-          justify-self: start;
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 10px;
         }
         .octane-legend-row {
           align-items: center;
-          display: grid;
+          display: inline-flex;
           column-gap: 6px;
-          grid-template-columns: 13px max-content max-content;
-          justify-content: start;
-        }
-        .octane-legend-value {
-          color: #5f6b7a;
+          white-space: nowrap;
         }
         .octane-swatch {
           border-radius: 2px;
@@ -198,9 +211,6 @@ public class OctaneReportZoneHtmlRenderer {
             min-width: 280px;
             width: 100%;
           }
-          .octane-donut-wrap {
-            grid-template-columns: 1fr;
-          }
         }
         """);
     html.append("</style>\n");
@@ -234,8 +244,17 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getStatusDistributionTitle()));
     html.append("</h2>");
-    html.append("<div class=\"octane-muted\">Total Testcases: ");
+    html.append("<div class=\"octane-distribution-meta\">");
+    html.append("<span class=\"octane-total-label\">Total: ");
     html.append(section.getMetrics().getTotal());
+    html.append("</span>");
+    html.append("<div class=\"octane-legend\">");
+    for (OctaneGateStatusCount status : section.getTotals()) {
+      if (status.getCount() > 0) {
+        renderLegendKey(html, status);
+      }
+    }
+    html.append("</div>");
     html.append("</div>");
     html.append("</div><span class=\"octane-card-tools\" ");
     html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
@@ -251,27 +270,24 @@ public class OctaneReportZoneHtmlRenderer {
         renderSlice(html, slice);
       }
       html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"27\" />\n");
-      html.append("</svg>\n");
-      html.append("<div class=\"octane-legend\">\n");
-      for (OctaneGateStatusCount status : section.getTotals()) {
-        html.append("<div class=\"octane-legend-row\">");
-        html.append("<span class=\"octane-swatch\" style=\"background: ");
-        html.append(escapeAttribute(status.getColor()));
-        html.append(";\"></span>");
-        html.append("<span>");
-        html.append(escapeHtml(status.getLabel()));
-        html.append("</span>");
-        html.append("<span class=\"octane-legend-value\">");
-        html.append(status.getCount());
-        html.append(" (");
-        html.append(status.getFormattedPercentage());
-        html.append("%)</span>");
-        html.append("</div>\n");
+      for (OctaneGatePieSlice slice : section.getPieSlices()) {
+        renderSliceLabel(html, slice);
       }
-      html.append("</div>\n");
+      html.append("</svg>\n");
       html.append("</div>\n");
     }
     html.append("</section>\n");
+  }
+
+  private void renderLegendKey(StringBuilder html, OctaneGateStatusCount status) {
+    html.append("<div class=\"octane-legend-row\">");
+    html.append("<span class=\"octane-swatch\" style=\"background: ");
+    html.append(escapeAttribute(status.getColor()));
+    html.append(";\"></span>");
+    html.append("<span>");
+    html.append(escapeHtml(status.getLabel()));
+    html.append("</span>");
+    html.append("</div>\n");
   }
 
   private void renderSlice(StringBuilder html, OctaneGatePieSlice slice) {
@@ -290,6 +306,16 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("\"><title>");
     html.append(escapeHtml(slice.getTitle()));
     html.append("</title></path>\n");
+  }
+
+  private void renderSliceLabel(StringBuilder html, OctaneGatePieSlice slice) {
+    html.append("<text class=\"octane-donut-label\" x=\"");
+    html.append(escapeAttribute(slice.getLabelX()));
+    html.append("\" y=\"");
+    html.append(escapeAttribute(slice.getLabelY()));
+    html.append("\" dominant-baseline=\"central\">");
+    html.append(escapeHtml(slice.getPercentageLabel()));
+    html.append("</text>\n");
   }
 
   private void renderSuiteRunCard(StringBuilder html, OctaneGateReportSection section) {

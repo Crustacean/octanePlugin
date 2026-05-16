@@ -3,11 +3,11 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 import java.io.Serializable;
 
 public enum OctaneGateStatusBucket implements Serializable {
-  PASSED("Passed", "#78c679"),
-  FAILED("Failed", "#ff6361"),
+  PASSED("Passed", "#009900"),
+  FAILED("Failed", "#990000"),
   BLOCKED("Blocked", "#631919"),
   SKIPPED("Skipped", "#ffb74d"),
-  RUNNING("Running", "#778899");
+  RUNNING("Running", "#808080");
 
   private final String label;
   private final String color;

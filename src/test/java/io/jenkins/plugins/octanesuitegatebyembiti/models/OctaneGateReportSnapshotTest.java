@@ -60,11 +60,11 @@ public class OctaneGateReportSnapshotTest {
 
   @Test
   public void usesRequiredStatusColors() {
-    assertEquals("#78c679", OctaneGateStatusBucket.PASSED.getColor());
-    assertEquals("#ff6361", OctaneGateStatusBucket.FAILED.getColor());
+    assertEquals("#009900", OctaneGateStatusBucket.PASSED.getColor());
+    assertEquals("#990000", OctaneGateStatusBucket.FAILED.getColor());
     assertEquals("#631919", OctaneGateStatusBucket.BLOCKED.getColor());
     assertEquals("#ffb74d", OctaneGateStatusBucket.SKIPPED.getColor());
-    assertEquals("#778899", OctaneGateStatusBucket.RUNNING.getColor());
+    assertEquals("#808080", OctaneGateStatusBucket.RUNNING.getColor());
   }
 
   @Test
