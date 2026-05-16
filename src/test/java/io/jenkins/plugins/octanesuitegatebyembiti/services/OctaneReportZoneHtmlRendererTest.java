@@ -50,6 +50,22 @@ public class OctaneReportZoneHtmlRendererTest {
   }
 
   @Test
+  public void rendersPartialReportZoneForLiveRefresh() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result(), classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+
+    assertTrue(html.contains("id=\"octane-report-zone\""));
+    assertTrue(html.contains("draggable=\"true\""));
+    assertTrue(html.contains("Grouped Status Distribution"));
+    assertFalse(html.contains("<html>"));
+    assertFalse(html.contains("<body>"));
+    assertFalse(html.contains("id=\"octane-timer-zone\""));
+  }
+
+  @Test
   public void escapesDynamicReportValues() {
     GateResult result =
         new GateResult(

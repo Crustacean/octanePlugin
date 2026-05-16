@@ -1,9 +1,6 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
   <l:layout title="${it.displayName}">
-    <j:if test="${it.autoRefresh}">
-      <meta http-equiv="refresh" content="${it.refreshSeconds}" />
-    </j:if>
     <l:main-panel>
       <style>
         .octane-report {
@@ -14,6 +11,10 @@
         }
         .octane-muted {
           color: var(--text-color-secondary);
+        }
+        .octane-live-update {
+          margin-top: 0.25rem;
+          min-height: 1rem;
         }
         .octane-dashboard {
           align-items: stretch;
@@ -243,15 +244,18 @@
       <div class="octane-report">
         <h1>Octane Gate Report</h1>
         <p class="octane-muted">
-          State: ${snapshot.stateLabel} |
-          Last update: ${snapshot.updatedAtText}
+          State: <span data-report-state-label="true">${snapshot.stateLabel}</span> |
+          Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
         </p>
-        <p>${snapshot.message}</p>
+        <p data-report-message="true">${snapshot.message}</p>
         <j:if test="${!empty(snapshot.criteria)}">
           <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
         </j:if>
 
-        <div class="octane-dashboard octane-card-zone" id="octane-dashboard">
+        <div class="octane-dashboard octane-card-zone" id="octane-dashboard"
+            data-current-updated-at="${snapshot.updatedAt}"
+            data-report-building="${snapshot.building}"
+            data-snapshot-url="snapshot">
           <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone">
             <section class="octane-chart-card octane-timer-card" draggable="true"
                 data-octane-timer="timeout"
@@ -313,6 +317,8 @@
                 <div>
                   <h2 class="octane-card-title">Time to next Poll</h2>
                   <div class="octane-muted">Polling interval</div>
+                  <div class="octane-muted octane-live-update"
+                      data-live-update-status="true"></div>
                 </div>
                 <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
                   :::
@@ -532,6 +538,19 @@
           var requestFrame = window.requestAnimationFrame || function (callback) {
             return window.setTimeout(callback, 16);
           };
+          var snapshotUrl = dashboard.getAttribute("data-snapshot-url") || "snapshot";
+          var currentUpdatedAt = dashboard.getAttribute("data-current-updated-at") || "";
+          var stateLabel = document.querySelector("[data-report-state-label]");
+          var updatedAtLabel = document.querySelector("[data-report-updated-at]");
+          var messageLabel = document.querySelector("[data-report-message]");
+          var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
+          var liveRefresh = {
+            fetching: false,
+            retryDelayMillis: 500,
+            stopped: dashboard.getAttribute("data-report-building") !== "true",
+            waiting: false,
+            waitingSince: 0
+          };
           var TIMER_CENTER = 120;
           var TIMER_RADIUS = 84;
           var PROGRESS_COLOR_PHASES = {
@@ -607,6 +626,16 @@
             for (var index = 0; index < stops.length; index += 1) {
               stops[index].setAttribute("stop-color", stopColorAt(colors, index, stops.length));
             }
+          }
+          function setLiveUpdateStatus(message) {
+            if (liveUpdateStatus) {
+              liveUpdateStatus.textContent = message || "";
+            }
+          }
+          function htmlToElement(html) {
+            var container = document.createElement("div");
+            container.innerHTML = html || "";
+            return container.querySelector("#octane-report-zone");
           }
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
@@ -697,20 +726,148 @@
             timers.push(state);
             hasActiveTimer = hasActiveTimer || state.active;
           }
+          var timerLoopRunning = false;
+          function scheduleTimerAnimation() {
+            if (timerLoopRunning) {
+              return;
+            }
+            timerLoopRunning = true;
+            requestFrame(animateTimers);
+          }
+          function beginSnapshotRefresh(now) {
+            if (liveRefresh.stopped || liveRefresh.fetching || liveRefresh.waiting) {
+              return;
+            }
+            if (typeof window.fetch !== "function") {
+              window.location.reload();
+              return;
+            }
+            if (!liveRefresh.waiting) {
+              liveRefresh.waiting = true;
+              liveRefresh.waitingSince = now;
+              setLiveUpdateStatus("Updating report...");
+            }
+            fetchSnapshot();
+            scheduleTimerAnimation();
+          }
+          function scheduleSnapshotRetry() {
+            if (liveRefresh.stopped) {
+              return;
+            }
+            window.setTimeout(fetchSnapshot, liveRefresh.retryDelayMillis);
+          }
+          function isFreshSnapshot(payload) {
+            if (!payload) {
+              return false;
+            }
+            return payload.updatedAt !== currentUpdatedAt || payload.building === false;
+          }
+          function resetPollTimer(payload) {
+            var updatedAt = parseTimestamp(payload.updatedAt);
+            var refreshSeconds = parseInt(payload.refreshSeconds || "1", 10);
+            if (isNaN(refreshSeconds)) {
+              refreshSeconds = 1;
+            }
+            for (var index = 0; index < timers.length; index += 1) {
+              var state = timers[index];
+              state.active = payload.building === true;
+              state.updatedAt = updatedAt;
+              state.card.setAttribute("data-active", String(state.active));
+              state.card.setAttribute("data-updated-at", payload.updatedAt || "");
+              if (state.mode === "poll") {
+                state.totalMillis = Math.max(1, refreshSeconds) * 1000;
+                state.endAt = updatedAt + state.totalMillis;
+                state.card.setAttribute("data-total-seconds", String(refreshSeconds));
+                state.card.setAttribute("data-started-at", payload.updatedAt || "");
+                state.lastDisplayedUnit = "";
+                state.lastDisplayedValue = "";
+              }
+              updateTimer(state, currentWallTime());
+            }
+          }
+          function applySnapshot(payload) {
+            currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
+            dashboard.setAttribute("data-current-updated-at", currentUpdatedAt);
+            dashboard.setAttribute("data-report-building", String(payload.building === true));
+            if (stateLabel) {
+              stateLabel.textContent = payload.stateLabel || "";
+            }
+            if (updatedAtLabel) {
+              updatedAtLabel.textContent = payload.updatedAtText || payload.updatedAt || "";
+            }
+            if (messageLabel) {
+              messageLabel.textContent = payload.message || "";
+            }
+            var reportZone = document.getElementById("octane-report-zone");
+            var updatedReportZone = htmlToElement(payload.reportZoneHtml);
+            if (reportZone && updatedReportZone) {
+              reportZone.replaceWith(updatedReportZone);
+            }
+            for (var index = 0; index < progressCards.length; index += 1) {
+              progressCards[index].setAttribute(
+                  "data-progress-value", String(payload.executionProgress || 0));
+              updateExecutionProgress(progressCards[index]);
+            }
+            hasActiveTimer = payload.building === true;
+            liveRefresh.stopped = payload.building !== true;
+            var waitedMillis = Math.max(0, currentWallTime() - liveRefresh.waitingSince);
+            liveRefresh.waiting = false;
+            resetPollTimer(payload);
+            setLiveUpdateStatus(
+                payload.building === true
+                    ? "Report updated in " + (waitedMillis / 1000).toFixed(1) + "s."
+                    : "Report finished.");
+            if (payload.building === true) {
+              scheduleTimerAnimation();
+            }
+          }
+          function fetchSnapshot() {
+            if (liveRefresh.fetching || liveRefresh.stopped) {
+              return;
+            }
+            liveRefresh.fetching = true;
+            window.fetch(snapshotUrl, {
+              cache: "no-store",
+              credentials: "same-origin",
+              headers: {"Accept": "application/json"}
+            }).then(function (response) {
+              if (!response.ok) {
+                throw new Error("Snapshot request failed: " + response.status);
+              }
+              return response.json();
+            }).then(function (payload) {
+              liveRefresh.fetching = false;
+              if (isFreshSnapshot(payload)) {
+                applySnapshot(payload);
+                return;
+              }
+              scheduleSnapshotRetry();
+            }).catch(function () {
+              liveRefresh.fetching = false;
+              setLiveUpdateStatus("Updating report...");
+              scheduleSnapshotRetry();
+            });
+          }
           function animateTimers() {
             var now = currentWallTime();
             var activeTimerStillRunning = false;
             for (var index = 0; index < timers.length; index += 1) {
+              var remaining = remainingMillis(timers[index], now);
               updateTimer(timers[index], now);
+              if (timers[index].mode === "poll" && timers[index].active && remaining <= 0) {
+                beginSnapshotRefresh(now);
+              }
               activeTimerStillRunning =
-                  activeTimerStillRunning || remainingMillis(timers[index], now) > 0;
+                  activeTimerStillRunning || remaining > 0 || liveRefresh.waiting;
             }
             if (hasActiveTimer && activeTimerStillRunning) {
               requestFrame(animateTimers);
+              return;
             }
+            timerLoopRunning = false;
           }
           if (timers.length > 0) {
-            animateTimers();
+            scheduleTimerAnimation();
           }
           function updateExecutionProgress(card) {
             var progress = parseFloat(card.getAttribute("data-progress-value") || "0");

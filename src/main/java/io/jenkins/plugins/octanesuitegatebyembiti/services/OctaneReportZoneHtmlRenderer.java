@@ -25,6 +25,14 @@ public class OctaneReportZoneHtmlRenderer {
     return html.toString();
   }
 
+  public String renderZone(OctaneGateReportSnapshot snapshot) {
+    OctaneGateReportSnapshot safeSnapshot =
+        snapshot == null ? OctaneGateReportSnapshot.empty() : snapshot;
+    StringBuilder html = new StringBuilder();
+    renderReportZone(html, safeSnapshot);
+    return html.toString();
+  }
+
   private void appendStyle(StringBuilder html) {
     html.append("<style>\n");
     html.append(
@@ -206,11 +214,12 @@ public class OctaneReportZoneHtmlRenderer {
         renderSuiteRunCard(html, section);
       }
     } else {
-      html.append("<section class=\"octane-chart-card\">\n");
+      html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
       html.append("<div class=\"octane-card-header\"><div>");
       html.append("<h2 class=\"octane-card-title\">Suite run charts</h2>");
       html.append("<div class=\"octane-muted\">Waiting for first poll</div>");
-      html.append("</div><span class=\"octane-card-tools\">:::</span></div>\n");
+      html.append("</div><span class=\"octane-card-tools\" ");
+      html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
       html.append("<div class=\"octane-empty\">");
       html.append("The report will populate after the first Octane poll.");
       html.append("</div>\n");
@@ -220,7 +229,7 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderDistributionCard(StringBuilder html, OctaneGateReportSection section) {
-    html.append("<section class=\"octane-chart-card\">\n");
+    html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getStatusDistributionTitle()));
@@ -228,7 +237,8 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<div class=\"octane-muted\">Total Testcases: ");
     html.append(section.getMetrics().getTotal());
     html.append("</div>");
-    html.append("</div><span class=\"octane-card-tools\">:::</span></div>\n");
+    html.append("</div><span class=\"octane-card-tools\" ");
+    html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
     if (section.isNoRuns()) {
       html.append("<div class=\"octane-empty\">No run results have been returned yet.</div>\n");
     } else {
@@ -283,7 +293,7 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderSuiteRunCard(StringBuilder html, OctaneGateReportSection section) {
-    html.append("<section class=\"octane-chart-card\">\n");
+    html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getSuiteRunChartTitle()));
@@ -291,7 +301,8 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<div class=\"octane-muted\">Total Suiteruns: ");
     html.append(section.getSuiteRunCount());
     html.append("</div>");
-    html.append("</div><span class=\"octane-card-tools\">:::</span></div>\n");
+    html.append("</div><span class=\"octane-card-tools\" ");
+    html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
     if (section.isNoRuns()) {
       html.append("<div class=\"octane-empty\">No run results have been returned yet.</div>\n");
     } else {

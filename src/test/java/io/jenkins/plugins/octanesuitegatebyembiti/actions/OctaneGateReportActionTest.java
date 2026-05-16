@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.actions;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
@@ -13,9 +14,13 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import java.net.URL;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import net.sf.json.JSONObject;
+import org.htmlunit.Page;
 import org.htmlunit.html.HtmlPage;
 import org.junit.Rule;
 import org.junit.Test;
@@ -85,6 +90,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-timer-zone octane-card-zone"));
     assertTrue(xml.contains("octane-report-zone octane-card-zone"));
     assertTrue(xml.contains("border: 1px solid var(--background)"));
+    assertFalse(xml.contains("http-equiv=\"refresh\""));
+    assertTrue(xml.contains("data-snapshot-url=\"snapshot\""));
+    assertTrue(xml.contains("data-current-updated-at=\"2026-05-15T00:00:00Z\""));
+    assertTrue(xml.contains("data-live-update-status=\"true\""));
+    assertTrue(xml.contains("Updating report..."));
     assertTrue(xml.contains("id=\"octane-report-zone\""));
     assertTrue(xml.contains("data-octane-progress=\"execution\""));
     assertTrue(xml.contains("data-progress-value=\"100.0\""));
@@ -124,6 +134,10 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("progressHalo.setAttribute(\"stroke\", executionColor)"));
     assertTrue(xml.contains("requestAnimationFrame"));
     assertTrue(xml.contains("performance.now"));
+    assertTrue(xml.contains("fetchSnapshot"));
+    assertTrue(xml.contains("beginSnapshotRefresh"));
+    assertTrue(xml.contains("retryDelayMillis: 500"));
+    assertTrue(xml.contains("replaceWith(updatedReportZone)"));
     assertFalse(xml.contains("setInterval(updateTimers, 1000)"));
     assertFalse(xml.contains("transition: stroke-dasharray"));
     assertTrue(xml.contains("draggable=\"true\""));
@@ -132,6 +146,66 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains(".octane-vertical-bars::before"));
     assertTrue(xml.contains("zoneForCard"));
     assertTrue(xml.contains("targetZone !== draggedZone"));
+  }
+
+  @Test
+  public void activeReportUsesSnapshotRefreshInsteadOfMetaRefresh() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setPollIntervalSeconds(15);
+
+    OctaneGateReportAction.attachTo(build, request);
+
+    HtmlPage page = jenkins.createWebClient().getPage(build, OctaneGateReportAction.URL_NAME);
+    String xml = page.asXml();
+    assertFalse(xml.contains("http-equiv=\"refresh\""));
+    assertTrue(xml.contains("data-report-building=\"true\""));
+    assertTrue(xml.contains("window.fetch(snapshotUrl"));
+    assertTrue(xml.contains("payload.updatedAt !== currentUpdatedAt"));
+    assertTrue(xml.contains("payload.building === false"));
+  }
+
+  @Test
+  public void servesSnapshotJsonWithoutSecrets() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setPollIntervalSeconds(15);
+
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    action.onFinal(
+        OctaneGateReportState.PASSED,
+        "ALM Octane suite gate passed.",
+        result(),
+        new StatusClassifier(
+            StatusClassifier.DEFAULT_PASSED_STATUSES,
+            StatusClassifier.DEFAULT_FAILED_STATUSES,
+            StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+            StatusClassifier.DEFAULT_RUNNING_STATUSES));
+
+    Page jsonPage =
+        jenkins
+            .createWebClient()
+            .getPage(
+                new URL(
+                    jenkins.getURL(),
+                    build.getUrl() + OctaneGateReportAction.URL_NAME + "/snapshot"));
+    String json = jsonPage.getWebResponse().getContentAsString();
+    JSONObject payload = JSONObject.fromObject(json);
+
+    assertTrue(jsonPage.getWebResponse().getContentType().contains("application/json"));
+    assertEquals("2026-05-15T00:00:00Z", payload.getString("updatedAt"));
+    assertFalse(payload.getBoolean("building"));
+    assertEquals("Passed", payload.getString("stateLabel"));
+    assertEquals(15, payload.getInt("refreshSeconds"));
+    assertEquals("100%", payload.getString("executionProgressText"));
+    assertTrue(payload.getString("reportZoneHtml").contains("id=\"octane-report-zone\""));
+    assertFalse(payload.getString("reportZoneHtml").contains("id=\"octane-timer-zone\""));
+    assertFalse(json.toLowerCase(Locale.ROOT).contains("client_id"));
+    assertFalse(json.toLowerCase(Locale.ROOT).contains("client_secret"));
+    assertFalse(json.toLowerCase(Locale.ROOT).contains("password"));
+    assertFalse(json.toLowerCase(Locale.ROOT).contains("credentialsid"));
   }
 
   private GateResult result() {
