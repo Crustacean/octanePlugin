@@ -55,7 +55,8 @@ public class OctaneGateReportActionTest {
     String text = page.asNormalizedText();
     String xml = page.asXml();
     assertTrue(text.contains("Octane Gate Report"));
-    assertTrue(text.contains("Last update (EAT): 03:00:00"));
+    assertTrue(text.contains("Last update: 03:00:00"));
+    assertFalse(text.contains("Last update (EAT)"));
     assertTrue(text.contains("Grouped Status Distribution"));
     assertTrue(text.contains("Testing progress per Tester Suite Runs"));
     assertTrue(text.contains("Testing Time Remaining"));

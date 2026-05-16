@@ -259,7 +259,7 @@
         <h1>Octane Gate Report</h1>
         <p class="octane-muted">
           State: <span data-report-state-label="true">${snapshot.stateLabel}</span> |
-          Last update (EAT): <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
+          Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
         </p>
         <p data-report-message="true">${snapshot.message}</p>
         <j:if test="${!empty(snapshot.criteria)}">
