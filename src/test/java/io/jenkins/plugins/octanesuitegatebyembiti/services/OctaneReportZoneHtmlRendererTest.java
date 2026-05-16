@@ -33,8 +33,8 @@ public class OctaneReportZoneHtmlRendererTest {
     String html = new OctaneReportZoneHtmlRenderer().render(snapshot);
 
     assertTrue(html.contains("id=\"octane-report-zone\""));
-    assertTrue(html.contains("REGRESSIONS Status Distribution"));
-    assertTrue(html.contains("CRITICAL Distribution_CRITICAL"));
+    assertTrue(html.contains("REGRESSION Tests Status Distribution"));
+    assertTrue(html.contains("CRITICAL Tests Status Distribution"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertTrue(html.contains("Total: 3"));
@@ -71,7 +71,7 @@ public class OctaneReportZoneHtmlRendererTest {
 
     assertTrue(html.contains("id=\"octane-report-zone\""));
     assertTrue(html.contains("draggable=\"true\""));
-    assertTrue(html.contains("REGRESSIONS Status Distribution"));
+    assertTrue(html.contains("REGRESSION Tests Status Distribution"));
     assertFalse(html.contains("<html>"));
     assertFalse(html.contains("<body>"));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
@@ -131,9 +131,9 @@ public class OctaneReportZoneHtmlRendererTest {
 
     String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
 
-    assertFalse(html.contains("REGRESSIONS Status Distribution</h2>"));
+    assertFalse(html.contains("REGRESSION Tests Status Distribution</h2>"));
     assertFalse(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS</h2>"));
-    assertTrue(html.contains("CRITICAL Distribution_CRITICAL"));
+    assertTrue(html.contains("CRITICAL Tests Status Distribution"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertFalse(html.contains("No run results have been returned yet."));
   }
@@ -169,9 +169,9 @@ public class OctaneReportZoneHtmlRendererTest {
 
     String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
 
-    assertTrue(html.contains("REGRESSIONS Status Distribution</h2>"));
+    assertTrue(html.contains("REGRESSION Tests Status Distribution</h2>"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS</h2>"));
-    assertFalse(html.contains("CRITICAL Distribution_CRITICAL"));
+    assertFalse(html.contains("CRITICAL Tests Status Distribution"));
     assertFalse(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertFalse(html.contains("No run results have been returned yet."));
   }

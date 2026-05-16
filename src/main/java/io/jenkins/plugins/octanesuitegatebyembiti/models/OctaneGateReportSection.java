@@ -145,10 +145,10 @@ public class OctaneGateReportSection implements Serializable {
 
   public String getStatusDistributionTitle() {
     if ("regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source)) {
-      return "REGRESSIONS Status Distribution";
+      return "REGRESSION Tests Status Distribution";
     }
     if ("critical".equalsIgnoreCase(source)) {
-      return "CRITICAL Distribution_CRITICAL";
+      return "CRITICAL Tests Status Distribution";
     }
     return name + " status distribution";
   }

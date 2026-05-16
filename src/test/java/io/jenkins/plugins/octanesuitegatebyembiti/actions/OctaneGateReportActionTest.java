@@ -57,7 +57,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Octane Gate Report"));
     assertTrue(text.contains("Last update: 03:00:00"));
     assertFalse(text.contains("Last update (EAT)"));
-    assertTrue(text.contains("REGRESSIONS Status Distribution"));
+    assertTrue(text.contains("REGRESSION Tests Status Distribution"));
     assertTrue(text.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
     assertTrue(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Status Check"));
