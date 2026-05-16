@@ -113,8 +113,10 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains(".octane-live-update {\n          margin-top"));
     assertTrue(xml.contains("setLiveUpdateStatus(\"...\")"));
     assertTrue(xml.contains("\"+\" + (waitedMillis / 1000).toFixed(1) + \"s\""));
+    assertTrue(xml.contains(": \"Done.\""));
     assertFalse(xml.contains("Updating report..."));
     assertFalse(xml.contains("Report updated in "));
+    assertFalse(xml.contains("Report finished."));
     assertTrue(xml.contains("id=\"octane-report-zone\""));
     assertFalse(xml.contains("#631919"));
     assertTrue(xml.contains("data-octane-progress=\"execution\""));

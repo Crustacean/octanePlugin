@@ -895,7 +895,7 @@
             setLiveUpdateStatus(
                 payload.building === true
                     ? "+" + (waitedMillis / 1000).toFixed(1) + "s"
-                    : "Report finished.");
+                    : "Done.");
             if (payload.building === true) {
               scheduleTimerAnimation();
             }
