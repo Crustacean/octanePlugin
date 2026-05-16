@@ -6,8 +6,10 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class OctaneGateReportSnapshot implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -213,18 +215,11 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public double getExecutionProgress() {
-    int total = 0;
-    int executed = 0;
-    for (OctaneGateReportSection section : sections) {
-      if (isProjectProgressSection(section)) {
-        total += section.getMetrics().getTotal();
-        executed += section.getMetrics().getExecuted();
-      }
-    }
-    if (total == 0) {
+    ProjectProgressCounts counts = projectProgressCounts();
+    if (counts.total == 0) {
       return 0.0;
     }
-    return executed * 100.0 / total;
+    return counts.executed * 100.0 / counts.total;
   }
 
   public String getExecutionProgressText() {
@@ -232,23 +227,11 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public int getPassRateTotal() {
-    int total = 0;
-    for (OctaneGateReportSection section : sections) {
-      if (isProjectProgressSection(section)) {
-        total += section.getMetrics().getTotal();
-      }
-    }
-    return total;
+    return projectProgressCounts().total;
   }
 
   public int getPassRatePassed() {
-    int passed = 0;
-    for (OctaneGateReportSection section : sections) {
-      if (isProjectProgressSection(section)) {
-        passed += section.getMetrics().getPassed();
-      }
-    }
-    return passed;
+    return projectProgressCounts().passed;
   }
 
   public double getPassRateProgress() {
@@ -270,5 +253,64 @@ public class OctaneGateReportSnapshot implements Serializable {
   private static boolean isProjectProgressSection(OctaneGateReportSection section) {
     String source = section.getSource();
     return "global".equalsIgnoreCase(source) || "critical".equalsIgnoreCase(source);
+  }
+
+  private ProjectProgressCounts projectProgressCounts() {
+    Set<String> criticalSuiteRunIds = criticalSuiteRunIds();
+    ProjectProgressCounts counts = new ProjectProgressCounts();
+    for (OctaneGateReportSection section : sections) {
+      if (!isProjectProgressSection(section)) {
+        continue;
+      }
+      if (section.getSuiteRuns().isEmpty()) {
+        counts.add(section.getMetrics());
+        continue;
+      }
+      for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
+        if (isGlobalSection(section) && criticalSuiteRunIds.contains(suiteRun.getSuiteRunId())) {
+          continue;
+        }
+        counts.add(suiteRun);
+      }
+    }
+    return counts;
+  }
+
+  private Set<String> criticalSuiteRunIds() {
+    Set<String> criticalSuiteRunIds = new LinkedHashSet<>();
+    for (OctaneGateReportSection section : sections) {
+      if ("critical".equalsIgnoreCase(section.getSource())) {
+        criticalSuiteRunIds.addAll(section.getSuiteRunIds());
+      }
+    }
+    return criticalSuiteRunIds;
+  }
+
+  private static boolean isGlobalSection(OctaneGateReportSection section) {
+    return "global".equalsIgnoreCase(section.getSource());
+  }
+
+  private static class ProjectProgressCounts {
+    private int total;
+    private int executed;
+    private int passed;
+
+    private void add(GateMetrics metrics) {
+      total += metrics.getTotal();
+      executed += metrics.getExecuted();
+      passed += metrics.getPassed();
+    }
+
+    private void add(OctaneGateSuiteRunChart suiteRun) {
+      total += suiteRun.getTotal();
+      for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
+        if (status.getBucket() != OctaneGateStatusBucket.RUNNING) {
+          executed += status.getCount();
+        }
+        if (status.getBucket() == OctaneGateStatusBucket.PASSED) {
+          passed += status.getCount();
+        }
+      }
+    }
   }
 }

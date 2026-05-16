@@ -64,7 +64,7 @@ public class OctaneGateRunner {
     CriteriaExpression criteria = CriteriaExpression.parse(request.getCriteria());
     StatusClassifier classifier = request.createStatusClassifier();
     Instant deadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
-    List<String> suiteRunIds = request.getSuiteRunIds();
+    List<String> suiteRunIds = globalSuiteRunIdsForCriteria(request);
 
     logListener.logWaiting(listener, request, suiteRunIds);
     reportPublisher.onWaiting(request, suiteRunIds);
@@ -131,7 +131,7 @@ public class OctaneGateRunner {
         globalMetrics.isTerminal()
             && scopedMetrics.values().stream().allMatch(GateMetrics::isTerminal);
     return new GateResult(
-        request.getSuiteRunId(),
+        String.join(",", suiteRunIds),
         request.getCriteria(),
         passed,
         terminal,
@@ -244,6 +244,23 @@ public class OctaneGateRunner {
       return "Use product_areas for Octane test product-area filters. ";
     }
     return "";
+  }
+
+  static List<String> globalSuiteRunIdsForCriteria(GateRequest request) {
+    Set<String> criticalSuiteRunIds = criticalSuiteRunIds(request);
+    return request.getSuiteRunIds().stream()
+        .filter(suiteRunId -> !criticalSuiteRunIds.contains(suiteRunId))
+        .toList();
+  }
+
+  private static Set<String> criticalSuiteRunIds(GateRequest request) {
+    Set<String> criticalSuiteRunIds = new LinkedHashSet<>();
+    for (OctaneGateScope scope : request.getScopes()) {
+      if ("critical".equalsIgnoreCase(scope.getName()) && scope.isSuiteRunScope()) {
+        criticalSuiteRunIds.addAll(scope.getSuiteRunIds());
+      }
+    }
+    return criticalSuiteRunIds;
   }
 
   private void validateRequest(GateRequest request) throws AbortException {
