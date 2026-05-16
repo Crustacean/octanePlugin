@@ -99,7 +99,7 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains(".octane-live-update {\n          margin-top"));
     assertTrue(xml.contains("Updating report..."));
     assertTrue(xml.contains("id=\"octane-report-zone\""));
-    assertTrue(xml.contains("#E59400"));
+    assertTrue(xml.contains("#631919"));
     assertTrue(xml.contains("data-octane-progress=\"execution\""));
     assertTrue(xml.contains("data-progress-value=\"100.0\""));
     assertTrue(xml.contains("data-execution-progress-circle=\"true\""));

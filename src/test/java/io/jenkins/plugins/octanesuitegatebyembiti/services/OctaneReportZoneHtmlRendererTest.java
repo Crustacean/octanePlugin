@@ -41,7 +41,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("Total Suiteruns: 2"));
     assertTrue(html.contains("border: 1px solid #f5f7fb"));
     assertTrue(html.contains("#78c679"));
-    assertTrue(html.contains("#E59400"));
+    assertTrue(html.contains("#631919"));
     assertTrue(html.contains("octane-donut"));
     assertTrue(html.contains("octane-vertical-bars"));
     assertFalse(html.contains("id=\"octane-timer-zone\""));

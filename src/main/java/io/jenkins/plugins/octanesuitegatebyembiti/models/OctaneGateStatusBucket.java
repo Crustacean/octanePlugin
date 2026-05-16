@@ -5,7 +5,7 @@ import java.io.Serializable;
 public enum OctaneGateStatusBucket implements Serializable {
   PASSED("Passed", "#78c679"),
   FAILED("Failed", "#ff6361"),
-  BLOCKED("Blocked", "#E59400"),
+  BLOCKED("Blocked", "#631919"),
   SKIPPED("Skipped", "#ffb74d"),
   RUNNING("Running", "#778899");
 
