@@ -482,8 +482,8 @@
 
           <div class="octane-report-zone octane-card-zone" id="octane-report-zone">
             <j:choose>
-              <j:when test="${snapshot.hasSections()}">
-                <j:forEach var="section" items="${snapshot.sections}">
+              <j:when test="${snapshot.hasReportSections()}">
+                <j:forEach var="section" items="${snapshot.reportSections}">
                   <section class="octane-chart-card" draggable="true">
                     <div class="octane-card-header">
                       <div>
@@ -507,39 +507,32 @@
                         :::
                       </span>
                     </div>
-                    <j:choose>
-                      <j:when test="${section.noRuns}">
-                        <div class="octane-empty">No run results have been returned yet.</div>
-                      </j:when>
-                      <j:otherwise>
-                        <div class="octane-donut-wrap">
-                          <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
-                              aria-label="${section.statusDistributionTitle}">
-                            <j:forEach var="slice" items="${section.pieSlices}">
-                              <j:choose>
-                                <j:when test="${slice.fullCircle}">
-                                  <circle cx="50" cy="50" r="42" fill="${slice.color}">
-                                    <title>${slice.title}</title>
-                                  </circle>
-                                </j:when>
-                                <j:otherwise>
-                                  <path d="${slice.path}" fill="${slice.color}">
-                                    <title>${slice.title}</title>
-                                  </path>
-                                </j:otherwise>
-                              </j:choose>
-                            </j:forEach>
-                            <circle class="octane-donut-hole" cx="50" cy="50" r="27" />
-                            <j:forEach var="slice" items="${section.pieSlices}">
-                              <text class="octane-donut-label" x="${slice.labelX}"
-                                  y="${slice.labelY}" dominant-baseline="central">
-                                ${slice.percentageLabel}
-                              </text>
-                            </j:forEach>
-                          </svg>
-                        </div>
-                      </j:otherwise>
-                    </j:choose>
+                    <div class="octane-donut-wrap">
+                      <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
+                          aria-label="${section.statusDistributionTitle}">
+                        <j:forEach var="slice" items="${section.pieSlices}">
+                          <j:choose>
+                            <j:when test="${slice.fullCircle}">
+                              <circle cx="50" cy="50" r="42" fill="${slice.color}">
+                                <title>${slice.title}</title>
+                              </circle>
+                            </j:when>
+                            <j:otherwise>
+                              <path d="${slice.path}" fill="${slice.color}">
+                                <title>${slice.title}</title>
+                              </path>
+                            </j:otherwise>
+                          </j:choose>
+                        </j:forEach>
+                        <circle class="octane-donut-hole" cx="50" cy="50" r="27" />
+                        <j:forEach var="slice" items="${section.pieSlices}">
+                          <text class="octane-donut-label" x="${slice.labelX}"
+                              y="${slice.labelY}" dominant-baseline="central">
+                            ${slice.percentageLabel}
+                          </text>
+                        </j:forEach>
+                      </svg>
+                    </div>
                   </section>
 
                   <section class="octane-chart-card" draggable="true">
@@ -552,37 +545,30 @@
                         :::
                       </span>
                     </div>
-                    <j:choose>
-                      <j:when test="${section.noRuns}">
-                        <div class="octane-empty">No run results have been returned yet.</div>
-                      </j:when>
-                      <j:otherwise>
-                        <div class="octane-vertical-bars">
-                          <j:forEach var="suiteRun" items="${section.suiteRuns}">
-                            <div class="octane-suite-column">
-                              <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}"
-                                  title="${suiteRun.total} tests">
-                                <j:forEach var="status" items="${suiteRun.statuses}">
-                                  <j:if test="${status.count > 0}">
-                                    <span class="octane-vertical-segment"
-                                        style="${status.heightStyle}"
-                                        title="${status.title}"></span>
-                                  </j:if>
-                                </j:forEach>
-                              </div>
-                              <span class="octane-total">${suiteRun.total}</span>
-                              <span class="octane-suite-label" title="${suiteRun.suiteRunId}">
-                                ${suiteRun.suiteRunId}
-                              </span>
-                            </div>
-                          </j:forEach>
+                    <div class="octane-vertical-bars">
+                      <j:forEach var="suiteRun" items="${section.suiteRuns}">
+                        <div class="octane-suite-column">
+                          <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}"
+                              title="${suiteRun.total} tests">
+                            <j:forEach var="status" items="${suiteRun.statuses}">
+                              <j:if test="${status.count > 0}">
+                                <span class="octane-vertical-segment"
+                                    style="${status.heightStyle}"
+                                    title="${status.title}"></span>
+                              </j:if>
+                            </j:forEach>
+                          </div>
+                          <span class="octane-total">${suiteRun.total}</span>
+                          <span class="octane-suite-label" title="${suiteRun.suiteRunId}">
+                            ${suiteRun.suiteRunId}
+                          </span>
                         </div>
-                      </j:otherwise>
-                    </j:choose>
+                      </j:forEach>
+                    </div>
                   </section>
                 </j:forEach>
               </j:when>
-              <j:otherwise>
+              <j:when test="${!snapshot.hasSections()}">
                 <section class="octane-chart-card" draggable="true">
                   <div class="octane-card-header">
                     <div>
@@ -595,7 +581,7 @@
                   </div>
                   <div class="octane-empty">The report will populate after the first Octane poll.</div>
                 </section>
-              </j:otherwise>
+              </j:when>
             </j:choose>
           </div>
         </div>

@@ -99,6 +99,82 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("><4501><"));
   }
 
+  @Test
+  public void skipsEmptySectionsInReportZone() {
+    Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
+    criticalSuiteRuns.put("4502", List.of(new RunRecord("1", "critical one", "passed")));
+    GateResult result =
+        new GateResult(
+            "",
+            "critical.passRate == 100",
+            true,
+            true,
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(
+                "critical",
+                new GateScopeResult(
+                    "critical",
+                    "",
+                    List.of(),
+                    "4502",
+                    List.of("4502"),
+                    new GateMetrics(1, 1, 1, 0, 0, 0),
+                    criticalSuiteRuns.get("4502"),
+                    criticalSuiteRuns)),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+
+    assertFalse(html.contains("Grouped Status Distribution</h2>"));
+    assertFalse(html.contains("Testing progress per Tester Suite Runs</h2>"));
+    assertTrue(html.contains("Grouped Status Distribution_CRITICAL RUNs"));
+    assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
+    assertFalse(html.contains("No run results have been returned yet."));
+  }
+
+  @Test
+  public void skipsEmptyCriticalSectionInReportZone() {
+    Map<String, List<RunRecord>> globalSuiteRuns = new LinkedHashMap<>();
+    globalSuiteRuns.put("4501", List.of(new RunRecord("1", "one", "passed")));
+    GateResult result =
+        new GateResult(
+            "4501",
+            "100% pass",
+            true,
+            true,
+            new GateMetrics(1, 1, 1, 0, 0, 0),
+            globalSuiteRuns.get("4501"),
+            globalSuiteRuns,
+            Map.of(
+                "critical",
+                new GateScopeResult(
+                    "critical",
+                    "",
+                    List.of(),
+                    "9999",
+                    List.of("9999"),
+                    new GateMetrics(0, 0, 0, 0, 0, 0),
+                    List.of(),
+                    Map.of("9999", List.of()))),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+
+    assertTrue(html.contains("Grouped Status Distribution</h2>"));
+    assertTrue(html.contains("Testing progress per Tester Suite Runs</h2>"));
+    assertFalse(html.contains("Grouped Status Distribution_CRITICAL RUNs"));
+    assertFalse(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
+    assertFalse(html.contains("No run results have been returned yet."));
+  }
+
   private GateResult result() {
     Map<String, List<RunRecord>> globalSuiteRuns = new LinkedHashMap<>();
     globalSuiteRuns.put(

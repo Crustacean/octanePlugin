@@ -220,12 +220,12 @@ public class OctaneReportZoneHtmlRenderer {
 
   private void renderReportZone(StringBuilder html, OctaneGateReportSnapshot snapshot) {
     html.append("<div class=\"octane-report-zone octane-card-zone\" id=\"octane-report-zone\">\n");
-    if (snapshot.hasSections()) {
-      for (OctaneGateReportSection section : snapshot.getSections()) {
+    if (snapshot.hasReportSections()) {
+      for (OctaneGateReportSection section : snapshot.getReportSections()) {
         renderDistributionCard(html, section);
         renderSuiteRunCard(html, section);
       }
-    } else {
+    } else if (!snapshot.hasSections()) {
       html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
       html.append("<div class=\"octane-card-header\"><div>");
       html.append("<h2 class=\"octane-card-title\">Suite run charts</h2>");
@@ -260,24 +260,20 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div>");
     html.append("</div><span class=\"octane-card-tools\" ");
     html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
-    if (section.isNoRuns()) {
-      html.append("<div class=\"octane-empty\">No run results have been returned yet.</div>\n");
-    } else {
-      html.append("<div class=\"octane-donut-wrap\">\n");
-      html.append("<svg class=\"octane-donut\" viewBox=\"-10 -10 120 120\" role=\"img\" ");
-      html.append("aria-label=\"");
-      html.append(escapeAttribute(section.getStatusDistributionTitle()));
-      html.append("\">\n");
-      for (OctaneGatePieSlice slice : section.getPieSlices()) {
-        renderSlice(html, slice);
-      }
-      html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"27\" />\n");
-      for (OctaneGatePieSlice slice : section.getPieSlices()) {
-        renderSliceLabel(html, slice);
-      }
-      html.append("</svg>\n");
-      html.append("</div>\n");
+    html.append("<div class=\"octane-donut-wrap\">\n");
+    html.append("<svg class=\"octane-donut\" viewBox=\"-10 -10 120 120\" role=\"img\" ");
+    html.append("aria-label=\"");
+    html.append(escapeAttribute(section.getStatusDistributionTitle()));
+    html.append("\">\n");
+    for (OctaneGatePieSlice slice : section.getPieSlices()) {
+      renderSlice(html, slice);
     }
+    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"27\" />\n");
+    for (OctaneGatePieSlice slice : section.getPieSlices()) {
+      renderSliceLabel(html, slice);
+    }
+    html.append("</svg>\n");
+    html.append("</div>\n");
     html.append("</section>\n");
   }
 
@@ -331,15 +327,11 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div>");
     html.append("</div><span class=\"octane-card-tools\" ");
     html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
-    if (section.isNoRuns()) {
-      html.append("<div class=\"octane-empty\">No run results have been returned yet.</div>\n");
-    } else {
-      html.append("<div class=\"octane-vertical-bars\">\n");
-      for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
-        renderSuiteRunColumn(html, suiteRun);
-      }
-      html.append("</div>\n");
+    html.append("<div class=\"octane-vertical-bars\">\n");
+    for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
+      renderSuiteRunColumn(html, suiteRun);
     }
+    html.append("</div>\n");
     html.append("</section>\n");
   }
 

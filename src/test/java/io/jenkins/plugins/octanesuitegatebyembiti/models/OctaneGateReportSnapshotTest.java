@@ -158,9 +158,51 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("0%", snapshot.getPassRateProgressText());
     assertEquals("All Testcase Pass Rate (0 / 0)", snapshot.getPassRateLabel());
     assertTrue(global.getPieSlices().isEmpty());
+    assertTrue(snapshot.getReportSections().isEmpty());
+    assertFalse(snapshot.hasReportSections());
     assertEquals(1, global.getSuiteRuns().size());
     assertEquals(0, global.getSuiteRuns().get(0).getTotal());
     assertEquals("height: 0%;", global.getSuiteRuns().get(0).getBarHeightStyle());
+  }
+
+  @Test
+  public void reportSectionsHideEmptySectionsButKeepValidData() {
+    Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
+    criticalSuiteRuns.put(
+        "4502",
+        List.of(
+            new RunRecord("1", "critical one", "passed"),
+            new RunRecord("2", "critical two", "passed")));
+    GateResult result =
+        new GateResult(
+            "",
+            "critical.passRate == 100",
+            true,
+            true,
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(
+                "critical",
+                new GateScopeResult(
+                    "critical",
+                    "",
+                    List.of(),
+                    "4502",
+                    List.of("4502"),
+                    new GateMetrics(2, 2, 2, 0, 0, 0),
+                    criticalSuiteRuns.get("4502"),
+                    criticalSuiteRuns)),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    assertEquals(2, snapshot.getSections().size());
+    assertEquals(1, snapshot.getReportSections().size());
+    assertEquals("critical", snapshot.getReportSections().get(0).getSource());
+    assertTrue(snapshot.hasReportSections());
   }
 
   private int count(OctaneGateReportSection section, OctaneGateStatusBucket bucket) {

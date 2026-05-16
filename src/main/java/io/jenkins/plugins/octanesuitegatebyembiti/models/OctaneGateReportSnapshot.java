@@ -206,12 +206,20 @@ public class OctaneGateReportSnapshot implements Serializable {
     return sections;
   }
 
+  public List<OctaneGateReportSection> getReportSections() {
+    return sections.stream().filter(section -> !section.isNoRuns()).toList();
+  }
+
   public boolean isBuilding() {
     return state.isBuilding();
   }
 
   public boolean hasSections() {
     return !sections.isEmpty();
+  }
+
+  public boolean hasReportSections() {
+    return !getReportSections().isEmpty();
   }
 
   public double getExecutionProgress() {
