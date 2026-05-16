@@ -6,6 +6,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import java.io.IOException;
 import java.util.List;
 
 public class OctaneGateLogListener {
@@ -58,6 +59,18 @@ public class OctaneGateLogListener {
       }
     }
     listener.getLogger().println();
+  }
+
+  public void logFinalRefresh(TaskListener listener) {
+    listener
+        .getLogger()
+        .println("Refreshing ALM Octane suite runs before completing the gate.");
+  }
+
+  public void logFinalRefreshSkipped(TaskListener listener, IOException e) {
+    listener
+        .getLogger()
+        .println("Skipped final ALM Octane refresh: " + e.getMessage());
   }
 
   public void logPassed(TaskListener listener) {

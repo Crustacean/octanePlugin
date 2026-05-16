@@ -81,6 +81,20 @@ public class OctaneGateRunner {
         logListener.logPollResult(listener, result);
         reportPublisher.onPoll(result, classifier);
         if (result.isPassed()) {
+          result =
+              refreshPassedResult(
+                  client,
+                  result,
+                  request,
+                  suiteRunIds,
+                  sharedSpaceId,
+                  workspaceId,
+                  criteria,
+                  classifier,
+                  listener,
+                  reportPublisher);
+        }
+        if (result.isPassed()) {
           logListener.logPassed(listener);
           reportPublisher.onFinal(
               OctaneGateReportState.PASSED, "ALM Octane suite gate passed.", result, classifier);
@@ -98,6 +112,31 @@ public class OctaneGateRunner {
         }
         Thread.sleep(Duration.ofSeconds(request.getPollIntervalSeconds()).toMillis());
       }
+    }
+  }
+
+  GateResult refreshPassedResult(
+      OctaneClient client,
+      GateResult previousResult,
+      GateRequest request,
+      List<String> suiteRunIds,
+      String sharedSpaceId,
+      String workspaceId,
+      CriteriaExpression criteria,
+      StatusClassifier classifier,
+      TaskListener listener,
+      OctaneGateReportPublisher reportPublisher)
+      throws InterruptedException {
+    logListener.logFinalRefresh(listener);
+    try {
+      GateResult refreshedResult =
+          poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
+      logListener.logPollResult(listener, refreshedResult);
+      reportPublisher.onPoll(refreshedResult, classifier);
+      return refreshedResult;
+    } catch (IOException e) {
+      logListener.logFinalRefreshSkipped(listener, e);
+      return previousResult;
     }
   }
 
