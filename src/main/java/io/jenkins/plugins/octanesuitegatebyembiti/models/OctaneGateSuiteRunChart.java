@@ -79,6 +79,8 @@ public class OctaneGateSuiteRunChart implements Serializable {
         new OctaneGateStatusCount(
             OctaneGateStatusBucket.FAILED, counts.get(OctaneGateStatusBucket.FAILED), total),
         new OctaneGateStatusCount(
+            OctaneGateStatusBucket.BLOCKED, counts.get(OctaneGateStatusBucket.BLOCKED), total),
+        new OctaneGateStatusCount(
             OctaneGateStatusBucket.SKIPPED, counts.get(OctaneGateStatusBucket.SKIPPED), total),
         new OctaneGateStatusCount(
             OctaneGateStatusBucket.RUNNING, counts.get(OctaneGateStatusBucket.RUNNING), total));

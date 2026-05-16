@@ -85,12 +85,13 @@ public class OctaneGateReportSection implements Serializable {
         suiteRunCharts.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);
     List<OctaneGateSuiteRunChart> scaledSuiteRunCharts =
         suiteRunCharts.stream().map(chart -> chart.scaledAgainst(maxSuiteRunTotal)).toList();
+    List<RunRecord> reportRuns = runsForTotals(chartSuiteRuns, fallbackRuns);
     return new OctaneGateReportSection(
         name,
         source,
         Util.splitIdList(suiteRunId),
         metrics,
-        totalsFromMetrics(metrics),
+        reportRuns.isEmpty() ? totalsFromMetrics(metrics) : totalsFromRuns(reportRuns, classifier),
         scaledSuiteRunCharts);
   }
 
@@ -168,6 +169,25 @@ public class OctaneGateReportSection implements Serializable {
     counts.put(OctaneGateStatusBucket.SKIPPED, metrics.getSkipped());
     counts.put(OctaneGateStatusBucket.RUNNING, metrics.getRunning());
     return OctaneGateSuiteRunChart.toStatusCounts(counts, metrics.getTotal());
+  }
+
+  private static List<RunRecord> runsForTotals(
+      Map<String, List<RunRecord>> suiteRuns, List<RunRecord> fallbackRuns) {
+    if (!fallbackRuns.isEmpty()) {
+      return fallbackRuns;
+    }
+    return suiteRuns.values().stream().flatMap(List::stream).toList();
+  }
+
+  private static List<OctaneGateStatusCount> totalsFromRuns(
+      List<RunRecord> runs, StatusClassifier classifier) {
+    Map<OctaneGateStatusBucket, Integer> counts = OctaneGateSuiteRunChart.emptyCounts();
+    for (RunRecord run : runs) {
+      OctaneGateStatusBucket bucket =
+          OctaneGateStatusBucket.fromOutcome(classifier.classify(run.getStatus()));
+      counts.put(bucket, counts.get(bucket) + 1);
+    }
+    return OctaneGateSuiteRunChart.toStatusCounts(counts, runs.size());
   }
 
   private static List<OctaneGatePieSlice> buildPieSlices(List<OctaneGateStatusCount> totals) {

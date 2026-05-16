@@ -30,6 +30,7 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(5, global.getMetrics().getTotal());
     assertEquals(2, count(global, OctaneGateStatusBucket.PASSED));
     assertEquals(1, count(global, OctaneGateStatusBucket.FAILED));
+    assertEquals(0, count(global, OctaneGateStatusBucket.BLOCKED));
     assertEquals(1, count(global, OctaneGateStatusBucket.SKIPPED));
     assertEquals(1, count(global, OctaneGateStatusBucket.RUNNING));
     assertEquals(2, global.getSuiteRuns().size());
@@ -61,8 +62,43 @@ public class OctaneGateReportSnapshotTest {
   public void usesRequiredStatusColors() {
     assertEquals("#78c679", OctaneGateStatusBucket.PASSED.getColor());
     assertEquals("#ff6361", OctaneGateStatusBucket.FAILED.getColor());
+    assertEquals("#E59400", OctaneGateStatusBucket.BLOCKED.getColor());
     assertEquals("#ffb74d", OctaneGateStatusBucket.SKIPPED.getColor());
     assertEquals("#778899", OctaneGateStatusBucket.RUNNING.getColor());
+  }
+
+  @Test
+  public void reportsBlockedStatusesSeparatelyFromFailedChartBucket() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    suiteRuns.put(
+        "blocked-suite",
+        List.of(
+            new RunRecord("1", "one", "blocked"),
+            new RunRecord("2", "two", "failed"),
+            new RunRecord("3", "three", "passed")));
+    GateResult result =
+        new GateResult(
+            "blocked-suite",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(3, 3, 1, 2, 0, 0),
+            suiteRuns.get("blocked-suite"),
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    OctaneGateReportSection global = snapshot.getSections().get(0);
+    assertEquals(1, count(global, OctaneGateStatusBucket.PASSED));
+    assertEquals(1, count(global, OctaneGateStatusBucket.FAILED));
+    assertEquals(1, count(global, OctaneGateStatusBucket.BLOCKED));
+    assertEquals(0, count(global, OctaneGateStatusBucket.SKIPPED));
+    assertEquals(0, count(global, OctaneGateStatusBucket.RUNNING));
+    assertEquals(1, suiteRunStatusCount(global, OctaneGateStatusBucket.BLOCKED));
   }
 
   @Test
@@ -109,6 +145,14 @@ public class OctaneGateReportSnapshotTest {
 
   private int count(OctaneGateReportSection section, OctaneGateStatusBucket bucket) {
     return section.getTotals().stream()
+        .filter(status -> status.getBucket() == bucket)
+        .findFirst()
+        .orElseThrow()
+        .getCount();
+  }
+
+  private int suiteRunStatusCount(OctaneGateReportSection section, OctaneGateStatusBucket bucket) {
+    return section.getSuiteRuns().get(0).getStatuses().stream()
         .filter(status -> status.getBucket() == bucket)
         .findFirst()
         .orElseThrow()

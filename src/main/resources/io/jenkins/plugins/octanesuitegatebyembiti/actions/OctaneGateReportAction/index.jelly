@@ -13,8 +13,9 @@
           color: var(--text-color-secondary);
         }
         .octane-live-update {
-          margin-top: 0.25rem;
-          min-height: 1rem;
+          display: inline;
+          margin-left: 0.35rem;
+          white-space: nowrap;
         }
         .octane-dashboard {
           align-items: stretch;
@@ -316,9 +317,10 @@
               <div class="octane-card-header">
                 <div>
                   <h2 class="octane-card-title">Time to next Poll</h2>
-                  <div class="octane-muted">Polling interval</div>
-                  <div class="octane-muted octane-live-update"
-                      data-live-update-status="true"></div>
+                  <div class="octane-muted">
+                    Polling interval
+                    <span class="octane-live-update" data-live-update-status="true"></span>
+                  </div>
                 </div>
                 <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
                   :::

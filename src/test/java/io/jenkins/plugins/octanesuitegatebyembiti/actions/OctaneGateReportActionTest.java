@@ -94,8 +94,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-snapshot-url=\"snapshot\""));
     assertTrue(xml.contains("data-current-updated-at=\"2026-05-15T00:00:00Z\""));
     assertTrue(xml.contains("data-live-update-status=\"true\""));
+    assertTrue(xml.contains("display: inline"));
+    assertTrue(xml.contains("white-space: nowrap"));
+    assertFalse(xml.contains(".octane-live-update {\n          margin-top"));
     assertTrue(xml.contains("Updating report..."));
     assertTrue(xml.contains("id=\"octane-report-zone\""));
+    assertTrue(xml.contains("#E59400"));
     assertTrue(xml.contains("data-octane-progress=\"execution\""));
     assertTrue(xml.contains("data-progress-value=\"100.0\""));
     assertTrue(xml.contains("data-execution-progress-circle=\"true\""));
