@@ -59,6 +59,16 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void formatsLastUpdatedTimeInEastAfricaTimeWithoutMillis() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result(), classifier, 30);
+
+    assertEquals("2026-05-15T00:00:00Z", snapshot.getUpdatedAt());
+    assertEquals("03:00:00", snapshot.getUpdatedAtText());
+  }
+
+  @Test
   public void usesRequiredStatusColors() {
     assertEquals("#009900", OctaneGateStatusBucket.PASSED.getColor());
     assertEquals("#990000", OctaneGateStatusBucket.FAILED.getColor());

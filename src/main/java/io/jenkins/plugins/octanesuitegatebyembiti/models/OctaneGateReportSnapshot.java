@@ -3,12 +3,16 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 public class OctaneGateReportSnapshot implements Serializable {
   private static final long serialVersionUID = 1L;
+  private static final DateTimeFormatter EAT_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
 
   private final OctaneGateReportState state;
   private final String message;
@@ -189,7 +193,11 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public String getUpdatedAtText() {
-    return updatedAt;
+    try {
+      return EAT_TIME_FORMATTER.format(Instant.parse(updatedAt));
+    } catch (RuntimeException e) {
+      return updatedAt;
+    }
   }
 
   public List<OctaneGateReportSection> getSections() {

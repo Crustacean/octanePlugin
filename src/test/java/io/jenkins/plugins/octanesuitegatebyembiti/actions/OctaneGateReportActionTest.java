@@ -55,6 +55,7 @@ public class OctaneGateReportActionTest {
     String text = page.asNormalizedText();
     String xml = page.asXml();
     assertTrue(text.contains("Octane Gate Report"));
+    assertTrue(text.contains("Last update (EAT): 03:00:00"));
     assertTrue(text.contains("Grouped Status Distribution"));
     assertTrue(text.contains("Testing progress per Tester Suite Runs"));
     assertTrue(text.contains("Testing Time Remaining"));
@@ -206,6 +207,7 @@ public class OctaneGateReportActionTest {
 
     assertTrue(jsonPage.getWebResponse().getContentType().contains("application/json"));
     assertEquals("2026-05-15T00:00:00Z", payload.getString("updatedAt"));
+    assertEquals("03:00:00", payload.getString("updatedAtText"));
     assertFalse(payload.getBoolean("building"));
     assertEquals("Passed", payload.getString("stateLabel"));
     assertEquals(15, payload.getInt("refreshSeconds"));
