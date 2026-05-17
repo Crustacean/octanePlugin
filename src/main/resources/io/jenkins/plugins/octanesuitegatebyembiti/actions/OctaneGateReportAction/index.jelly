@@ -68,11 +68,12 @@
         .octane-card-tools {
           color: var(--text-color-secondary);
           cursor: grab;
-          font-size: 1.1rem;
-          letter-spacing: 0.2rem;
+          font-size: 0.66rem;
+          letter-spacing: 0.12rem;
           user-select: none;
         }
         .octane-chart-card.octane-dragging {
+          border-color: #4391F5;
           opacity: 0.45;
         }
         .octane-timer-card {

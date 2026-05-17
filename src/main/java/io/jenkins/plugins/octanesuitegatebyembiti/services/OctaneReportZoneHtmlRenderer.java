@@ -90,8 +90,8 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-card-tools {
           color: #8a94a6;
-          font-size: 18px;
-          letter-spacing: 3px;
+          font-size: 11px;
+          letter-spacing: 2px;
           user-select: none;
         }
         .octane-donut-wrap {

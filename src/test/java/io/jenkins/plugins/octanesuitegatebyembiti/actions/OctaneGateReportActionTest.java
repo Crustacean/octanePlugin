@@ -83,6 +83,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains(">50%</text>"));
     assertTrue(xml.contains("border-radius: 14px"));
     assertFalse(xml.contains("border-radius: 6px"));
+    assertTrue(xml.contains("border-color: #4391F5"));
+    assertTrue(xml.contains("font-size: 0.66rem"));
+    assertTrue(xml.contains("letter-spacing: 0.12rem"));
     assertFalse(xml.contains("total runs"));
     assertFalse(xml.contains("grid-template-columns: minmax(180px, 240px) max-content"));
     assertTrue(xml.contains("display: inline-flex"));

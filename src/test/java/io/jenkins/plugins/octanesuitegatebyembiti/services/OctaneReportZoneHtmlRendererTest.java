@@ -41,6 +41,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("Total Suiteruns: 2"));
     assertFalse(html.contains("Total Testcases"));
     assertTrue(html.contains("border: 1px solid #f5f7fb"));
+    assertTrue(html.contains("font-size: 11px"));
+    assertTrue(html.contains("letter-spacing: 2px"));
     assertTrue(html.contains("#009900"));
     assertTrue(html.contains("#990000"));
     assertTrue(html.contains("#808080"));
