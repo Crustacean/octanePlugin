@@ -63,6 +63,21 @@
         <scope>import</scope>
         <type>pom</type>
       </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>bouncycastle-api</artifactId>
+        <version>2.30.1.84-291.v9f17b_21896e2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>jackson2-api</artifactId>
+        <version>2.21.2-436.v29efdb_7418ff</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>script-security</artifactId>
+        <version>1402.v94c9ce464861</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
