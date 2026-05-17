@@ -6,6 +6,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import java.io.IOException;
 import java.util.List;
 
 public class OctaneGateLogListener {
@@ -15,7 +16,7 @@ public class OctaneGateLogListener {
 
   public void logWaiting(TaskListener listener, GateRequest request, List<String> suiteRunIds) {
     listener.getLogger().println("Waiting for ALM Octane suite run(s)");
-    listener.getLogger().println("Global suite runs: " + describeIds(suiteRunIds));
+    listener.getLogger().println("Regressions suite runs: " + describeIds(suiteRunIds));
     if (request == null) {
       return;
     }
@@ -43,7 +44,7 @@ public class OctaneGateLogListener {
   }
 
   public void logPollResult(TaskListener listener, GateResult result) {
-    logMetrics(listener, "Global suite runs", result.getMetrics());
+    logMetrics(listener, "Regressions suite runs", result.getMetrics());
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
       if (scopeResult.isSuiteRunScope()) {
         logMetrics(
@@ -58,6 +59,18 @@ public class OctaneGateLogListener {
       }
     }
     listener.getLogger().println();
+  }
+
+  public void logFinalRefresh(TaskListener listener) {
+    listener
+        .getLogger()
+        .println("Refreshing ALM Octane suite runs before completing the gate.");
+  }
+
+  public void logFinalRefreshSkipped(TaskListener listener, IOException e) {
+    listener
+        .getLogger()
+        .println("Skipped final ALM Octane refresh: " + e.getMessage());
   }
 
   public void logPassed(TaskListener listener) {

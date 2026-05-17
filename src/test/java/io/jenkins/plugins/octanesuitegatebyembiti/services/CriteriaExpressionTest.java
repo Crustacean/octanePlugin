@@ -76,7 +76,26 @@ public class CriteriaExpressionTest {
   }
 
   @Test
-  public void evaluatesGlobalAndCriticalSuiteRunMetricsIndependently() {
+  public void criteriaReadsRegressionAliasForMainSuiteRunMetrics() {
+    MetricsContext context =
+        context(
+            List.of(
+                new RunRecord("1", "first", "passed"),
+                new RunRecord("2", "second", "passed"),
+                new RunRecord("3", "third", "planned")));
+
+    assertTrue(CriteriaExpression.parse("regressions.executionRate >= 60").evaluate(context));
+    assertTrue(CriteriaExpression.parse("regressions.passRate == 100").evaluate(context));
+    assertTrue(CriteriaExpression.parse("regression.total == 3").evaluate(context));
+  }
+
+  @Test(expected = CriteriaException.class)
+  public void rejectsUnknownScopedMetricAliases() {
+    CriteriaExpression.parse("global.executionRate == 100").evaluate(context(List.of()));
+  }
+
+  @Test
+  public void evaluatesRegressionsAndCriticalSuiteRunMetricsIndependently() {
     Map<String, GateMetrics> scopes = new LinkedHashMap<>();
     scopes.put(
         "critical",
@@ -97,7 +116,7 @@ public class CriteriaExpressionTest {
 
     assertTrue(
         CriteriaExpression.parse(
-                "(executionRate == 100 AND passRate >= 95) "
+                "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
                     + "AND (critical.executionRate == 100 AND critical.passRate == 100)")
             .evaluate(context));
   }
@@ -124,7 +143,7 @@ public class CriteriaExpressionTest {
 
     assertFalse(
         CriteriaExpression.parse(
-                "(executionRate == 100 AND passRate >= 95) "
+                "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
                     + "AND (critical.executionRate == 100 AND critical.passRate == 100)")
             .evaluate(context));
   }

@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    OCTANE_SUITE_RUN_ID = '1196,1200,1204'
+    OCTANE_REGRESSION_SUITE_RUN_ID = '1196,1200,1204'
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
   }
 
@@ -23,7 +23,8 @@ pipeline {
       steps {
         input(
             message:
-                "Continue and wait for ALM Octane suite run(s) ${env.OCTANE_SUITE_RUN_ID}"
+                "Continue and wait for ALM Octane regression suite run(s) "
+                    + "${env.OCTANE_REGRESSION_SUITE_RUN_ID}"
                     + " with critical suite run(s) ${env.OCTANE_CRITICAL_SUITE_RUN_ID}?",
             ok: 'Wait for Octane')
       }
@@ -33,20 +34,23 @@ pipeline {
       steps {
         script {
           def suiteRunIds =
-              env.OCTANE_SUITE_RUN_ID.split(/[,\s]+/).collect { it.trim() }.findAll { it }
+              env.OCTANE_REGRESSION_SUITE_RUN_ID
+                  .split(/[,\s]+/)
+                  .collect { it.trim() }
+                  .findAll { it }
           def criticalSuiteRunIds =
               env.OCTANE_CRITICAL_SUITE_RUN_ID
                   .split(/[,\s]+/)
                   .collect { it.trim() }
                   .findAll { it }
           if (suiteRunIds.isEmpty()) {
-            error 'OCTANE_SUITE_RUN_ID must contain at least one ID.'
+            error 'OCTANE_REGRESSION_SUITE_RUN_ID must contain at least one ID.'
           }
           if (criticalSuiteRunIds.isEmpty()) {
             error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain at least one ID.'
           }
 
-          echo "Octane suite run IDs: ${suiteRunIds.join(', ')}"
+          echo "Octane regression suite run IDs: ${suiteRunIds.join(', ')}"
           echo "Octane critical suite run IDs: ${criticalSuiteRunIds.join(', ')}"
 
           Map gateResult =
@@ -54,7 +58,7 @@ pipeline {
                   serverId: 'octane-prod',
                   suiteRunId: suiteRunIds.join(','),
                   criteria:
-                      '(executionRate == 100 AND passRate >= 95) '
+                      '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
                           + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
                   scopes: [
                     octaneGateScope(
@@ -66,8 +70,8 @@ pipeline {
                   markUnstable: false)
 
           echo "Octane gate passed for suite run(s) ${gateResult.suiteRunIds.join(', ')}"
-          echo "Execution rate: ${gateResult.metrics.executionRate}"
-          echo "Pass rate: ${gateResult.metrics.passRate}"
+          echo "Regression execution rate: ${gateResult.regressions.executionRate}"
+          echo "Regression pass rate: ${gateResult.regressions.passRate}"
           echo "Critical scope execution rate: ${gateResult.scopes.critical.executionRate}"
           echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
           echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"

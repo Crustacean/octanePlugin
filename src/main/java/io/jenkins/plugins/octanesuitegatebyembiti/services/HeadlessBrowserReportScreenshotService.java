@@ -141,7 +141,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
   }
 
   private int estimateViewportHeight(OctaneGateReportSnapshot snapshot) {
-    int cardCount = snapshot.hasSections() ? snapshot.getSections().size() * 2 : 1;
+    int cardCount = snapshot.hasReportSections() ? snapshot.getReportSections().size() * 2 : 1;
     int rows = Math.max(1, (cardCount + 1) / 2);
     return Math.max(800, 120 + rows * 380);
   }

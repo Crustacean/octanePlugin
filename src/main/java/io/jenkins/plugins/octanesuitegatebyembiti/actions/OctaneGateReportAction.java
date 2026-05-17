@@ -7,12 +7,15 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
 import jenkins.model.Jenkins;
 import jenkins.model.RunAction2;
+import net.sf.json.JSONObject;
+import org.kohsuke.stapler.StaplerResponse2;
 
 public class OctaneGateReportAction implements RunAction2, OctaneGateReportPublisher, Serializable {
   private static final long serialVersionUID = 1L;
@@ -126,6 +129,27 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     String rootUrl = Jenkins.get().getRootUrl();
     String buildPath = run.getUrl() + URL_NAME + "/";
     return rootUrl == null ? buildPath : rootUrl + buildPath;
+  }
+
+  public synchronized void doSnapshot(StaplerResponse2 response) throws IOException {
+    OctaneGateReportSnapshot safeSnapshot =
+        snapshot == null ? OctaneGateReportSnapshot.empty() : snapshot;
+    JSONObject payload = new JSONObject();
+    payload.put("updatedAt", safeSnapshot.getUpdatedAt());
+    payload.put("updatedAtText", safeSnapshot.getUpdatedAtText());
+    payload.put("building", safeSnapshot.isBuilding());
+    payload.put("stateLabel", safeSnapshot.getStateLabel());
+    payload.put("message", safeSnapshot.getMessage());
+    payload.put("executionProgress", safeSnapshot.getExecutionProgress());
+    payload.put("executionProgressText", safeSnapshot.getExecutionProgressText());
+    payload.put("passRateProgress", safeSnapshot.getPassRateProgress());
+    payload.put("passRateProgressText", safeSnapshot.getPassRateProgressText());
+    payload.put("passRateLabel", safeSnapshot.getPassRateLabel());
+    payload.put("refreshSeconds", safeSnapshot.getRefreshSeconds());
+    payload.put("reportZoneHtml", new OctaneReportZoneHtmlRenderer().renderZone(safeSnapshot));
+
+    response.setContentType("application/json;charset=UTF-8");
+    response.getWriter().print(payload.toString());
   }
 
   private void saveRun() {

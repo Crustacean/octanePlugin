@@ -116,6 +116,7 @@ public class GateResult implements Serializable {
     result.put("terminal", terminal);
     result.put("polledAt", polledAt.toString());
     result.put("metrics", metrics.toMap());
+    result.put("regressions", metrics.toMap());
 
     Map<String, Object> scopes = new LinkedHashMap<>();
     Map<String, Object> scopeDetails = new LinkedHashMap<>();

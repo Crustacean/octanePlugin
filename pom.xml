@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>5.31</version>
+    <version>6.2105.v7d6ddb_2da_0d2</version>
     <relativePath />
   </parent>
 
@@ -33,8 +33,9 @@
   </developers>
 
   <properties>
-    <java.level>17</java.level>
-    <jenkins.version>2.541.3</jenkins.version>
+    <java.level>21</java.level>
+    <jenkins.version>2.555.2</jenkins.version>
+    <jenkins-test-harness.version>2565.vd1eb_7c961d1b_</jenkins-test-harness.version>
     <spotless.check.skip>false</spotless.check.skip>
   </properties>
 
@@ -42,8 +43,8 @@
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.528.x</artifactId>
-        <version>5750.vec44cb_c78352</version>
+        <artifactId>bom-2.555.x</artifactId>
+        <version>6453.v115ff6f496dd</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -61,6 +62,16 @@
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>script-security</artifactId>
         <version>1402.v94c9ce464861</version>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework.security</groupId>
+        <artifactId>spring-security-core</artifactId>
+        <version>6.5.10</version>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework.security</groupId>
+        <artifactId>spring-security-web</artifactId>
+        <version>6.5.10</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

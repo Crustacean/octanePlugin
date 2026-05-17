@@ -64,7 +64,7 @@ public class OctaneGateRunner {
     CriteriaExpression criteria = CriteriaExpression.parse(request.getCriteria());
     StatusClassifier classifier = request.createStatusClassifier();
     Instant deadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
-    List<String> suiteRunIds = request.getSuiteRunIds();
+    List<String> suiteRunIds = regressionSuiteRunIdsForCriteria(request);
 
     logListener.logWaiting(listener, request, suiteRunIds);
     reportPublisher.onWaiting(request, suiteRunIds);
@@ -80,6 +80,20 @@ public class OctaneGateRunner {
             poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
         logListener.logPollResult(listener, result);
         reportPublisher.onPoll(result, classifier);
+        if (result.isPassed()) {
+          result =
+              refreshPassedResult(
+                  client,
+                  result,
+                  request,
+                  suiteRunIds,
+                  sharedSpaceId,
+                  workspaceId,
+                  criteria,
+                  classifier,
+                  listener,
+                  reportPublisher);
+        }
         if (result.isPassed()) {
           logListener.logPassed(listener);
           reportPublisher.onFinal(
@@ -101,6 +115,31 @@ public class OctaneGateRunner {
     }
   }
 
+  GateResult refreshPassedResult(
+      OctaneClient client,
+      GateResult previousResult,
+      GateRequest request,
+      List<String> suiteRunIds,
+      String sharedSpaceId,
+      String workspaceId,
+      CriteriaExpression criteria,
+      StatusClassifier classifier,
+      TaskListener listener,
+      OctaneGateReportPublisher reportPublisher)
+      throws InterruptedException {
+    logListener.logFinalRefresh(listener);
+    try {
+      GateResult refreshedResult =
+          poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
+      logListener.logPollResult(listener, refreshedResult);
+      reportPublisher.onPoll(refreshedResult, classifier);
+      return refreshedResult;
+    } catch (IOException e) {
+      logListener.logFinalRefreshSkipped(listener, e);
+      return previousResult;
+    }
+  }
+
   private GateResult poll(
       OctaneClient client,
       GateRequest request,
@@ -113,7 +152,7 @@ public class OctaneGateRunner {
     Map<String, List<RunRecord>> suiteRuns =
         fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, suiteRunIds);
     List<RunRecord> childRuns = flattenAndDedupeRuns(suiteRuns);
-    GateMetrics globalMetrics = GateMetrics.fromRuns(childRuns, classifier);
+    GateMetrics regressionMetrics = GateMetrics.fromRuns(childRuns, classifier);
     List<String> childRunIds = childRuns.stream().map(RunRecord::getId).toList();
 
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
@@ -125,17 +164,17 @@ public class OctaneGateRunner {
       scopedResults.put(scope.getName(), scopeResult);
     }
 
-    MetricsContext metricsContext = new MetricsContext(globalMetrics, scopedMetrics);
+    MetricsContext metricsContext = new MetricsContext(regressionMetrics, scopedMetrics);
     boolean passed = criteria.evaluate(metricsContext);
     boolean terminal =
-        globalMetrics.isTerminal()
+        regressionMetrics.isTerminal()
             && scopedMetrics.values().stream().allMatch(GateMetrics::isTerminal);
     return new GateResult(
-        request.getSuiteRunId(),
+        String.join(",", suiteRunIds),
         request.getCriteria(),
         passed,
         terminal,
-        globalMetrics,
+        regressionMetrics,
         childRuns,
         suiteRuns,
         scopedResults,
@@ -147,7 +186,7 @@ public class OctaneGateRunner {
       String sharedSpaceId,
       String workspaceId,
       List<String> childRunIds,
-      Map<String, List<RunRecord>> globalSuiteRuns,
+      Map<String, List<RunRecord>> regressionSuiteRuns,
       StatusClassifier classifier,
       OctaneGateScope scope)
       throws IOException, InterruptedException {
@@ -190,7 +229,7 @@ public class OctaneGateRunner {
         List.of(),
         metrics,
         scopedRuns,
-        groupScopedRunsBySuiteRun(globalSuiteRuns, scopedRuns));
+        groupScopedRunsBySuiteRun(regressionSuiteRuns, scopedRuns));
   }
 
   private OctaneGateReportState failureState(GateRequest request) {
@@ -244,6 +283,23 @@ public class OctaneGateRunner {
       return "Use product_areas for Octane test product-area filters. ";
     }
     return "";
+  }
+
+  static List<String> regressionSuiteRunIdsForCriteria(GateRequest request) {
+    Set<String> criticalSuiteRunIds = criticalSuiteRunIds(request);
+    return request.getSuiteRunIds().stream()
+        .filter(suiteRunId -> !criticalSuiteRunIds.contains(suiteRunId))
+        .toList();
+  }
+
+  private static Set<String> criticalSuiteRunIds(GateRequest request) {
+    Set<String> criticalSuiteRunIds = new LinkedHashSet<>();
+    for (OctaneGateScope scope : request.getScopes()) {
+      if ("critical".equalsIgnoreCase(scope.getName()) && scope.isSuiteRunScope()) {
+        criticalSuiteRunIds.addAll(scope.getSuiteRunIds());
+      }
+    }
+    return criticalSuiteRunIds;
   }
 
   private void validateRequest(GateRequest request) throws AbortException {

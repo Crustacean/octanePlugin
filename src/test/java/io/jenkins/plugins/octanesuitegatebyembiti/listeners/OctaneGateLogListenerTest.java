@@ -26,7 +26,7 @@ public class OctaneGateLogListenerTest {
     TaskListener listener = new CapturingTaskListener(output);
     GateRequest request = new GateRequest("octane-prod", "450312,450309");
     request.setCriteria(
-        "(executionRate == 100 AND passRate >= 95) OR "
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) OR "
             + "(critical.executionRate == 100 AND critical.passRate == 100)");
     OctaneGateScope criticalScope = new OctaneGateScope("critical");
     criticalScope.setSuiteRunId("450306");
@@ -38,20 +38,24 @@ public class OctaneGateLogListenerTest {
 
     String log = output.toString(StandardCharsets.UTF_8);
     String lineSeparator = System.lineSeparator();
-    String globalMetrics =
-        "Global suite runs: execution 0.00%, pass 0.00%, total 4, executed 0,"
+    String regressionsMetrics =
+        "Regressions suite runs: execution 0.00%, pass 0.00%, total 4, executed 0,"
             + " passed 0, failed 0, skipped 0, running 4.";
     String criticalMetrics =
         "Critical suite runs: execution 100.00%, pass 100.00%, total 2, executed 2,"
             + " passed 2, failed 0, skipped 0, running 0.";
     assertTrue(log.contains("Waiting for ALM Octane suite run(s)"));
-    assertTrue(log.contains("Global suite runs: 450312, 450309"));
+    assertTrue(log.contains("Regressions suite runs: 450312, 450309"));
     assertTrue(log.contains("Critical suite runs: 450306"));
-    assertTrue(log.contains(globalMetrics));
+    assertTrue(log.contains(regressionsMetrics));
     assertTrue(log.contains(criticalMetrics));
     assertTrue(
         log.contains(
-            criticalMetrics + lineSeparator + lineSeparator + globalMetrics + lineSeparator));
+            criticalMetrics
+                + lineSeparator
+                + lineSeparator
+                + regressionsMetrics
+                + lineSeparator));
     assertFalse(log.contains("child run statuses"));
     assertFalse(log.contains("suite run IDs 450306 metrics"));
   }
@@ -59,7 +63,7 @@ public class OctaneGateLogListenerTest {
   private GateResult resultWithCriticalScope() {
     return new GateResult(
         "450312,450309",
-        "(executionRate == 100 AND passRate >= 95) OR "
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) OR "
             + "(critical.executionRate == 100 AND critical.passRate == 100)",
         true,
         false,

@@ -7,15 +7,21 @@ public class OctaneGatePieSlice implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final double CENTER = 50.0;
   private static final double RADIUS = 42.0;
+  private static final double LABEL_RADIUS = 48.0;
 
   private final OctaneGateStatusCount status;
   private final String path;
   private final boolean fullCircle;
+  private final String labelX;
+  private final String labelY;
 
   OctaneGatePieSlice(OctaneGateStatusCount status, double startAngle, double endAngle) {
     this.status = status;
     this.fullCircle = status.getPercentage() >= 99.999999;
     this.path = fullCircle ? "" : buildPath(startAngle, endAngle);
+    double[] labelPoint = point((startAngle + endAngle) / 2.0, LABEL_RADIUS);
+    this.labelX = format(labelPoint[0]);
+    this.labelY = format(labelPoint[1]);
   }
 
   public String getPath() {
@@ -42,9 +48,21 @@ public class OctaneGatePieSlice implements Serializable {
     return status.getTitle();
   }
 
+  public String getPercentageLabel() {
+    return status.getPercentageLabel();
+  }
+
+  public String getLabelX() {
+    return labelX;
+  }
+
+  public String getLabelY() {
+    return labelY;
+  }
+
   private String buildPath(double startAngle, double endAngle) {
-    double[] start = point(startAngle);
-    double[] end = point(endAngle);
+    double[] start = point(startAngle, RADIUS);
+    double[] end = point(endAngle, RADIUS);
     int largeArc = endAngle - startAngle > 180.0 ? 1 : 0;
     return String.format(
         Locale.ROOT,
@@ -60,8 +78,12 @@ public class OctaneGatePieSlice implements Serializable {
         end[1]);
   }
 
-  private double[] point(double angle) {
+  private double[] point(double angle, double radius) {
     double radians = Math.toRadians(angle);
-    return new double[] {CENTER + RADIUS * Math.cos(radians), CENTER + RADIUS * Math.sin(radians)};
+    return new double[] {CENTER + radius * Math.cos(radians), CENTER + radius * Math.sin(radians)};
+  }
+
+  private String format(double value) {
+    return String.format(Locale.ROOT, "%.3f", value);
   }
 }

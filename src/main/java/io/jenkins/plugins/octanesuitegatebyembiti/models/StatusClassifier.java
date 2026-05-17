@@ -37,6 +37,9 @@ public class StatusClassifier implements Serializable {
     if (matches(passedStatuses, normalized)) {
       return Outcome.PASSED;
     }
+    if (isBlocked(normalized)) {
+      return Outcome.BLOCKED;
+    }
     if (matches(failedStatuses, normalized)) {
       return Outcome.FAILED;
     }
@@ -49,9 +52,7 @@ public class StatusClassifier implements Serializable {
     if (normalized.contains("pass")) {
       return Outcome.PASSED;
     }
-    if (normalized.contains("fail")
-        || normalized.contains("blocked")
-        || normalized.contains("error")) {
+    if (normalized.contains("fail") || normalized.contains("error")) {
       return Outcome.FAILED;
     }
     if (normalized.contains("skip") || normalized.contains("not_completed")) {
@@ -68,9 +69,14 @@ public class StatusClassifier implements Serializable {
     return dot >= 0 && candidates.contains(normalizedStatus.substring(dot + 1));
   }
 
+  private boolean isBlocked(String normalizedStatus) {
+    return normalizedStatus.contains("blocked");
+  }
+
   enum Outcome {
     PASSED,
     FAILED,
+    BLOCKED,
     NEUTRAL,
     RUNNING
   }

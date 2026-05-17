@@ -40,6 +40,10 @@ public class OctaneGateStatusCount implements Serializable {
     return String.format(Locale.ROOT, "%.2f", percentage);
   }
 
+  public String getPercentageLabel() {
+    return String.format(Locale.ROOT, "%.0f%%", percentage);
+  }
+
   public String getTitle() {
     return getLabel() + ": " + count + " (" + getFormattedPercentage() + "%)";
   }

@@ -5,28 +5,53 @@ plugin is installed into Jenkins.
 
 ## System View
 
-```text
-Jenkins controller
-  |
-  | installs target/octane-suite-gate-by-embiti.hpi
-  v
-Octane Suite Gate plugin
-  |
-  | reads Jenkins global Octane server config and credentials
-  v
-Pipeline step or Freestyle build step
-  |
-  | authenticates and polls ALM Octane through REST APIs
-  v
-ALM Octane suite run and child runs
-  |
-  | returns run statuses
-  v
-Gate metrics and criteria evaluation
-  |
-  | pass, fail, unstable, or timeout
-  v
-Next Jenkins stage or stopped build
+```mermaid
+flowchart LR
+  subgraph Jenkins["Jenkins controller / agent"]
+    Install["Installed HPI plugin"]
+    Config["Manage Jenkins > System\nOctane server config"]
+    Credentials["Jenkins credentials\nclient_id / client_secret"]
+    Job["Pipeline or Freestyle job"]
+    GateStep["octaneSuiteGate / ALM Octane Suite Gate"]
+    Runner["OctaneGateRunner"]
+    ReportAction["Octane Gate Report\nRunAction"]
+    Browser["Build report page\n/octaneSuiteGateReport/"]
+    Charts["Timer widgets\nDonut charts\nPer-suite bar charts"]
+    Outcome["Next stage\nFailed build\nUnstable build\nTimeout"]
+  end
+
+  subgraph Plugin["Plugin internals"]
+    Request["GateRequest"]
+    Client["OctaneClient"]
+    Metrics["GateMetrics\nregressions + scopes"]
+    Criteria["CriteriaExpression\nregressions.* / critical.*"]
+    Snapshot["Report snapshot\nupdated every poll"]
+  end
+
+  subgraph Octane["ALM Octane"]
+    Auth["POST /authentication/sign_in"]
+    SuiteRuns["Suite run IDs"]
+    ChildRuns["Child runs\nstatus records"]
+  end
+
+  Install --> GateStep
+  Config --> GateStep
+  Credentials --> GateStep
+  Job --> GateStep --> Request --> Runner
+  Runner --> Client
+  Client -->|"API key sign-in"| Auth
+  Client -->|"pollIntervalSeconds loop\nfetch suite child runs"| SuiteRuns
+  SuiteRuns --> ChildRuns
+  ChildRuns -->|"JSON statuses"| Client
+  Client --> Runner
+  Runner -->|"dedupe + classify statuses"| Metrics
+  Metrics --> Criteria
+  Criteria -->|"pass / fail / wait"| Runner
+  Runner -->|"publish latest snapshot"| Snapshot
+  Snapshot --> ReportAction
+  ReportAction -->|"snapshot JSON + HTML"| Browser
+  Browser --> Charts
+  Runner --> Outcome
 ```
 
 The plugin is a gate, not a test trigger. It waits for suite runs that already
@@ -101,7 +126,7 @@ Pipeline jobs call:
 octaneSuiteGate(
   serverId: 'octane-prod',
   suiteRunId: '1196,1200',
-  criteria: 'executionRate == 100 AND passRate >= 95',
+  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
   markUnstable: false
@@ -109,7 +134,7 @@ octaneSuiteGate(
 ```
 
 `suiteRunId` accepts either a single ID or a comma/space-separated list. Multiple
-suite runs are aggregated into one global metrics set.
+suite runs are aggregated into one regression metrics set.
 
 ### Freestyle
 
@@ -133,7 +158,7 @@ Pipeline step, so both entry points share the same gate behavior.
 7. The runner polls until the gate passes, fails, or times out.
 8. Each poll fetches suite child runs, computes metrics, and updates the report snapshot.
 9. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
-10. `CriteriaExpression` evaluates the criteria against global and scoped metrics.
+10. `CriteriaExpression` evaluates the criteria against regression and scoped metrics.
 11. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
     when `markUnstable` is enabled.
 
@@ -149,26 +174,27 @@ The report is backed by a persisted Jenkins `RunAction`. It is attached before
 polling starts, updated after every poll, and left on the build after pass,
 failure, unstable, timeout, or unexpected error.
 
-The report contains chart cards for global suite runs and each scope. Cards are
+The report contains chart cards for regression suite runs and each scope. Cards are
 resizable and can be reordered by dragging. Two cards fit per row by default;
 when one card is resized wide enough, the neighboring card wraps below. The
 report also shows two centered countdown donut cards: Testing Time Remaining
-from `timeoutMinutes`, and Time to next Poll from `pollIntervalSeconds`. Timer
+from `timeoutMinutes`, and Status Check from `pollIntervalSeconds`. Timer
 ring movement uses browser animation frames for smooth millisecond-based motion,
 while the center text remains rounded to minutes or seconds. Timer SVGs render at
 a higher internal resolution with geometric precision hints and a subtle progress
 halo to reduce jagged circular edges. Each section renders:
 
-- a donut chart for total Passed, Failed, Skipped, and Running counts.
+- a donut chart for total Passed, Failed, Blocked, Skipped, and Running counts.
 - a vertical bar chart for the same counts per suite run, with bar height
   scaled against the suite run with the most tests in that section.
 
 The chart colors are fixed:
 
-- Passed: `#78c679`
-- Failed: `#ff6361`
+- Passed: `#009900`
+- Failed: `#990000`
+- Blocked: `#631919`
 - Skipped: `#ffb74d`
-- Running: `#778899`
+- Running: `#808080`
 
 ## Octane API Flow
 
@@ -270,7 +296,7 @@ the plugin:
 1. Splits the value on commas or whitespace.
 2. Fetches child runs for each suite run.
 3. Deduplicates child runs by run ID.
-4. Computes one global `GateMetrics` object from the combined child runs.
+4. Computes one regression `GateMetrics` object from the combined child runs.
 5. Keeps the child-run status list grouped by the original suite run ID for
    build-log and Pipeline-result diagnostics.
 
@@ -282,7 +308,7 @@ The Pipeline return map includes both:
 ## Scopes
 
 Scopes are named metric buckets. A scope can be backed by its own suite run IDs
-or by an Octane query fragment applied to the global child-run set.
+or by an Octane query fragment applied to the regression child-run set.
 
 Example:
 
@@ -297,9 +323,11 @@ For this scope, the plugin fetches child runs for suite runs `450303` and
 `450204`. The matching child runs are combined into one metrics bucket named
 `critical`.
 
-Scoped suite run IDs and child statuses are tracked separately from the global
-suite-run metrics. If a suite run ID appears in both the global `suiteRunId`
-input and a scoped `suiteRunId`, it contributes to both metric buckets.
+Scoped suite run IDs and child statuses are tracked separately from the regression
+suite-run metrics. If a suite run ID appears in both the regression `suiteRunId`
+input and a `critical` scoped `suiteRunId`, the critical scope owns that ID for
+criteria and report calculations. It is counted in the critical bucket and excluded
+from the regression bucket.
 
 Criteria references the bucket by name:
 
@@ -308,7 +336,7 @@ critical.passRate == 100
 ```
 
 This expression evaluates the combined `critical` metrics. The criteria
-expression controls whether critical metrics override or combine with global
+expression controls whether critical metrics override or combine with regression
 metrics. With `OR`, either side can pass the gate; with `AND`, both sides must
 pass.
 
@@ -321,7 +349,7 @@ octaneGateScope(
 )
 ```
 
-Query-backed scopes are applied to the combined global child-run set.
+Query-backed scopes are applied to the combined regression child-run set.
 
 ## Criteria Engine
 
@@ -330,7 +358,7 @@ The criteria parser supports:
 - `AND`, `OR`
 - parentheses
 - `==`, `!=`, `>`, `>=`, `<`, `<=`
-- global metrics, such as `passRate >= 95`
+- regression metrics, such as `regressions.passRate >= 95`
 - scoped metrics, such as `critical.passRate == 100`
 - shorthand thresholds, such as `100% execution` and `95% pass`
 
@@ -343,6 +371,10 @@ Default criteria:
 Criteria are evaluated on every poll. The gate passes as soon as the expression
 evaluates to true.
 
+Unqualified regression metrics and shorthand expressions remain supported for
+backward compatibility, but new Jenkinsfiles should prefer `regressions.executionRate`
+and `regressions.passRate` for readability.
+
 ## Terminal, Timeout, And Build Result Behavior
 
 The plugin keeps polling while relevant runs are still running and the criteria
@@ -350,7 +382,7 @@ are false.
 
 The gate fails when:
 
-- all relevant global and scoped runs are terminal, and
+- all relevant regression and scoped runs are terminal, and
 - the criteria still evaluate to false.
 
 The gate times out when:
@@ -370,11 +402,22 @@ receives a map shaped like:
 [
   suiteRunId: '1196,1200',
   suiteRunIds: ['1196', '1200'],
-  criteria: 'executionRate == 100 AND passRate >= 95',
+  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   passed: true,
   terminal: true,
   polledAt: '2026-05-13T00:00:00Z',
   metrics: [
+    total: 10,
+    executed: 10,
+    passed: 10,
+    failed: 0,
+    skipped: 0,
+    running: 0,
+    executionRate: 100.0,
+    passRate: 100.0,
+    failRate: 0.0
+  ],
+  regressions: [
     total: 10,
     executed: 10,
     passed: 10,
@@ -465,9 +508,9 @@ containing API secrets are not logged.
 | `models.GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
 | `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
 | `repositories.OctaneClient` | Low-level authenticated Octane REST client. |
-| `models.GateMetrics` | Global or scoped computed run metrics. |
+| `models.GateMetrics` | Regression or scoped computed run metrics. |
 | `models.GateScopeResult` | Scoped suite/query source, matched run statuses, and scoped metrics. |
-| `models.MetricsContext` | Resolves global and scoped metrics during criteria evaluation. |
+| `models.MetricsContext` | Resolves regression and scoped metrics during criteria evaluation. |
 | `services.CriteriaExpression` | Safe criteria parser and evaluator. |
 | `models.GateResult` | Pipeline result map model. |
 | `models.OctaneGateScope` | Named scoped suite-run or query model. |
@@ -476,7 +519,7 @@ containing API secrets are not logged.
 ## Examples
 
 - `examples/Jenkinsfile`: scoped gate with a `critical` suite-run scope.
-- `examples/Jenkinsfile2`: global-only gate with no scoped query.
+- `examples/Jenkinsfile2`: regression-only gate with no scoped query.
 
 ## Verification
 
