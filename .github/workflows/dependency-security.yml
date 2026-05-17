@@ -17,11 +17,44 @@ permissions:
 jobs:
   osv-scan:
     name: OSV scan
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
-    with:
-      scan-args: |-
-        --recursive
-        ./
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run OSV scanner
+        id: osv-scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --output-file=results.json
+            --format=json
+            --recursive
+            ./
+
+      - name: Generate OSV SARIF report
+        uses: google/osv-scanner-action/osv-reporter-action@v2.3.8
+        with:
+          scan-args: |-
+            --output-files=sarif:results.sarif
+            --new=results.json
+            --gh-annotations=false
+            --fail-on-vuln=true
+
+      - name: Upload OSV SARIF artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSV Scanner SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload OSV results to code scanning
+        if: ${{ !cancelled() }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
 
   dependency-check:
     name: OWASP Dependency-Check
