@@ -5,28 +5,53 @@ plugin is installed into Jenkins.
 
 ## System View
 
-```text
-Jenkins controller
-  |
-  | installs target/octane-suite-gate-by-embiti.hpi
-  v
-Octane Suite Gate plugin
-  |
-  | reads Jenkins global Octane server config and credentials
-  v
-Pipeline step or Freestyle build step
-  |
-  | authenticates and polls ALM Octane through REST APIs
-  v
-ALM Octane suite run and child runs
-  |
-  | returns run statuses
-  v
-Gate metrics and criteria evaluation
-  |
-  | pass, fail, unstable, or timeout
-  v
-Next Jenkins stage or stopped build
+```mermaid
+flowchart LR
+  subgraph Jenkins["Jenkins controller / agent"]
+    Install["Installed HPI plugin"]
+    Config["Manage Jenkins > System\nOctane server config"]
+    Credentials["Jenkins credentials\nclient_id / client_secret"]
+    Job["Pipeline or Freestyle job"]
+    GateStep["octaneSuiteGate / ALM Octane Suite Gate"]
+    Runner["OctaneGateRunner"]
+    ReportAction["Octane Gate Report\nRunAction"]
+    Browser["Build report page\n/octaneSuiteGateReport/"]
+    Charts["Timer widgets\nDonut charts\nPer-suite bar charts"]
+    Outcome["Next stage\nFailed build\nUnstable build\nTimeout"]
+  end
+
+  subgraph Plugin["Plugin internals"]
+    Request["GateRequest"]
+    Client["OctaneClient"]
+    Metrics["GateMetrics\nregressions + scopes"]
+    Criteria["CriteriaExpression\nregressions.* / critical.*"]
+    Snapshot["Report snapshot\nupdated every poll"]
+  end
+
+  subgraph Octane["ALM Octane"]
+    Auth["POST /authentication/sign_in"]
+    SuiteRuns["Suite run IDs"]
+    ChildRuns["Child runs\nstatus records"]
+  end
+
+  Install --> GateStep
+  Config --> GateStep
+  Credentials --> GateStep
+  Job --> GateStep --> Request --> Runner
+  Runner --> Client
+  Client -->|"API key sign-in"| Auth
+  Client -->|"pollIntervalSeconds loop\nfetch suite child runs"| SuiteRuns
+  SuiteRuns --> ChildRuns
+  ChildRuns -->|"JSON statuses"| Client
+  Client --> Runner
+  Runner -->|"dedupe + classify statuses"| Metrics
+  Metrics --> Criteria
+  Criteria -->|"pass / fail / wait"| Runner
+  Runner -->|"publish latest snapshot"| Snapshot
+  Snapshot --> ReportAction
+  ReportAction -->|"snapshot JSON + HTML"| Browser
+  Browser --> Charts
+  Runner --> Outcome
 ```
 
 The plugin is a gate, not a test trigger. It waits for suite runs that already
