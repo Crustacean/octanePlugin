@@ -6,6 +6,11 @@ quality gate before the next Pipeline stage or Freestyle build step proceeds.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the installed-plugin design, runtime
 flow, Octane API calls, metrics model, and criteria evaluation behavior.
 
+## Requirements
+
+- Jenkins `2.555.2` or newer
+- Java 21 or newer for the Jenkins controller, agents, and plugin development
+
 ## Pipeline
 
 ```groovy
@@ -179,6 +184,6 @@ mvn spotless:check test
 mvn hpi:run
 ```
 
-Use Java 17 for Jenkins plugin development. If your system Maven reports
+Use Java 21 for Jenkins plugin development. If your system Maven reports
 `Unknown packaging: hpi`, use a Jenkins-plugin-compatible Maven distribution rather than a
 distribution-packaged Maven runtime that does not load the HPI lifecycle correctly.
