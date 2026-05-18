@@ -80,8 +80,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-total-label"));
     assertTrue(xml.contains("octane-donut-label"));
     assertTrue(
-        xml.contains("viewBox=\"-10 -10 120 120\"") || xml.contains("viewbox=\"-10 -10 120 120\""));
-    assertTrue(xml.contains("max-width: 280px"));
+        xml.contains("viewBox=\"-16 -16 132 132\"") || xml.contains("viewbox=\"-16 -16 132 132\""));
+    assertTrue(xml.contains("max-width: 360px"));
+    assertTrue(xml.contains("min-height: 294px"));
     assertTrue(xml.contains("overflow: visible"));
     assertTrue(xml.contains(">50%</text>"));
     assertTrue(xml.contains("border-radius: 14px"));

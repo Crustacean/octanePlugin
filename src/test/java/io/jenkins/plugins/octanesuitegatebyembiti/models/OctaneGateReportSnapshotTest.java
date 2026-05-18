@@ -88,6 +88,26 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void donutPercentageLabelsFitInsideExpandedViewport() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result(), classifier, 30);
+
+    OctaneGateReportSection regressions = snapshot.getSections().get(0);
+    assertTrue(regressions.getPieSlices().size() >= 3);
+    for (OctaneGatePieSlice slice : regressions.getPieSlices()) {
+      double x = Double.parseDouble(slice.getLabelX());
+      double y = Double.parseDouble(slice.getLabelY());
+      assertTrue(
+          "label text should stay inside expanded donut viewport",
+          x - 8.0 >= -16.0 && x + 8.0 <= 116.0);
+      assertTrue(
+          "label text should stay inside expanded donut viewport",
+          y - 4.0 >= -16.0 && y + 4.0 <= 116.0);
+    }
+  }
+
+  @Test
   public void suiteRunAxisLabelsUseLowercaseEmailUserName() {
     OctaneGateSuiteRunChart emailChart =
         OctaneGateSuiteRunChart.fromRunByGroup(

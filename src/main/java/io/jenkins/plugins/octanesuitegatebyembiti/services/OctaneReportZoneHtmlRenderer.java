@@ -99,13 +99,14 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           gap: 12px;
           justify-content: center;
-          padding: 12px 24px;
+          min-height: 294px;
+          padding: 16px 32px;
         }
         .octane-donut {
           display: block;
           height: auto;
           justify-self: center;
-          max-width: 280px;
+          max-width: 360px;
           overflow: visible;
           width: 100%;
         }
@@ -392,7 +393,7 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div><span class=\"octane-card-tools\" ");
     html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
     html.append("<div class=\"octane-donut-wrap\">\n");
-    html.append("<svg class=\"octane-donut\" viewBox=\"-10 -10 120 120\" role=\"img\" ");
+    html.append("<svg class=\"octane-donut\" viewBox=\"-16 -16 132 132\" role=\"img\" ");
     html.append("aria-label=\"");
     html.append(escapeAttribute(section.getStatusDistributionTitle()));
     html.append("\">\n");

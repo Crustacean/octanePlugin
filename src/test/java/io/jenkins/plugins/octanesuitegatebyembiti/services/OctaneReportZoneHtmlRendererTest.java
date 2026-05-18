@@ -56,8 +56,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-distribution-meta"));
     assertTrue(html.contains("octane-total-label"));
     assertTrue(html.contains("octane-donut-label"));
-    assertTrue(html.contains("viewBox=\"-10 -10 120 120\""));
-    assertTrue(html.contains("max-width: 280px"));
+    assertTrue(html.contains("viewBox=\"-16 -16 132 132\""));
+    assertTrue(html.contains("max-width: 360px"));
+    assertTrue(html.contains("min-height: 294px"));
     assertTrue(html.contains("overflow: visible"));
     assertFalse(html.contains("octane-legend-value"));
     assertTrue(html.contains("octane-suite-chart-meta"));
