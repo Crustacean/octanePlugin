@@ -257,6 +257,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("findZoneByKey"));
     assertTrue(xml.contains("findCardByKey"));
     assertTrue(xml.contains("expandedKey"));
+    assertTrue(xml.contains("expandedBackdrop.addEventListener(\"click\""));
     assertTrue(xml.contains("setExpandButtonState"));
     assertTrue(xml.contains("removeExpandedState"));
     assertTrue(xml.contains("event.key === \"Escape\""));

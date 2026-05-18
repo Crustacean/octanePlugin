@@ -1810,6 +1810,7 @@
           }
           expandedBackdrop.addEventListener("click", function () {
             collapseExpandedCard();
+            collapseFocusedZone();
           });
           dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-zone-focus-toggle");
