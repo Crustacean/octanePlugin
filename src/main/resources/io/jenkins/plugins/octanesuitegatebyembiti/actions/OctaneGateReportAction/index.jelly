@@ -67,27 +67,34 @@
           border-color: var(--input-border);
           border-radius: 14px;
           box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
+          box-sizing: border-box;
           display: grid;
           gap: 1rem;
           grid-auto-rows: minmax(0, 1fr);
           grid-template-columns: repeat(2, minmax(0, 1fr));
+          height: calc(100vh - 2rem);
           inset: 1rem;
+          max-height: calc(100vh - 2rem);
+          max-width: calc(100vw - 2rem);
           overflow: hidden;
           padding: 2.4rem 1rem 1rem;
           position: fixed;
+          width: calc(100vw - 2rem);
           z-index: 9999;
         }
         .octane-zone-focused .octane-zone-focus-toggle {
           display: none;
         }
         .octane-zone-focused .octane-chart-card {
+          box-sizing: border-box;
           display: flex;
           flex-direction: column;
           height: 100%;
+          max-width: 100%;
           min-height: 0;
           min-width: 0;
           resize: none;
-          width: 100%;
+          width: auto;
         }
         .octane-zone-focused .octane-timer-wrap,
         .octane-zone-focused .octane-donut-wrap,
@@ -113,6 +120,7 @@
           background: var(--background);
           border: 1px solid var(--input-border);
           border-radius: 14px;
+          box-sizing: border-box;
           box-shadow: 0 1px 7px rgba(0, 0, 0, 0.14);
           flex: 0 1 calc(50% - 0.5rem);
           min-height: 310px;

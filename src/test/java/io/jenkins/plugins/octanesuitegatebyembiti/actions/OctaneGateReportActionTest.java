@@ -112,6 +112,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-expanded-backdrop"));
     assertTrue(xml.contains(".octane-chart-card.octane-expanded"));
     assertTrue(xml.contains("inset: 1rem"));
+    assertTrue(xml.contains("height: calc(100vh - 2rem)"));
+    assertTrue(xml.contains("max-width: calc(100vw - 2rem)"));
+    assertTrue(xml.contains("width: calc(100vw - 2rem)"));
     assertTrue(xml.contains("resize: none"));
     assertTrue(xml.contains("max-height: min(76vh, 76vw)"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) 1.7rem"));
