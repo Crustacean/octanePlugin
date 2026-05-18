@@ -172,8 +172,8 @@ public class OctaneReportZoneHtmlRenderer {
           padding-right: 3px;
         }
         .octane-bar-plot {
-          border-bottom: 1px solid #CCCCCC;
-          border-left: 1px solid #CCCCCC;
+          border-bottom: 1px solid #576779;
+          border-left: 1px solid #576779;
           box-sizing: border-box;
           grid-column: 3;
           grid-row: 1;

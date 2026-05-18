@@ -64,7 +64,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-bar-graph"));
     assertTrue(html.contains("octane-y-axis-label"));
     assertTrue(html.contains(">Test Runs<"));
-    assertTrue(html.contains("#CCCCCC"));
+    assertTrue(html.contains("#576779"));
+    assertFalse(html.contains("#CCCCCC"));
     assertTrue(html.contains("column-gap: 1px"));
     assertTrue(html.contains("grid-template-columns: 22px max-content minmax(0, 1fr)"));
     assertTrue(html.contains("octane-bar-plot"));

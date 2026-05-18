@@ -97,7 +97,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-graph"));
     assertTrue(xml.contains("octane-y-axis-label"));
     assertTrue(xml.contains(">Test Runs<"));
-    assertTrue(xml.contains("#CCCCCC"));
+    assertTrue(xml.contains("#576779"));
+    assertFalse(xml.contains("#CCCCCC"));
     assertTrue(xml.contains("column-gap: 0.09rem"));
     assertTrue(xml.contains("grid-template-columns: 1.35rem max-content minmax(0, 1fr)"));
     assertTrue(xml.contains("octane-bar-plot"));
