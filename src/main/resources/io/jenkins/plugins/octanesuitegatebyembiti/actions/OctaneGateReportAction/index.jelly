@@ -77,13 +77,10 @@
           max-height: calc(100vh - 2rem);
           max-width: calc(100vw - 2rem);
           overflow: hidden;
-          padding: 2.4rem 1rem 1rem;
+          padding: 1rem;
           position: fixed;
           width: calc(100vw - 2rem);
           z-index: 9999;
-        }
-        .octane-zone-focused .octane-zone-focus-toggle {
-          display: none;
         }
         .octane-zone-focused .octane-chart-card {
           box-sizing: border-box;
@@ -1290,6 +1287,18 @@
               }
             }
           }
+          function removeZoneFocusButton(zone) {
+            var button = zone ? zone.querySelector(".octane-zone-focus-toggle") : null;
+            if (button) {
+              button.remove();
+            }
+          }
+          function restoreZoneFocusButton(zone) {
+            if (!zone || zone.querySelector(".octane-zone-focus-toggle")) {
+              return;
+            }
+            zone.insertBefore(createZoneFocusButton(), zone.firstChild);
+          }
           function decorateReportZone(zone) {
             if (!zone) {
               return;
@@ -1764,6 +1773,7 @@
               return;
             }
             zone.classList.remove("octane-zone-focused");
+            restoreZoneFocusButton(zone);
             setZoneButtonState(zone, false);
           }
           function findZoneByKey(key) {
@@ -1799,7 +1809,7 @@
             focusedZone = zone;
             showExpandedBackdrop();
             zone.classList.add("octane-zone-focused");
-            setZoneButtonState(zone, true);
+            removeZoneFocusButton(zone);
           }
           function expandCard(card) {
             if (!card) {
