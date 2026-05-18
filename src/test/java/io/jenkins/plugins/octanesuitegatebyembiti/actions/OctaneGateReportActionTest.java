@@ -106,8 +106,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-zone-focused"));
     assertTrue(
         xml.contains("grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr))"));
-    assertTrue(
-        xml.contains("grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr))"));
+    assertTrue(xml.contains("grid-template-columns: repeat(2, minmax(0, 1fr))"));
+    assertTrue(xml.contains(".octane-chart-card:nth-of-type(3)"));
+    assertTrue(xml.contains("grid-column: 2"));
+    assertTrue(xml.contains(".octane-chart-card:nth-of-type(4)"));
+    assertTrue(xml.contains("grid-column: 1"));
+    assertTrue(xml.contains("grid-template-columns: minmax(0, 1fr)"));
     assertTrue(xml.contains("data-zone-key=\"timers\""));
     assertTrue(xml.contains("data-zone-key=\"reports\""));
     assertTrue(xml.contains("aria-expanded=\"false\""));
@@ -116,9 +120,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains(".octane-chart-card.octane-expanded"));
     assertTrue(xml.contains("inset: 1rem"));
     assertTrue(xml.contains("padding: 1rem"));
-    assertTrue(xml.contains("height: calc(100vh - 2rem)"));
-    assertTrue(xml.contains("max-width: calc(100vw - 2rem)"));
-    assertTrue(xml.contains("width: calc(100vw - 2rem)"));
+    assertTrue(xml.contains("height: auto"));
+    assertTrue(xml.contains("max-width: none"));
+    assertTrue(xml.contains("width: auto"));
+    assertFalse(xml.contains("width: calc(100vw - 2rem)"));
     assertFalse(xml.contains(".octane-zone-focused .octane-zone-focus-toggle"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) clamp(1.15rem, 2vh, 1.7rem)"));
     assertTrue(xml.contains("font-size: clamp(0.45rem, 0.7vw, 0.62rem)"));
