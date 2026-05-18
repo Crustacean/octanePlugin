@@ -214,6 +214,64 @@
           position: fixed;
           z-index: 9998;
         }
+        @keyframes octaneBorderRotate {
+          to {
+            transform: rotate(1turn);
+          }
+        }
+        .octane-chart-card.octane-expanded,
+        .octane-timer-zone.octane-zone-focused,
+        .octane-report-zone.octane-zone-focused {
+          background: transparent;
+          border: 2px solid transparent;
+          isolation: isolate;
+        }
+        .octane-chart-card.octane-expanded::before,
+        .octane-timer-zone.octane-zone-focused::before,
+        .octane-report-zone.octane-zone-focused::before {
+          animation: octaneBorderRotate 3s linear infinite;
+          background: conic-gradient(
+            from 0deg,
+            rgba(67, 145, 245, 0.08),
+            rgba(67, 145, 245, 0.24),
+            #4391F5,
+            rgba(67, 145, 245, 0.24),
+            rgba(67, 145, 245, 0.08)
+          );
+          content: "";
+          inset: -50%;
+          position: absolute;
+          z-index: 0;
+        }
+        .octane-chart-card.octane-expanded::after,
+        .octane-timer-zone.octane-zone-focused::after,
+        .octane-report-zone.octane-zone-focused::after {
+          background: var(--background);
+          border-radius: 12px;
+          content: "";
+          inset: 2px;
+          position: absolute;
+          z-index: 0;
+        }
+        .octane-chart-card.octane-expanded > *,
+        .octane-timer-zone.octane-zone-focused > *,
+        .octane-report-zone.octane-zone-focused > * {
+          position: relative;
+          z-index: 1;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .octane-chart-card.octane-expanded,
+          .octane-timer-zone.octane-zone-focused,
+          .octane-report-zone.octane-zone-focused {
+            border-color: #4391F5;
+          }
+          .octane-chart-card.octane-expanded::before,
+          .octane-timer-zone.octane-zone-focused::before,
+          .octane-report-zone.octane-zone-focused::before {
+            animation: none;
+            background: #4391F5;
+          }
+        }
         .octane-chart-card.octane-expanded {
           display: flex;
           flex-direction: column;
