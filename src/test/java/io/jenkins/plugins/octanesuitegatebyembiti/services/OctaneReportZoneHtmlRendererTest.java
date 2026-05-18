@@ -59,6 +59,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("overflow: visible"));
     assertFalse(html.contains("octane-legend-value"));
     assertTrue(html.contains("octane-vertical-bars"));
+    assertTrue(html.contains("overflow-x: hidden"));
+    assertTrue(html.contains("flex: 1 1 74px"));
+    assertTrue(html.contains("width: clamp(14px, 62%, 42px)"));
     assertTrue(html.contains("octane-bar-popup"));
     assertTrue(html.contains("octane-bar-popup-name"));
     assertTrue(html.contains("octane-bar-popup-row"));

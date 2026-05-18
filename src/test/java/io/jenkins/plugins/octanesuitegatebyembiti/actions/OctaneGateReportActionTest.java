@@ -93,6 +93,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("display: inline-flex"));
     assertFalse(xml.contains("octane-legend-value"));
     assertTrue(xml.contains("octane-vertical-bars"));
+    assertTrue(xml.contains("overflow-x: hidden"));
+    assertFalse(xml.contains("overflow-x: auto"));
+    assertTrue(xml.contains("flex: 1 1 4.65rem"));
+    assertTrue(xml.contains("width: clamp(0.85rem, 62%, 2.6rem)"));
     assertTrue(xml.contains("octane-bar-popup"));
     assertTrue(xml.contains("octane-bar-popup-name"));
     assertTrue(xml.contains("octane-bar-popup-row"));

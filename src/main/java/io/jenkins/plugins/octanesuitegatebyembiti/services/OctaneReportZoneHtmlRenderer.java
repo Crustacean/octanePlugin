@@ -149,28 +149,30 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-vertical-bars {
           align-items: end;
+          box-sizing: border-box;
           display: flex;
-          gap: 16px;
-          justify-content: flex-start;
+          gap: clamp(2px, 1vw, 16px);
+          justify-content: center;
           min-height: 270px;
-          overflow: hidden;
-          padding: 16px 4px 0;
+          overflow-x: hidden;
+          overflow-y: hidden;
+          padding: 16px clamp(2px, 0.7vw, 8px) 0;
           width: 100%;
         }
         .octane-vertical-bars::before,
         .octane-vertical-bars::after {
           content: "";
-          flex: 1 1 0;
-          min-width: 0;
+          display: none;
         }
         .octane-suite-column {
           align-items: center;
           display: grid;
-          flex: 0 0 67px;
-          gap: 8px;
+          flex: 1 1 74px;
+          gap: clamp(5px, 0.8vw, 8px);
           grid-template-rows: 210px 48px;
           justify-items: center;
-          min-width: 67px;
+          max-width: 83px;
+          min-width: 0;
           position: relative;
         }
         .octane-vertical-bar {
@@ -182,7 +184,7 @@ public class OctaneReportZoneHtmlRenderer {
           flex-direction: column-reverse;
           height: 210px;
           overflow: hidden;
-          width: 38px;
+          width: clamp(14px, 62%, 42px);
         }
         .octane-bar-popup {
           background: #ffffff;
@@ -247,6 +249,7 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-suite-label {
           display: block;
+          font-size: clamp(11px, 1vw, 14px);
           max-width: 90px;
           min-height: 16px;
           overflow: hidden;
@@ -255,6 +258,7 @@ public class OctaneReportZoneHtmlRenderer {
           transform: rotate(-45deg);
           transform-origin: center;
           white-space: nowrap;
+          width: 100%;
         }
         .octane-empty {
           border: 1px dashed #d7dde6;
