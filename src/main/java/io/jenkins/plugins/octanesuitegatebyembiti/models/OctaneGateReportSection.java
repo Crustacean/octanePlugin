@@ -132,6 +132,10 @@ public class OctaneGateReportSection implements Serializable {
     return suiteRuns.size();
   }
 
+  public int getMaxSuiteRunTotal() {
+    return suiteRuns.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);
+  }
+
   public boolean isEmpty() {
     return metrics.getTotal() == 0;
   }

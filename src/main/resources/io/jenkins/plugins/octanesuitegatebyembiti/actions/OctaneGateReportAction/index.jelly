@@ -163,6 +163,58 @@
         .octane-total-label {
           color: var(--text-color-secondary);
         }
+        .octane-suite-chart-meta {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.35rem 0.75rem;
+          margin-top: 0.25rem;
+        }
+        .octane-axis-value {
+          color: var(--text-color-secondary);
+          font-size: 0.75rem;
+        }
+        .octane-bar-graph {
+          box-sizing: border-box;
+          column-gap: 0.45rem;
+          display: grid;
+          grid-template-columns: 1.35rem 2.6rem minmax(0, 1fr);
+          grid-template-rows: 210px 3.4rem;
+          margin-top: 1rem;
+          row-gap: 0.45rem;
+          width: 100%;
+        }
+        .octane-y-axis-label {
+          align-self: center;
+          color: var(--text-color-secondary);
+          font-size: 0.8rem;
+          grid-column: 1;
+          grid-row: 1;
+          justify-self: center;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          writing-mode: vertical-rl;
+        }
+        .octane-y-axis-scale {
+          align-items: end;
+          display: flex;
+          flex-direction: column;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          min-width: 0;
+          padding-right: 0.2rem;
+        }
+        .octane-bar-plot {
+          border-bottom: 1px solid #CCCCCC;
+          border-left: 1px solid #CCCCCC;
+          box-sizing: border-box;
+          grid-column: 3;
+          grid-row: 1;
+          min-width: 0;
+          overflow: visible;
+          position: relative;
+        }
         .octane-legend {
           align-items: center;
           display: flex;
@@ -186,11 +238,12 @@
           box-sizing: border-box;
           display: flex;
           gap: clamp(0.15rem, 1vw, 1rem);
+          height: 100%;
           justify-content: center;
-          min-height: 270px;
+          min-height: 0;
           overflow-x: hidden;
-          overflow-y: hidden;
-          padding: 1rem clamp(0.15rem, 0.7vw, 0.5rem) 0;
+          overflow-y: visible;
+          padding: 0 clamp(0.15rem, 0.7vw, 0.5rem);
           width: 100%;
         }
         .octane-vertical-bars::before,
@@ -200,11 +253,10 @@
         }
         .octane-suite-column {
           align-items: center;
-          display: grid;
+          display: flex;
           flex: 1 1 4.65rem;
-          gap: clamp(0.3rem, 0.8vw, 0.5rem);
-          grid-template-rows: 210px 3rem;
-          justify-items: center;
+          height: 100%;
+          justify-content: center;
           max-width: 5.2rem;
           min-width: 0;
           position: relative;
@@ -216,7 +268,7 @@
           border-radius: 4px 4px 0 0;
           display: flex;
           flex-direction: column-reverse;
-          height: 210px;
+          height: 100%;
           overflow: hidden;
           width: clamp(0.85rem, 62%, 2.6rem);
         }
@@ -281,6 +333,23 @@
         .octane-vertical-segment {
           display: block;
           width: 100%;
+        }
+        .octane-x-axis-labels {
+          box-sizing: border-box;
+          display: flex;
+          gap: clamp(0.15rem, 1vw, 1rem);
+          grid-column: 3;
+          grid-row: 2;
+          justify-content: center;
+          min-width: 0;
+          overflow: hidden;
+          padding: 0 clamp(0.15rem, 0.7vw, 0.5rem);
+          width: 100%;
+        }
+        .octane-axis-label-column {
+          flex: 1 1 4.65rem;
+          max-width: 5.2rem;
+          min-width: 0;
         }
         .octane-suite-label {
           display: block;
@@ -599,49 +668,79 @@
                     <div class="octane-card-header">
                       <div>
                         <h2 class="octane-card-title">${section.suiteRunChartTitle}</h2>
-                        <div class="octane-muted">Total Suiteruns: ${section.suiteRunCount}</div>
+                        <div class="octane-suite-chart-meta">
+                          <span class="octane-total-label">
+                            Total Suiteruns: ${section.suiteRunCount}
+                          </span>
+                          <div class="octane-legend">
+                            <j:forEach var="status" items="${section.totals}">
+                              <j:if test="${status.count > 0}">
+                                <span class="octane-legend-row">
+                                  <span class="octane-swatch"
+                                      style="background: ${status.color};"></span>
+                                  <span>${status.label}</span>
+                                </span>
+                              </j:if>
+                            </j:forEach>
+                          </div>
+                        </div>
                       </div>
                       <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
                         :::
                       </span>
                     </div>
-                    <div class="octane-vertical-bars">
-                      <j:forEach var="suiteRun" items="${section.suiteRuns}">
-                        <div class="octane-suite-column" tabindex="0"
-                            aria-label="${suiteRun.title}">
-                          <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
-                            <j:forEach var="status" items="${suiteRun.statuses}">
-                              <j:if test="${status.count > 0}">
-                                <span class="octane-vertical-segment"
-                                    style="${status.heightStyle}"></span>
-                              </j:if>
-                            </j:forEach>
-                          </div>
-                          <div class="octane-bar-popup" role="tooltip">
-                            <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
-                            <j:forEach var="status" items="${suiteRun.statuses}">
-                              <j:if test="${status.count > 0}">
-                                <div class="octane-bar-popup-row">
-                                  <span class="octane-swatch"
-                                      style="background: ${status.color};"></span>
-                                  <span class="octane-bar-popup-label">${status.label}</span>
-                                  <span class="octane-bar-popup-value">${status.count}</span>
-                                  <span class="octane-bar-popup-percent">
-                                    (${status.percentageLabel})
-                                  </span>
+                    <div class="octane-bar-graph">
+                      <div class="octane-y-axis-label">Test Runs</div>
+                      <div class="octane-y-axis-scale">
+                        <span class="octane-axis-value">${section.maxSuiteRunTotal}</span>
+                        <span class="octane-axis-value">0</span>
+                      </div>
+                      <div class="octane-bar-plot">
+                        <div class="octane-vertical-bars">
+                          <j:forEach var="suiteRun" items="${section.suiteRuns}">
+                            <div class="octane-suite-column" tabindex="0"
+                                aria-label="${suiteRun.title}">
+                              <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
+                                <j:forEach var="status" items="${suiteRun.statuses}">
+                                  <j:if test="${status.count > 0}">
+                                    <span class="octane-vertical-segment"
+                                        style="${status.heightStyle}"></span>
+                                  </j:if>
+                                </j:forEach>
+                              </div>
+                              <div class="octane-bar-popup" role="tooltip">
+                                <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
+                                <j:forEach var="status" items="${suiteRun.statuses}">
+                                  <j:if test="${status.count > 0}">
+                                    <div class="octane-bar-popup-row">
+                                      <span class="octane-swatch"
+                                          style="background: ${status.color};"></span>
+                                      <span class="octane-bar-popup-label">${status.label}</span>
+                                      <span class="octane-bar-popup-value">${status.count}</span>
+                                      <span class="octane-bar-popup-percent">
+                                        (${status.percentageLabel})
+                                      </span>
+                                    </div>
+                                  </j:if>
+                                </j:forEach>
+                                <div class="octane-bar-popup-total">
+                                  <span>Total</span>
+                                  <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
                                 </div>
-                              </j:if>
-                            </j:forEach>
-                            <div class="octane-bar-popup-total">
-                              <span>Total</span>
-                              <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
+                              </div>
                             </div>
-                          </div>
-                          <span class="octane-suite-label" title="${suiteRun.title}">
-                            ${suiteRun.displayName}
-                          </span>
+                          </j:forEach>
                         </div>
-                      </j:forEach>
+                      </div>
+                      <div class="octane-x-axis-labels">
+                        <j:forEach var="suiteRun" items="${section.suiteRuns}">
+                          <div class="octane-axis-label-column">
+                            <span class="octane-suite-label" title="${suiteRun.title}">
+                              ${suiteRun.displayName}
+                            </span>
+                          </div>
+                        </j:forEach>
+                      </div>
                     </div>
                   </section>
                 </j:forEach>

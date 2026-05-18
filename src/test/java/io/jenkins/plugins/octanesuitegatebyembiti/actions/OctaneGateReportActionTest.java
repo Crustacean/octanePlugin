@@ -92,7 +92,15 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("grid-template-columns: minmax(180px, 240px) max-content"));
     assertTrue(xml.contains("display: inline-flex"));
     assertFalse(xml.contains("octane-legend-value"));
+    assertTrue(xml.contains("octane-suite-chart-meta"));
+    assertTrue(xml.contains("octane-bar-graph"));
+    assertTrue(xml.contains("octane-y-axis-label"));
+    assertTrue(xml.contains(">Test Runs<"));
+    assertTrue(xml.contains("#CCCCCC"));
+    assertTrue(xml.contains("octane-bar-plot"));
     assertTrue(xml.contains("octane-vertical-bars"));
+    assertTrue(xml.contains("octane-x-axis-labels"));
+    assertTrue(xml.contains("octane-axis-label-column"));
     assertTrue(xml.contains("overflow-x: hidden"));
     assertFalse(xml.contains("overflow-x: auto"));
     assertTrue(xml.contains("flex: 1 1 4.65rem"));

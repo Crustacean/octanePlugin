@@ -58,7 +58,15 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("max-width: 280px"));
     assertTrue(html.contains("overflow: visible"));
     assertFalse(html.contains("octane-legend-value"));
+    assertTrue(html.contains("octane-suite-chart-meta"));
+    assertTrue(html.contains("octane-bar-graph"));
+    assertTrue(html.contains("octane-y-axis-label"));
+    assertTrue(html.contains(">Test Runs<"));
+    assertTrue(html.contains("#CCCCCC"));
+    assertTrue(html.contains("octane-bar-plot"));
     assertTrue(html.contains("octane-vertical-bars"));
+    assertTrue(html.contains("octane-x-axis-labels"));
+    assertTrue(html.contains("octane-axis-label-column"));
     assertTrue(html.contains("overflow-x: hidden"));
     assertTrue(html.contains("flex: 1 1 74px"));
     assertTrue(html.contains("width: clamp(14px, 62%, 42px)"));
