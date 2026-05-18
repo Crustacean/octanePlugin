@@ -357,7 +357,8 @@ public class OctaneReportZoneHtmlRenderer {
         renderSuiteRunCard(html, section);
       }
     } else if (!snapshot.hasSections()) {
-      html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
+      html.append("<section class=\"octane-chart-card\" draggable=\"true\" ");
+      html.append("data-card-key=\"suite-run-empty\">\n");
       html.append("<div class=\"octane-card-header\"><div>");
       html.append("<h2 class=\"octane-card-title\">Suite run charts</h2>");
       html.append("<div class=\"octane-muted\">Waiting for first poll</div>");
@@ -372,7 +373,10 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderDistributionCard(StringBuilder html, OctaneGateReportSection section) {
-    html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
+    html.append(
+        "<section class=\"octane-chart-card\" draggable=\"true\" data-card-key=\"distribution-");
+    html.append(escapeAttribute(section.getSource()));
+    html.append("\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getStatusDistributionTitle()));
@@ -448,7 +452,9 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderSuiteRunCard(StringBuilder html, OctaneGateReportSection section) {
-    html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
+    html.append("<section class=\"octane-chart-card\" draggable=\"true\" data-card-key=\"bars-");
+    html.append(escapeAttribute(section.getSource()));
+    html.append("\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getSuiteRunChartTitle()));

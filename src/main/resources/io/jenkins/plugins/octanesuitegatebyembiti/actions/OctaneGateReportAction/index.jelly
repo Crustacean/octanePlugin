@@ -60,10 +60,52 @@
           justify-content: space-between;
           margin-bottom: 0.75rem;
         }
+        .octane-card-header > div:first-child {
+          min-width: 0;
+        }
         .octane-card-title {
           font-size: 1rem;
           font-weight: 600;
           margin: 0;
+        }
+        .octane-card-actions {
+          align-items: center;
+          display: inline-flex;
+          flex: 0 0 auto;
+          gap: 0.45rem;
+        }
+        .octane-expand-toggle {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 4px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: inline-flex;
+          height: 1.15rem;
+          justify-content: center;
+          padding: 0;
+          width: 1.15rem;
+        }
+        .octane-expand-toggle:hover,
+        .octane-expand-toggle:focus {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+          outline: none;
+        }
+        .octane-action-icon {
+          display: block;
+          fill: none;
+          height: 0.95rem;
+          stroke: currentColor;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 1.8;
+          width: 0.95rem;
+        }
+        .octane-icon-collapse {
+          display: none;
         }
         .octane-card-tools {
           color: var(--text-color-secondary);
@@ -75,6 +117,63 @@
         .octane-chart-card.octane-dragging {
           border-color: #4391F5;
           opacity: 0.45;
+        }
+        .octane-expanded-backdrop {
+          background: rgba(0, 0, 0, 0.42);
+          inset: 0;
+          position: fixed;
+          z-index: 9998;
+        }
+        .octane-chart-card.octane-expanded {
+          display: flex;
+          flex-direction: column;
+          height: auto;
+          inset: 1rem;
+          max-height: none;
+          max-width: none;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          position: fixed;
+          resize: none;
+          width: auto;
+          z-index: 9999;
+        }
+        .octane-chart-card.octane-expanded .octane-icon-expand {
+          display: none;
+        }
+        .octane-chart-card.octane-expanded .octane-icon-collapse {
+          display: block;
+        }
+        .octane-chart-card.octane-expanded .octane-card-header {
+          flex: 0 0 auto;
+        }
+        .octane-chart-card.octane-expanded .octane-card-title {
+          font-size: clamp(0.9rem, 1.5vw, 1.3rem);
+        }
+        .octane-chart-card.octane-expanded .octane-muted,
+        .octane-chart-card.octane-expanded .octane-total-label {
+          font-size: clamp(0.72rem, 1vw, 0.95rem);
+        }
+        .octane-chart-card.octane-expanded .octane-timer-wrap,
+        .octane-chart-card.octane-expanded .octane-donut-wrap,
+        .octane-chart-card.octane-expanded .octane-bar-graph {
+          flex: 1 1 auto;
+          min-height: 0;
+        }
+        .octane-chart-card.octane-expanded .octane-timer-donut {
+          max-height: min(76vh, 76vw);
+          max-width: min(76vh, 76vw);
+        }
+        .octane-chart-card.octane-expanded .octane-donut {
+          max-height: min(72vh, 72vw);
+          max-width: min(72vh, 72vw);
+        }
+        .octane-chart-card.octane-expanded .octane-bar-graph {
+          grid-template-rows: minmax(0, 1fr) 1.7rem;
+        }
+        .octane-chart-card.octane-expanded .octane-card-tools {
+          cursor: default;
         }
         .octane-timer-card {
           flex: 1 1 calc(25% - 0.75rem);
@@ -405,6 +504,7 @@
             data-snapshot-url="snapshot">
           <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone">
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="timer-timeout"
                 data-octane-timer="timeout"
                 data-total-seconds="${snapshot.timeoutSeconds}"
                 data-started-at="${snapshot.startedAt}"
@@ -415,9 +515,28 @@
                   <h2 class="octane-card-title">Testing Time Remaining</h2>
                   <div class="octane-muted">Testing Session Timer</div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -455,6 +574,7 @@
             </section>
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="timer-poll"
                 data-octane-timer="poll"
                 data-total-seconds="${snapshot.refreshSeconds}"
                 data-started-at="${snapshot.updatedAt}"
@@ -468,9 +588,28 @@
                     <span class="octane-live-update" data-live-update-status="true"></span>
                   </div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -511,6 +650,7 @@
             </section>
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="progress-execution"
                 data-octane-progress="execution"
                 data-progress-value="${snapshot.executionProgress}">
               <div class="octane-card-header">
@@ -518,9 +658,28 @@
                   <h2 class="octane-card-title">Execution Progress</h2>
                   <div class="octane-muted">All Testcase execution</div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -562,6 +721,7 @@
             </section>
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="progress-pass-rate"
                 data-octane-progress="pass-rate"
                 data-progress-value="${snapshot.passRateProgress}">
               <div class="octane-card-header">
@@ -571,9 +731,28 @@
                     ${snapshot.passRateLabel}
                   </div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -615,7 +794,8 @@
             <j:choose>
               <j:when test="${snapshot.hasReportSections()}">
                 <j:forEach var="section" items="${snapshot.reportSections}">
-                  <section class="octane-chart-card" draggable="true">
+                  <section class="octane-chart-card" draggable="true"
+                      data-card-key="distribution-${section.source}">
                     <div class="octane-card-header">
                       <div>
                         <h2 class="octane-card-title">${section.statusDistributionTitle}</h2>
@@ -634,9 +814,30 @@
                           </div>
                         </div>
                       </div>
-                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                        :::
-                      </span>
+                      <div class="octane-card-actions">
+                        <button class="octane-expand-toggle" type="button"
+                            aria-label="Expand widget" aria-expanded="false"
+                            title="Expand widget">
+                          <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                              aria-hidden="true" focusable="false">
+                            <path d="M8 4H4v4" />
+                            <path d="M16 4h4v4" />
+                            <path d="M20 16v4h-4" />
+                            <path d="M8 20H4v-4" />
+                          </svg>
+                          <svg class="octane-action-icon octane-icon-collapse"
+                              viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M9 3v6H3" />
+                            <path d="M3 9l6-6" />
+                            <path d="M15 21v-6h6" />
+                            <path d="M21 15l-6 6" />
+                          </svg>
+                        </button>
+                        <span class="octane-card-tools"
+                            title="Drag to move. Resize from the corner.">
+                          :::
+                        </span>
+                      </div>
                     </div>
                     <div class="octane-donut-wrap">
                       <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
@@ -666,7 +867,8 @@
                     </div>
                   </section>
 
-                  <section class="octane-chart-card" draggable="true">
+                  <section class="octane-chart-card" draggable="true"
+                      data-card-key="bars-${section.source}">
                     <div class="octane-card-header">
                       <div>
                         <h2 class="octane-card-title">${section.suiteRunChartTitle}</h2>
@@ -687,9 +889,30 @@
                           </div>
                         </div>
                       </div>
-                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                        :::
-                      </span>
+                      <div class="octane-card-actions">
+                        <button class="octane-expand-toggle" type="button"
+                            aria-label="Expand widget" aria-expanded="false"
+                            title="Expand widget">
+                          <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                              aria-hidden="true" focusable="false">
+                            <path d="M8 4H4v4" />
+                            <path d="M16 4h4v4" />
+                            <path d="M20 16v4h-4" />
+                            <path d="M8 20H4v-4" />
+                          </svg>
+                          <svg class="octane-action-icon octane-icon-collapse"
+                              viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M9 3v6H3" />
+                            <path d="M3 9l6-6" />
+                            <path d="M15 21v-6h6" />
+                            <path d="M21 15l-6 6" />
+                          </svg>
+                        </button>
+                        <span class="octane-card-tools"
+                            title="Drag to move. Resize from the corner.">
+                          :::
+                        </span>
+                      </div>
                     </div>
                     <div class="octane-bar-graph">
                       <div class="octane-y-axis-label">Test Runs</div>
@@ -748,15 +971,35 @@
                 </j:forEach>
               </j:when>
               <j:when test="${!snapshot.hasSections()}">
-                <section class="octane-chart-card" draggable="true">
+                <section class="octane-chart-card" draggable="true"
+                    data-card-key="suite-run-empty">
                   <div class="octane-card-header">
                     <div>
                       <h2 class="octane-card-title">Suite run charts</h2>
                       <div class="octane-muted">Waiting for first poll</div>
                     </div>
-                    <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                      :::
-                    </span>
+                    <div class="octane-card-actions">
+                      <button class="octane-expand-toggle" type="button"
+                          aria-label="Expand widget" aria-expanded="false" title="Expand widget">
+                        <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <path d="M8 4H4v4" />
+                          <path d="M16 4h4v4" />
+                          <path d="M20 16v4h-4" />
+                          <path d="M8 20H4v-4" />
+                        </svg>
+                        <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <path d="M9 3v6H3" />
+                          <path d="M3 9l6-6" />
+                          <path d="M15 21v-6h6" />
+                          <path d="M21 15l-6 6" />
+                        </svg>
+                      </button>
+                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                        :::
+                      </span>
+                    </div>
                   </div>
                   <div class="octane-empty">The report will populate after the first Octane poll.</div>
                 </section>
@@ -884,6 +1127,42 @@
             var container = document.createElement("div");
             container.innerHTML = html || "";
             return container.querySelector("#octane-report-zone");
+          }
+          function createExpandButton() {
+            var button = document.createElement("button");
+            button.className = "octane-expand-toggle";
+            button.type = "button";
+            button.setAttribute("aria-label", "Expand widget");
+            button.setAttribute("aria-expanded", "false");
+            button.setAttribute("title", "Expand widget");
+            button.innerHTML =
+                '<svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"'
+                + ' aria-hidden="true" focusable="false">'
+                + '<path d="M8 4H4v4"></path><path d="M16 4h4v4"></path>'
+                + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>'
+                + '<svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"'
+                + ' aria-hidden="true" focusable="false">'
+                + '<path d="M9 3v6H3"></path><path d="M3 9l6-6"></path>'
+                + '<path d="M15 21v-6h6"></path><path d="M21 15l-6 6"></path></svg>';
+            return button;
+          }
+          function decorateReportZone(zone) {
+            if (!zone) {
+              return;
+            }
+            var cards = zone.querySelectorAll(".octane-chart-card");
+            for (var index = 0; index < cards.length; index += 1) {
+              var header = cards[index].querySelector(".octane-card-header");
+              var tools = header ? header.querySelector(".octane-card-tools") : null;
+              if (!header || !tools || header.querySelector(".octane-card-actions")) {
+                continue;
+              }
+              var actions = document.createElement("div");
+              actions.className = "octane-card-actions";
+              header.insertBefore(actions, tools);
+              actions.appendChild(createExpandButton());
+              actions.appendChild(tools);
+            }
           }
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
@@ -1048,8 +1327,24 @@
             }
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
+            decorateReportZone(updatedReportZone);
+            var expandedKey = expandedCard ? expandedCard.getAttribute("data-card-key") : "";
+            var restoreReportExpansion =
+                expandedCard && reportZone && reportZone.contains(expandedCard);
             if (reportZone && updatedReportZone) {
+              if (restoreReportExpansion) {
+                removeExpandedState(expandedCard);
+                expandedCard = null;
+              }
               reportZone.replaceWith(updatedReportZone);
+              if (restoreReportExpansion && expandedKey) {
+                var replacementExpandedCard = findCardByKey(expandedKey);
+                if (replacementExpandedCard) {
+                  expandCard(replacementExpandedCard);
+                } else {
+                  collapseExpandedCard();
+                }
+              }
             }
             for (var index = 0; index < progressCards.length; index += 1) {
               var progressKind = progressCards[index].getAttribute("data-octane-progress");
@@ -1237,6 +1532,91 @@
           });
           window.addEventListener("scroll", hideBarPopup, true);
           window.addEventListener("resize", hideBarPopup);
+          var expandedCard = null;
+          var expandedBackdrop = document.createElement("div");
+          expandedBackdrop.className = "octane-expanded-backdrop";
+          function setExpandButtonState(card, expanded) {
+            var button = card ? card.querySelector(".octane-expand-toggle") : null;
+            if (!button) {
+              return;
+            }
+            var label = expanded ? "Collapse widget" : "Expand widget";
+            button.setAttribute("aria-expanded", String(expanded));
+            button.setAttribute("aria-label", label);
+            button.setAttribute("title", label);
+          }
+          function removeExpandedState(card) {
+            if (!card) {
+              return;
+            }
+            card.classList.remove("octane-expanded");
+            card.setAttribute("draggable", "true");
+            setExpandButtonState(card, false);
+          }
+          function findCardByKey(key) {
+            if (!key) {
+              return null;
+            }
+            var cards = dashboard.querySelectorAll("[data-card-key]");
+            for (var index = 0; index < cards.length; index += 1) {
+              if (cards[index].getAttribute("data-card-key") === key) {
+                return cards[index];
+              }
+            }
+            return null;
+          }
+          function showExpandedBackdrop() {
+            if (!expandedBackdrop.parentNode) {
+              document.body.appendChild(expandedBackdrop);
+            }
+          }
+          function hideExpandedBackdrop() {
+            if (expandedBackdrop.parentNode) {
+              expandedBackdrop.parentNode.removeChild(expandedBackdrop);
+            }
+          }
+          function collapseExpandedCard() {
+            if (!expandedCard) {
+              hideExpandedBackdrop();
+              return;
+            }
+            removeExpandedState(expandedCard);
+            expandedCard = null;
+            hideExpandedBackdrop();
+          }
+          function expandCard(card) {
+            if (!card) {
+              return;
+            }
+            hideBarPopup();
+            if (expandedCard && expandedCard !== card) {
+              removeExpandedState(expandedCard);
+            }
+            expandedCard = card;
+            showExpandedBackdrop();
+            card.classList.add("octane-expanded");
+            card.setAttribute("draggable", "false");
+            setExpandButtonState(card, true);
+          }
+          dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-expand-toggle");
+            if (!button) {
+              return;
+            }
+            var card = button.closest(".octane-chart-card");
+            event.preventDefault();
+            event.stopPropagation();
+            if (card && card.classList.contains("octane-expanded")) {
+              collapseExpandedCard();
+              return;
+            }
+            expandCard(card);
+          });
+          document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+              collapseExpandedCard();
+            }
+          });
           var dragged = null;
           var draggedZone = null;
           function zoneForCard(card) {
@@ -1245,6 +1625,10 @@
           dashboard.addEventListener("dragstart", function (event) {
             var card = event.target.closest(".octane-chart-card");
             if (!card) {
+              return;
+            }
+            if (event.target.closest(".octane-expand-toggle") || card.classList.contains("octane-expanded")) {
+              event.preventDefault();
               return;
             }
             dragged = card;
@@ -1260,7 +1644,7 @@
             draggedZone = null;
           });
           dashboard.addEventListener("dragover", function (event) {
-            if (!dragged) {
+            if (!dragged || expandedCard) {
               return;
             }
             var target = event.target.closest(".octane-chart-card");
