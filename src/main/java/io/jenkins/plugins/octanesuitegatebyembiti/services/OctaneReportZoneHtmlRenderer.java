@@ -145,7 +145,7 @@ public class OctaneReportZoneHtmlRenderer {
           column-gap: 1px;
           display: grid;
           grid-template-columns: 22px max-content minmax(0, 1fr);
-          grid-template-rows: 210px 54px;
+          grid-template-rows: 260px 27px;
           margin-top: 16px;
           row-gap: 7px;
           width: 100%;
@@ -245,10 +245,10 @@ public class OctaneReportZoneHtmlRenderer {
           box-shadow: 0 7px 22px rgba(0, 0, 0, 0.18);
           color: #1f2937;
           display: grid;
-          font-size: 11px;
+          font-size: 9px;
           gap: 5px;
           left: 50%;
-          min-width: 146px;
+          min-width: 175px;
           opacity: 0;
           padding: 8px 10px;
           pointer-events: none;
@@ -268,10 +268,9 @@ public class OctaneReportZoneHtmlRenderer {
           border-bottom: 1px solid #d7dde6;
           font-weight: 700;
           line-height: 1.25;
-          overflow: hidden;
+          overflow-wrap: anywhere;
           padding-bottom: 5px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          white-space: normal;
         }
         .octane-bar-popup-row {
           align-items: center;
@@ -284,9 +283,8 @@ public class OctaneReportZoneHtmlRenderer {
           width: 9px;
         }
         .octane-bar-popup-label {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          overflow-wrap: anywhere;
+          white-space: normal;
         }
         .octane-bar-popup-value,
         .octane-bar-popup-percent,
@@ -317,19 +315,19 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-axis-label-column {
-          flex: 1 1 74px;
-          max-width: 83px;
+          flex: 1 1 90px;
+          max-width: 100px;
           min-width: 0;
         }
         .octane-suite-label {
           display: block;
-          font-size: clamp(11px, 1vw, 14px);
-          max-width: 90px;
+          font-size: clamp(9px, 0.8vw, 11px);
+          max-width: 109px;
           min-height: 16px;
           overflow: hidden;
-          text-align: right;
+          text-align: center;
           text-overflow: ellipsis;
-          transform: rotate(-45deg);
+          transform: none;
           transform-origin: center;
           white-space: nowrap;
           width: 100%;
