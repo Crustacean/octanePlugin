@@ -33,8 +33,91 @@
           display: flex;
           flex-wrap: wrap;
           gap: 1rem;
-          padding: 1rem;
+          padding: 1.5rem 1rem 1rem;
+          position: relative;
           width: 100%;
+        }
+        .octane-zone-focus-toggle {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 4px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: inline-flex;
+          height: 1.15rem;
+          justify-content: center;
+          padding: 0;
+          position: absolute;
+          right: 0.35rem;
+          top: 0.2rem;
+          width: 1.15rem;
+          z-index: 2;
+        }
+        .octane-zone-focus-toggle:hover,
+        .octane-zone-focus-toggle:focus {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+          outline: none;
+        }
+        .octane-icon-zone-collapse {
+          display: none;
+        }
+        .octane-timer-zone.octane-zone-focused,
+        .octane-report-zone.octane-zone-focused {
+          background: var(--background);
+          border-color: var(--input-border);
+          border-radius: 14px;
+          box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
+          display: grid;
+          gap: 1rem;
+          grid-auto-rows: minmax(0, 1fr);
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          inset: 1rem;
+          overflow: hidden;
+          padding: 2.4rem 1rem 1rem;
+          position: fixed;
+          z-index: 9999;
+        }
+        .octane-zone-focused .octane-zone-focus-toggle {
+          right: 0.75rem;
+          top: 0.75rem;
+        }
+        .octane-zone-focused .octane-icon-zone-expand {
+          display: none;
+        }
+        .octane-zone-focused .octane-icon-zone-collapse {
+          display: block;
+        }
+        .octane-zone-focused .octane-chart-card {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          resize: none;
+          width: 100%;
+        }
+        .octane-zone-focused .octane-timer-wrap,
+        .octane-zone-focused .octane-donut-wrap,
+        .octane-zone-focused .octane-bar-graph {
+          flex: 1 1 auto;
+          min-height: 0;
+        }
+        .octane-zone-focused .octane-timer-donut {
+          max-height: min(38vh, 38vw);
+          max-width: min(38vh, 38vw);
+        }
+        .octane-zone-focused .octane-donut {
+          max-height: min(40vh, 40vw);
+          max-width: min(40vh, 40vw);
+        }
+        .octane-zone-focused .octane-bar-graph {
+          grid-template-rows: minmax(0, 1fr) 1.7rem;
+        }
+        .octane-zone-focused .octane-card-tools {
+          cursor: grab;
         }
         .octane-chart-card {
           background: var(--background);
@@ -509,7 +592,8 @@
             data-current-updated-at="${snapshot.updatedAt}"
             data-report-building="${snapshot.building}"
             data-snapshot-url="snapshot">
-          <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone">
+          <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone"
+              data-zone-key="timers">
             <section class="octane-chart-card octane-timer-card" draggable="true"
                 data-card-key="timer-timeout"
                 data-octane-timer="timeout"
@@ -797,7 +881,8 @@
             </section>
           </div>
 
-          <div class="octane-report-zone octane-card-zone" id="octane-report-zone">
+          <div class="octane-report-zone octane-card-zone" id="octane-report-zone"
+              data-zone-key="reports">
             <j:choose>
               <j:when test="${snapshot.hasReportSections()}">
                 <j:forEach var="section" items="${snapshot.reportSections}">
@@ -1153,6 +1238,64 @@
                 + '<path d="M15 21v-6h6"></path><path d="M21 15l-6 6"></path></svg>';
             return button;
           }
+          function createZoneFocusButton() {
+            var button = document.createElement("button");
+            button.className = "octane-zone-focus-toggle";
+            button.type = "button";
+            button.setAttribute("aria-label", "Expand section");
+            button.setAttribute("aria-expanded", "false");
+            button.setAttribute("title", "Expand section");
+            button.innerHTML =
+                '<svg class="octane-action-icon octane-icon-zone-expand" viewBox="0 0 24 24"'
+                + ' aria-hidden="true" focusable="false">'
+                + '<path d="M8 4H4v4"></path><path d="M16 4h4v4"></path>'
+                + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>'
+                + '<svg class="octane-action-icon octane-icon-zone-collapse" viewBox="0 0 24 24"'
+                + ' aria-hidden="true" focusable="false">'
+                + '<path d="M9 3v6H3"></path><path d="M3 9l6-6"></path>'
+                + '<path d="M15 21v-6h6"></path><path d="M21 15l-6 6"></path></svg>';
+            return button;
+          }
+          function zoneKeyFor(zone) {
+            if (!zone) {
+              return "";
+            }
+            if (zone.getAttribute("data-zone-key")) {
+              return zone.getAttribute("data-zone-key");
+            }
+            if (zone.id === "octane-timer-zone") {
+              return "timers";
+            }
+            if (zone.id === "octane-report-zone") {
+              return "reports";
+            }
+            return "";
+          }
+          function decorateCardZones(root) {
+            if (!root) {
+              return;
+            }
+            var zones = [];
+            if (root.id === "octane-timer-zone" || root.id === "octane-report-zone") {
+              zones.push(root);
+            }
+            var nestedZones = root.querySelectorAll
+                ? root.querySelectorAll("#octane-timer-zone, #octane-report-zone")
+                : [];
+            for (var nestedIndex = 0; nestedIndex < nestedZones.length; nestedIndex += 1) {
+              zones.push(nestedZones[nestedIndex]);
+            }
+            for (var index = 0; index < zones.length; index += 1) {
+              var zone = zones[index];
+              var zoneKey = zoneKeyFor(zone);
+              if (zoneKey) {
+                zone.setAttribute("data-zone-key", zoneKey);
+              }
+              if (!zone.querySelector(".octane-zone-focus-toggle")) {
+                zone.insertBefore(createZoneFocusButton(), zone.firstChild);
+              }
+            }
+          }
           function decorateReportZone(zone) {
             if (!zone) {
               return;
@@ -1171,6 +1314,7 @@
               actions.appendChild(tools);
             }
           }
+          decorateCardZones(dashboard);
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
@@ -1335,13 +1479,20 @@
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
+            decorateCardZones(updatedReportZone);
             var expandedKey = expandedCard ? expandedCard.getAttribute("data-card-key") : "";
             var restoreReportExpansion =
                 expandedCard && reportZone && reportZone.contains(expandedCard);
+            var focusedKey = focusedZone ? zoneKeyFor(focusedZone) : "";
+            var restoreReportFocus = focusedZone && reportZone && focusedZone === reportZone;
             if (reportZone && updatedReportZone) {
               if (restoreReportExpansion) {
                 removeExpandedState(expandedCard);
                 expandedCard = null;
+              }
+              if (restoreReportFocus) {
+                removeFocusedZone(focusedZone);
+                focusedZone = null;
               }
               reportZone.replaceWith(updatedReportZone);
               if (restoreReportExpansion && expandedKey) {
@@ -1350,6 +1501,14 @@
                   expandCard(replacementExpandedCard);
                 } else {
                   collapseExpandedCard();
+                }
+              }
+              if (restoreReportFocus && focusedKey) {
+                var replacementFocusedZone = findZoneByKey(focusedKey);
+                if (replacementFocusedZone) {
+                  focusZone(replacementFocusedZone);
+                } else {
+                  collapseFocusedZone();
                 }
               }
             }
@@ -1540,6 +1699,7 @@
           window.addEventListener("scroll", hideBarPopup, true);
           window.addEventListener("resize", hideBarPopup);
           var expandedCard = null;
+          var focusedZone = null;
           var expandedBackdrop = document.createElement("div");
           expandedBackdrop.className = "octane-expanded-backdrop";
           function setExpandButtonState(card, expanded) {
@@ -1582,20 +1742,78 @@
               expandedBackdrop.parentNode.removeChild(expandedBackdrop);
             }
           }
+          function hideExpandedBackdropIfUnused() {
+            if (!expandedCard && !focusedZone) {
+              hideExpandedBackdrop();
+            }
+          }
           function collapseExpandedCard() {
             if (!expandedCard) {
-              hideExpandedBackdrop();
+              hideExpandedBackdropIfUnused();
               return;
             }
             removeExpandedState(expandedCard);
             expandedCard = null;
-            hideExpandedBackdrop();
+            hideExpandedBackdropIfUnused();
+          }
+          function setZoneButtonState(zone, focused) {
+            var button = zone ? zone.querySelector(".octane-zone-focus-toggle") : null;
+            if (!button) {
+              return;
+            }
+            var label = focused ? "Collapse section" : "Expand section";
+            button.setAttribute("aria-expanded", String(focused));
+            button.setAttribute("aria-label", label);
+            button.setAttribute("title", label);
+          }
+          function removeFocusedZone(zone) {
+            if (!zone) {
+              return;
+            }
+            zone.classList.remove("octane-zone-focused");
+            setZoneButtonState(zone, false);
+          }
+          function findZoneByKey(key) {
+            if (!key) {
+              return null;
+            }
+            var zones = dashboard.querySelectorAll("[data-zone-key]");
+            for (var index = 0; index < zones.length; index += 1) {
+              if (zones[index].getAttribute("data-zone-key") === key) {
+                return zones[index];
+              }
+            }
+            return null;
+          }
+          function collapseFocusedZone() {
+            if (!focusedZone) {
+              hideExpandedBackdropIfUnused();
+              return;
+            }
+            removeFocusedZone(focusedZone);
+            focusedZone = null;
+            hideExpandedBackdropIfUnused();
+          }
+          function focusZone(zone) {
+            if (!zone) {
+              return;
+            }
+            hideBarPopup();
+            collapseExpandedCard();
+            if (focusedZone && focusedZone !== zone) {
+              removeFocusedZone(focusedZone);
+            }
+            focusedZone = zone;
+            showExpandedBackdrop();
+            zone.classList.add("octane-zone-focused");
+            setZoneButtonState(zone, true);
           }
           function expandCard(card) {
             if (!card) {
               return;
             }
             hideBarPopup();
+            collapseFocusedZone();
             if (expandedCard && expandedCard !== card) {
               removeExpandedState(expandedCard);
             }
@@ -1605,6 +1823,24 @@
             card.setAttribute("draggable", "false");
             setExpandButtonState(card, true);
           }
+          expandedBackdrop.addEventListener("click", function () {
+            collapseExpandedCard();
+            collapseFocusedZone();
+          });
+          dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-zone-focus-toggle");
+            if (!button) {
+              return;
+            }
+            var zone = button.closest(".octane-timer-zone, .octane-report-zone");
+            event.preventDefault();
+            event.stopPropagation();
+            if (zone && zone.classList.contains("octane-zone-focused")) {
+              collapseFocusedZone();
+              return;
+            }
+            focusZone(zone);
+          });
           dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-expand-toggle");
             if (!button) {
@@ -1622,6 +1858,7 @@
           document.addEventListener("keydown", function (event) {
             if (event.key === "Escape") {
               collapseExpandedCard();
+              collapseFocusedZone();
             }
           });
           var dragged = null;
@@ -1634,7 +1871,8 @@
             if (!card) {
               return;
             }
-            if (event.target.closest(".octane-expand-toggle") || card.classList.contains("octane-expanded")) {
+            if (event.target.closest(".octane-expand-toggle, .octane-zone-focus-toggle")
+                || card.classList.contains("octane-expanded")) {
               event.preventDefault();
               return;
             }

@@ -54,9 +54,13 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("data-card-key=\"bars-critical\""));
     assertFalse(html.contains("octane-card-actions"));
     assertFalse(html.contains("octane-expand-toggle"));
+    assertFalse(html.contains("octane-zone-focus-toggle"));
     assertFalse(html.contains("octane-icon-expand"));
     assertFalse(html.contains("octane-icon-collapse"));
+    assertFalse(html.contains("octane-icon-zone-expand"));
+    assertFalse(html.contains("octane-icon-zone-collapse"));
     assertFalse(html.contains("octane-expanded"));
+    assertFalse(html.contains("octane-zone-focused"));
     assertTrue(html.contains("#009900"));
     assertTrue(html.contains("#990000"));
     assertTrue(html.contains("#808080"));
@@ -120,6 +124,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("data-card-key=\"distribution-regressions\""));
     assertTrue(html.contains("data-card-key=\"bars-regressions\""));
     assertFalse(html.contains("octane-expand-toggle"));
+    assertFalse(html.contains("octane-zone-focus-toggle"));
     assertTrue(html.contains("REGRESSION Tests Status Distribution"));
     assertFalse(html.contains("<html>"));
     assertFalse(html.contains("<body>"));
