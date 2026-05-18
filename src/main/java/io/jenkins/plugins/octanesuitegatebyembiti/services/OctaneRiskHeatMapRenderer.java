@@ -31,12 +31,6 @@ public class OctaneRiskHeatMapRenderer {
     html.append("<text class=\"octane-risk-heat-map-label\" x=\"320\" y=\"342\">Risk</text>");
     renderChildren(html, heatMap.getRoot(), 0.0, 360.0, 0);
     html.append("</svg>");
-    html.append("<div class=\"octane-risk-heat-map-legend\">")
-        .append(legendItem("#009900", "Low"))
-        .append(legendItem("#4391F5", "Moderate"))
-        .append(legendItem("#ffb74d", "Warning"))
-        .append(legendItem("#990000", "High"))
-        .append("</div>");
     html.append("<div class=\"octane-risk-heat-map-diagnostics\">")
         .append("Defects: ")
         .append(heatMap.getLinkedDefectCount())
@@ -58,14 +52,6 @@ public class OctaneRiskHeatMapRenderer {
   private String unavailable(String message) {
     String text = Util.isBlank(message) ? "Risk heat map is unavailable." : message;
     return "<div class=\"octane-risk-heat-map-empty\">" + escape(text) + "</div>";
-  }
-
-  private String legendItem(String color, String label) {
-    return "<span class=\"octane-risk-heat-map-legend-item\"><span style=\"background:"
-        + color
-        + "\"></span>"
-        + escape(label)
-        + "</span>";
   }
 
   private void renderChildren(
