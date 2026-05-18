@@ -88,22 +88,35 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
-  public void donutPercentageLabelsFitInsideExpandedViewport() {
+  public void donutPercentageLabelsFitInsideChartViewport() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    suiteRuns.put(
+        "edge-labels",
+        List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed")));
+    GateResult result =
+        new GateResult(
+            "edge-labels",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(2, 2, 1, 1, 0, 0),
+            suiteRuns.get("edge-labels"),
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(
-            OctaneGateReportState.POLLING, "Polling", result(), classifier, 30);
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
 
     OctaneGateReportSection regressions = snapshot.getSections().get(0);
-    assertTrue(regressions.getPieSlices().size() >= 3);
+    assertEquals(2, regressions.getPieSlices().size());
     for (OctaneGatePieSlice slice : regressions.getPieSlices()) {
       double x = Double.parseDouble(slice.getLabelX());
       double y = Double.parseDouble(slice.getLabelY());
       assertTrue(
-          "label text should stay inside expanded donut viewport",
-          x - 8.0 >= -16.0 && x + 8.0 <= 116.0);
+          "label text should stay inside donut viewport", x - 8.0 >= -10.0 && x + 8.0 <= 110.0);
       assertTrue(
-          "label text should stay inside expanded donut viewport",
-          y - 4.0 >= -16.0 && y + 4.0 <= 116.0);
+          "label text should stay inside donut viewport", y - 4.0 >= -10.0 && y + 4.0 <= 110.0);
     }
   }
 

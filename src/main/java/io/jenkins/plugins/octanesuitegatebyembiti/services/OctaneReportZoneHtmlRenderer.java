@@ -99,14 +99,13 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           gap: 12px;
           justify-content: center;
-          min-height: 294px;
-          padding: 16px 32px;
+          padding: 12px 24px;
         }
         .octane-donut {
           display: block;
           height: auto;
           justify-self: center;
-          max-width: 360px;
+          max-width: 280px;
           overflow: visible;
           width: 100%;
         }
@@ -393,14 +392,14 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div><span class=\"octane-card-tools\" ");
     html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
     html.append("<div class=\"octane-donut-wrap\">\n");
-    html.append("<svg class=\"octane-donut\" viewBox=\"-16 -16 132 132\" role=\"img\" ");
+    html.append("<svg class=\"octane-donut\" viewBox=\"-10 -10 120 120\" role=\"img\" ");
     html.append("aria-label=\"");
     html.append(escapeAttribute(section.getStatusDistributionTitle()));
     html.append("\">\n");
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSlice(html, slice);
     }
-    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"27\" />\n");
+    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"30\" />\n");
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSliceLabel(html, slice);
     }
@@ -422,7 +421,7 @@ public class OctaneReportZoneHtmlRenderer {
 
   private void renderSlice(StringBuilder html, OctaneGatePieSlice slice) {
     if (slice.isFullCircle()) {
-      html.append("<circle cx=\"50\" cy=\"50\" r=\"42\" fill=\"");
+      html.append("<circle cx=\"50\" cy=\"50\" r=\"46\" fill=\"");
       html.append(escapeAttribute(slice.getColor()));
       html.append("\"><title>");
       html.append(escapeHtml(slice.getTitle()));

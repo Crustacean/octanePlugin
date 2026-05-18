@@ -80,10 +80,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-total-label"));
     assertTrue(xml.contains("octane-donut-label"));
     assertTrue(
-        xml.contains("viewBox=\"-16 -16 132 132\"") || xml.contains("viewbox=\"-16 -16 132 132\""));
-    assertTrue(xml.contains("max-width: 360px"));
-    assertTrue(xml.contains("min-height: 294px"));
+        xml.contains("viewBox=\"-10 -10 120 120\"") || xml.contains("viewbox=\"-10 -10 120 120\""));
+    assertTrue(xml.contains("max-width: 280px"));
+    assertFalse(xml.contains("min-height: 294px"));
     assertTrue(xml.contains("overflow: visible"));
+    assertTrue(xml.contains("r=\"46\" fill="));
+    assertTrue(xml.contains("r=\"30\""));
     assertTrue(xml.contains(">50%</text>"));
     assertTrue(xml.contains("border-radius: 14px"));
     assertFalse(xml.contains("border-radius: 6px"));
@@ -117,11 +119,19 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("rotate(-45deg)"));
     assertTrue(xml.contains("octane-bar-popup"));
     assertTrue(xml.contains("min-width: 10.92rem"));
+    assertTrue(xml.contains("position: fixed"));
     assertTrue(xml.contains("font-size: 0.56rem"));
     assertTrue(xml.contains("overflow-wrap: anywhere"));
     assertTrue(xml.contains("octane-bar-popup-name"));
     assertTrue(xml.contains("octane-bar-popup-row"));
     assertTrue(xml.contains("octane-bar-popup-total"));
+    assertTrue(xml.contains("octane-bar-popup-visible"));
+    assertTrue(xml.contains("positionBarPopup"));
+    assertTrue(xml.contains("event.clientX + gap + popupWidth"));
+    assertTrue(xml.contains("popup.setAttribute(\"data-placement\""));
+    assertTrue(xml.contains("window.addEventListener(\"resize\", hideBarPopup)"));
+    assertFalse(xml.contains(".octane-suite-column:hover .octane-bar-popup"));
+    assertFalse(xml.contains("transform: translate(-50%"));
     assertFalse(xml.contains("class=\"octane-total\""));
     assertTrue(xml.contains("octane-timer-donut"));
     assertTrue(xml.contains("viewBox=\"0 0 240 240\"") || xml.contains("viewbox=\"0 0 240 240\""));

@@ -133,14 +133,13 @@
           display: flex;
           gap: 0.75rem;
           justify-content: center;
-          min-height: 294px;
-          padding: 1rem 2rem;
+          padding: 0.75rem 1.5rem;
         }
         .octane-donut {
           display: block;
           height: auto;
           justify-self: center;
-          max-width: 360px;
+          max-width: 280px;
           overflow: visible;
           width: 100%;
         }
@@ -282,22 +281,21 @@
           display: grid;
           font-size: 0.56rem;
           gap: 0.32rem;
-          left: 50%;
+          left: 0;
+          max-width: min(18rem, calc(100vw - 1rem));
           min-width: 10.92rem;
           opacity: 0;
           padding: 0.5rem 0.6rem;
           pointer-events: none;
-          position: absolute;
-          top: 1.6rem;
-          transform: translate(-50%, 0.35rem);
-          transition: opacity 120ms ease, transform 120ms ease;
+          position: fixed;
+          top: 0;
+          transition: opacity 90ms ease;
           visibility: hidden;
-          z-index: 5;
+          will-change: left, top;
+          z-index: 9999;
         }
-        .octane-suite-column:hover .octane-bar-popup,
-        .octane-suite-column:focus-within .octane-bar-popup {
+        .octane-bar-popup.octane-bar-popup-visible {
           opacity: 1;
-          transform: translate(-50%, 0);
           visibility: visible;
         }
         .octane-bar-popup-name {
@@ -641,12 +639,12 @@
                       </span>
                     </div>
                     <div class="octane-donut-wrap">
-                      <svg class="octane-donut" viewBox="-16 -16 132 132" role="img"
+                      <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
                           aria-label="${section.statusDistributionTitle}">
                         <j:forEach var="slice" items="${section.pieSlices}">
                           <j:choose>
                             <j:when test="${slice.fullCircle}">
-                              <circle cx="50" cy="50" r="42" fill="${slice.color}">
+                              <circle cx="50" cy="50" r="46" fill="${slice.color}">
                                 <title>${slice.title}</title>
                               </circle>
                             </j:when>
@@ -657,7 +655,7 @@
                             </j:otherwise>
                           </j:choose>
                         </j:forEach>
-                        <circle class="octane-donut-hole" cx="50" cy="50" r="27" />
+                        <circle class="octane-donut-hole" cx="50" cy="50" r="30" />
                         <j:forEach var="slice" items="${section.pieSlices}">
                           <text class="octane-donut-label" x="${slice.labelX}"
                               y="${slice.labelY}" dominant-baseline="central">
@@ -1180,6 +1178,65 @@
           for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
             updateExecutionProgress(progressCards[progressIndex]);
           }
+          var activeBarPopup = null;
+          function hideBarPopup() {
+            if (!activeBarPopup) {
+              return;
+            }
+            activeBarPopup.classList.remove("octane-bar-popup-visible");
+            activeBarPopup.removeAttribute("data-placement");
+            activeBarPopup.style.left = "";
+            activeBarPopup.style.top = "";
+            activeBarPopup = null;
+          }
+          function popupForBar(bar) {
+            var column = bar ? bar.closest(".octane-suite-column") : null;
+            return column ? column.querySelector(".octane-bar-popup") : null;
+          }
+          function positionBarPopup(popup, event) {
+            var margin = 8;
+            var gap = 14;
+            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+            var popupWidth = popup.offsetWidth || 180;
+            var popupHeight = popup.offsetHeight || 80;
+            var fitsRight = event.clientX + gap + popupWidth <= viewportWidth - margin;
+            var left = fitsRight ? event.clientX + gap : event.clientX - gap - popupWidth;
+            var top = event.clientY - popupHeight / 2;
+            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
+            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
+            popup.style.left = trimNumber(left) + "px";
+            popup.style.top = trimNumber(top) + "px";
+            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
+          }
+          dashboard.addEventListener("mousemove", function (event) {
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar || !dashboard.contains(bar)) {
+              return;
+            }
+            var popup = popupForBar(bar);
+            if (!popup) {
+              return;
+            }
+            if (activeBarPopup && activeBarPopup !== popup) {
+              hideBarPopup();
+            }
+            activeBarPopup = popup;
+            popup.classList.add("octane-bar-popup-visible");
+            positionBarPopup(popup, event);
+          });
+          dashboard.addEventListener("mouseout", function (event) {
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar) {
+              return;
+            }
+            if (event.relatedTarget && bar.contains(event.relatedTarget)) {
+              return;
+            }
+            hideBarPopup();
+          });
+          window.addEventListener("scroll", hideBarPopup, true);
+          window.addEventListener("resize", hideBarPopup);
           var dragged = null;
           var draggedZone = null;
           function zoneForCard(card) {
