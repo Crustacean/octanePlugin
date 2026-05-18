@@ -141,13 +141,14 @@ public class OctaneReportZoneHtmlRenderer {
           font-size: 12px;
         }
         .octane-bar-graph {
+          --octane-axis-label-row: 27px;
           box-sizing: border-box;
           column-gap: 1px;
           display: grid;
           grid-template-columns: 22px max-content minmax(0, 1fr);
-          grid-template-rows: 260px 27px;
+          grid-template-rows: 260px var(--octane-axis-label-row);
           margin-top: 16px;
-          row-gap: 7px;
+          row-gap: 0;
           width: 100%;
         }
         .octane-y-axis-label {
@@ -172,14 +173,24 @@ public class OctaneReportZoneHtmlRenderer {
           padding-right: 3px;
         }
         .octane-bar-plot {
-          border-bottom: 1px solid #576779;
           border-left: 1px solid #576779;
           box-sizing: border-box;
           grid-column: 3;
-          grid-row: 1;
+          grid-row: 1 / span 2;
           min-width: 0;
           overflow: visible;
           position: relative;
+        }
+        .octane-bar-plot::after {
+          background: #576779;
+          bottom: var(--octane-axis-label-row);
+          content: "";
+          height: 1px;
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          z-index: 0;
         }
         .octane-legend {
           align-items: center;
@@ -200,7 +211,7 @@ public class OctaneReportZoneHtmlRenderer {
           width: 13px;
         }
         .octane-vertical-bars {
-          align-items: end;
+          align-items: stretch;
           box-sizing: border-box;
           display: flex;
           gap: clamp(2px, 1vw, 16px);
@@ -219,13 +230,24 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-suite-column {
           align-items: center;
-          display: flex;
+          display: grid;
           flex: 1 1 74px;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
           height: 100%;
-          justify-content: center;
+          justify-items: center;
           max-width: 83px;
           min-width: 0;
           position: relative;
+        }
+        .octane-vertical-bar-wrap {
+          align-items: end;
+          display: flex;
+          grid-row: 1;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          width: 100%;
+          z-index: 1;
         }
         .octane-vertical-bar {
           align-items: stretch;
@@ -302,29 +324,17 @@ public class OctaneReportZoneHtmlRenderer {
           display: block;
           width: 100%;
         }
-        .octane-x-axis-labels {
-          box-sizing: border-box;
-          display: flex;
-          gap: clamp(2px, 1vw, 16px);
-          grid-column: 3;
-          grid-row: 2;
-          justify-content: center;
-          min-width: 0;
-          overflow: hidden;
-          padding: 0 clamp(2px, 0.7vw, 8px);
-          width: 100%;
-        }
-        .octane-axis-label-column {
-          flex: 1 1 90px;
-          max-width: 100px;
-          min-width: 0;
-        }
         .octane-suite-label {
+          align-self: start;
+          box-sizing: border-box;
           display: block;
           font-size: clamp(9px, 0.8vw, 11px);
-          max-width: 109px;
+          grid-row: 2;
+          line-height: 1.1;
+          max-width: min(100%, 109px);
           min-height: 16px;
           overflow: hidden;
+          padding-top: 3px;
           text-align: center;
           text-overflow: ellipsis;
           transform: none;
@@ -488,11 +498,6 @@ public class OctaneReportZoneHtmlRenderer {
     }
     html.append("</div>\n");
     html.append("</div>\n");
-    html.append("<div class=\"octane-x-axis-labels\">\n");
-    for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
-      renderSuiteRunAxisLabel(html, suiteRun);
-    }
-    html.append("</div>\n");
     html.append("</div>\n");
     html.append("</section>\n");
   }
@@ -501,6 +506,7 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<div class=\"octane-suite-column\" tabindex=\"0\" aria-label=\"");
     html.append(escapeAttribute(suiteRun.getTitle()));
     html.append("\">\n");
+    html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
     html.append(escapeAttribute(suiteRun.getBarHeightStyle()));
     html.append("\">\n");
@@ -512,17 +518,13 @@ public class OctaneReportZoneHtmlRenderer {
       }
     }
     html.append("</div>\n");
-    renderSuiteRunPopup(html, suiteRun);
     html.append("</div>\n");
-  }
-
-  private void renderSuiteRunAxisLabel(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
-    html.append("<div class=\"octane-axis-label-column\">\n");
     html.append("<span class=\"octane-suite-label\" title=\"");
     html.append(escapeAttribute(suiteRun.getTitle()));
     html.append("\">");
     html.append(escapeHtml(suiteRun.getAxisLabel()));
     html.append("</span>\n");
+    renderSuiteRunPopup(html, suiteRun);
     html.append("</div>\n");
   }
 
