@@ -1,7 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import hudson.Extension;
-import hudson.model.AbstractDescribableImpl;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -17,8 +17,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
-public class OctaneGateScope extends AbstractDescribableImpl<OctaneGateScope>
-    implements Serializable {
+public class OctaneGateScope implements Describable<OctaneGateScope>, Serializable {
   private static final long serialVersionUID = 1L;
   private static final Pattern ID_CONDITION =
       Pattern.compile("(?i)\\bid\\s*(?:=|EQ)\\s*([A-Za-z0-9_.:-]+)");

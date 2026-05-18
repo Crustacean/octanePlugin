@@ -1,8 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
-import java.io.Serializable;
-
-public enum OctaneGateStatusBucket implements Serializable {
+public enum OctaneGateStatusBucket {
   PASSED("Passed", "#009900"),
   FAILED("Failed", "#990000"),
   BLOCKED("Blocked", "#631919"),

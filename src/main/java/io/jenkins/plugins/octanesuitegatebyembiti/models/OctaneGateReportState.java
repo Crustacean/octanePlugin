@@ -1,8 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
-import java.io.Serializable;
-
-public enum OctaneGateReportState implements Serializable {
+public enum OctaneGateReportState {
   WAITING("Waiting"),
   POLLING("Polling"),
   PASSED("Passed"),

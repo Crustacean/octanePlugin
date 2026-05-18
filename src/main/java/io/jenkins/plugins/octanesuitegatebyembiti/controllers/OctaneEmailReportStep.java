@@ -39,8 +39,6 @@ import org.kohsuke.stapler.QueryParameter;
     value = "MS_SHOULD_BE_FINAL",
     justification = "Tests replace these collaborators without invoking real browsers or SMTP.")
 public class OctaneEmailReportStep extends Step {
-  private static final long serialVersionUID = 1L;
-
   static final int DEFAULT_VIEWPORT_WIDTH = 1400;
 
   private static OctaneReportScreenshotService screenshotService =

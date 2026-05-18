@@ -36,8 +36,6 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 public class OctaneSuiteGateStep extends Step {
-  private static final long serialVersionUID = 1L;
-
   private final String serverId;
   private final String suiteRunId;
   private String sharedSpaceId = "";

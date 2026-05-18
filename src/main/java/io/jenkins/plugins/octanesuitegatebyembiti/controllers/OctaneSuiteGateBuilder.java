@@ -177,6 +177,7 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
   @Symbol("octaneSuiteGateBuilder")
   public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
     @Override
+    @SuppressWarnings("rawtypes")
     public boolean isApplicable(Class<? extends AbstractProject> jobType) {
       return true;
     }
