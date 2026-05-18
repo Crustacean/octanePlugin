@@ -69,6 +69,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Total: 2"));
     assertTrue(text.contains("Total Suiteruns: 1"));
     assertTrue(text.contains("Ada Tester"));
+    assertTrue(text.contains("ada tester"));
     assertFalse(text.contains("Total Testcases"));
     assertFalse(text.contains("Global + Critical execution"));
     assertFalse(text.contains("Execution 100.0%, pass"));
@@ -97,6 +98,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-y-axis-label"));
     assertTrue(xml.contains(">Test Runs<"));
     assertTrue(xml.contains("#CCCCCC"));
+    assertTrue(xml.contains("column-gap: 0.09rem"));
+    assertTrue(xml.contains("grid-template-columns: 1.35rem max-content minmax(0, 1fr)"));
     assertTrue(xml.contains("octane-bar-plot"));
     assertTrue(xml.contains("octane-vertical-bars"));
     assertTrue(xml.contains("octane-x-axis-labels"));
@@ -106,6 +109,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("flex: 1 1 4.65rem"));
     assertTrue(xml.contains("width: clamp(0.85rem, 62%, 2.6rem)"));
     assertTrue(xml.contains("octane-bar-popup"));
+    assertTrue(xml.contains("min-width: 9.1rem"));
+    assertTrue(xml.contains("font-size: 0.7rem"));
     assertTrue(xml.contains("octane-bar-popup-name"));
     assertTrue(xml.contains("octane-bar-popup-row"));
     assertTrue(xml.contains("octane-bar-popup-total"));

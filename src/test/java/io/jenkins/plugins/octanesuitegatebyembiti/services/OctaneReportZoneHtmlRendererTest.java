@@ -40,7 +40,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("Total: 3"));
     assertTrue(html.contains("Total Suiteruns: 2"));
     assertTrue(html.contains("Ada Tester"));
+    assertTrue(html.contains("ada tester"));
     assertTrue(html.contains("Ben Tester"));
+    assertTrue(html.contains("ben tester"));
     assertTrue(html.contains("suite runs: 4501"));
     assertFalse(html.contains("Total Testcases"));
     assertTrue(html.contains("border: 1px solid #f5f7fb"));
@@ -63,6 +65,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-y-axis-label"));
     assertTrue(html.contains(">Test Runs<"));
     assertTrue(html.contains("#CCCCCC"));
+    assertTrue(html.contains("column-gap: 1px"));
+    assertTrue(html.contains("grid-template-columns: 22px max-content minmax(0, 1fr)"));
     assertTrue(html.contains("octane-bar-plot"));
     assertTrue(html.contains("octane-vertical-bars"));
     assertTrue(html.contains("octane-x-axis-labels"));
@@ -71,6 +75,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("flex: 1 1 74px"));
     assertTrue(html.contains("width: clamp(14px, 62%, 42px)"));
     assertTrue(html.contains("octane-bar-popup"));
+    assertTrue(html.contains("min-width: 146px"));
+    assertTrue(html.contains("font-size: 11px"));
     assertTrue(html.contains("octane-bar-popup-name"));
     assertTrue(html.contains("octane-bar-popup-row"));
     assertTrue(html.contains("octane-bar-popup-total"));

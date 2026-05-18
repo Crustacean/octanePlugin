@@ -142,9 +142,9 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-bar-graph {
           box-sizing: border-box;
-          column-gap: 7px;
+          column-gap: 1px;
           display: grid;
-          grid-template-columns: 22px 42px minmax(0, 1fr);
+          grid-template-columns: 22px max-content minmax(0, 1fr);
           grid-template-rows: 210px 54px;
           margin-top: 16px;
           row-gap: 7px;
@@ -245,14 +245,15 @@ public class OctaneReportZoneHtmlRenderer {
           box-shadow: 0 7px 22px rgba(0, 0, 0, 0.18);
           color: #1f2937;
           display: grid;
-          gap: 7px;
+          font-size: 11px;
+          gap: 5px;
           left: 50%;
-          min-width: 208px;
+          min-width: 146px;
           opacity: 0;
-          padding: 11px 14px;
+          padding: 8px 10px;
           pointer-events: none;
           position: absolute;
-          top: 36px;
+          top: 25px;
           transform: translate(-50%, 6px);
           visibility: hidden;
           z-index: 5;
@@ -268,15 +269,19 @@ public class OctaneReportZoneHtmlRenderer {
           font-weight: 700;
           line-height: 1.25;
           overflow: hidden;
-          padding-bottom: 7px;
+          padding-bottom: 5px;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
         .octane-bar-popup-row {
           align-items: center;
           display: grid;
-          gap: 7px;
-          grid-template-columns: 12px minmax(0, 1fr) auto auto;
+          gap: 5px;
+          grid-template-columns: 9px minmax(0, 1fr) auto auto;
+        }
+        .octane-bar-popup .octane-swatch {
+          height: 9px;
+          width: 9px;
         }
         .octane-bar-popup-label {
           overflow: hidden;
@@ -293,7 +298,7 @@ public class OctaneReportZoneHtmlRenderer {
           border-top: 1px solid #d7dde6;
           display: flex;
           justify-content: space-between;
-          padding-top: 7px;
+          padding-top: 5px;
         }
         .octane-vertical-segment {
           display: block;
@@ -512,7 +517,7 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<span class=\"octane-suite-label\" title=\"");
     html.append(escapeAttribute(suiteRun.getTitle()));
     html.append("\">");
-    html.append(escapeHtml(suiteRun.getDisplayName()));
+    html.append(escapeHtml(suiteRun.getAxisLabel()));
     html.append("</span>\n");
     html.append("</div>\n");
   }

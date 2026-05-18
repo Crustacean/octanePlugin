@@ -88,6 +88,25 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void suiteRunAxisLabelsUseLowercaseEmailUserName() {
+    OctaneGateSuiteRunChart emailChart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Ada.Tester@Example.COM",
+            List.of("4501"),
+            List.of(new RunRecord("1", "one", "passed", "Ada.Tester@Example.COM")),
+            classifier);
+    OctaneGateSuiteRunChart nameChart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Ada Tester",
+            List.of("4502"),
+            List.of(new RunRecord("2", "two", "passed", "Ada Tester")),
+            classifier);
+
+    assertEquals("ada.tester", emailChart.getAxisLabel());
+    assertEquals("ada tester", nameChart.getAxisLabel());
+  }
+
+  @Test
   public void createsSeparateCriticalScopeSectionForOverlappingSuiteRuns() {
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(

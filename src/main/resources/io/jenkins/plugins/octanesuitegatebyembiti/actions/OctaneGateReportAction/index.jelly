@@ -176,9 +176,9 @@
         }
         .octane-bar-graph {
           box-sizing: border-box;
-          column-gap: 0.45rem;
+          column-gap: 0.09rem;
           display: grid;
-          grid-template-columns: 1.35rem 2.6rem minmax(0, 1fr);
+          grid-template-columns: 1.35rem max-content minmax(0, 1fr);
           grid-template-rows: 210px 3.4rem;
           margin-top: 1rem;
           row-gap: 0.45rem;
@@ -279,14 +279,15 @@
           box-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
           color: var(--text-color);
           display: grid;
-          gap: 0.45rem;
+          font-size: 0.7rem;
+          gap: 0.32rem;
           left: 50%;
-          min-width: 13rem;
+          min-width: 9.1rem;
           opacity: 0;
-          padding: 0.7rem 0.85rem;
+          padding: 0.5rem 0.6rem;
           pointer-events: none;
           position: absolute;
-          top: 2.25rem;
+          top: 1.6rem;
           transform: translate(-50%, 0.35rem);
           transition: opacity 120ms ease, transform 120ms ease;
           visibility: hidden;
@@ -303,15 +304,19 @@
           font-weight: 700;
           line-height: 1.25;
           overflow: hidden;
-          padding-bottom: 0.45rem;
+          padding-bottom: 0.32rem;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
         .octane-bar-popup-row {
           align-items: center;
           display: grid;
-          gap: 0.45rem;
-          grid-template-columns: 0.75rem minmax(0, 1fr) auto auto;
+          gap: 0.32rem;
+          grid-template-columns: 0.55rem minmax(0, 1fr) auto auto;
+        }
+        .octane-bar-popup .octane-swatch {
+          height: 0.55rem;
+          width: 0.55rem;
         }
         .octane-bar-popup-label {
           overflow: hidden;
@@ -328,7 +333,7 @@
           border-top: 1px solid var(--panel-border-color);
           display: flex;
           justify-content: space-between;
-          padding-top: 0.45rem;
+          padding-top: 0.32rem;
         }
         .octane-vertical-segment {
           display: block;
@@ -736,7 +741,7 @@
                         <j:forEach var="suiteRun" items="${section.suiteRuns}">
                           <div class="octane-axis-label-column">
                             <span class="octane-suite-label" title="${suiteRun.title}">
-                              ${suiteRun.displayName}
+                              ${suiteRun.axisLabel}
                             </span>
                           </div>
                         </j:forEach>

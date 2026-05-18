@@ -82,6 +82,10 @@ public class OctaneGateSuiteRunChart implements Serializable {
     return displayName;
   }
 
+  public String getAxisLabel() {
+    return compactRunByName(displayName);
+  }
+
   public List<String> getSuiteRunIds() {
     return suiteRunIds;
   }
@@ -118,6 +122,13 @@ public class OctaneGateSuiteRunChart implements Serializable {
       return displayName;
     }
     return displayName + ":" + String.join(",", suiteRunIds);
+  }
+
+  private static String compactRunByName(String value) {
+    String trimmed = value == null ? "" : value.trim();
+    int atIndex = trimmed.indexOf('@');
+    String label = atIndex > 0 ? trimmed.substring(0, atIndex) : trimmed;
+    return label.toLowerCase(Locale.ROOT);
   }
 
   static Map<OctaneGateStatusBucket, Integer> emptyCounts() {
