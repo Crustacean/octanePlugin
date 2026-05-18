@@ -83,7 +83,18 @@
           z-index: 9999;
         }
         .octane-timer-zone.octane-zone-focused {
-          grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3) {
+          grid-column: 2;
+          grid-row: 2;
+        }
+        .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {
+          grid-column: 1;
+          grid-row: 2;
+        }
+        .octane-timer-zone.octane-zone-focused > .octane-chart-card:only-of-type {
+          grid-column: 1 / -1;
         }
         .octane-report-zone.octane-zone-focused {
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -639,6 +650,11 @@
           .octane-report-zone.octane-zone-focused {
             grid-template-columns: minmax(0, 1fr);
           }
+          .octane-timer-zone.octane-zone-focused {
+            grid-template-columns: minmax(0, 1fr);
+          }
+          .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
+          .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4),
           .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
           .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {
             grid-column: auto;

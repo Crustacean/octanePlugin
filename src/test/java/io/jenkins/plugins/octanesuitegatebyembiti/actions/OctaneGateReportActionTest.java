@@ -104,12 +104,18 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Expand section"));
     assertFalse(xml.contains("Collapse section"));
     assertTrue(xml.contains("octane-zone-focused"));
-    assertTrue(
-        xml.contains("grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr))"));
     assertTrue(xml.contains("grid-template-columns: repeat(2, minmax(0, 1fr))"));
-    assertTrue(xml.contains(".octane-chart-card:nth-of-type(3)"));
+    assertTrue(
+        xml.contains(".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3)"));
+    assertTrue(
+        xml.contains(
+            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3)"));
     assertTrue(xml.contains("grid-column: 2"));
-    assertTrue(xml.contains(".octane-chart-card:nth-of-type(4)"));
+    assertTrue(
+        xml.contains(".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4)"));
+    assertTrue(
+        xml.contains(
+            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4)"));
     assertTrue(xml.contains("grid-column: 1"));
     assertTrue(xml.contains("grid-template-columns: minmax(0, 1fr)"));
     assertTrue(xml.contains("data-zone-key=\"timers\""));
