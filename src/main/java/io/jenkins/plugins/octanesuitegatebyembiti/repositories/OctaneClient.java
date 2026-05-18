@@ -27,7 +27,8 @@ public class OctaneClient implements AutoCloseable {
   private static final int RESPONSE_BODY_LIMIT = 1_000;
   private static final String TECH_PREVIEW_HEADER = "ALM-OCTANE-TECH-PREVIEW";
   private static final String RUN_FIELDS =
-      "id,name,native_status{logical_name,name},status{logical_name,name},runs_in_suite";
+      "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
+          + "runs_in_suite";
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -385,7 +386,8 @@ public class OctaneClient implements AutoCloseable {
     if (status.isEmpty()) {
       status = readStatus(node.path("status"));
     }
-    return new RunRecord(node.path("id").asText(), node.path("name").asText(), status);
+    return new RunRecord(
+        node.path("id").asText(), node.path("name").asText(), status, readPersonName(node));
   }
 
   private String readStatus(JsonNode statusNode) {
@@ -408,6 +410,32 @@ public class OctaneClient implements AutoCloseable {
       return Optional.empty();
     }
     return Optional.of(value.asText());
+  }
+
+  private String readPersonName(JsonNode node) {
+    for (String fieldName : List.of("run_by", "assigned_to", "assignee", "owner", "executor")) {
+      Optional<String> name = readPersonField(node.path(fieldName));
+      if (name.isPresent()) {
+        return name.get();
+      }
+    }
+    return "";
+  }
+
+  private Optional<String> readPersonField(JsonNode personNode) {
+    if (personNode.isMissingNode() || personNode.isNull()) {
+      return Optional.empty();
+    }
+    if (personNode.isTextual()) {
+      return Optional.of(personNode.asText());
+    }
+    for (String fieldName : List.of("name", "full_name", "display_name", "email", "id")) {
+      Optional<String> value = readOptionalText(personNode, fieldName);
+      if (value.isPresent() && !value.get().isBlank()) {
+        return value;
+      }
+    }
+    return Optional.empty();
   }
 
   private List<String> parseRunsInSuite(JsonNode node) {

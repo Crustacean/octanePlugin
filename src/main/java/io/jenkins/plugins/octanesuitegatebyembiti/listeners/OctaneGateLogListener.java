@@ -62,15 +62,11 @@ public class OctaneGateLogListener {
   }
 
   public void logFinalRefresh(TaskListener listener) {
-    listener
-        .getLogger()
-        .println("Refreshing ALM Octane suite runs before completing the gate.");
+    listener.getLogger().println("Refreshing ALM Octane suite runs before completing the gate.");
   }
 
   public void logFinalRefreshSkipped(TaskListener listener, IOException e) {
-    listener
-        .getLogger()
-        .println("Skipped final ALM Octane refresh: " + e.getMessage());
+    listener.getLogger().println("Skipped final ALM Octane refresh: " + e.getMessage());
   }
 
   public void logPassed(TaskListener listener) {

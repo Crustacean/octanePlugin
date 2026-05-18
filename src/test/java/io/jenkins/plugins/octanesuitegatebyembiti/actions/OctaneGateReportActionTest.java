@@ -68,6 +68,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
     assertTrue(text.contains("Total: 2"));
     assertTrue(text.contains("Total Suiteruns: 1"));
+    assertTrue(text.contains("Ada Tester"));
     assertFalse(text.contains("Total Testcases"));
     assertFalse(text.contains("Global + Critical execution"));
     assertFalse(text.contains("Execution 100.0%, pass"));
@@ -77,7 +78,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-distribution-meta"));
     assertTrue(xml.contains("octane-total-label"));
     assertTrue(xml.contains("octane-donut-label"));
-    assertTrue(xml.contains("viewBox=\"-10 -10 120 120\"") || xml.contains("viewbox=\"-10 -10 120 120\""));
+    assertTrue(
+        xml.contains("viewBox=\"-10 -10 120 120\"") || xml.contains("viewbox=\"-10 -10 120 120\""));
     assertTrue(xml.contains("max-width: 280px"));
     assertTrue(xml.contains("overflow: visible"));
     assertTrue(xml.contains(">50%</text>"));
@@ -91,6 +93,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("display: inline-flex"));
     assertFalse(xml.contains("octane-legend-value"));
     assertTrue(xml.contains("octane-vertical-bars"));
+    assertTrue(xml.contains("octane-bar-popup"));
+    assertTrue(xml.contains("octane-bar-popup-name"));
+    assertTrue(xml.contains("octane-bar-popup-row"));
+    assertTrue(xml.contains("octane-bar-popup-total"));
+    assertFalse(xml.contains("class=\"octane-total\""));
     assertTrue(xml.contains("octane-timer-donut"));
     assertTrue(xml.contains("viewBox=\"0 0 240 240\"") || xml.contains("viewbox=\"0 0 240 240\""));
     assertTrue(xml.contains("shape-rendering: geometricPrecision"));
@@ -259,10 +266,14 @@ public class OctaneGateReportActionTest {
         true,
         true,
         new GateMetrics(2, 2, 1, 1, 0, 0),
-        List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed")),
+        List.of(
+            new RunRecord("1", "one", "passed", "Ada Tester"),
+            new RunRecord("2", "two", "failed", "Ada Tester")),
         Map.of(
             "4501",
-            List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed"))),
+            List.of(
+                new RunRecord("1", "one", "passed", "Ada Tester"),
+                new RunRecord("2", "two", "failed", "Ada Tester"))),
         Map.of(),
         Instant.parse("2026-05-15T00:00:00Z"));
   }

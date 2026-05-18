@@ -68,9 +68,7 @@ public class OctaneGateRunnerTest {
     GateResult refreshedResult =
         runner.refreshPassedResult(
             new FakeOctaneClient(
-                List.of(
-                    new RunRecord("1", "one", "passed"),
-                    new RunRecord("2", "two", "passed"))),
+                List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "passed"))),
             previousPassedResult(request),
             request,
             request.getSuiteRunIds(),

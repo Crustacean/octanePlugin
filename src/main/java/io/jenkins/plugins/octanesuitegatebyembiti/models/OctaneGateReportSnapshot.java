@@ -275,7 +275,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         continue;
       }
       for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
-        if (isRegressionSection(section) && criticalSuiteRunIds.contains(suiteRun.getSuiteRunId())) {
+        if (isRegressionSection(section)
+            && suiteRun.getSuiteRunIds().stream().anyMatch(criticalSuiteRunIds::contains)) {
           continue;
         }
         counts.add(suiteRun);

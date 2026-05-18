@@ -168,9 +168,10 @@ public class OctaneReportZoneHtmlRenderer {
           display: grid;
           flex: 0 0 67px;
           gap: 8px;
-          grid-template-rows: 210px 19px 48px;
+          grid-template-rows: 210px 48px;
           justify-items: center;
           min-width: 67px;
+          position: relative;
         }
         .octane-vertical-bar {
           align-items: stretch;
@@ -182,6 +183,63 @@ public class OctaneReportZoneHtmlRenderer {
           height: 210px;
           overflow: hidden;
           width: 38px;
+        }
+        .octane-bar-popup {
+          background: #ffffff;
+          border: 1px solid #d7dde6;
+          border-radius: 8px;
+          box-shadow: 0 7px 22px rgba(0, 0, 0, 0.18);
+          color: #1f2937;
+          display: grid;
+          gap: 7px;
+          left: 50%;
+          min-width: 208px;
+          opacity: 0;
+          padding: 11px 14px;
+          pointer-events: none;
+          position: absolute;
+          top: 36px;
+          transform: translate(-50%, 6px);
+          visibility: hidden;
+          z-index: 5;
+        }
+        .octane-suite-column:hover .octane-bar-popup,
+        .octane-suite-column:focus-within .octane-bar-popup {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          visibility: visible;
+        }
+        .octane-bar-popup-name {
+          border-bottom: 1px solid #d7dde6;
+          font-weight: 700;
+          line-height: 1.25;
+          overflow: hidden;
+          padding-bottom: 7px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-bar-popup-row {
+          align-items: center;
+          display: grid;
+          gap: 7px;
+          grid-template-columns: 12px minmax(0, 1fr) auto auto;
+        }
+        .octane-bar-popup-label {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-bar-popup-value,
+        .octane-bar-popup-percent,
+        .octane-bar-popup-total-value {
+          font-weight: 700;
+          text-align: right;
+        }
+        .octane-bar-popup-total {
+          border-top: 1px solid #d7dde6;
+          display: flex;
+          justify-content: space-between;
+          padding-top: 7px;
         }
         .octane-vertical-segment {
           display: block;
@@ -197,9 +255,6 @@ public class OctaneReportZoneHtmlRenderer {
           transform: rotate(-45deg);
           transform-origin: center;
           white-space: nowrap;
-        }
-        .octane-total {
-          font-weight: 600;
         }
         .octane-empty {
           border: 1px dashed #d7dde6;
@@ -336,30 +391,58 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderSuiteRunColumn(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
-    html.append("<div class=\"octane-suite-column\">\n");
+    html.append("<div class=\"octane-suite-column\" tabindex=\"0\" aria-label=\"");
+    html.append(escapeAttribute(suiteRun.getTitle()));
+    html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
     html.append(escapeAttribute(suiteRun.getBarHeightStyle()));
-    html.append("\" title=\"");
-    html.append(suiteRun.getTotal());
-    html.append(" tests\">\n");
+    html.append("\">\n");
     for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
       if (status.getCount() > 0) {
         html.append("<span class=\"octane-vertical-segment\" style=\"");
         html.append(escapeAttribute(status.getHeightStyle()));
-        html.append("\" title=\"");
-        html.append(escapeAttribute(status.getTitle()));
         html.append("\"></span>\n");
       }
     }
     html.append("</div>\n");
-    html.append("<span class=\"octane-total\">");
-    html.append(suiteRun.getTotal());
-    html.append("</span>\n");
+    renderSuiteRunPopup(html, suiteRun);
     html.append("<span class=\"octane-suite-label\" title=\"");
-    html.append(escapeAttribute(suiteRun.getSuiteRunId()));
+    html.append(escapeAttribute(suiteRun.getTitle()));
     html.append("\">");
-    html.append(escapeHtml(suiteRun.getSuiteRunId()));
+    html.append(escapeHtml(suiteRun.getDisplayName()));
     html.append("</span>\n");
+    html.append("</div>\n");
+  }
+
+  private void renderSuiteRunPopup(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
+    html.append("<div class=\"octane-bar-popup\" role=\"tooltip\">\n");
+    html.append("<div class=\"octane-bar-popup-name\">");
+    html.append(escapeHtml(suiteRun.getDisplayName()));
+    html.append("</div>\n");
+    for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
+      if (status.getCount() > 0) {
+        html.append("<div class=\"octane-bar-popup-row\">");
+        html.append("<span class=\"octane-swatch\" style=\"background: ");
+        html.append(escapeAttribute(status.getColor()));
+        html.append(";\"></span>");
+        html.append("<span class=\"octane-bar-popup-label\">");
+        html.append(escapeHtml(status.getLabel()));
+        html.append("</span>");
+        html.append("<span class=\"octane-bar-popup-value\">");
+        html.append(status.getCount());
+        html.append("</span>");
+        html.append("<span class=\"octane-bar-popup-percent\">(");
+        html.append(escapeHtml(status.getPercentageLabel()));
+        html.append(")</span>");
+        html.append("</div>\n");
+      }
+    }
+    html.append("<div class=\"octane-bar-popup-total\">");
+    html.append("<span>Total</span>");
+    html.append("<span class=\"octane-bar-popup-total-value\">");
+    html.append(suiteRun.getTotal());
+    html.append("</span>");
+    html.append("</div>\n");
     html.append("</div>\n");
   }
 

@@ -5,8 +5,11 @@ import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class OctaneGateReportSection implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -77,10 +80,8 @@ public class OctaneGateReportSection implements Serializable {
     }
 
     List<OctaneGateSuiteRunChart> suiteRunCharts =
-        chartSuiteRuns.entrySet().stream()
-            .map(
-                entry ->
-                    OctaneGateSuiteRunChart.fromRuns(entry.getKey(), entry.getValue(), classifier))
+        groupSuiteRunsByRunBy(chartSuiteRuns).stream()
+            .map(group -> group.toChart(classifier))
             .toList();
     int maxSuiteRunTotal =
         suiteRunCharts.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);
@@ -125,6 +126,9 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   public int getSuiteRunCount() {
+    if (!suiteRunIds.isEmpty()) {
+      return suiteRunIds.size();
+    }
     return suiteRuns.size();
   }
 
@@ -191,6 +195,40 @@ public class OctaneGateReportSection implements Serializable {
     return OctaneGateSuiteRunChart.toStatusCounts(counts, runs.size());
   }
 
+  private static List<RunByGroup> groupSuiteRunsByRunBy(Map<String, List<RunRecord>> suiteRuns) {
+    Map<String, RunByGroup> groups = new LinkedHashMap<>();
+    for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
+      if (entry.getValue().isEmpty()) {
+        String label = entry.getKey();
+        groups.putIfAbsent(groupKey(label), new RunByGroup(label));
+        groups.get(groupKey(label)).addSuiteRunId(entry.getKey());
+        continue;
+      }
+      for (RunRecord run : entry.getValue()) {
+        String label = runByLabel(run, entry.getKey());
+        String key = groupKey(label);
+        groups.putIfAbsent(key, new RunByGroup(label));
+        groups.get(key).addSuiteRunId(entry.getKey());
+        groups.get(key).addRun(run);
+      }
+    }
+    return List.copyOf(groups.values());
+  }
+
+  private static String runByLabel(RunRecord run, String suiteRunId) {
+    if (!Util.isBlank(run.getRunByName())) {
+      return run.getRunByName();
+    }
+    if (Util.isBlank(suiteRunId)) {
+      return "Unassigned";
+    }
+    return "Unassigned (" + suiteRunId + ")";
+  }
+
+  private static String groupKey(String label) {
+    return label.trim().toLowerCase(Locale.ROOT);
+  }
+
   private static List<OctaneGatePieSlice> buildPieSlices(List<OctaneGateStatusCount> totals) {
     int total = totals.stream().mapToInt(OctaneGateStatusCount::getCount).sum();
     if (total == 0) {
@@ -215,5 +253,30 @@ public class OctaneGateReportSection implements Serializable {
       return "Scope";
     }
     return scopeName.substring(0, 1).toUpperCase() + scopeName.substring(1);
+  }
+
+  private static class RunByGroup {
+    private final String displayName;
+    private final Set<String> suiteRunIds = new LinkedHashSet<>();
+    private final List<RunRecord> runs = new ArrayList<>();
+
+    private RunByGroup(String displayName) {
+      this.displayName = displayName;
+    }
+
+    private void addSuiteRunId(String suiteRunId) {
+      if (!Util.isBlank(suiteRunId) && !"matched-runs".equals(suiteRunId)) {
+        suiteRunIds.add(suiteRunId);
+      }
+    }
+
+    private void addRun(RunRecord run) {
+      runs.add(run);
+    }
+
+    private OctaneGateSuiteRunChart toChart(StatusClassifier classifier) {
+      return OctaneGateSuiteRunChart.fromRunByGroup(
+          displayName, List.copyOf(suiteRunIds), runs, classifier);
+    }
   }
 }

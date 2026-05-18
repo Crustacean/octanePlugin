@@ -51,11 +51,7 @@ public class OctaneGateLogListenerTest {
     assertTrue(log.contains(criticalMetrics));
     assertTrue(
         log.contains(
-            criticalMetrics
-                + lineSeparator
-                + lineSeparator
-                + regressionsMetrics
-                + lineSeparator));
+            criticalMetrics + lineSeparator + lineSeparator + regressionsMetrics + lineSeparator));
     assertFalse(log.contains("child run statuses"));
     assertFalse(log.contains("suite run IDs 450306 metrics"));
   }

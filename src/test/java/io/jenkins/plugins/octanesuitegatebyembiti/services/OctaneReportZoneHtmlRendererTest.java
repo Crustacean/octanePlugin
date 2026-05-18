@@ -39,6 +39,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertTrue(html.contains("Total: 3"));
     assertTrue(html.contains("Total Suiteruns: 2"));
+    assertTrue(html.contains("Ada Tester"));
+    assertTrue(html.contains("Ben Tester"));
+    assertTrue(html.contains("suite runs: 4501"));
     assertFalse(html.contains("Total Testcases"));
     assertTrue(html.contains("border: 1px solid #f5f7fb"));
     assertTrue(html.contains("font-size: 11px"));
@@ -56,6 +59,11 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("overflow: visible"));
     assertFalse(html.contains("octane-legend-value"));
     assertTrue(html.contains("octane-vertical-bars"));
+    assertTrue(html.contains("octane-bar-popup"));
+    assertTrue(html.contains("octane-bar-popup-name"));
+    assertTrue(html.contains("octane-bar-popup-row"));
+    assertTrue(html.contains("octane-bar-popup-total"));
+    assertFalse(html.contains("class=\"octane-total\""));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
     assertFalse(html.contains("Testing Time Remaining"));
     assertFalse(html.contains("Status Check"));
@@ -181,11 +189,14 @@ public class OctaneReportZoneHtmlRendererTest {
   private GateResult result() {
     Map<String, List<RunRecord>> regressionSuiteRuns = new LinkedHashMap<>();
     regressionSuiteRuns.put(
-        "4501", List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed")));
-    regressionSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "planned")));
+        "4501",
+        List.of(
+            new RunRecord("1", "one", "passed", "Ada Tester"),
+            new RunRecord("2", "two", "failed", "Ada Tester")));
+    regressionSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "planned", "Ben Tester")));
 
     Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
-    criticalSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "passed")));
+    criticalSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "passed", "Ben Tester")));
 
     return new GateResult(
         "4501,4502",
@@ -194,9 +205,9 @@ public class OctaneReportZoneHtmlRendererTest {
         true,
         new GateMetrics(3, 2, 1, 1, 0, 1),
         List.of(
-            new RunRecord("1", "one", "passed"),
-            new RunRecord("2", "two", "failed"),
-            new RunRecord("3", "three", "planned")),
+            new RunRecord("1", "one", "passed", "Ada Tester"),
+            new RunRecord("2", "two", "failed", "Ada Tester"),
+            new RunRecord("3", "three", "planned", "Ben Tester")),
         regressionSuiteRuns,
         Map.of(
             "critical",
@@ -207,7 +218,7 @@ public class OctaneReportZoneHtmlRendererTest {
                 "4502",
                 List.of("4502"),
                 new GateMetrics(1, 1, 1, 0, 0, 0),
-                List.of(new RunRecord("3", "three", "passed")),
+                List.of(new RunRecord("3", "three", "passed", "Ben Tester")),
                 criticalSuiteRuns)),
         Instant.parse("2026-05-15T00:00:00Z"));
   }

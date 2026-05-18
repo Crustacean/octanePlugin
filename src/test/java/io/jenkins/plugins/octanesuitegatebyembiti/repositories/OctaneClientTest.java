@@ -56,9 +56,11 @@ public class OctaneClientTest {
                 200,
                 "{\"data\":["
                     + "{\"id\":\"101\",\"name\":\"one\","
-                    + "\"native_status\":{\"logical_name\":\"passed\"}},"
+                    + "\"native_status\":{\"logical_name\":\"passed\"},"
+                    + "\"run_by\":{\"name\":\"Ada Tester\"}},"
                     + "{\"id\":\"102\",\"name\":\"two\","
-                    + "\"native_status\":{\"logical_name\":\"failed\"}}"
+                    + "\"native_status\":{\"logical_name\":\"failed\"},"
+                    + "\"run_by\":{\"name\":\"Ben Tester\"}}"
                     + "]}");
           }
         });
@@ -71,7 +73,9 @@ public class OctaneClientTest {
       assertEquals(2, records.size());
       assertEquals("101", records.get(0).getId());
       assertEquals("passed", records.get(0).getStatus());
+      assertEquals("Ada Tester", records.get(0).getRunByName());
       assertEquals("failed", records.get(1).getStatus());
+      assertEquals("Ben Tester", records.get(1).getRunByName());
     }
   }
 

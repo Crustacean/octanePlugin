@@ -203,9 +203,10 @@
           display: grid;
           flex: 0 0 4.2rem;
           gap: 0.5rem;
-          grid-template-rows: 210px 1.2rem 3rem;
+          grid-template-rows: 210px 3rem;
           justify-items: center;
           min-width: 4.2rem;
+          position: relative;
         }
         .octane-vertical-bar {
           align-items: stretch;
@@ -217,6 +218,64 @@
           height: 210px;
           overflow: hidden;
           width: 2.35rem;
+        }
+        .octane-bar-popup {
+          background: var(--background);
+          border: 1px solid var(--panel-border-color);
+          border-radius: 8px;
+          box-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
+          color: var(--text-color);
+          display: grid;
+          gap: 0.45rem;
+          left: 50%;
+          min-width: 13rem;
+          opacity: 0;
+          padding: 0.7rem 0.85rem;
+          pointer-events: none;
+          position: absolute;
+          top: 2.25rem;
+          transform: translate(-50%, 0.35rem);
+          transition: opacity 120ms ease, transform 120ms ease;
+          visibility: hidden;
+          z-index: 5;
+        }
+        .octane-suite-column:hover .octane-bar-popup,
+        .octane-suite-column:focus-within .octane-bar-popup {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          visibility: visible;
+        }
+        .octane-bar-popup-name {
+          border-bottom: 1px solid var(--panel-border-color);
+          font-weight: 700;
+          line-height: 1.25;
+          overflow: hidden;
+          padding-bottom: 0.45rem;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-bar-popup-row {
+          align-items: center;
+          display: grid;
+          gap: 0.45rem;
+          grid-template-columns: 0.75rem minmax(0, 1fr) auto auto;
+        }
+        .octane-bar-popup-label {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-bar-popup-value,
+        .octane-bar-popup-percent,
+        .octane-bar-popup-total-value {
+          font-weight: 700;
+          text-align: right;
+        }
+        .octane-bar-popup-total {
+          border-top: 1px solid var(--panel-border-color);
+          display: flex;
+          justify-content: space-between;
+          padding-top: 0.45rem;
         }
         .octane-vertical-segment {
           display: block;
@@ -232,9 +291,6 @@
           transform: rotate(-45deg);
           transform-origin: center;
           white-space: nowrap;
-        }
-        .octane-total {
-          font-weight: 600;
         }
         .octane-empty {
           border: 1px dashed var(--input-border);
@@ -548,20 +604,38 @@
                     </div>
                     <div class="octane-vertical-bars">
                       <j:forEach var="suiteRun" items="${section.suiteRuns}">
-                        <div class="octane-suite-column">
-                          <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}"
-                              title="${suiteRun.total} tests">
+                        <div class="octane-suite-column" tabindex="0"
+                            aria-label="${suiteRun.title}">
+                          <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
                             <j:forEach var="status" items="${suiteRun.statuses}">
                               <j:if test="${status.count > 0}">
                                 <span class="octane-vertical-segment"
-                                    style="${status.heightStyle}"
-                                    title="${status.title}"></span>
+                                    style="${status.heightStyle}"></span>
                               </j:if>
                             </j:forEach>
                           </div>
-                          <span class="octane-total">${suiteRun.total}</span>
-                          <span class="octane-suite-label" title="${suiteRun.suiteRunId}">
-                            ${suiteRun.suiteRunId}
+                          <div class="octane-bar-popup" role="tooltip">
+                            <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
+                            <j:forEach var="status" items="${suiteRun.statuses}">
+                              <j:if test="${status.count > 0}">
+                                <div class="octane-bar-popup-row">
+                                  <span class="octane-swatch"
+                                      style="background: ${status.color};"></span>
+                                  <span class="octane-bar-popup-label">${status.label}</span>
+                                  <span class="octane-bar-popup-value">${status.count}</span>
+                                  <span class="octane-bar-popup-percent">
+                                    (${status.percentageLabel})
+                                  </span>
+                                </div>
+                              </j:if>
+                            </j:forEach>
+                            <div class="octane-bar-popup-total">
+                              <span>Total</span>
+                              <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
+                            </div>
+                          </div>
+                          <span class="octane-suite-label" title="${suiteRun.title}">
+                            ${suiteRun.displayName}
                           </span>
                         </div>
                       </j:forEach>
