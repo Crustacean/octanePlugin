@@ -104,7 +104,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Expand section"));
     assertFalse(xml.contains("Collapse section"));
     assertTrue(xml.contains("octane-zone-focused"));
-    assertTrue(xml.contains("grid-template-columns: repeat(2, minmax(0, 1fr))"));
+    assertTrue(
+        xml.contains("grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr))"));
+    assertTrue(
+        xml.contains("grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr))"));
     assertTrue(xml.contains("data-zone-key=\"timers\""));
     assertTrue(xml.contains("data-zone-key=\"reports\""));
     assertTrue(xml.contains("aria-expanded=\"false\""));
@@ -117,6 +120,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("max-width: calc(100vw - 2rem)"));
     assertTrue(xml.contains("width: calc(100vw - 2rem)"));
     assertFalse(xml.contains(".octane-zone-focused .octane-zone-focus-toggle"));
+    assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) clamp(1.15rem, 2vh, 1.7rem)"));
+    assertTrue(xml.contains("font-size: clamp(0.45rem, 0.7vw, 0.62rem)"));
+    assertTrue(xml.contains("max-height: 100%"));
     assertTrue(xml.contains("resize: none"));
     assertTrue(xml.contains("max-height: min(76vh, 76vw)"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) 1.7rem"));
