@@ -28,6 +28,15 @@
     <f:entry title="Mark unstable instead of failed" field="markUnstable">
       <f:checkbox />
     </f:entry>
+    <f:entry title="Risk heat map" field="riskHeatMap">
+      <f:checkbox />
+    </f:entry>
+    <f:entry title="Risk heat map defect query" field="riskHeatMapDefectQuery">
+      <f:textarea />
+    </f:entry>
+    <f:entry title="Risk heat map max defects" field="riskHeatMapMaxDefects">
+      <f:number />
+    </f:entry>
     <f:entry title="Passed statuses" field="passedStatuses">
       <f:textbox />
     </f:entry>

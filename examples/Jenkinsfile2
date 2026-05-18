@@ -47,7 +47,10 @@ pipeline {
                   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
-                  markUnstable: false)
+                  markUnstable: false,
+                  riskHeatMap: true,
+                  riskHeatMapDefectQuery: '',
+                  riskHeatMapMaxDefects: 1000)
 
           echo "Octane gate passed for suite run(s) ${gateResult.suiteRunIds.join(', ')}"
           echo "Regression execution rate: ${gateResult.regressions.executionRate}"

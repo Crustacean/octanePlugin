@@ -150,6 +150,7 @@
           width: clamp(0.45rem, 0.75vw, 0.7rem);
         }
         .octane-zone-focused .octane-timer-wrap,
+        .octane-zone-focused .octane-card-view-heatmap,
         .octane-zone-focused .octane-donut-wrap,
         .octane-zone-focused .octane-bar-graph {
           flex: 1 1 auto;
@@ -164,6 +165,11 @@
         .octane-zone-focused .octane-timer-donut {
           max-height: min(38vh, 38vw);
           max-width: min(38vh, 38vw);
+        }
+        .octane-zone-focused .octane-risk-heat-map {
+          max-height: min(34vh, 34vw);
+          max-width: min(34vh, 34vw);
+          width: min(100%, 34vh, 34vw);
         }
         .octane-zone-focused .octane-donut {
           height: 100%;
@@ -250,7 +256,8 @@
           flex: 0 0 auto;
           gap: 0.45rem;
         }
-        .octane-expand-toggle {
+        .octane-expand-toggle,
+        .octane-view-toggle {
           align-items: center;
           appearance: none;
           background: transparent;
@@ -265,7 +272,9 @@
           width: 1.15rem;
         }
         .octane-expand-toggle:hover,
-        .octane-expand-toggle:focus {
+        .octane-expand-toggle:focus,
+        .octane-view-toggle:hover,
+        .octane-view-toggle:focus {
           background: var(--panel-border-color);
           color: var(--text-color);
           outline: none;
@@ -282,6 +291,100 @@
         }
         .octane-icon-collapse {
           display: none;
+        }
+        .octane-icon-timer {
+          display: none;
+        }
+        .octane-chart-card[data-active-view="heatmap"] .octane-icon-heatmap {
+          display: none;
+        }
+        .octane-chart-card[data-active-view="heatmap"] .octane-icon-timer {
+          display: block;
+        }
+        .octane-card-view {
+          display: none;
+        }
+        .octane-chart-card[data-active-view="timer"] [data-card-view="timer"],
+        .octane-chart-card[data-active-view="heatmap"] [data-card-view="heatmap"] {
+          display: flex;
+        }
+        .octane-card-view-heatmap {
+          align-items: stretch;
+          flex: 1 1 auto;
+          justify-content: center;
+          min-height: 215px;
+          min-width: 0;
+        }
+        .octane-risk-heat-map-panel-inner {
+          align-items: center;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          justify-content: center;
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-risk-heat-map {
+          display: block;
+          height: auto;
+          max-height: 225px;
+          max-width: 225px;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: min(100%, 225px);
+        }
+        .octane-risk-heat-map-slice {
+          stroke: var(--background);
+          stroke-width: 1;
+        }
+        .octane-risk-heat-map-center {
+          fill: var(--background);
+          stroke: var(--panel-border-color);
+          stroke-width: 1;
+        }
+        .octane-risk-heat-map-score {
+          fill: var(--text-color);
+          font-size: 2rem;
+          font-weight: 700;
+          text-anchor: middle;
+        }
+        .octane-risk-heat-map-label {
+          fill: var(--text-color-secondary);
+          font-size: 0.85rem;
+          text-anchor: middle;
+        }
+        .octane-risk-heat-map-legend {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.35rem 0.65rem;
+          justify-content: center;
+        }
+        .octane-risk-heat-map-legend-item {
+          align-items: center;
+          color: var(--text-color-secondary);
+          display: inline-flex;
+          font-size: clamp(0.58rem, 2.1cqw, 0.82rem);
+          gap: 0.35rem;
+          white-space: nowrap;
+        }
+        .octane-risk-heat-map-legend-item span {
+          border-radius: 2px;
+          display: inline-block;
+          height: 0.7rem;
+          width: 0.7rem;
+        }
+        .octane-risk-heat-map-empty {
+          align-items: center;
+          border: 1px dashed var(--input-border);
+          border-radius: 8px;
+          color: var(--text-color-secondary);
+          display: flex;
+          justify-content: center;
+          min-height: 180px;
+          padding: 1rem;
+          text-align: center;
+          width: 100%;
         }
         .octane-card-tools {
           align-items: center;
@@ -341,6 +444,7 @@
           font-size: clamp(0.72rem, 1.5cqw, 0.95rem);
         }
         .octane-chart-card.octane-expanded .octane-timer-wrap,
+        .octane-chart-card.octane-expanded .octane-card-view-heatmap,
         .octane-chart-card.octane-expanded .octane-donut-wrap,
         .octane-chart-card.octane-expanded .octane-bar-graph {
           flex: 1 1 auto;
@@ -349,6 +453,11 @@
         .octane-chart-card.octane-expanded .octane-timer-donut {
           max-height: min(76vh, 76vw);
           max-width: min(76vh, 76vw);
+        }
+        .octane-chart-card.octane-expanded .octane-risk-heat-map {
+          max-height: min(70vh, 70vw);
+          max-width: min(70vh, 70vw);
+          width: min(100%, 70vh, 70vw);
         }
         .octane-chart-card.octane-expanded .octane-donut {
           max-height: min(72vh, 72vw);
@@ -797,16 +906,42 @@
                 data-total-seconds="${snapshot.refreshSeconds}"
                 data-started-at="${snapshot.updatedAt}"
                 data-updated-at="${snapshot.updatedAt}"
-                data-active="${snapshot.building}">
+                data-active="${snapshot.building}"
+                data-active-view="timer">
               <div class="octane-card-header">
                 <div>
-                  <h2 class="octane-card-title">Status Check</h2>
+                  <h2 class="octane-card-title" data-view-title="true"
+                      data-timer-title="Status Check" data-heatmap-title="Risk Heat Map">
+                    Status Check
+                  </h2>
                   <div class="octane-muted">
-                    Polling interval
+                    <span data-view-subtitle="true"
+                        data-timer-subtitle="Polling interval"
+                        data-heatmap-subtitle="Project Risk by Defects">
+                      Polling interval
+                    </span>
                     <span class="octane-live-update" data-live-update-status="true"></span>
                   </div>
                 </div>
                 <div class="octane-card-actions">
+                  <j:if test="${snapshot.riskHeatMapEnabled}">
+                    <button class="octane-view-toggle" type="button"
+                        aria-label="Show risk heat map" title="Show risk heat map">
+                      <svg class="octane-action-icon octane-icon-heatmap" viewBox="0 0 24 24"
+                          aria-hidden="true" focusable="false">
+                        <path d="M4 4h6v6H4z" />
+                        <path d="M14 4h6v6h-6z" />
+                        <path d="M4 14h6v6H4z" />
+                        <path d="M14 14h6v6h-6z" />
+                      </svg>
+                      <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
+                          aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="13" r="8" />
+                        <path d="M12 9v4l3 2" />
+                        <path d="M9 2h6" />
+                      </svg>
+                    </button>
+                  </j:if>
                   <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
                       aria-expanded="false" title="Expand widget">
                     <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
@@ -829,7 +964,8 @@
                   </span>
                 </div>
               </div>
-              <div class="octane-timer-wrap">
+              <div class="octane-card-view octane-card-view-timer" data-card-view="timer">
+                <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
                     aria-label="Status Check">
                   <defs>
@@ -864,6 +1000,20 @@
                     seconds
                   </text>
                 </svg>
+                </div>
+              </div>
+              <div class="octane-card-view octane-card-view-heatmap" data-card-view="heatmap"
+                  data-heat-map-panel="true">
+                <div class="octane-risk-heat-map-empty">
+                  <j:choose>
+                    <j:when test="${snapshot.riskHeatMapEnabled}">
+                      Risk heat map will appear after the next report refresh.
+                    </j:when>
+                    <j:otherwise>
+                      Risk heat map is disabled. Set riskHeatMap: true to fetch defect risk data.
+                    </j:otherwise>
+                  </j:choose>
+                </div>
               </div>
             </section>
 
@@ -1375,6 +1525,57 @@
                 + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>';
             return button;
           }
+          function setCardView(card, view) {
+            if (!card) {
+              return;
+            }
+            var nextView = view === "heatmap" ? "heatmap" : "timer";
+            card.setAttribute("data-active-view", nextView);
+            var title = card.querySelector("[data-view-title]");
+            if (title) {
+              title.textContent =
+                  nextView === "heatmap"
+                      ? title.getAttribute("data-heatmap-title") || "Risk Heat Map"
+                      : title.getAttribute("data-timer-title") || "Status Check";
+            }
+            var subtitle = card.querySelector("[data-view-subtitle]");
+            if (subtitle) {
+              subtitle.textContent =
+                  nextView === "heatmap"
+                      ? subtitle.getAttribute("data-heatmap-subtitle") || "Defect risk map"
+                      : subtitle.getAttribute("data-timer-subtitle") || "Polling interval";
+            }
+            var button = card.querySelector(".octane-view-toggle");
+            if (!button) {
+              return;
+            }
+            var label = nextView === "heatmap" ? "Show polling timer" : "Show risk heat map";
+            button.setAttribute("aria-label", label);
+            button.setAttribute("title", label);
+          }
+          function activeCardView(card) {
+            return card && card.getAttribute("data-active-view") === "heatmap"
+                ? "heatmap"
+                : "timer";
+          }
+          function toggleCardView(card) {
+            setCardView(card, activeCardView(card) === "heatmap" ? "timer" : "heatmap");
+          }
+          function initializeCardViews(root) {
+            var cards = root.querySelectorAll("[data-active-view]");
+            for (var index = 0; index < cards.length; index += 1) {
+              setCardView(cards[index], activeCardView(cards[index]));
+            }
+          }
+          function updateRiskHeatMap(payload) {
+            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-heat-map-panel]");
+            if (panel) {
+              panel.innerHTML = payload.riskHeatMapHtml;
+            }
+          }
           function zoneKeyFor(zone) {
             if (!zone) {
               return "";
@@ -1446,6 +1647,7 @@
             }
           }
           decorateCardZones(dashboard);
+          initializeCardViews(dashboard);
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
@@ -1624,6 +1826,7 @@
             if (messageLabel) {
               messageLabel.textContent = payload.message || "";
             }
+            updateRiskHeatMap(payload);
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
@@ -1715,6 +1918,26 @@
               scheduleSnapshotRetry();
             });
           }
+          function fetchRiskHeatMapSnapshot() {
+            if (!dashboard.querySelector("[data-heat-map-panel]")
+                || typeof window.fetch !== "function") {
+              return;
+            }
+            window.fetch(snapshotUrl, {
+              cache: "no-store",
+              credentials: "same-origin",
+              headers: {"Accept": "application/json"}
+            }).then(function (response) {
+              if (!response.ok) {
+                throw new Error("Snapshot request failed: " + response.status);
+              }
+              return response.json();
+            }).then(function (payload) {
+              updateRiskHeatMap(payload);
+            }).catch(function () {
+              updateRiskHeatMap({riskHeatMapHtml: ""});
+            });
+          }
           function animateTimers() {
             var now = currentWallTime();
             var activeTimerStillRunning = false;
@@ -1736,6 +1959,7 @@
           if (timers.length > 0) {
             scheduleTimerAnimation();
           }
+          fetchRiskHeatMapSnapshot();
           function updateExecutionProgress(card) {
             var progress = parseFloat(card.getAttribute("data-progress-value") || "0");
             if (isNaN(progress)) {
@@ -1989,6 +2213,17 @@
             focusZone(zone);
           });
           dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-view-toggle");
+            if (!button) {
+              return;
+            }
+            var card = button.closest(".octane-chart-card");
+            event.preventDefault();
+            event.stopPropagation();
+            hideBarPopup();
+            toggleCardView(card);
+          });
+          dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-expand-toggle");
             if (!button) {
               return;
@@ -2018,7 +2253,8 @@
             if (!card) {
               return;
             }
-            if (event.target.closest(".octane-expand-toggle, .octane-zone-focus-toggle")
+            if (event.target.closest(
+                ".octane-expand-toggle, .octane-zone-focus-toggle, .octane-view-toggle")
                 || card.classList.contains("octane-expanded")) {
               event.preventDefault();
               return;

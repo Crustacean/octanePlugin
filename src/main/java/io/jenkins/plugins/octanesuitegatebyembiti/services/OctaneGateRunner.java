@@ -8,6 +8,7 @@ import hudson.model.TaskListener;
 import hudson.security.ACL;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServer;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPublisher;
@@ -18,6 +19,8 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMapBuilder;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -77,7 +80,15 @@ public class OctaneGateRunner {
       client.authenticate();
       while (true) {
         GateResult result =
-            poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
+            poll(
+                client,
+                request,
+                suiteRunIds,
+                sharedSpaceId,
+                workspaceId,
+                criteria,
+                classifier,
+                listener);
         logListener.logPollResult(listener, result);
         reportPublisher.onPoll(result, classifier);
         if (result.isPassed()) {
@@ -130,7 +141,15 @@ public class OctaneGateRunner {
     logListener.logFinalRefresh(listener);
     try {
       GateResult refreshedResult =
-          poll(client, request, suiteRunIds, sharedSpaceId, workspaceId, criteria, classifier);
+          poll(
+              client,
+              request,
+              suiteRunIds,
+              sharedSpaceId,
+              workspaceId,
+              criteria,
+              classifier,
+              listener);
       logListener.logPollResult(listener, refreshedResult);
       reportPublisher.onPoll(refreshedResult, classifier);
       return refreshedResult;
@@ -147,7 +166,8 @@ public class OctaneGateRunner {
       String sharedSpaceId,
       String workspaceId,
       CriteriaExpression criteria,
-      StatusClassifier classifier)
+      StatusClassifier classifier,
+      TaskListener listener)
       throws IOException, InterruptedException {
     Map<String, List<RunRecord>> suiteRuns =
         fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, suiteRunIds);
@@ -169,6 +189,15 @@ public class OctaneGateRunner {
     boolean terminal =
         regressionMetrics.isTerminal()
             && scopedMetrics.values().stream().allMatch(GateMetrics::isTerminal);
+    OctaneRiskHeatMap riskHeatMap =
+        buildRiskHeatMap(
+            client,
+            request,
+            sharedSpaceId,
+            workspaceId,
+            heatMapSuiteRuns(suiteRuns, scopedResults),
+            classifier,
+            listener);
     return new GateResult(
         String.join(",", suiteRunIds),
         request.getCriteria(),
@@ -178,7 +207,52 @@ public class OctaneGateRunner {
         childRuns,
         suiteRuns,
         scopedResults,
+        riskHeatMap,
         clock.instant());
+  }
+
+  private Map<String, List<RunRecord>> heatMapSuiteRuns(
+      Map<String, List<RunRecord>> regressionSuiteRuns,
+      Map<String, GateScopeResult> scopedResults) {
+    Map<String, List<RunRecord>> values = new LinkedHashMap<>(regressionSuiteRuns);
+    for (GateScopeResult scopeResult : scopedResults.values()) {
+      if (!scopeResult.isSuiteRunScope()) {
+        continue;
+      }
+      for (Map.Entry<String, List<RunRecord>> entry : scopeResult.getSuiteRuns().entrySet()) {
+        values.putIfAbsent(entry.getKey(), entry.getValue());
+      }
+    }
+    return values;
+  }
+
+  private OctaneRiskHeatMap buildRiskHeatMap(
+      OctaneClient client,
+      GateRequest request,
+      String sharedSpaceId,
+      String workspaceId,
+      Map<String, List<RunRecord>> suiteRuns,
+      StatusClassifier classifier,
+      TaskListener listener)
+      throws InterruptedException {
+    if (!request.isRiskHeatMap()) {
+      return OctaneRiskHeatMap.disabled();
+    }
+    try {
+      List<DefectRecord> defects =
+          client.fetchLinkedDefects(
+              sharedSpaceId,
+              workspaceId,
+              suiteRuns,
+              request.getRiskHeatMapDefectQuery(),
+              request.getRiskHeatMapMaxDefects());
+      return new OctaneRiskHeatMapBuilder().build(workspaceId, suiteRuns, defects, classifier);
+    } catch (IOException e) {
+      listener
+          .getLogger()
+          .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
+      return OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage());
+    }
   }
 
   private GateScopeResult pollScope(

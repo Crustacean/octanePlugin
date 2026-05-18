@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import hudson.AbortException;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -28,7 +30,10 @@ public class OctaneClient implements AutoCloseable {
   private static final String TECH_PREVIEW_HEADER = "ALM-OCTANE-TECH-PREVIEW";
   private static final String RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
-          + "runs_in_suite";
+          + "test{id,name},product_areas{id,name},runs_in_suite";
+  private static final String DEFECT_FIELDS =
+      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
+          + "run{id,name},test{id,name},product_areas{id,name}";
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -103,6 +108,35 @@ public class OctaneClient implements AutoCloseable {
       return List.of(suiteRun.path("id").asText(suiteRunId));
     }
     return runIds;
+  }
+
+  public List<DefectRecord> fetchLinkedDefects(
+      String sharedSpaceId,
+      String workspaceId,
+      Map<String, List<RunRecord>> suiteRuns,
+      String defectQuery,
+      int maxDefects)
+      throws IOException, InterruptedException {
+    if (suiteRuns.isEmpty() || maxDefects <= 0) {
+      return List.of();
+    }
+    List<String> clauses = buildLinkedDefectClauses(suiteRuns);
+    if (clauses.isEmpty()) {
+      return List.of();
+    }
+
+    List<DefectRecord> records = new ArrayList<>();
+    for (int start = 0; start < clauses.size() && records.size() < maxDefects; start += QUERY_CHUNK_SIZE) {
+      int end = Math.min(start + QUERY_CHUNK_SIZE, clauses.size());
+      records.addAll(
+          fetchDefectsChunk(
+              sharedSpaceId,
+              workspaceId,
+              clauses.subList(start, end),
+              defectQuery,
+              maxDefects - records.size()));
+    }
+    return records;
   }
 
   public int testWorkspaceAccess(String sharedSpaceId, String workspaceId)
@@ -247,6 +281,63 @@ public class OctaneClient implements AutoCloseable {
     return String.join("||", clauses);
   }
 
+  private List<String> buildLinkedDefectClauses(Map<String, List<RunRecord>> suiteRuns) {
+    LinkedHashSet<String> clauses = new LinkedHashSet<>();
+    for (List<RunRecord> runs : suiteRuns.values()) {
+      for (RunRecord run : runs) {
+        if (!Util.isBlank(run.getId())) {
+          clauses.add("run EQ {id EQ " + run.getId() + "}");
+        }
+        if (!Util.isBlank(run.getTestId())) {
+          clauses.add("test EQ {id EQ " + run.getTestId() + "}");
+        }
+      }
+    }
+    return new ArrayList<>(clauses);
+  }
+
+  private List<DefectRecord> fetchDefectsChunk(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> clauses,
+      String defectQuery,
+      int maxDefects)
+      throws IOException, InterruptedException {
+    String query = String.join("||", clauses);
+    if (!Util.isBlank(defectQuery)) {
+      query = "(" + query + ");(" + defectQuery + ")";
+    }
+
+    List<DefectRecord> records = new ArrayList<>();
+    int offset = 0;
+    while (records.size() < maxDefects) {
+      int limit = Math.min(PAGE_SIZE, maxDefects - records.size());
+      String path =
+          workspacePath(sharedSpaceId, workspaceId)
+              + "/defects?"
+              + parameter("query", quote(query))
+              + "&"
+              + parameter("fields", DEFECT_FIELDS)
+              + "&"
+              + parameter("limit", Integer.toString(limit))
+              + "&"
+              + parameter("offset", Integer.toString(offset));
+      JsonNode collection = getJson(path);
+      JsonNode data = collection.path("data");
+      if (!data.isArray() || data.isEmpty()) {
+        break;
+      }
+      for (JsonNode node : data) {
+        records.add(parseDefect(node));
+      }
+      if (data.size() < limit) {
+        break;
+      }
+      offset += limit;
+    }
+    return records;
+  }
+
   private JsonNode getJson(String path) throws IOException, InterruptedException {
     HttpResponse<String> response =
         sendWithRetry(() -> requestBuilder(baseUrl + path).GET().build());
@@ -386,8 +477,33 @@ public class OctaneClient implements AutoCloseable {
     if (status.isEmpty()) {
       status = readStatus(node.path("status"));
     }
+    EntityReference test = readEntity(node.path("test"));
+    EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
     return new RunRecord(
-        node.path("id").asText(), node.path("name").asText(), status, readPersonName(node));
+        node.path("id").asText(),
+        node.path("name").asText(),
+        status,
+        readPersonName(node),
+        test.id,
+        test.name,
+        project.id,
+        project.name);
+  }
+
+  private DefectRecord parseDefect(JsonNode node) {
+    EntityReference run = readEntity(node.path("run"));
+    EntityReference test = readEntity(node.path("test"));
+    EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
+    return new DefectRecord(
+        node.path("id").asText(),
+        node.path("name").asText(),
+        readStatus(node.path("severity")),
+        readStatus(node.path("priority")),
+        readStatus(node.path("phase")),
+        run.id,
+        test.id,
+        project.id,
+        project.name);
   }
 
   private String readStatus(JsonNode statusNode) {
@@ -410,6 +526,41 @@ public class OctaneClient implements AutoCloseable {
       return Optional.empty();
     }
     return Optional.of(value.asText());
+  }
+
+  private EntityReference readFirstEntity(JsonNode node, List<String> fieldNames) {
+    for (String fieldName : fieldNames) {
+      EntityReference reference = readEntity(node.path(fieldName));
+      if (!reference.isEmpty()) {
+        return reference;
+      }
+    }
+    return EntityReference.EMPTY;
+  }
+
+  private EntityReference readEntity(JsonNode entityNode) {
+    if (entityNode.isMissingNode() || entityNode.isNull()) {
+      return EntityReference.EMPTY;
+    }
+    if (entityNode.isArray()) {
+      for (JsonNode item : entityNode) {
+        EntityReference reference = readEntity(item);
+        if (!reference.isEmpty()) {
+          return reference;
+        }
+      }
+      return EntityReference.EMPTY;
+    }
+    if (entityNode.isObject()) {
+      JsonNode data = entityNode.path("data");
+      if (data.isArray() && !data.isEmpty()) {
+        return readEntity(data.get(0));
+      }
+      String id = readOptionalText(entityNode, "id").orElse("");
+      String name = readOptionalText(entityNode, "name").orElse("");
+      return new EntityReference(id, name);
+    }
+    return new EntityReference(entityNode.asText(), entityNode.asText());
   }
 
   private String readPersonName(JsonNode node) {
@@ -466,5 +617,21 @@ public class OctaneClient implements AutoCloseable {
 
   private interface RequestFactory {
     HttpRequest create();
+  }
+
+  private static final class EntityReference {
+    private static final EntityReference EMPTY = new EntityReference("", "");
+
+    private final String id;
+    private final String name;
+
+    private EntityReference(String id, String name) {
+      this.id = Util.trimToEmpty(id);
+      this.name = Util.trimToEmpty(name);
+    }
+
+    private boolean isEmpty() {
+      return id.isEmpty() && name.isEmpty();
+    }
   }
 }
