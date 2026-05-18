@@ -33,18 +33,184 @@
           display: flex;
           flex-wrap: wrap;
           gap: 1rem;
-          padding: 1rem;
+          padding: 1.5rem 1rem 1rem;
+          position: relative;
           width: 100%;
+        }
+        .octane-zone-focus-toggle {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 4px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: inline-flex;
+          height: 1.15rem;
+          justify-content: center;
+          padding: 0;
+          position: absolute;
+          right: 0.35rem;
+          top: 0.2rem;
+          width: 1.15rem;
+          z-index: 2;
+        }
+        .octane-zone-focus-toggle:hover,
+        .octane-zone-focus-toggle:focus {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+          outline: none;
+        }
+        .octane-timer-zone.octane-zone-focused,
+        .octane-report-zone.octane-zone-focused {
+          background: var(--background);
+          border-color: var(--input-border);
+          border-radius: 14px;
+          box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
+          box-sizing: border-box;
+          display: grid;
+          gap: 1rem;
+          grid-auto-rows: minmax(0, 1fr);
+          grid-auto-flow: row;
+          height: auto;
+          inset: 1rem;
+          max-height: none;
+          max-width: none;
+          overflow: hidden;
+          padding: 1rem;
+          position: fixed;
+          width: auto;
+          z-index: 9999;
+        }
+        .octane-timer-zone.octane-zone-focused {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3) {
+          grid-column: 1;
+          grid-row: 2;
+        }
+        .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {
+          grid-column: 2;
+          grid-row: 2;
+        }
+        .octane-timer-zone.octane-zone-focused > .octane-chart-card:only-of-type {
+          grid-column: 1 / -1;
+        }
+        .octane-report-zone.octane-zone-focused {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3) {
+          grid-column: 1;
+          grid-row: 2;
+        }
+        .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {
+          grid-column: 2;
+          grid-row: 2;
+        }
+        .octane-report-zone.octane-zone-focused > .octane-chart-card:only-of-type {
+          grid-column: 1 / -1;
+        }
+        .octane-zone-focused .octane-chart-card {
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          max-width: 100%;
+          min-height: 0;
+          min-width: 0;
+          padding: clamp(0.55rem, 1vw, 1rem);
+          resize: none;
+          width: auto;
+        }
+        .octane-zone-focused .octane-card-header {
+          align-items: flex-start;
+          flex: 0 1 auto;
+          margin-bottom: clamp(0.25rem, 0.7vh, 0.65rem);
+          min-height: 0;
+        }
+        .octane-zone-focused .octane-card-title {
+          font-size: clamp(0.72rem, 1vw, 1rem);
+          font-size: clamp(0.66rem, 2.6cqw, 1rem);
+          line-height: 1.15;
+        }
+        .octane-zone-focused .octane-distribution-meta,
+        .octane-zone-focused .octane-suite-chart-meta {
+          gap: 0.2rem 0.45rem;
+        }
+        .octane-zone-focused .octane-legend {
+          gap: 0.2rem 0.45rem;
+        }
+        .octane-zone-focused .octane-legend-row,
+        .octane-zone-focused .octane-total-label {
+          font-size: clamp(0.58rem, 0.85vw, 0.82rem);
+          font-size: clamp(0.52rem, 1.9cqw, 0.82rem);
+        }
+        .octane-zone-focused .octane-swatch {
+          height: clamp(0.45rem, 0.75vw, 0.7rem);
+          width: clamp(0.45rem, 0.75vw, 0.7rem);
+        }
+        .octane-zone-focused .octane-timer-wrap,
+        .octane-zone-focused .octane-donut-wrap,
+        .octane-zone-focused .octane-bar-graph {
+          flex: 1 1 auto;
+          min-height: 0;
+        }
+        .octane-zone-focused .octane-donut-wrap {
+          box-sizing: border-box;
+          overflow: visible;
+          padding: clamp(0.25rem, 1vh, 0.75rem) clamp(0.5rem, 1.2vw, 1.5rem);
+          width: 100%;
+        }
+        .octane-zone-focused .octane-timer-donut {
+          max-height: min(38vh, 38vw);
+          max-width: min(38vh, 38vw);
+        }
+        .octane-zone-focused .octane-donut {
+          height: 100%;
+          max-height: 100%;
+          max-width: 100%;
+          width: 100%;
+        }
+        .octane-zone-focused .octane-bar-graph {
+          --octane-axis-label-row: clamp(1.05rem, 2vh, 1.7rem);
+          grid-template-columns: clamp(0.85rem, 1.2vw, 1.35rem) max-content minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+          height: 100%;
+          margin-top: clamp(0.25rem, 0.8vh, 0.75rem);
+          row-gap: 0;
+        }
+        .octane-zone-focused .octane-y-axis-label {
+          font-size: clamp(0.55rem, 0.8vw, 0.8rem);
+        }
+        .octane-zone-focused .octane-axis-value {
+          font-size: clamp(0.5rem, 0.75vw, 0.75rem);
+        }
+        .octane-zone-focused .octane-suite-column {
+          flex-basis: clamp(1.6rem, 7vw, 4.65rem);
+          max-width: none;
+        }
+        .octane-zone-focused .octane-vertical-bar {
+          width: clamp(0.55rem, 54%, 2.4rem);
+        }
+        .octane-zone-focused .octane-suite-label {
+          font-size: clamp(0.45rem, 0.7vw, 0.62rem);
+          max-width: 100%;
+          padding-top: clamp(0.04rem, 0.25vh, 0.16rem);
+        }
+        .octane-zone-focused .octane-card-tools {
+          cursor: grab;
         }
         .octane-chart-card {
           background: var(--background);
           border: 1px solid var(--input-border);
           border-radius: 14px;
+          box-sizing: border-box;
           box-shadow: 0 1px 7px rgba(0, 0, 0, 0.14);
+          container-type: inline-size;
           flex: 0 1 calc(50% - 0.5rem);
           min-height: 310px;
           min-width: 360px;
-          overflow-x: auto;
+          overflow-x: hidden;
           overflow-y: hidden;
           padding: 1rem;
           resize: horizontal;
@@ -56,25 +222,144 @@
         .octane-card-header {
           align-items: center;
           display: flex;
-          gap: 0.75rem;
+          gap: clamp(0.35rem, 1.8cqw, 0.75rem);
           justify-content: space-between;
-          margin-bottom: 0.75rem;
+          margin-bottom: clamp(0.35rem, 2cqw, 0.75rem);
+        }
+        .octane-card-header > div:first-child {
+          min-width: 0;
         }
         .octane-card-title {
-          font-size: 1rem;
+          font-size: clamp(0.78rem, 1vw, 1rem);
+          font-size: clamp(0.72rem, 3.2cqw, 1.08rem);
           font-weight: 600;
+          line-height: 1.15;
           margin: 0;
+          overflow-wrap: anywhere;
+        }
+        .octane-card-header .octane-muted,
+        .octane-total-label,
+        .octane-legend-row {
+          font-size: clamp(0.62rem, 0.9vw, 0.88rem);
+          font-size: clamp(0.58rem, 2.35cqw, 0.9rem);
+          line-height: 1.2;
+        }
+        .octane-card-actions {
+          align-items: center;
+          display: inline-flex;
+          flex: 0 0 auto;
+          gap: 0.45rem;
+        }
+        .octane-expand-toggle {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 4px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: inline-flex;
+          height: 1.15rem;
+          justify-content: center;
+          padding: 0;
+          width: 1.15rem;
+        }
+        .octane-expand-toggle:hover,
+        .octane-expand-toggle:focus {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+          outline: none;
+        }
+        .octane-action-icon {
+          display: block;
+          fill: none;
+          height: 0.95rem;
+          stroke: currentColor;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 1.8;
+          width: 0.95rem;
+        }
+        .octane-icon-collapse {
+          display: none;
         }
         .octane-card-tools {
+          align-items: center;
           color: var(--text-color-secondary);
           cursor: grab;
-          font-size: 0.66rem;
-          letter-spacing: 0.12rem;
+          display: inline-flex;
+          font-size: 0.85rem;
+          height: 1.15rem;
+          justify-content: center;
+          letter-spacing: 0.04rem;
+          line-height: 1;
+          overflow: hidden;
           user-select: none;
+          width: 1.15rem;
         }
         .octane-chart-card.octane-dragging {
           border-color: #4391F5;
           opacity: 0.45;
+        }
+        .octane-expanded-backdrop {
+          background: rgba(0, 0, 0, 0.42);
+          inset: 0;
+          position: fixed;
+          z-index: 9998;
+        }
+        .octane-chart-card.octane-expanded {
+          display: flex;
+          flex-direction: column;
+          height: auto;
+          inset: 1rem;
+          max-height: none;
+          max-width: none;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          position: fixed;
+          resize: none;
+          width: auto;
+          z-index: 9999;
+        }
+        .octane-chart-card.octane-expanded .octane-icon-expand {
+          display: none;
+        }
+        .octane-chart-card.octane-expanded .octane-icon-collapse {
+          display: block;
+        }
+        .octane-chart-card.octane-expanded .octane-card-header {
+          flex: 0 0 auto;
+        }
+        .octane-chart-card.octane-expanded .octane-card-title {
+          font-size: clamp(0.9rem, 1.5vw, 1.3rem);
+          font-size: clamp(0.9rem, 2.2cqw, 1.3rem);
+        }
+        .octane-chart-card.octane-expanded .octane-muted,
+        .octane-chart-card.octane-expanded .octane-total-label {
+          font-size: clamp(0.72rem, 1vw, 0.95rem);
+          font-size: clamp(0.72rem, 1.5cqw, 0.95rem);
+        }
+        .octane-chart-card.octane-expanded .octane-timer-wrap,
+        .octane-chart-card.octane-expanded .octane-donut-wrap,
+        .octane-chart-card.octane-expanded .octane-bar-graph {
+          flex: 1 1 auto;
+          min-height: 0;
+        }
+        .octane-chart-card.octane-expanded .octane-timer-donut {
+          max-height: min(76vh, 76vw);
+          max-width: min(76vh, 76vw);
+        }
+        .octane-chart-card.octane-expanded .octane-donut {
+          max-height: min(72vh, 72vw);
+          max-width: min(72vh, 72vw);
+        }
+        .octane-chart-card.octane-expanded .octane-bar-graph {
+          --octane-axis-label-row: 1.7rem;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+        }
+        .octane-chart-card.octane-expanded .octane-card-tools {
+          cursor: default;
         }
         .octane-timer-card {
           flex: 1 1 calc(25% - 0.75rem);
@@ -163,6 +448,69 @@
         .octane-total-label {
           color: var(--text-color-secondary);
         }
+        .octane-suite-chart-meta {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.35rem 0.75rem;
+          margin-top: 0.25rem;
+        }
+        .octane-axis-value {
+          color: var(--text-color-secondary);
+          font-size: 0.75rem;
+        }
+        .octane-bar-graph {
+          --octane-axis-label-row: 1.7rem;
+          box-sizing: border-box;
+          column-gap: 0.09rem;
+          display: grid;
+          grid-template-columns: 1.35rem max-content minmax(0, 1fr);
+          grid-template-rows: 260px var(--octane-axis-label-row);
+          margin-top: 1rem;
+          row-gap: 0;
+          width: 100%;
+        }
+        .octane-y-axis-label {
+          align-self: center;
+          color: var(--text-color-secondary);
+          font-size: 0.8rem;
+          grid-column: 1;
+          grid-row: 1;
+          justify-self: center;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          writing-mode: vertical-rl;
+        }
+        .octane-y-axis-scale {
+          align-items: end;
+          display: flex;
+          flex-direction: column;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          min-width: 0;
+          padding-right: 0.2rem;
+        }
+        .octane-bar-plot {
+          border-left: 1px solid #576779;
+          box-sizing: border-box;
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          min-width: 0;
+          overflow: visible;
+          position: relative;
+        }
+        .octane-bar-plot::after {
+          background: #576779;
+          bottom: var(--octane-axis-label-row);
+          content: "";
+          height: 1px;
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          z-index: 0;
+        }
         .octane-legend {
           align-items: center;
           display: flex;
@@ -182,30 +530,43 @@
           width: 0.8rem;
         }
         .octane-vertical-bars {
-          align-items: end;
+          align-items: stretch;
+          box-sizing: border-box;
           display: flex;
-          gap: 1rem;
-          justify-content: flex-start;
-          min-height: 270px;
-          overflow-x: auto;
-          overflow-y: hidden;
-          padding: 1rem 0.25rem 0;
+          gap: clamp(0.15rem, 1vw, 1rem);
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          overflow-x: hidden;
+          overflow-y: visible;
+          padding: 0 clamp(0.15rem, 0.7vw, 0.5rem);
           width: 100%;
         }
         .octane-vertical-bars::before,
         .octane-vertical-bars::after {
           content: "";
-          flex: 1 1 0;
-          min-width: 0;
+          display: none;
         }
         .octane-suite-column {
           align-items: center;
           display: grid;
-          flex: 0 0 4.2rem;
-          gap: 0.5rem;
-          grid-template-rows: 210px 1.2rem 3rem;
+          flex: 1 1 4.65rem;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+          height: 100%;
           justify-items: center;
-          min-width: 4.2rem;
+          max-width: 5.2rem;
+          min-width: 0;
+          position: relative;
+        }
+        .octane-vertical-bar-wrap {
+          align-items: end;
+          display: flex;
+          grid-row: 1;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          width: 100%;
+          z-index: 1;
         }
         .octane-vertical-bar {
           align-items: stretch;
@@ -214,27 +575,91 @@
           border-radius: 4px 4px 0 0;
           display: flex;
           flex-direction: column-reverse;
-          height: 210px;
+          height: 100%;
           overflow: hidden;
-          width: 2.35rem;
+          width: clamp(0.85rem, 62%, 2.6rem);
+        }
+        .octane-bar-popup {
+          background: var(--background);
+          border: 1px solid var(--panel-border-color);
+          border-radius: 8px;
+          box-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
+          color: var(--text-color);
+          display: grid;
+          font-size: 0.644rem;
+          gap: 0.32rem;
+          left: 0;
+          max-width: min(18rem, calc(100vw - 1rem));
+          min-width: 10.92rem;
+          opacity: 0;
+          padding: 0.5rem 0.6rem;
+          pointer-events: none;
+          position: fixed;
+          top: 0;
+          transition: opacity 90ms ease;
+          visibility: hidden;
+          will-change: left, top;
+          z-index: 9999;
+        }
+        .octane-bar-popup.octane-bar-popup-visible {
+          opacity: 1;
+          visibility: visible;
+        }
+        .octane-bar-popup-name {
+          border-bottom: 1px solid var(--panel-border-color);
+          font-weight: 700;
+          line-height: 1.25;
+          overflow-wrap: anywhere;
+          padding-bottom: 0.32rem;
+          white-space: normal;
+        }
+        .octane-bar-popup-row {
+          align-items: center;
+          display: grid;
+          gap: 0.32rem;
+          grid-template-columns: 0.55rem minmax(0, 1fr) auto auto;
+        }
+        .octane-bar-popup .octane-swatch {
+          height: 0.55rem;
+          width: 0.55rem;
+        }
+        .octane-bar-popup-label {
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
+        .octane-bar-popup-value,
+        .octane-bar-popup-percent,
+        .octane-bar-popup-total-value {
+          font-weight: 700;
+          text-align: right;
+        }
+        .octane-bar-popup-total {
+          border-top: 1px solid var(--panel-border-color);
+          display: flex;
+          justify-content: space-between;
+          padding-top: 0.32rem;
         }
         .octane-vertical-segment {
           display: block;
           width: 100%;
         }
         .octane-suite-label {
+          align-self: start;
+          box-sizing: border-box;
           display: block;
-          max-width: 5.6rem;
+          font-size: clamp(0.53rem, 0.8vw, 0.7rem);
+          grid-row: 2;
+          line-height: 1.1;
+          max-width: min(100%, 6.8rem);
           min-height: 1rem;
           overflow: hidden;
-          text-align: right;
+          padding-top: 0.18rem;
+          text-align: center;
           text-overflow: ellipsis;
-          transform: rotate(-45deg);
+          transform: none;
           transform-origin: center;
           white-space: nowrap;
-        }
-        .octane-total {
-          font-weight: 600;
+          width: 100%;
         }
         .octane-empty {
           border: 1px dashed var(--input-border);
@@ -247,6 +672,19 @@
             flex-basis: 100%;
             min-width: 280px;
             width: 100%;
+          }
+          .octane-report-zone.octane-zone-focused {
+            grid-template-columns: minmax(0, 1fr);
+          }
+          .octane-timer-zone.octane-zone-focused {
+            grid-template-columns: minmax(0, 1fr);
+          }
+          .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
+          .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4),
+          .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
+          .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {
+            grid-column: auto;
+            grid-row: auto;
           }
           .octane-timer-card {
             flex-basis: 100%;
@@ -273,8 +711,10 @@
             data-current-updated-at="${snapshot.updatedAt}"
             data-report-building="${snapshot.building}"
             data-snapshot-url="snapshot">
-          <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone">
+          <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone"
+              data-zone-key="timers">
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="timer-timeout"
                 data-octane-timer="timeout"
                 data-total-seconds="${snapshot.timeoutSeconds}"
                 data-started-at="${snapshot.startedAt}"
@@ -282,12 +722,33 @@
                 data-active="${snapshot.building}">
               <div class="octane-card-header">
                 <div>
-                  <h2 class="octane-card-title">Testing Time Remaining</h2>
+                  <h2 class="octane-card-title" data-timeout-title="true">
+                    ${snapshot.testingTimeTitle}
+                  </h2>
                   <div class="octane-muted">Testing Session Timer</div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -315,16 +776,23 @@
                   <circle class="octane-timer-head" data-timer-head="true"
                       cx="120" cy="36" r="9.6" fill="#1f5fff" />
                   <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
-                    --
+                    <j:choose>
+                      <j:when test="${snapshot.building}">--</j:when>
+                      <j:otherwise>${snapshot.testingTimeSpentMinutes}</j:otherwise>
+                    </j:choose>
                   </text>
                   <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
-                    minutes
+                    <j:choose>
+                      <j:when test="${snapshot.building}">minutes</j:when>
+                      <j:otherwise>${snapshot.testingTimeSpentUnit}</j:otherwise>
+                    </j:choose>
                   </text>
                 </svg>
               </div>
             </section>
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="timer-poll"
                 data-octane-timer="poll"
                 data-total-seconds="${snapshot.refreshSeconds}"
                 data-started-at="${snapshot.updatedAt}"
@@ -338,9 +806,28 @@
                     <span class="octane-live-update" data-live-update-status="true"></span>
                   </div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -381,6 +868,7 @@
             </section>
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="progress-execution"
                 data-octane-progress="execution"
                 data-progress-value="${snapshot.executionProgress}">
               <div class="octane-card-header">
@@ -388,9 +876,28 @@
                   <h2 class="octane-card-title">Execution Progress</h2>
                   <div class="octane-muted">All Testcase execution</div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -432,6 +939,7 @@
             </section>
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
+                data-card-key="progress-pass-rate"
                 data-octane-progress="pass-rate"
                 data-progress-value="${snapshot.passRateProgress}">
               <div class="octane-card-header">
@@ -441,9 +949,28 @@
                     ${snapshot.passRateLabel}
                   </div>
                 </div>
-                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
-                </span>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                    :::
+                  </span>
+                </div>
               </div>
               <div class="octane-timer-wrap">
                 <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
@@ -481,11 +1008,13 @@
             </section>
           </div>
 
-          <div class="octane-report-zone octane-card-zone" id="octane-report-zone">
+          <div class="octane-report-zone octane-card-zone" id="octane-report-zone"
+              data-zone-key="reports">
             <j:choose>
               <j:when test="${snapshot.hasReportSections()}">
                 <j:forEach var="section" items="${snapshot.reportSections}">
-                  <section class="octane-chart-card" draggable="true">
+                  <section class="octane-chart-card" draggable="true"
+                      data-card-key="distribution-${section.source}">
                     <div class="octane-card-header">
                       <div>
                         <h2 class="octane-card-title">${section.statusDistributionTitle}</h2>
@@ -504,9 +1033,30 @@
                           </div>
                         </div>
                       </div>
-                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                        :::
-                      </span>
+                      <div class="octane-card-actions">
+                        <button class="octane-expand-toggle" type="button"
+                            aria-label="Expand widget" aria-expanded="false"
+                            title="Expand widget">
+                          <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                              aria-hidden="true" focusable="false">
+                            <path d="M8 4H4v4" />
+                            <path d="M16 4h4v4" />
+                            <path d="M20 16v4h-4" />
+                            <path d="M8 20H4v-4" />
+                          </svg>
+                          <svg class="octane-action-icon octane-icon-collapse"
+                              viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M9 3v6H3" />
+                            <path d="M3 9l6-6" />
+                            <path d="M15 21v-6h6" />
+                            <path d="M21 15l-6 6" />
+                          </svg>
+                        </button>
+                        <span class="octane-card-tools"
+                            title="Drag to move. Resize from the corner.">
+                          :::
+                        </span>
+                      </div>
                     </div>
                     <div class="octane-donut-wrap">
                       <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
@@ -514,7 +1064,7 @@
                         <j:forEach var="slice" items="${section.pieSlices}">
                           <j:choose>
                             <j:when test="${slice.fullCircle}">
-                              <circle cx="50" cy="50" r="42" fill="${slice.color}">
+                              <circle cx="50" cy="50" r="46" fill="${slice.color}">
                                 <title>${slice.title}</title>
                               </circle>
                             </j:when>
@@ -525,7 +1075,7 @@
                             </j:otherwise>
                           </j:choose>
                         </j:forEach>
-                        <circle class="octane-donut-hole" cx="50" cy="50" r="27" />
+                        <circle class="octane-donut-hole" cx="50" cy="50" r="30" />
                         <j:forEach var="slice" items="${section.pieSlices}">
                           <text class="octane-donut-label" x="${slice.labelX}"
                               y="${slice.labelY}" dominant-baseline="central">
@@ -536,49 +1086,135 @@
                     </div>
                   </section>
 
-                  <section class="octane-chart-card" draggable="true">
+                  <section class="octane-chart-card" draggable="true"
+                      data-card-key="bars-${section.source}">
                     <div class="octane-card-header">
                       <div>
                         <h2 class="octane-card-title">${section.suiteRunChartTitle}</h2>
-                        <div class="octane-muted">Total Suiteruns: ${section.suiteRunCount}</div>
-                      </div>
-                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                        :::
-                      </span>
-                    </div>
-                    <div class="octane-vertical-bars">
-                      <j:forEach var="suiteRun" items="${section.suiteRuns}">
-                        <div class="octane-suite-column">
-                          <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}"
-                              title="${suiteRun.total} tests">
-                            <j:forEach var="status" items="${suiteRun.statuses}">
+                        <div class="octane-suite-chart-meta">
+                          <span class="octane-total-label">
+                            Total Suiteruns: ${section.suiteRunCount}
+                          </span>
+                          <div class="octane-legend">
+                            <j:forEach var="status" items="${section.totals}">
                               <j:if test="${status.count > 0}">
-                                <span class="octane-vertical-segment"
-                                    style="${status.heightStyle}"
-                                    title="${status.title}"></span>
+                                <span class="octane-legend-row">
+                                  <span class="octane-swatch"
+                                      style="background: ${status.color};"></span>
+                                  <span>${status.label}</span>
+                                </span>
                               </j:if>
                             </j:forEach>
                           </div>
-                          <span class="octane-total">${suiteRun.total}</span>
-                          <span class="octane-suite-label" title="${suiteRun.suiteRunId}">
-                            ${suiteRun.suiteRunId}
-                          </span>
                         </div>
-                      </j:forEach>
+                      </div>
+                      <div class="octane-card-actions">
+                        <button class="octane-expand-toggle" type="button"
+                            aria-label="Expand widget" aria-expanded="false"
+                            title="Expand widget">
+                          <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                              aria-hidden="true" focusable="false">
+                            <path d="M8 4H4v4" />
+                            <path d="M16 4h4v4" />
+                            <path d="M20 16v4h-4" />
+                            <path d="M8 20H4v-4" />
+                          </svg>
+                          <svg class="octane-action-icon octane-icon-collapse"
+                              viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M9 3v6H3" />
+                            <path d="M3 9l6-6" />
+                            <path d="M15 21v-6h6" />
+                            <path d="M21 15l-6 6" />
+                          </svg>
+                        </button>
+                        <span class="octane-card-tools"
+                            title="Drag to move. Resize from the corner.">
+                          :::
+                        </span>
+                      </div>
+                    </div>
+                    <div class="octane-bar-graph">
+                      <div class="octane-y-axis-label">Test Runs</div>
+                      <div class="octane-y-axis-scale">
+                        <span class="octane-axis-value">${section.maxSuiteRunTotal}</span>
+                        <span class="octane-axis-value">0</span>
+                      </div>
+                      <div class="octane-bar-plot">
+                        <div class="octane-vertical-bars">
+                          <j:forEach var="suiteRun" items="${section.suiteRuns}">
+                            <div class="octane-suite-column" tabindex="0"
+                                aria-label="${suiteRun.title}">
+                              <div class="octane-vertical-bar-wrap">
+                                <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
+                                  <j:forEach var="status" items="${suiteRun.statuses}">
+                                    <j:if test="${status.count > 0}">
+                                      <span class="octane-vertical-segment"
+                                          style="${status.heightStyle}"></span>
+                                    </j:if>
+                                  </j:forEach>
+                                </div>
+                              </div>
+                              <span class="octane-suite-label" title="${suiteRun.title}">
+                                ${suiteRun.axisLabel}
+                              </span>
+                              <div class="octane-bar-popup" role="tooltip">
+                                <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
+                                <j:forEach var="status" items="${suiteRun.statuses}">
+                                  <j:if test="${status.count > 0}">
+                                    <div class="octane-bar-popup-row">
+                                      <span class="octane-swatch"
+                                          style="background: ${status.color};"></span>
+                                      <span class="octane-bar-popup-label">${status.label}</span>
+                                      <span class="octane-bar-popup-value">${status.count}</span>
+                                      <span class="octane-bar-popup-percent">
+                                        (${status.percentageLabel})
+                                      </span>
+                                    </div>
+                                  </j:if>
+                                </j:forEach>
+                                <div class="octane-bar-popup-total">
+                                  <span>Total</span>
+                                  <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </j:forEach>
+                        </div>
+                      </div>
                     </div>
                   </section>
                 </j:forEach>
               </j:when>
               <j:when test="${!snapshot.hasSections()}">
-                <section class="octane-chart-card" draggable="true">
+                <section class="octane-chart-card" draggable="true"
+                    data-card-key="suite-run-empty">
                   <div class="octane-card-header">
                     <div>
                       <h2 class="octane-card-title">Suite run charts</h2>
                       <div class="octane-muted">Waiting for first poll</div>
                     </div>
-                    <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                      :::
-                    </span>
+                    <div class="octane-card-actions">
+                      <button class="octane-expand-toggle" type="button"
+                          aria-label="Expand widget" aria-expanded="false" title="Expand widget">
+                        <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <path d="M8 4H4v4" />
+                          <path d="M16 4h4v4" />
+                          <path d="M20 16v4h-4" />
+                          <path d="M8 20H4v-4" />
+                        </svg>
+                        <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <path d="M9 3v6H3" />
+                          <path d="M3 9l6-6" />
+                          <path d="M15 21v-6h6" />
+                          <path d="M21 15l-6 6" />
+                        </svg>
+                      </button>
+                      <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                        :::
+                      </span>
+                    </div>
                   </div>
                   <div class="octane-empty">The report will populate after the first Octane poll.</div>
                 </section>
@@ -707,6 +1343,109 @@
             container.innerHTML = html || "";
             return container.querySelector("#octane-report-zone");
           }
+          function createExpandButton() {
+            var button = document.createElement("button");
+            button.className = "octane-expand-toggle";
+            button.type = "button";
+            button.setAttribute("aria-label", "Expand widget");
+            button.setAttribute("aria-expanded", "false");
+            button.setAttribute("title", "Expand widget");
+            button.innerHTML =
+                '<svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"'
+                + ' aria-hidden="true" focusable="false">'
+                + '<path d="M8 4H4v4"></path><path d="M16 4h4v4"></path>'
+                + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>'
+                + '<svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"'
+                + ' aria-hidden="true" focusable="false">'
+                + '<path d="M9 3v6H3"></path><path d="M3 9l6-6"></path>'
+                + '<path d="M15 21v-6h6"></path><path d="M21 15l-6 6"></path></svg>';
+            return button;
+          }
+          function createZoneFocusButton() {
+            var button = document.createElement("button");
+            button.className = "octane-zone-focus-toggle";
+            button.type = "button";
+            button.setAttribute("aria-label", "Expand section");
+            button.setAttribute("aria-expanded", "false");
+            button.setAttribute("title", "Expand section");
+            button.innerHTML =
+                '<svg class="octane-action-icon octane-icon-zone-expand" viewBox="0 0 24 24"'
+                + ' aria-hidden="true" focusable="false">'
+                + '<path d="M8 4H4v4"></path><path d="M16 4h4v4"></path>'
+                + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>';
+            return button;
+          }
+          function zoneKeyFor(zone) {
+            if (!zone) {
+              return "";
+            }
+            if (zone.getAttribute("data-zone-key")) {
+              return zone.getAttribute("data-zone-key");
+            }
+            if (zone.id === "octane-timer-zone") {
+              return "timers";
+            }
+            if (zone.id === "octane-report-zone") {
+              return "reports";
+            }
+            return "";
+          }
+          function decorateCardZones(root) {
+            if (!root) {
+              return;
+            }
+            var zones = [];
+            if (root.id === "octane-timer-zone" || root.id === "octane-report-zone") {
+              zones.push(root);
+            }
+            var nestedZones = root.querySelectorAll
+                ? root.querySelectorAll("#octane-timer-zone, #octane-report-zone")
+                : [];
+            for (var nestedIndex = 0; nestedIndex < nestedZones.length; nestedIndex += 1) {
+              zones.push(nestedZones[nestedIndex]);
+            }
+            for (var index = 0; index < zones.length; index += 1) {
+              var zone = zones[index];
+              var zoneKey = zoneKeyFor(zone);
+              if (zoneKey) {
+                zone.setAttribute("data-zone-key", zoneKey);
+              }
+              if (!zone.querySelector(".octane-zone-focus-toggle")) {
+                zone.insertBefore(createZoneFocusButton(), zone.firstChild);
+              }
+            }
+          }
+          function removeZoneFocusButton(zone) {
+            var button = zone ? zone.querySelector(".octane-zone-focus-toggle") : null;
+            if (button) {
+              button.remove();
+            }
+          }
+          function restoreZoneFocusButton(zone) {
+            if (!zone || zone.querySelector(".octane-zone-focus-toggle")) {
+              return;
+            }
+            zone.insertBefore(createZoneFocusButton(), zone.firstChild);
+          }
+          function decorateReportZone(zone) {
+            if (!zone) {
+              return;
+            }
+            var cards = zone.querySelectorAll(".octane-chart-card");
+            for (var index = 0; index < cards.length; index += 1) {
+              var header = cards[index].querySelector(".octane-card-header");
+              var tools = header ? header.querySelector(".octane-card-tools") : null;
+              if (!header || !tools || header.querySelector(".octane-card-actions")) {
+                continue;
+              }
+              var actions = document.createElement("div");
+              actions.className = "octane-card-actions";
+              header.insertBefore(actions, tools);
+              actions.appendChild(createExpandButton());
+              actions.appendChild(tools);
+            }
+          }
+          decorateCardZones(dashboard);
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
@@ -728,6 +1467,7 @@
               mode: mode,
               progressHalo: card.querySelector("[data-timer-progress-halo]"),
               progressCircle: card.querySelector("[data-timer-progress]"),
+              title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
               unit: card.querySelector("[data-timer-unit]"),
               updatedAt: updatedAt,
@@ -741,13 +1481,28 @@
             var sampleTime = state.active ? now : state.updatedAt;
             return clamp(state.endAt - sampleTime, 0, state.totalMillis);
           }
+          function testingTimeSpentMillis(state, now) {
+            var sampleTime = state.active ? now : state.updatedAt;
+            var elapsed = sampleTime - (state.endAt - state.totalMillis);
+            return clamp(elapsed, 0, state.totalMillis);
+          }
+          function setTimeoutTitle(state) {
+            if (state.mode !== "timeout" || !state.title) {
+              return;
+            }
+            state.title.textContent = state.active ? "Testing Time Remaining" : "Testing Time";
+          }
           function setTimerText(state, remaining) {
             if (!state.value || !state.unit) {
               return;
             }
             var displayValue;
             var displayUnit;
-            if (remaining < 60000) {
+            if (!state.active && state.mode === "timeout") {
+              var spentMinutes = Math.round(testingTimeSpentMillis(state, currentWallTime()) / 60000);
+              displayValue = String(spentMinutes);
+              displayUnit = displayValue === "1" ? "minute" : "minutes";
+            } else if (remaining < 60000) {
               displayValue = String(Math.ceil(remaining / 1000));
               displayUnit = displayValue === "1" ? "second" : "seconds";
             } else {
@@ -764,6 +1519,7 @@
             }
           }
           function updateTimer(state, now) {
+            setTimeoutTitle(state);
             var remaining = remainingMillis(state, now);
             var elapsed = state.totalMillis - remaining;
             var progress = clamp((elapsed / state.totalMillis) * 100, 0, 100);
@@ -870,8 +1626,39 @@
             }
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
+            decorateReportZone(updatedReportZone);
+            decorateCardZones(updatedReportZone);
+            var expandedKey = expandedCard ? expandedCard.getAttribute("data-card-key") : "";
+            var restoreReportExpansion =
+                expandedCard && reportZone && reportZone.contains(expandedCard);
+            var focusedKey = focusedZone ? zoneKeyFor(focusedZone) : "";
+            var restoreReportFocus = focusedZone && reportZone && focusedZone === reportZone;
             if (reportZone && updatedReportZone) {
+              if (restoreReportExpansion) {
+                removeExpandedState(expandedCard);
+                expandedCard = null;
+              }
+              if (restoreReportFocus) {
+                removeFocusedZone(focusedZone);
+                focusedZone = null;
+              }
               reportZone.replaceWith(updatedReportZone);
+              if (restoreReportExpansion && expandedKey) {
+                var replacementExpandedCard = findCardByKey(expandedKey);
+                if (replacementExpandedCard) {
+                  expandCard(replacementExpandedCard);
+                } else {
+                  collapseExpandedCard();
+                }
+              }
+              if (restoreReportFocus && focusedKey) {
+                var replacementFocusedZone = findZoneByKey(focusedKey);
+                if (replacementFocusedZone) {
+                  focusZone(replacementFocusedZone);
+                } else {
+                  collapseFocusedZone();
+                }
+              }
             }
             for (var index = 0; index < progressCards.length; index += 1) {
               var progressKind = progressCards[index].getAttribute("data-octane-progress");
@@ -1000,6 +1787,227 @@
           for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
             updateExecutionProgress(progressCards[progressIndex]);
           }
+          var activeBarPopup = null;
+          function hideBarPopup() {
+            if (!activeBarPopup) {
+              return;
+            }
+            activeBarPopup.classList.remove("octane-bar-popup-visible");
+            activeBarPopup.removeAttribute("data-placement");
+            activeBarPopup.style.left = "";
+            activeBarPopup.style.top = "";
+            activeBarPopup = null;
+          }
+          function popupForBar(bar) {
+            var column = bar ? bar.closest(".octane-suite-column") : null;
+            return column ? column.querySelector(".octane-bar-popup") : null;
+          }
+          function positionBarPopup(popup, event) {
+            var margin = 8;
+            var gap = 14;
+            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+            var popupWidth = popup.offsetWidth || 180;
+            var popupHeight = popup.offsetHeight || 80;
+            var fitsRight = event.clientX + gap + popupWidth <= viewportWidth - margin;
+            var left = fitsRight ? event.clientX + gap : event.clientX - gap - popupWidth;
+            var top = event.clientY - popupHeight / 2;
+            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
+            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
+            popup.style.left = trimNumber(left) + "px";
+            popup.style.top = trimNumber(top) + "px";
+            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
+          }
+          dashboard.addEventListener("mousemove", function (event) {
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar || !dashboard.contains(bar)) {
+              return;
+            }
+            var popup = popupForBar(bar);
+            if (!popup) {
+              return;
+            }
+            if (activeBarPopup && activeBarPopup !== popup) {
+              hideBarPopup();
+            }
+            activeBarPopup = popup;
+            popup.classList.add("octane-bar-popup-visible");
+            positionBarPopup(popup, event);
+          });
+          dashboard.addEventListener("mouseout", function (event) {
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar) {
+              return;
+            }
+            if (event.relatedTarget && bar.contains(event.relatedTarget)) {
+              return;
+            }
+            hideBarPopup();
+          });
+          window.addEventListener("scroll", hideBarPopup, true);
+          window.addEventListener("resize", hideBarPopup);
+          var expandedCard = null;
+          var focusedZone = null;
+          var expandedBackdrop = document.createElement("div");
+          expandedBackdrop.className = "octane-expanded-backdrop";
+          function setExpandButtonState(card, expanded) {
+            var button = card ? card.querySelector(".octane-expand-toggle") : null;
+            if (!button) {
+              return;
+            }
+            var label = expanded ? "Collapse widget" : "Expand widget";
+            button.setAttribute("aria-expanded", String(expanded));
+            button.setAttribute("aria-label", label);
+            button.setAttribute("title", label);
+          }
+          function removeExpandedState(card) {
+            if (!card) {
+              return;
+            }
+            card.classList.remove("octane-expanded");
+            card.setAttribute("draggable", "true");
+            setExpandButtonState(card, false);
+          }
+          function findCardByKey(key) {
+            if (!key) {
+              return null;
+            }
+            var cards = dashboard.querySelectorAll("[data-card-key]");
+            for (var index = 0; index < cards.length; index += 1) {
+              if (cards[index].getAttribute("data-card-key") === key) {
+                return cards[index];
+              }
+            }
+            return null;
+          }
+          function showExpandedBackdrop() {
+            if (!expandedBackdrop.parentNode) {
+              document.body.appendChild(expandedBackdrop);
+            }
+          }
+          function hideExpandedBackdrop() {
+            if (expandedBackdrop.parentNode) {
+              expandedBackdrop.parentNode.removeChild(expandedBackdrop);
+            }
+          }
+          function hideExpandedBackdropIfUnused() {
+            if (!expandedCard && !focusedZone) {
+              hideExpandedBackdrop();
+            }
+          }
+          function collapseExpandedCard() {
+            if (!expandedCard) {
+              hideExpandedBackdropIfUnused();
+              return;
+            }
+            removeExpandedState(expandedCard);
+            expandedCard = null;
+            hideExpandedBackdropIfUnused();
+          }
+          function setZoneButtonState(zone, focused) {
+            var button = zone ? zone.querySelector(".octane-zone-focus-toggle") : null;
+            if (!button) {
+              return;
+            }
+            button.setAttribute("aria-expanded", String(focused));
+            button.setAttribute("aria-label", "Expand section");
+            button.setAttribute("title", "Expand section");
+          }
+          function removeFocusedZone(zone) {
+            if (!zone) {
+              return;
+            }
+            zone.classList.remove("octane-zone-focused");
+            restoreZoneFocusButton(zone);
+            setZoneButtonState(zone, false);
+          }
+          function findZoneByKey(key) {
+            if (!key) {
+              return null;
+            }
+            var zones = dashboard.querySelectorAll("[data-zone-key]");
+            for (var index = 0; index < zones.length; index += 1) {
+              if (zones[index].getAttribute("data-zone-key") === key) {
+                return zones[index];
+              }
+            }
+            return null;
+          }
+          function collapseFocusedZone() {
+            if (!focusedZone) {
+              hideExpandedBackdropIfUnused();
+              return;
+            }
+            removeFocusedZone(focusedZone);
+            focusedZone = null;
+            hideExpandedBackdropIfUnused();
+          }
+          function focusZone(zone) {
+            if (!zone) {
+              return;
+            }
+            hideBarPopup();
+            collapseExpandedCard();
+            if (focusedZone && focusedZone !== zone) {
+              removeFocusedZone(focusedZone);
+            }
+            focusedZone = zone;
+            showExpandedBackdrop();
+            zone.classList.add("octane-zone-focused");
+            removeZoneFocusButton(zone);
+          }
+          function expandCard(card) {
+            if (!card) {
+              return;
+            }
+            hideBarPopup();
+            collapseFocusedZone();
+            if (expandedCard && expandedCard !== card) {
+              removeExpandedState(expandedCard);
+            }
+            expandedCard = card;
+            showExpandedBackdrop();
+            card.classList.add("octane-expanded");
+            card.setAttribute("draggable", "false");
+            setExpandButtonState(card, true);
+          }
+          expandedBackdrop.addEventListener("click", function () {
+            collapseExpandedCard();
+            collapseFocusedZone();
+          });
+          dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-zone-focus-toggle");
+            if (!button) {
+              return;
+            }
+            var zone = button.closest(".octane-timer-zone, .octane-report-zone");
+            event.preventDefault();
+            event.stopPropagation();
+            if (zone && zone.classList.contains("octane-zone-focused")) {
+              return;
+            }
+            focusZone(zone);
+          });
+          dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-expand-toggle");
+            if (!button) {
+              return;
+            }
+            var card = button.closest(".octane-chart-card");
+            event.preventDefault();
+            event.stopPropagation();
+            if (card && card.classList.contains("octane-expanded")) {
+              collapseExpandedCard();
+              return;
+            }
+            expandCard(card);
+          });
+          document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+              collapseExpandedCard();
+              collapseFocusedZone();
+            }
+          });
           var dragged = null;
           var draggedZone = null;
           function zoneForCard(card) {
@@ -1008,6 +2016,11 @@
           dashboard.addEventListener("dragstart", function (event) {
             var card = event.target.closest(".octane-chart-card");
             if (!card) {
+              return;
+            }
+            if (event.target.closest(".octane-expand-toggle, .octane-zone-focus-toggle")
+                || card.classList.contains("octane-expanded")) {
+              event.preventDefault();
               return;
             }
             dragged = card;
@@ -1023,7 +2036,7 @@
             draggedZone = null;
           });
           dashboard.addEventListener("dragover", function (event) {
-            if (!dragged) {
+            if (!dragged || expandedCard) {
               return;
             }
             var target = event.target.closest(".octane-chart-card");

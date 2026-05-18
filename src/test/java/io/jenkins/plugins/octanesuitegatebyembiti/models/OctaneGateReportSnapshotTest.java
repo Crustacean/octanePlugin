@@ -35,7 +35,7 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(1, count(regressions, OctaneGateStatusBucket.SKIPPED));
     assertEquals(1, count(regressions, OctaneGateStatusBucket.RUNNING));
     assertEquals(2, regressions.getSuiteRuns().size());
-    assertEquals("4501", regressions.getSuiteRuns().get(0).getSuiteRunId());
+    assertEquals("Ada Tester", regressions.getSuiteRuns().get(0).getDisplayName());
     assertEquals(2, regressions.getSuiteRunCount());
     assertEquals(3, regressions.getSuiteRuns().get(0).getTotal());
     assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(0).getBarHeightStyle());
@@ -48,6 +48,95 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("50%", snapshot.getPassRateProgressText());
     assertEquals("All Testcase Pass Rate (3 / 6)", snapshot.getPassRateLabel());
     assertFalse(regressions.getPieSlices().isEmpty());
+  }
+
+  @Test
+  public void groupsSuiteRunBarsByRunByName() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    suiteRuns.put(
+        "4501",
+        List.of(
+            new RunRecord("1", "one", "passed", "Alex Engineer"),
+            new RunRecord("2", "two", "failed", "Alex Engineer")));
+    suiteRuns.put("4502", List.of(new RunRecord("3", "three", "passed", "Alex Engineer")));
+    GateResult result =
+        new GateResult(
+            "4501,4502",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(3, 3, 2, 1, 0, 0),
+            List.of(
+                new RunRecord("1", "one", "passed", "Alex Engineer"),
+                new RunRecord("2", "two", "failed", "Alex Engineer"),
+                new RunRecord("3", "three", "passed", "Alex Engineer")),
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    OctaneGateReportSection regressions = snapshot.getSections().get(0);
+    assertEquals(1, regressions.getSuiteRuns().size());
+    assertEquals(2, regressions.getSuiteRunCount());
+    assertEquals("Alex Engineer", regressions.getSuiteRuns().get(0).getDisplayName());
+    assertEquals(List.of("4501", "4502"), regressions.getSuiteRuns().get(0).getSuiteRunIds());
+    assertEquals(3, regressions.getSuiteRuns().get(0).getTotal());
+    assertTrue(regressions.getSuiteRuns().get(0).getTitle().contains("4501, 4502"));
+  }
+
+  @Test
+  public void donutPercentageLabelsFitInsideChartViewport() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    suiteRuns.put(
+        "edge-labels",
+        List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed")));
+    GateResult result =
+        new GateResult(
+            "edge-labels",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(2, 2, 1, 1, 0, 0),
+            suiteRuns.get("edge-labels"),
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    OctaneGateReportSection regressions = snapshot.getSections().get(0);
+    assertEquals(2, regressions.getPieSlices().size());
+    for (OctaneGatePieSlice slice : regressions.getPieSlices()) {
+      double x = Double.parseDouble(slice.getLabelX());
+      double y = Double.parseDouble(slice.getLabelY());
+      assertTrue(
+          "label text should stay inside donut viewport", x - 8.0 >= -10.0 && x + 8.0 <= 110.0);
+      assertTrue(
+          "label text should stay inside donut viewport", y - 4.0 >= -10.0 && y + 4.0 <= 110.0);
+    }
+  }
+
+  @Test
+  public void suiteRunAxisLabelsUseLowercaseEmailUserName() {
+    OctaneGateSuiteRunChart emailChart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Ada.Tester@Example.COM",
+            List.of("4501"),
+            List.of(new RunRecord("1", "one", "passed", "Ada.Tester@Example.COM")),
+            classifier);
+    OctaneGateSuiteRunChart nameChart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Ada Tester",
+            List.of("4502"),
+            List.of(new RunRecord("2", "two", "passed", "Ada Tester")),
+            classifier);
+
+    assertEquals("ada.tester", emailChart.getAxisLabel());
+    assertEquals("ada tester", nameChart.getAxisLabel());
   }
 
   @Test
@@ -227,18 +316,22 @@ public class OctaneGateReportSnapshotTest {
     regressionSuiteRuns.put(
         "4501",
         List.of(
-            new RunRecord("1", "one", "passed"),
-            new RunRecord("2", "two", "failed"),
-            new RunRecord("3", "three", "planned")));
+            new RunRecord("1", "one", "passed", "Ada Tester"),
+            new RunRecord("2", "two", "failed", "Ada Tester"),
+            new RunRecord("3", "three", "planned", "Ada Tester")));
     regressionSuiteRuns.put(
         "4502",
-        List.of(new RunRecord("4", "four", "passed"), new RunRecord("5", "five", "skipped")));
+        List.of(
+            new RunRecord("4", "four", "passed", "Ben Tester"),
+            new RunRecord("5", "five", "skipped", "Ben Tester")));
 
     Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
     criticalSuiteRuns.put(
         "4502",
-        List.of(new RunRecord("4", "four", "passed"), new RunRecord("5", "five", "failed")));
-    criticalSuiteRuns.put("4503", List.of(new RunRecord("6", "six", "passed")));
+        List.of(
+            new RunRecord("4", "four", "passed", "Ben Tester"),
+            new RunRecord("5", "five", "failed", "Ben Tester")));
+    criticalSuiteRuns.put("4503", List.of(new RunRecord("6", "six", "passed", "Cara Tester")));
 
     return new GateResult(
         "4501,4502",
@@ -247,11 +340,11 @@ public class OctaneGateReportSnapshotTest {
         false,
         new GateMetrics(5, 4, 2, 1, 1, 1),
         List.of(
-            new RunRecord("1", "one", "passed"),
-            new RunRecord("2", "two", "failed"),
-            new RunRecord("3", "three", "planned"),
-            new RunRecord("4", "four", "passed"),
-            new RunRecord("5", "five", "skipped")),
+            new RunRecord("1", "one", "passed", "Ada Tester"),
+            new RunRecord("2", "two", "failed", "Ada Tester"),
+            new RunRecord("3", "three", "planned", "Ada Tester"),
+            new RunRecord("4", "four", "passed", "Ben Tester"),
+            new RunRecord("5", "five", "skipped", "Ben Tester")),
         regressionSuiteRuns,
         Map.of(
             "critical",
@@ -263,9 +356,9 @@ public class OctaneGateReportSnapshotTest {
                 List.of("4502", "4503"),
                 new GateMetrics(3, 3, 2, 1, 0, 0),
                 List.of(
-                    new RunRecord("4", "four", "passed"),
-                    new RunRecord("5", "five", "failed"),
-                    new RunRecord("6", "six", "passed")),
+                    new RunRecord("4", "four", "passed", "Ben Tester"),
+                    new RunRecord("5", "five", "failed", "Ben Tester"),
+                    new RunRecord("6", "six", "passed", "Cara Tester")),
                 criticalSuiteRuns)),
         Instant.parse("2026-05-15T00:00:00Z"));
   }

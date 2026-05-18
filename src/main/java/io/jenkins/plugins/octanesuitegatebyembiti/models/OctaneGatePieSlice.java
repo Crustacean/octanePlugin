@@ -6,8 +6,8 @@ import java.util.Locale;
 public class OctaneGatePieSlice implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final double CENTER = 50.0;
-  private static final double RADIUS = 42.0;
-  private static final double LABEL_RADIUS = 48.0;
+  private static final double RADIUS = 46.0;
+  private static final double LABEL_RADIUS = 52.0;
 
   private final OctaneGateStatusCount status;
   private final String path;

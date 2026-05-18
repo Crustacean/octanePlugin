@@ -129,6 +129,69 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-total-label {
           color: #5f6b7a;
         }
+        .octane-suite-chart-meta {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 12px;
+          margin-top: 4px;
+        }
+        .octane-axis-value {
+          color: #5f6b7a;
+          font-size: 12px;
+        }
+        .octane-bar-graph {
+          --octane-axis-label-row: 27px;
+          box-sizing: border-box;
+          column-gap: 1px;
+          display: grid;
+          grid-template-columns: 22px max-content minmax(0, 1fr);
+          grid-template-rows: 260px var(--octane-axis-label-row);
+          margin-top: 16px;
+          row-gap: 0;
+          width: 100%;
+        }
+        .octane-y-axis-label {
+          align-self: center;
+          color: #5f6b7a;
+          font-size: 13px;
+          grid-column: 1;
+          grid-row: 1;
+          justify-self: center;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          writing-mode: vertical-rl;
+        }
+        .octane-y-axis-scale {
+          align-items: end;
+          display: flex;
+          flex-direction: column;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          min-width: 0;
+          padding-right: 3px;
+        }
+        .octane-bar-plot {
+          border-left: 1px solid #576779;
+          box-sizing: border-box;
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          min-width: 0;
+          overflow: visible;
+          position: relative;
+        }
+        .octane-bar-plot::after {
+          background: #576779;
+          bottom: var(--octane-axis-label-row);
+          content: "";
+          height: 1px;
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          z-index: 0;
+        }
         .octane-legend {
           align-items: center;
           display: flex;
@@ -148,29 +211,43 @@ public class OctaneReportZoneHtmlRenderer {
           width: 13px;
         }
         .octane-vertical-bars {
-          align-items: end;
+          align-items: stretch;
+          box-sizing: border-box;
           display: flex;
-          gap: 16px;
-          justify-content: flex-start;
-          min-height: 270px;
-          overflow: hidden;
-          padding: 16px 4px 0;
+          gap: clamp(2px, 1vw, 16px);
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          overflow-x: hidden;
+          overflow-y: visible;
+          padding: 0 clamp(2px, 0.7vw, 8px);
           width: 100%;
         }
         .octane-vertical-bars::before,
         .octane-vertical-bars::after {
           content: "";
-          flex: 1 1 0;
-          min-width: 0;
+          display: none;
         }
         .octane-suite-column {
           align-items: center;
           display: grid;
-          flex: 0 0 67px;
-          gap: 8px;
-          grid-template-rows: 210px 19px 48px;
+          flex: 1 1 74px;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+          height: 100%;
           justify-items: center;
-          min-width: 67px;
+          max-width: 83px;
+          min-width: 0;
+          position: relative;
+        }
+        .octane-vertical-bar-wrap {
+          align-items: end;
+          display: flex;
+          grid-row: 1;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          width: 100%;
+          z-index: 1;
         }
         .octane-vertical-bar {
           align-items: stretch;
@@ -179,27 +256,91 @@ public class OctaneReportZoneHtmlRenderer {
           border-radius: 4px 4px 0 0;
           display: flex;
           flex-direction: column-reverse;
-          height: 210px;
+          height: 100%;
           overflow: hidden;
-          width: 38px;
+          width: clamp(14px, 62%, 42px);
+        }
+        .octane-bar-popup {
+          background: #ffffff;
+          border: 1px solid #d7dde6;
+          border-radius: 8px;
+          box-shadow: 0 7px 22px rgba(0, 0, 0, 0.18);
+          color: #1f2937;
+          display: grid;
+          font-size: 10.35px;
+          gap: 5px;
+          left: 50%;
+          min-width: 175px;
+          opacity: 0;
+          padding: 8px 10px;
+          pointer-events: none;
+          position: absolute;
+          top: 25px;
+          transform: translate(-50%, 6px);
+          visibility: hidden;
+          z-index: 5;
+        }
+        .octane-suite-column:hover .octane-bar-popup,
+        .octane-suite-column:focus-within .octane-bar-popup {
+          opacity: 1;
+          transform: translate(-50%, 0);
+          visibility: visible;
+        }
+        .octane-bar-popup-name {
+          border-bottom: 1px solid #d7dde6;
+          font-weight: 700;
+          line-height: 1.25;
+          overflow-wrap: anywhere;
+          padding-bottom: 5px;
+          white-space: normal;
+        }
+        .octane-bar-popup-row {
+          align-items: center;
+          display: grid;
+          gap: 5px;
+          grid-template-columns: 9px minmax(0, 1fr) auto auto;
+        }
+        .octane-bar-popup .octane-swatch {
+          height: 9px;
+          width: 9px;
+        }
+        .octane-bar-popup-label {
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
+        .octane-bar-popup-value,
+        .octane-bar-popup-percent,
+        .octane-bar-popup-total-value {
+          font-weight: 700;
+          text-align: right;
+        }
+        .octane-bar-popup-total {
+          border-top: 1px solid #d7dde6;
+          display: flex;
+          justify-content: space-between;
+          padding-top: 5px;
         }
         .octane-vertical-segment {
           display: block;
           width: 100%;
         }
         .octane-suite-label {
+          align-self: start;
+          box-sizing: border-box;
           display: block;
-          max-width: 90px;
+          font-size: clamp(9px, 0.8vw, 11px);
+          grid-row: 2;
+          line-height: 1.1;
+          max-width: min(100%, 109px);
           min-height: 16px;
           overflow: hidden;
-          text-align: right;
+          padding-top: 3px;
+          text-align: center;
           text-overflow: ellipsis;
-          transform: rotate(-45deg);
+          transform: none;
           transform-origin: center;
           white-space: nowrap;
-        }
-        .octane-total {
-          font-weight: 600;
+          width: 100%;
         }
         .octane-empty {
           border: 1px dashed #d7dde6;
@@ -226,7 +367,8 @@ public class OctaneReportZoneHtmlRenderer {
         renderSuiteRunCard(html, section);
       }
     } else if (!snapshot.hasSections()) {
-      html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
+      html.append("<section class=\"octane-chart-card\" draggable=\"true\" ");
+      html.append("data-card-key=\"suite-run-empty\">\n");
       html.append("<div class=\"octane-card-header\"><div>");
       html.append("<h2 class=\"octane-card-title\">Suite run charts</h2>");
       html.append("<div class=\"octane-muted\">Waiting for first poll</div>");
@@ -241,7 +383,10 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderDistributionCard(StringBuilder html, OctaneGateReportSection section) {
-    html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
+    html.append(
+        "<section class=\"octane-chart-card\" draggable=\"true\" data-card-key=\"distribution-");
+    html.append(escapeAttribute(section.getSource()));
+    html.append("\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getStatusDistributionTitle()));
@@ -268,7 +413,7 @@ public class OctaneReportZoneHtmlRenderer {
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSlice(html, slice);
     }
-    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"27\" />\n");
+    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"30\" />\n");
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSliceLabel(html, slice);
     }
@@ -290,7 +435,7 @@ public class OctaneReportZoneHtmlRenderer {
 
   private void renderSlice(StringBuilder html, OctaneGatePieSlice slice) {
     if (slice.isFullCircle()) {
-      html.append("<circle cx=\"50\" cy=\"50\" r=\"42\" fill=\"");
+      html.append("<circle cx=\"50\" cy=\"50\" r=\"46\" fill=\"");
       html.append(escapeAttribute(slice.getColor()));
       html.append("\"><title>");
       html.append(escapeHtml(slice.getTitle()));
@@ -317,49 +462,101 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderSuiteRunCard(StringBuilder html, OctaneGateReportSection section) {
-    html.append("<section class=\"octane-chart-card\" draggable=\"true\">\n");
+    html.append("<section class=\"octane-chart-card\" draggable=\"true\" data-card-key=\"bars-");
+    html.append(escapeAttribute(section.getSource()));
+    html.append("\">\n");
     html.append("<div class=\"octane-card-header\"><div>");
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getSuiteRunChartTitle()));
     html.append("</h2>");
-    html.append("<div class=\"octane-muted\">Total Suiteruns: ");
+    html.append("<div class=\"octane-suite-chart-meta\">");
+    html.append("<span class=\"octane-total-label\">Total Suiteruns: ");
     html.append(section.getSuiteRunCount());
+    html.append("</span>");
+    html.append("<div class=\"octane-legend\">");
+    for (OctaneGateStatusCount status : section.getTotals()) {
+      if (status.getCount() > 0) {
+        renderLegendKey(html, status);
+      }
+    }
+    html.append("</div>");
     html.append("</div>");
     html.append("</div><span class=\"octane-card-tools\" ");
     html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
+    html.append("<div class=\"octane-bar-graph\">\n");
+    html.append("<div class=\"octane-y-axis-label\">Test Runs</div>\n");
+    html.append("<div class=\"octane-y-axis-scale\">");
+    html.append("<span class=\"octane-axis-value\">");
+    html.append(section.getMaxSuiteRunTotal());
+    html.append("</span>");
+    html.append("<span class=\"octane-axis-value\">0</span>");
+    html.append("</div>\n");
+    html.append("<div class=\"octane-bar-plot\">\n");
     html.append("<div class=\"octane-vertical-bars\">\n");
     for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
       renderSuiteRunColumn(html, suiteRun);
     }
     html.append("</div>\n");
+    html.append("</div>\n");
+    html.append("</div>\n");
     html.append("</section>\n");
   }
 
   private void renderSuiteRunColumn(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
-    html.append("<div class=\"octane-suite-column\">\n");
+    html.append("<div class=\"octane-suite-column\" tabindex=\"0\" aria-label=\"");
+    html.append(escapeAttribute(suiteRun.getTitle()));
+    html.append("\">\n");
+    html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
     html.append(escapeAttribute(suiteRun.getBarHeightStyle()));
-    html.append("\" title=\"");
-    html.append(suiteRun.getTotal());
-    html.append(" tests\">\n");
+    html.append("\">\n");
     for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
       if (status.getCount() > 0) {
         html.append("<span class=\"octane-vertical-segment\" style=\"");
         html.append(escapeAttribute(status.getHeightStyle()));
-        html.append("\" title=\"");
-        html.append(escapeAttribute(status.getTitle()));
         html.append("\"></span>\n");
       }
     }
     html.append("</div>\n");
-    html.append("<span class=\"octane-total\">");
-    html.append(suiteRun.getTotal());
-    html.append("</span>\n");
+    html.append("</div>\n");
     html.append("<span class=\"octane-suite-label\" title=\"");
-    html.append(escapeAttribute(suiteRun.getSuiteRunId()));
+    html.append(escapeAttribute(suiteRun.getTitle()));
     html.append("\">");
-    html.append(escapeHtml(suiteRun.getSuiteRunId()));
+    html.append(escapeHtml(suiteRun.getAxisLabel()));
     html.append("</span>\n");
+    renderSuiteRunPopup(html, suiteRun);
+    html.append("</div>\n");
+  }
+
+  private void renderSuiteRunPopup(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
+    html.append("<div class=\"octane-bar-popup\" role=\"tooltip\">\n");
+    html.append("<div class=\"octane-bar-popup-name\">");
+    html.append(escapeHtml(suiteRun.getDisplayName()));
+    html.append("</div>\n");
+    for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
+      if (status.getCount() > 0) {
+        html.append("<div class=\"octane-bar-popup-row\">");
+        html.append("<span class=\"octane-swatch\" style=\"background: ");
+        html.append(escapeAttribute(status.getColor()));
+        html.append(";\"></span>");
+        html.append("<span class=\"octane-bar-popup-label\">");
+        html.append(escapeHtml(status.getLabel()));
+        html.append("</span>");
+        html.append("<span class=\"octane-bar-popup-value\">");
+        html.append(status.getCount());
+        html.append("</span>");
+        html.append("<span class=\"octane-bar-popup-percent\">(");
+        html.append(escapeHtml(status.getPercentageLabel()));
+        html.append(")</span>");
+        html.append("</div>\n");
+      }
+    }
+    html.append("<div class=\"octane-bar-popup-total\">");
+    html.append("<span>Total</span>");
+    html.append("<span class=\"octane-bar-popup-total-value\">");
+    html.append(suiteRun.getTotal());
+    html.append("</span>");
+    html.append("</div>\n");
     html.append("</div>\n");
   }
 

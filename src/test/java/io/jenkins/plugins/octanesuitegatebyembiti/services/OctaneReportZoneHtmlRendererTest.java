@@ -39,10 +39,28 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
     assertTrue(html.contains("Total: 3"));
     assertTrue(html.contains("Total Suiteruns: 2"));
+    assertTrue(html.contains("Ada Tester"));
+    assertTrue(html.contains("ada tester"));
+    assertTrue(html.contains("Ben Tester"));
+    assertTrue(html.contains("ben tester"));
+    assertTrue(html.contains("suite runs: 4501"));
     assertFalse(html.contains("Total Testcases"));
     assertTrue(html.contains("border: 1px solid #f5f7fb"));
     assertTrue(html.contains("font-size: 11px"));
     assertTrue(html.contains("letter-spacing: 2px"));
+    assertTrue(html.contains("data-card-key=\"distribution-regressions\""));
+    assertTrue(html.contains("data-card-key=\"bars-regressions\""));
+    assertTrue(html.contains("data-card-key=\"distribution-critical\""));
+    assertTrue(html.contains("data-card-key=\"bars-critical\""));
+    assertFalse(html.contains("octane-card-actions"));
+    assertFalse(html.contains("octane-expand-toggle"));
+    assertFalse(html.contains("octane-zone-focus-toggle"));
+    assertFalse(html.contains("octane-icon-expand"));
+    assertFalse(html.contains("octane-icon-collapse"));
+    assertFalse(html.contains("octane-icon-zone-expand"));
+    assertFalse(html.contains("octane-icon-zone-collapse"));
+    assertFalse(html.contains("octane-expanded"));
+    assertFalse(html.contains("octane-zone-focused"));
     assertTrue(html.contains("#009900"));
     assertTrue(html.contains("#990000"));
     assertTrue(html.contains("#808080"));
@@ -53,9 +71,41 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-donut-label"));
     assertTrue(html.contains("viewBox=\"-10 -10 120 120\""));
     assertTrue(html.contains("max-width: 280px"));
+    assertFalse(html.contains("min-height: 294px"));
     assertTrue(html.contains("overflow: visible"));
+    assertTrue(html.contains("r=\"46\" fill="));
+    assertTrue(html.contains("r=\"30\""));
     assertFalse(html.contains("octane-legend-value"));
+    assertTrue(html.contains("octane-suite-chart-meta"));
+    assertTrue(html.contains("octane-bar-graph"));
+    assertTrue(html.contains("octane-y-axis-label"));
+    assertTrue(html.contains(">Test Runs<"));
+    assertTrue(html.contains("#576779"));
+    assertFalse(html.contains("#CCCCCC"));
+    assertTrue(html.contains("column-gap: 1px"));
+    assertTrue(html.contains("grid-template-columns: 22px max-content minmax(0, 1fr)"));
+    assertTrue(html.contains("--octane-axis-label-row: 27px"));
+    assertTrue(html.contains("grid-template-rows: 260px var(--octane-axis-label-row)"));
+    assertTrue(html.contains("octane-bar-plot"));
     assertTrue(html.contains("octane-vertical-bars"));
+    assertTrue(html.contains("octane-vertical-bar-wrap"));
+    assertFalse(html.contains("octane-x-axis-labels"));
+    assertFalse(html.contains("octane-axis-label-column"));
+    assertTrue(html.contains("overflow-x: hidden"));
+    assertTrue(html.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
+    assertTrue(html.contains("width: clamp(14px, 62%, 42px)"));
+    assertTrue(html.contains("font-size: clamp(9px, 0.8vw, 11px)"));
+    assertTrue(html.contains("text-align: center"));
+    assertTrue(html.contains("transform: none"));
+    assertFalse(html.contains("rotate(-45deg)"));
+    assertTrue(html.contains("octane-bar-popup"));
+    assertTrue(html.contains("min-width: 175px"));
+    assertTrue(html.contains("font-size: 10.35px"));
+    assertTrue(html.contains("overflow-wrap: anywhere"));
+    assertTrue(html.contains("octane-bar-popup-name"));
+    assertTrue(html.contains("octane-bar-popup-row"));
+    assertTrue(html.contains("octane-bar-popup-total"));
+    assertFalse(html.contains("class=\"octane-total\""));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
     assertFalse(html.contains("Testing Time Remaining"));
     assertFalse(html.contains("Status Check"));
@@ -73,6 +123,10 @@ public class OctaneReportZoneHtmlRendererTest {
 
     assertTrue(html.contains("id=\"octane-report-zone\""));
     assertTrue(html.contains("draggable=\"true\""));
+    assertTrue(html.contains("data-card-key=\"distribution-regressions\""));
+    assertTrue(html.contains("data-card-key=\"bars-regressions\""));
+    assertFalse(html.contains("octane-expand-toggle"));
+    assertFalse(html.contains("octane-zone-focus-toggle"));
     assertTrue(html.contains("REGRESSION Tests Status Distribution"));
     assertFalse(html.contains("<html>"));
     assertFalse(html.contains("<body>"));
@@ -181,11 +235,14 @@ public class OctaneReportZoneHtmlRendererTest {
   private GateResult result() {
     Map<String, List<RunRecord>> regressionSuiteRuns = new LinkedHashMap<>();
     regressionSuiteRuns.put(
-        "4501", List.of(new RunRecord("1", "one", "passed"), new RunRecord("2", "two", "failed")));
-    regressionSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "planned")));
+        "4501",
+        List.of(
+            new RunRecord("1", "one", "passed", "Ada Tester"),
+            new RunRecord("2", "two", "failed", "Ada Tester")));
+    regressionSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "planned", "Ben Tester")));
 
     Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
-    criticalSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "passed")));
+    criticalSuiteRuns.put("4502", List.of(new RunRecord("3", "three", "passed", "Ben Tester")));
 
     return new GateResult(
         "4501,4502",
@@ -194,9 +251,9 @@ public class OctaneReportZoneHtmlRendererTest {
         true,
         new GateMetrics(3, 2, 1, 1, 0, 1),
         List.of(
-            new RunRecord("1", "one", "passed"),
-            new RunRecord("2", "two", "failed"),
-            new RunRecord("3", "three", "planned")),
+            new RunRecord("1", "one", "passed", "Ada Tester"),
+            new RunRecord("2", "two", "failed", "Ada Tester"),
+            new RunRecord("3", "three", "planned", "Ben Tester")),
         regressionSuiteRuns,
         Map.of(
             "critical",
@@ -207,7 +264,7 @@ public class OctaneReportZoneHtmlRendererTest {
                 "4502",
                 List.of("4502"),
                 new GateMetrics(1, 1, 1, 0, 0, 0),
-                List.of(new RunRecord("3", "three", "passed")),
+                List.of(new RunRecord("3", "three", "passed", "Ben Tester")),
                 criticalSuiteRuns)),
         Instant.parse("2026-05-15T00:00:00Z"));
   }

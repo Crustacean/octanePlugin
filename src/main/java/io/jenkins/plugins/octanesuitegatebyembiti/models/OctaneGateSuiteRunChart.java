@@ -11,13 +11,22 @@ public class OctaneGateSuiteRunChart implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private final String suiteRunId;
+  private final String displayName;
+  private final List<String> suiteRunIds;
   private final int total;
   private final int maxTotal;
   private final List<OctaneGateStatusCount> statuses;
 
   private OctaneGateSuiteRunChart(
-      String suiteRunId, int total, int maxTotal, List<OctaneGateStatusCount> statuses) {
+      String suiteRunId,
+      String displayName,
+      List<String> suiteRunIds,
+      int total,
+      int maxTotal,
+      List<OctaneGateStatusCount> statuses) {
     this.suiteRunId = suiteRunId;
+    this.displayName = displayName;
+    this.suiteRunIds = List.copyOf(suiteRunIds);
     this.total = total;
     this.maxTotal = maxTotal;
     this.statuses = List.copyOf(statuses);
@@ -32,15 +41,60 @@ public class OctaneGateSuiteRunChart implements Serializable {
       counts.put(bucket, counts.get(bucket) + 1);
     }
     return new OctaneGateSuiteRunChart(
-        suiteRunId, runs.size(), runs.size(), toStatusCounts(counts, runs.size()));
+        suiteRunId,
+        suiteRunId,
+        List.of(suiteRunId),
+        runs.size(),
+        runs.size(),
+        toStatusCounts(counts, runs.size()));
+  }
+
+  static OctaneGateSuiteRunChart fromRunByGroup(
+      String displayName,
+      List<String> suiteRunIds,
+      List<RunRecord> runs,
+      StatusClassifier classifier) {
+    Map<OctaneGateStatusBucket, Integer> counts = emptyCounts();
+    for (RunRecord run : runs) {
+      OctaneGateStatusBucket bucket =
+          OctaneGateStatusBucket.fromOutcome(classifier.classify(run.getStatus()));
+      counts.put(bucket, counts.get(bucket) + 1);
+    }
+    return new OctaneGateSuiteRunChart(
+        groupKey(displayName, suiteRunIds),
+        displayName,
+        suiteRunIds,
+        runs.size(),
+        runs.size(),
+        toStatusCounts(counts, runs.size()));
   }
 
   OctaneGateSuiteRunChart scaledAgainst(int maxTotal) {
-    return new OctaneGateSuiteRunChart(suiteRunId, total, maxTotal, statuses);
+    return new OctaneGateSuiteRunChart(
+        suiteRunId, displayName, suiteRunIds, total, maxTotal, statuses);
   }
 
   public String getSuiteRunId() {
     return suiteRunId;
+  }
+
+  public String getDisplayName() {
+    return displayName;
+  }
+
+  public String getAxisLabel() {
+    return compactRunByName(displayName);
+  }
+
+  public List<String> getSuiteRunIds() {
+    return suiteRunIds;
+  }
+
+  public String getTitle() {
+    if (suiteRunIds.isEmpty()) {
+      return displayName;
+    }
+    return displayName + " (suite runs: " + String.join(", ", suiteRunIds) + ")";
   }
 
   public int getTotal() {
@@ -61,6 +115,20 @@ public class OctaneGateSuiteRunChart implements Serializable {
 
   public boolean isEmpty() {
     return total == 0;
+  }
+
+  private static String groupKey(String displayName, List<String> suiteRunIds) {
+    if (suiteRunIds.isEmpty()) {
+      return displayName;
+    }
+    return displayName + ":" + String.join(",", suiteRunIds);
+  }
+
+  private static String compactRunByName(String value) {
+    String trimmed = value == null ? "" : value.trim();
+    int atIndex = trimmed.indexOf('@');
+    String label = atIndex > 0 ? trimmed.substring(0, atIndex) : trimmed;
+    return label.toLowerCase(Locale.ROOT);
   }
 
   static Map<OctaneGateStatusBucket, Integer> emptyCounts() {

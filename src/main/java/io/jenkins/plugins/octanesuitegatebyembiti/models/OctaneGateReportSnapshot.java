@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -214,6 +215,30 @@ public class OctaneGateReportSnapshot implements Serializable {
     return state.isBuilding();
   }
 
+  public String getTestingTimeTitle() {
+    return isBuilding() ? "Testing Time Remaining" : "Testing Time";
+  }
+
+  public long getTestingTimeSpentMinutes() {
+    if (isBuilding()) {
+      return 0;
+    }
+    try {
+      Instant started = Instant.parse(startedAt);
+      Instant updated = Instant.parse(updatedAt);
+      long timeoutMillis = timeoutSeconds * 1000L;
+      long elapsedMillis = Duration.between(started, updated).toMillis();
+      long clampedMillis = Math.max(0L, Math.min(timeoutMillis, elapsedMillis));
+      return Math.round(clampedMillis / 60000.0);
+    } catch (RuntimeException e) {
+      return 0;
+    }
+  }
+
+  public String getTestingTimeSpentUnit() {
+    return getTestingTimeSpentMinutes() == 1 ? "minute" : "minutes";
+  }
+
   public boolean hasSections() {
     return !sections.isEmpty();
   }
@@ -275,7 +300,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         continue;
       }
       for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
-        if (isRegressionSection(section) && criticalSuiteRunIds.contains(suiteRun.getSuiteRunId())) {
+        if (isRegressionSection(section)
+            && suiteRun.getSuiteRunIds().stream().anyMatch(criticalSuiteRunIds::contains)) {
           continue;
         }
         counts.add(suiteRun);
