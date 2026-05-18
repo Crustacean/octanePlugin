@@ -12,42 +12,66 @@ public class OctaneRiskHeatMap implements Serializable {
   private final boolean available;
   private final String message;
   private final OctaneRiskHeatMapNode root;
-  private final int defectCount;
+  private final int fetchedDefectCount;
+  private final int linkedDefectCount;
+  private final int unlinkedOpenDefectCount;
+  private final int ignoredClosedDefectCount;
 
   private OctaneRiskHeatMap(
       boolean enabled,
       boolean available,
       String message,
       OctaneRiskHeatMapNode root,
-      int defectCount) {
+      int fetchedDefectCount,
+      int linkedDefectCount,
+      int unlinkedOpenDefectCount,
+      int ignoredClosedDefectCount) {
     this.enabled = enabled;
     this.available = available;
     this.message = Util.trimToEmpty(message);
     this.root = root;
-    this.defectCount = Math.max(0, defectCount);
+    this.fetchedDefectCount = Math.max(0, fetchedDefectCount);
+    this.linkedDefectCount = Math.max(0, linkedDefectCount);
+    this.unlinkedOpenDefectCount = Math.max(0, unlinkedOpenDefectCount);
+    this.ignoredClosedDefectCount = Math.max(0, ignoredClosedDefectCount);
   }
 
   public static OctaneRiskHeatMap disabled() {
-    return new OctaneRiskHeatMap(false, false, "", null, 0);
+    return new OctaneRiskHeatMap(false, false, "", null, 0, 0, 0, 0);
   }
 
   public static OctaneRiskHeatMap waiting() {
-    return new OctaneRiskHeatMap(true, false, "Risk heat map will appear after the first poll.", null, 0);
+    return new OctaneRiskHeatMap(
+        true, false, "Risk heat map will appear after the first poll.", null, 0, 0, 0, 0);
   }
 
   public static OctaneRiskHeatMap unavailable(String message) {
-    return new OctaneRiskHeatMap(true, false, message, null, 0);
+    return new OctaneRiskHeatMap(true, false, message, null, 0, 0, 0, 0);
   }
 
   public static OctaneRiskHeatMap empty(String workspaceId) {
     String label = Util.isBlank(workspaceId) ? "Workspace" : "Workspace " + workspaceId;
     OctaneRiskHeatMapNode root =
         new OctaneRiskHeatMapNode("workspace", label, 0, 0, 0, java.util.List.of());
-    return new OctaneRiskHeatMap(true, true, "No linked open defects were found.", root, 0);
+    return new OctaneRiskHeatMap(
+        true, true, "No linked open defects were found.", root, 0, 0, 0, 0);
   }
 
-  public static OctaneRiskHeatMap of(OctaneRiskHeatMapNode root, int defectCount) {
-    return new OctaneRiskHeatMap(true, true, "", root, defectCount);
+  public static OctaneRiskHeatMap of(
+      OctaneRiskHeatMapNode root,
+      int fetchedDefectCount,
+      int linkedDefectCount,
+      int unlinkedOpenDefectCount,
+      int ignoredClosedDefectCount) {
+    return new OctaneRiskHeatMap(
+        true,
+        true,
+        "",
+        root,
+        fetchedDefectCount,
+        linkedDefectCount,
+        unlinkedOpenDefectCount,
+        ignoredClosedDefectCount);
   }
 
   public boolean isEnabled() {
@@ -70,8 +94,20 @@ public class OctaneRiskHeatMap implements Serializable {
     return root == null ? 0 : root.getRiskScore();
   }
 
-  public int getDefectCount() {
-    return defectCount;
+  public int getFetchedDefectCount() {
+    return fetchedDefectCount;
+  }
+
+  public int getLinkedDefectCount() {
+    return linkedDefectCount;
+  }
+
+  public int getUnlinkedOpenDefectCount() {
+    return unlinkedOpenDefectCount;
+  }
+
+  public int getIgnoredClosedDefectCount() {
+    return ignoredClosedDefectCount;
   }
 
   public Map<String, Object> toMap() {
@@ -80,7 +116,10 @@ public class OctaneRiskHeatMap implements Serializable {
     values.put("available", available);
     values.put("message", message);
     values.put("riskScore", getRiskScore());
-    values.put("defectCount", defectCount);
+    values.put("fetchedDefectCount", fetchedDefectCount);
+    values.put("linkedDefectCount", linkedDefectCount);
+    values.put("unlinkedOpenDefectCount", unlinkedOpenDefectCount);
+    values.put("ignoredClosedDefectCount", ignoredClosedDefectCount);
     values.put("root", root == null ? null : root.toMap());
     return values;
   }

@@ -37,6 +37,20 @@ public class OctaneRiskHeatMapRenderer {
         .append(legendItem("#ffb74d", "Warning"))
         .append(legendItem("#990000", "High"))
         .append("</div>");
+    html.append("<div class=\"octane-risk-heat-map-diagnostics\">")
+        .append("Defects: ")
+        .append(heatMap.getLinkedDefectCount())
+        .append(" linked")
+        .append(", ")
+        .append(heatMap.getUnlinkedOpenDefectCount())
+        .append(" unlinked")
+        .append(", ")
+        .append(heatMap.getIgnoredClosedDefectCount())
+        .append(" ignored closed")
+        .append(", ")
+        .append(heatMap.getFetchedDefectCount())
+        .append(" fetched")
+        .append("</div>");
     html.append("</div>");
     return html.toString();
   }

@@ -246,13 +246,33 @@ public class OctaneGateRunner {
               suiteRuns,
               request.getRiskHeatMapDefectQuery(),
               request.getRiskHeatMapMaxDefects());
-      return new OctaneRiskHeatMapBuilder().build(workspaceId, suiteRuns, defects, classifier);
+      OctaneRiskHeatMap heatMap =
+          new OctaneRiskHeatMapBuilder().build(workspaceId, suiteRuns, defects, classifier);
+      logRiskHeatMapSummary(listener, heatMap);
+      return heatMap;
     } catch (IOException e) {
       listener
           .getLogger()
           .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
       return OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage());
     }
+  }
+
+  private void logRiskHeatMapSummary(TaskListener listener, OctaneRiskHeatMap heatMap) {
+    listener
+        .getLogger()
+        .println(
+            "Octane risk heat map: risk "
+                + heatMap.getRiskScore()
+                + ", defects fetched "
+                + heatMap.getFetchedDefectCount()
+                + ", linked "
+                + heatMap.getLinkedDefectCount()
+                + ", unlinked "
+                + heatMap.getUnlinkedOpenDefectCount()
+                + ", ignored closed "
+                + heatMap.getIgnoredClosedDefectCount()
+                + ".");
   }
 
   private GateScopeResult pollScope(

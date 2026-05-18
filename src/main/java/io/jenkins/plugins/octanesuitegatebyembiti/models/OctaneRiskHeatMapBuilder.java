@@ -25,7 +25,11 @@ public class OctaneRiskHeatMapBuilder {
     Map<String, List<DefectRecord>> defectsByRunId = indexDefectsByRunId(defects);
     Map<String, List<DefectRecord>> defectsByTestId = indexDefectsByTestId(defects);
     NodeAccumulator root = new NodeAccumulator("root", "Risk Heat Map");
+    int fetchedDefectCount = defects == null ? 0 : defects.size();
     int linkedDefectCount = 0;
+    int unlinkedOpenDefectCount = 0;
+    int ignoredClosedDefectCount = 0;
+    Set<String> processedDefectIds = new LinkedHashSet<>();
 
     for (Map.Entry<String, List<RunRecord>> suiteEntry : suiteRuns.entrySet()) {
       String suiteRunId = suiteEntry.getKey();
@@ -39,7 +43,11 @@ public class OctaneRiskHeatMapBuilder {
 
         Set<String> linkedDefectIds = new LinkedHashSet<>();
         for (DefectRecord defect : linkedDefects(run, defectsByRunId, defectsByTestId)) {
-          if (!defect.isOpen() || !linkedDefectIds.add(defect.getId())) {
+          if (!linkedDefectIds.add(defect.getId()) || !processedDefectIds.add(defect.getId())) {
+            continue;
+          }
+          if (!defect.isOpen()) {
+            ignoredClosedDefectCount++;
             continue;
           }
           linkedDefectCount++;
@@ -49,10 +57,34 @@ public class OctaneRiskHeatMapBuilder {
       }
     }
 
+    if (defects != null) {
+      for (DefectRecord defect : defects) {
+        if (!processedDefectIds.add(defect.getId())) {
+          continue;
+        }
+        if (!defect.isOpen()) {
+          ignoredClosedDefectCount++;
+          continue;
+        }
+        unlinkedOpenDefectCount++;
+        NodeAccumulator project = root.child("project", fallbackProjectLabel(workspaceId, defect));
+        NodeAccumulator suite = project.child("suite", "Linked defects without run metadata");
+        NodeAccumulator runner = suite.child("runner", "Unassigned");
+        NodeAccumulator test = runner.child("test", "Unlinked defect records");
+        NodeAccumulator defectNode = test.child("defect", defectLabel(defect));
+        defectNode.addDefect(defect);
+      }
+    }
+
     if (root.children.isEmpty()) {
       return OctaneRiskHeatMap.empty(workspaceId);
     }
-    return OctaneRiskHeatMap.of(root.toNode(), linkedDefectCount);
+    return OctaneRiskHeatMap.of(
+        root.toNode(),
+        fetchedDefectCount,
+        linkedDefectCount,
+        unlinkedOpenDefectCount,
+        ignoredClosedDefectCount);
   }
 
   private Map<String, List<DefectRecord>> indexDefectsByRunId(List<DefectRecord> defects) {
@@ -109,6 +141,13 @@ public class OctaneRiskHeatMapBuilder {
     return Util.isBlank(workspaceId) ? "Workspace" : "Workspace " + workspaceId;
   }
 
+  private String fallbackProjectLabel(String workspaceId, DefectRecord defect) {
+    if (!Util.isBlank(defect.getProjectName())) {
+      return defect.getProjectName();
+    }
+    return Util.isBlank(workspaceId) ? "Workspace" : "Workspace " + workspaceId;
+  }
+
   private String runByLabel(RunRecord run) {
     if (!Util.isBlank(run.getRunByName())) {
       return run.getRunByName();
@@ -135,16 +174,16 @@ public class OctaneRiskHeatMapBuilder {
 
   private int statusRisk(StatusClassifier.Outcome outcome) {
     if (outcome == StatusClassifier.Outcome.FAILED) {
-      return 35;
+      return 78;
     }
     if (outcome == StatusClassifier.Outcome.BLOCKED) {
-      return 30;
+      return 72;
     }
     if (outcome == StatusClassifier.Outcome.RUNNING) {
-      return 12;
+      return 20;
     }
     if (outcome == StatusClassifier.Outcome.NEUTRAL) {
-      return 5;
+      return 12;
     }
     return 0;
   }

@@ -374,6 +374,12 @@
           height: 0.7rem;
           width: 0.7rem;
         }
+        .octane-risk-heat-map-diagnostics {
+          color: var(--text-color-secondary);
+          font-size: clamp(0.55rem, 2cqw, 0.76rem);
+          line-height: 1.2;
+          text-align: center;
+        }
         .octane-risk-heat-map-empty {
           align-items: center;
           border: 1px dashed var(--input-border);

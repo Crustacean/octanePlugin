@@ -16,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,8 @@ public class OctaneClient implements AutoCloseable {
   private static final String DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
           + "run{id,name},test{id,name},product_areas{id,name}";
+  private static final String MINIMAL_DEFECT_FIELDS =
+      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name}";
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -120,23 +123,27 @@ public class OctaneClient implements AutoCloseable {
     if (suiteRuns.isEmpty() || maxDefects <= 0) {
       return List.of();
     }
-    List<String> clauses = buildLinkedDefectClauses(suiteRuns);
-    if (clauses.isEmpty()) {
+
+    LinkedHashSet<String> runIds = collectRunIds(suiteRuns);
+    LinkedHashSet<String> testIds = collectTestIds(suiteRuns);
+    if (runIds.isEmpty() && testIds.isEmpty()) {
       return List.of();
     }
 
-    List<DefectRecord> records = new ArrayList<>();
-    for (int start = 0; start < clauses.size() && records.size() < maxDefects; start += QUERY_CHUNK_SIZE) {
-      int end = Math.min(start + QUERY_CHUNK_SIZE, clauses.size());
-      records.addAll(
-          fetchDefectsChunk(
-              sharedSpaceId,
-              workspaceId,
-              clauses.subList(start, end),
-              defectQuery,
-              maxDefects - records.size()));
-    }
-    return records;
+    Map<String, DefectRecord> recordsById = new LinkedHashMap<>();
+    fetchDefectsForRelation(
+        sharedSpaceId, workspaceId, "test", testIds, defectQuery, maxDefects, recordsById);
+    fetchDefectsForRelation(
+        sharedSpaceId, workspaceId, "run", runIds, defectQuery, maxDefects, recordsById);
+    fetchDefectsForRelation(
+        sharedSpaceId,
+        workspaceId,
+        "detected_in_run",
+        runIds,
+        defectQuery,
+        maxDefects,
+        recordsById);
+    return new ArrayList<>(recordsById.values());
   }
 
   public int testWorkspaceAccess(String sharedSpaceId, String workspaceId)
@@ -281,19 +288,70 @@ public class OctaneClient implements AutoCloseable {
     return String.join("||", clauses);
   }
 
-  private List<String> buildLinkedDefectClauses(Map<String, List<RunRecord>> suiteRuns) {
-    LinkedHashSet<String> clauses = new LinkedHashSet<>();
+  private LinkedHashSet<String> collectRunIds(Map<String, List<RunRecord>> suiteRuns) {
+    LinkedHashSet<String> runIds = new LinkedHashSet<>();
     for (List<RunRecord> runs : suiteRuns.values()) {
       for (RunRecord run : runs) {
         if (!Util.isBlank(run.getId())) {
-          clauses.add("run EQ {id EQ " + run.getId() + "}");
-        }
-        if (!Util.isBlank(run.getTestId())) {
-          clauses.add("test EQ {id EQ " + run.getTestId() + "}");
+          runIds.add(run.getId());
         }
       }
     }
-    return new ArrayList<>(clauses);
+    return runIds;
+  }
+
+  private LinkedHashSet<String> collectTestIds(Map<String, List<RunRecord>> suiteRuns) {
+    LinkedHashSet<String> testIds = new LinkedHashSet<>();
+    for (List<RunRecord> runs : suiteRuns.values()) {
+      for (RunRecord run : runs) {
+        if (!Util.isBlank(run.getTestId())) {
+          testIds.add(run.getTestId());
+        }
+      }
+    }
+    return testIds;
+  }
+
+  private void fetchDefectsForRelation(
+      String sharedSpaceId,
+      String workspaceId,
+      String relationField,
+      Set<String> relatedIds,
+      String defectQuery,
+      int maxDefects,
+      Map<String, DefectRecord> recordsById)
+      throws InterruptedException {
+    if (relatedIds.isEmpty() || recordsById.size() >= maxDefects) {
+      return;
+    }
+    List<String> clauses = buildRelationClauses(relationField, relatedIds);
+    try {
+      for (int start = 0; start < clauses.size() && recordsById.size() < maxDefects;
+          start += QUERY_CHUNK_SIZE) {
+        int end = Math.min(start + QUERY_CHUNK_SIZE, clauses.size());
+        List<DefectRecord> records =
+            fetchDefectsChunk(
+                sharedSpaceId,
+                workspaceId,
+                clauses.subList(start, end),
+                defectQuery,
+                maxDefects - recordsById.size());
+        for (DefectRecord record : records) {
+          recordsById.putIfAbsent(record.getId(), record);
+        }
+      }
+    } catch (IOException e) {
+      // Octane schemas differ by version. Ignore unsupported relationship fields and keep
+      // any defects found through the other supported relationships.
+    }
+  }
+
+  private List<String> buildRelationClauses(String relationField, Set<String> relatedIds) {
+    List<String> clauses = new ArrayList<>();
+    for (String relatedId : relatedIds) {
+      clauses.add(relationField + " EQ {id EQ " + relatedId + "}");
+    }
+    return clauses;
   }
 
   private List<DefectRecord> fetchDefectsChunk(
@@ -312,17 +370,7 @@ public class OctaneClient implements AutoCloseable {
     int offset = 0;
     while (records.size() < maxDefects) {
       int limit = Math.min(PAGE_SIZE, maxDefects - records.size());
-      String path =
-          workspacePath(sharedSpaceId, workspaceId)
-              + "/defects?"
-              + parameter("query", quote(query))
-              + "&"
-              + parameter("fields", DEFECT_FIELDS)
-              + "&"
-              + parameter("limit", Integer.toString(limit))
-              + "&"
-              + parameter("offset", Integer.toString(offset));
-      JsonNode collection = getJson(path);
+      JsonNode collection = getDefectsJson(sharedSpaceId, workspaceId, query, limit, offset);
       JsonNode data = collection.path("data");
       if (!data.isArray() || data.isEmpty()) {
         break;
@@ -336,6 +384,43 @@ public class OctaneClient implements AutoCloseable {
       offset += limit;
     }
     return records;
+  }
+
+  private JsonNode getDefectsJson(
+      String sharedSpaceId, String workspaceId, String query, int limit, int offset)
+      throws IOException, InterruptedException {
+    try {
+      return getJson(defectsPath(sharedSpaceId, workspaceId, query, DEFECT_FIELDS, limit, offset));
+    } catch (IOException e) {
+      if (!isUnknownFieldFailure(e)) {
+        throw e;
+      }
+      return getJson(
+          defectsPath(sharedSpaceId, workspaceId, query, MINIMAL_DEFECT_FIELDS, limit, offset));
+    }
+  }
+
+  private String defectsPath(
+      String sharedSpaceId,
+      String workspaceId,
+      String query,
+      String fields,
+      int limit,
+      int offset) {
+    return workspacePath(sharedSpaceId, workspaceId)
+        + "/defects?"
+        + parameter("query", quote(query))
+        + "&"
+        + parameter("fields", fields)
+        + "&"
+        + parameter("limit", Integer.toString(limit))
+        + "&"
+        + parameter("offset", Integer.toString(offset));
+  }
+
+  private boolean isUnknownFieldFailure(IOException exception) {
+    String message = exception.getMessage();
+    return message != null && message.contains("platform.unknown_field");
   }
 
   private JsonNode getJson(String path) throws IOException, InterruptedException {
