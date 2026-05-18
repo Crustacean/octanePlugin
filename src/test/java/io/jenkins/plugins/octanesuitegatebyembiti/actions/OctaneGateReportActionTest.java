@@ -111,17 +111,21 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-zone-focused"));
     assertTrue(xml.contains("grid-template-columns: repeat(2, minmax(0, 1fr))"));
     assertTrue(
-        xml.contains(".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3)"));
+        xml.contains(
+            ".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3) {\n"
+                + "          grid-column: 1;"));
     assertTrue(
         xml.contains(
-            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3)"));
-    assertTrue(xml.contains("grid-column: 2"));
-    assertTrue(
-        xml.contains(".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4)"));
+            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3) {\n"
+                + "          grid-column: 1;"));
     assertTrue(
         xml.contains(
-            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4)"));
-    assertTrue(xml.contains("grid-column: 1"));
+            ".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {\n"
+                + "          grid-column: 2;"));
+    assertTrue(
+        xml.contains(
+            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {\n"
+                + "          grid-column: 2;"));
     assertTrue(xml.contains("grid-template-columns: minmax(0, 1fr)"));
     assertTrue(xml.contains("data-zone-key=\"timers\""));
     assertTrue(xml.contains("data-zone-key=\"reports\""));
