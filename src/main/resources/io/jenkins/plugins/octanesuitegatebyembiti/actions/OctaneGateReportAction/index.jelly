@@ -367,22 +367,31 @@
           align-items: center;
           display: flex;
           flex-wrap: wrap;
-          gap: 0.35rem 0.65rem;
+          gap: 0.24rem 0.45rem;
         }
         .octane-heatmap-inline-legend {
           align-items: center;
           display: inline-flex;
           flex-wrap: wrap;
-          gap: 0.35rem 0.65rem;
+          gap: 0.24rem 0.45rem;
         }
         .octane-heatmap-inline-legend .octane-legend-row {
           white-space: nowrap;
+        }
+        .octane-heatmap-inline-legend .octane-swatch {
+          height: 0.56rem;
+          width: 0.56rem;
+        }
+        .octane-zone-focused .octane-heatmap-inline-legend .octane-swatch {
+          height: clamp(0.32rem, 0.52vw, 0.49rem);
+          width: clamp(0.32rem, 0.52vw, 0.49rem);
         }
         .octane-risk-heat-map-panel-inner {
           align-items: center;
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
+          height: 100%;
           justify-content: center;
           min-height: 0;
           width: 100%;
@@ -390,7 +399,7 @@
         .octane-risk-heat-map {
           display: block;
           height: auto;
-          max-height: 225px;
+          max-height: min(100%, 225px);
           max-width: 225px;
           overflow: visible;
           shape-rendering: geometricPrecision;
@@ -1056,7 +1065,6 @@
                     <div>
                       <h2 class="octane-card-title">Risk Heat Map</h2>
                       <div class="octane-muted octane-heatmap-subtitle-row">
-                        <span>Project Risk</span>
                         <span class="octane-heatmap-inline-legend">
                           <span class="octane-legend-row">
                             <span class="octane-swatch" style="background:#009900"></span>Low
