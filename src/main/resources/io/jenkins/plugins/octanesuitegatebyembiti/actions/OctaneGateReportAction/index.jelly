@@ -711,7 +711,9 @@
                 data-active="${snapshot.building}">
               <div class="octane-card-header">
                 <div>
-                  <h2 class="octane-card-title">Testing Time Remaining</h2>
+                  <h2 class="octane-card-title" data-timeout-title="true">
+                    ${snapshot.testingTimeTitle}
+                  </h2>
                   <div class="octane-muted">Testing Session Timer</div>
                 </div>
                 <div class="octane-card-actions">
@@ -763,10 +765,16 @@
                   <circle class="octane-timer-head" data-timer-head="true"
                       cx="120" cy="36" r="9.6" fill="#1f5fff" />
                   <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
-                    --
+                    <j:choose>
+                      <j:when test="${snapshot.building}">--</j:when>
+                      <j:otherwise>${snapshot.testingTimeSpentMinutes}</j:otherwise>
+                    </j:choose>
                   </text>
                   <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
-                    minutes
+                    <j:choose>
+                      <j:when test="${snapshot.building}">minutes</j:when>
+                      <j:otherwise>${snapshot.testingTimeSpentUnit}</j:otherwise>
+                    </j:choose>
                   </text>
                 </svg>
               </div>
@@ -1452,6 +1460,7 @@
               mode: mode,
               progressHalo: card.querySelector("[data-timer-progress-halo]"),
               progressCircle: card.querySelector("[data-timer-progress]"),
+              title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
               unit: card.querySelector("[data-timer-unit]"),
               updatedAt: updatedAt,
@@ -1465,13 +1474,28 @@
             var sampleTime = state.active ? now : state.updatedAt;
             return clamp(state.endAt - sampleTime, 0, state.totalMillis);
           }
+          function testingTimeSpentMillis(state, now) {
+            var sampleTime = state.active ? now : state.updatedAt;
+            var elapsed = sampleTime - (state.endAt - state.totalMillis);
+            return clamp(elapsed, 0, state.totalMillis);
+          }
+          function setTimeoutTitle(state) {
+            if (state.mode !== "timeout" || !state.title) {
+              return;
+            }
+            state.title.textContent = state.active ? "Testing Time Remaining" : "Testing Time";
+          }
           function setTimerText(state, remaining) {
             if (!state.value || !state.unit) {
               return;
             }
             var displayValue;
             var displayUnit;
-            if (remaining < 60000) {
+            if (!state.active && state.mode === "timeout") {
+              var spentMinutes = Math.round(testingTimeSpentMillis(state, currentWallTime()) / 60000);
+              displayValue = String(spentMinutes);
+              displayUnit = displayValue === "1" ? "minute" : "minutes";
+            } else if (remaining < 60000) {
               displayValue = String(Math.ceil(remaining / 1000));
               displayUnit = displayValue === "1" ? "second" : "seconds";
             } else {
@@ -1488,6 +1512,7 @@
             }
           }
           function updateTimer(state, now) {
+            setTimeoutTitle(state);
             var remaining = remainingMillis(state, now);
             var elapsed = state.totalMillis - remaining;
             var progress = clamp((elapsed / state.totalMillis) * 100, 0, 100);

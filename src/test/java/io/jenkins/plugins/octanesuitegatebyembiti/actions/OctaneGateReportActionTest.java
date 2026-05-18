@@ -59,7 +59,8 @@ public class OctaneGateReportActionTest {
     assertFalse(text.contains("Last update (EAT)"));
     assertTrue(text.contains("REGRESSION Tests Status Distribution"));
     assertTrue(text.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
-    assertTrue(text.contains("Testing Time Remaining"));
+    assertTrue(text.contains("Testing Time"));
+    assertFalse(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Status Check"));
     assertTrue(text.contains("Testing Session Timer"));
     assertTrue(text.contains("Execution Progress"));
@@ -239,6 +240,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("font-size: 0.91875rem"));
     assertTrue(xml.contains("data-timer-value=\"true\" x=\"120\" y=\"118\""));
     assertTrue(xml.contains("data-timer-unit=\"true\" x=\"120\" y=\"132.4\""));
+    assertTrue(xml.contains("data-timeout-title=\"true\""));
+    assertTrue(xml.contains("testingTimeSpentMillis"));
+    assertTrue(xml.contains("Testing Time Remaining"));
     assertTrue(xml.contains("stroke-width: 16"));
     assertTrue(xml.contains("style=\"height: 100.00%;\""));
     assertTrue(xml.contains("title=\"2 tests\""));
