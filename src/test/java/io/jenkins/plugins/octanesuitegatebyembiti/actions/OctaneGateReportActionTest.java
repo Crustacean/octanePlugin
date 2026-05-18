@@ -14,7 +14,6 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
-import java.net.URL;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -357,9 +356,11 @@ public class OctaneGateReportActionTest {
         jenkins
             .createWebClient()
             .getPage(
-                new URL(
-                    jenkins.getURL(),
-                    build.getUrl() + OctaneGateReportAction.URL_NAME + "/snapshot"));
+                jenkins
+                    .getURL()
+                    .toURI()
+                    .resolve(build.getUrl() + OctaneGateReportAction.URL_NAME + "/snapshot")
+                    .toURL());
     String json = jsonPage.getWebResponse().getContentAsString();
     JSONObject payload = JSONObject.fromObject(json);
 
