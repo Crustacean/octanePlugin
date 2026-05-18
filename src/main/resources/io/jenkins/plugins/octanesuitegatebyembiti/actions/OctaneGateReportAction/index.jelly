@@ -61,9 +61,6 @@
           color: var(--text-color);
           outline: none;
         }
-        .octane-icon-zone-collapse {
-          display: none;
-        }
         .octane-timer-zone.octane-zone-focused,
         .octane-report-zone.octane-zone-focused {
           background: var(--background);
@@ -81,14 +78,7 @@
           z-index: 9999;
         }
         .octane-zone-focused .octane-zone-focus-toggle {
-          right: 0.75rem;
-          top: 0.75rem;
-        }
-        .octane-zone-focused .octane-icon-zone-expand {
           display: none;
-        }
-        .octane-zone-focused .octane-icon-zone-collapse {
-          display: block;
         }
         .octane-zone-focused .octane-chart-card {
           display: flex;
@@ -213,64 +203,6 @@
           inset: 0;
           position: fixed;
           z-index: 9998;
-        }
-        @keyframes octaneBorderRotate {
-          to {
-            transform: rotate(1turn);
-          }
-        }
-        .octane-chart-card.octane-expanded,
-        .octane-timer-zone.octane-zone-focused,
-        .octane-report-zone.octane-zone-focused {
-          background: transparent;
-          border: 2px solid transparent;
-          isolation: isolate;
-        }
-        .octane-chart-card.octane-expanded::before,
-        .octane-timer-zone.octane-zone-focused::before,
-        .octane-report-zone.octane-zone-focused::before {
-          animation: octaneBorderRotate 3s linear infinite;
-          background: conic-gradient(
-            from 0deg,
-            rgba(67, 145, 245, 0.08),
-            rgba(67, 145, 245, 0.24),
-            #4391F5,
-            rgba(67, 145, 245, 0.24),
-            rgba(67, 145, 245, 0.08)
-          );
-          content: "";
-          inset: -50%;
-          position: absolute;
-          z-index: 0;
-        }
-        .octane-chart-card.octane-expanded::after,
-        .octane-timer-zone.octane-zone-focused::after,
-        .octane-report-zone.octane-zone-focused::after {
-          background: var(--background);
-          border-radius: 12px;
-          content: "";
-          inset: 2px;
-          position: absolute;
-          z-index: 0;
-        }
-        .octane-chart-card.octane-expanded > *,
-        .octane-timer-zone.octane-zone-focused > *,
-        .octane-report-zone.octane-zone-focused > * {
-          position: relative;
-          z-index: 1;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .octane-chart-card.octane-expanded,
-          .octane-timer-zone.octane-zone-focused,
-          .octane-report-zone.octane-zone-focused {
-            border-color: #4391F5;
-          }
-          .octane-chart-card.octane-expanded::before,
-          .octane-timer-zone.octane-zone-focused::before,
-          .octane-report-zone.octane-zone-focused::before {
-            animation: none;
-            background: #4391F5;
-          }
         }
         .octane-chart-card.octane-expanded {
           display: flex;
@@ -1307,11 +1239,7 @@
                 '<svg class="octane-action-icon octane-icon-zone-expand" viewBox="0 0 24 24"'
                 + ' aria-hidden="true" focusable="false">'
                 + '<path d="M8 4H4v4"></path><path d="M16 4h4v4"></path>'
-                + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>'
-                + '<svg class="octane-action-icon octane-icon-zone-collapse" viewBox="0 0 24 24"'
-                + ' aria-hidden="true" focusable="false">'
-                + '<path d="M9 3v6H3"></path><path d="M3 9l6-6"></path>'
-                + '<path d="M15 21v-6h6"></path><path d="M21 15l-6 6"></path></svg>';
+                + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>';
             return button;
           }
           function zoneKeyFor(zone) {
@@ -1819,10 +1747,9 @@
             if (!button) {
               return;
             }
-            var label = focused ? "Collapse section" : "Expand section";
             button.setAttribute("aria-expanded", String(focused));
-            button.setAttribute("aria-label", label);
-            button.setAttribute("title", label);
+            button.setAttribute("aria-label", "Expand section");
+            button.setAttribute("title", "Expand section");
           }
           function removeFocusedZone(zone) {
             if (!zone) {
@@ -1883,7 +1810,6 @@
           }
           expandedBackdrop.addEventListener("click", function () {
             collapseExpandedCard();
-            collapseFocusedZone();
           });
           dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-zone-focus-toggle");
@@ -1894,7 +1820,6 @@
             event.preventDefault();
             event.stopPropagation();
             if (zone && zone.classList.contains("octane-zone-focused")) {
-              collapseFocusedZone();
               return;
             }
             focusZone(zone);

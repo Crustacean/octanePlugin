@@ -100,8 +100,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-icon-collapse"));
     assertTrue(xml.contains("octane-zone-focus-toggle"));
     assertTrue(xml.contains("octane-icon-zone-expand"));
-    assertTrue(xml.contains("octane-icon-zone-collapse"));
+    assertFalse(xml.contains("octane-icon-zone-collapse"));
     assertTrue(xml.contains("Expand section"));
+    assertFalse(xml.contains("Collapse section"));
     assertTrue(xml.contains("octane-zone-focused"));
     assertTrue(xml.contains("grid-template-columns: repeat(2, minmax(0, 1fr))"));
     assertTrue(xml.contains("data-zone-key=\"timers\""));
@@ -110,17 +111,6 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Expand widget"));
     assertTrue(xml.contains("octane-expanded-backdrop"));
     assertTrue(xml.contains(".octane-chart-card.octane-expanded"));
-    assertTrue(xml.contains("@keyframes octaneBorderRotate"));
-    assertTrue(xml.contains("animation: octaneBorderRotate 3s linear infinite"));
-    assertTrue(xml.contains("conic-gradient("));
-    assertTrue(xml.contains("#4391F5"));
-    assertTrue(xml.contains(".octane-chart-card.octane-expanded::before"));
-    assertTrue(xml.contains(".octane-chart-card.octane-expanded::after"));
-    assertTrue(xml.contains(".octane-timer-zone.octane-zone-focused::before"));
-    assertTrue(xml.contains(".octane-report-zone.octane-zone-focused::before"));
-    assertTrue(xml.contains("border: 2px solid transparent"));
-    assertTrue(xml.contains("@media (prefers-reduced-motion: reduce)"));
-    assertTrue(xml.contains("animation: none"));
     assertTrue(xml.contains("inset: 1rem"));
     assertTrue(xml.contains("resize: none"));
     assertTrue(xml.contains("max-height: min(76vh, 76vw)"));
