@@ -85,7 +85,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("rotate(-45deg)"));
     assertTrue(html.contains("octane-bar-popup"));
     assertTrue(html.contains("min-width: 175px"));
-    assertTrue(html.contains("font-size: 9px"));
+    assertTrue(html.contains("font-size: 10.35px"));
     assertTrue(html.contains("overflow-wrap: anywhere"));
     assertTrue(html.contains("octane-bar-popup-name"));
     assertTrue(html.contains("octane-bar-popup-row"));

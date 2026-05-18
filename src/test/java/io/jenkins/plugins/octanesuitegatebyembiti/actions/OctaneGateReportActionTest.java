@@ -120,7 +120,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-popup"));
     assertTrue(xml.contains("min-width: 10.92rem"));
     assertTrue(xml.contains("position: fixed"));
-    assertTrue(xml.contains("font-size: 0.56rem"));
+    assertTrue(xml.contains("font-size: 0.644rem"));
     assertTrue(xml.contains("overflow-wrap: anywhere"));
     assertTrue(xml.contains("octane-bar-popup-name"));
     assertTrue(xml.contains("octane-bar-popup-row"));

@@ -245,7 +245,7 @@ public class OctaneReportZoneHtmlRenderer {
           box-shadow: 0 7px 22px rgba(0, 0, 0, 0.18);
           color: #1f2937;
           display: grid;
-          font-size: 9px;
+          font-size: 10.35px;
           gap: 5px;
           left: 50%;
           min-width: 175px;
