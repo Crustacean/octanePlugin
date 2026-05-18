@@ -398,9 +398,9 @@
         }
         .octane-risk-heat-map {
           aspect-ratio: 1;
-          border: 1px solid var(--panel-border-color);
           border-radius: 50%;
           box-sizing: border-box;
+          clip-path: circle(50% at 50% 50%);
           display: block;
           height: auto;
           max-height: min(100%, 173px);
