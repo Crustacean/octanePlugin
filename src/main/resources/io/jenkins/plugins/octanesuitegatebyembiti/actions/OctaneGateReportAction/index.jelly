@@ -169,9 +169,9 @@
           max-width: min(38vh, 38vw);
         }
         .octane-zone-focused .octane-risk-heat-map {
-          max-height: min(34vh, 34vw);
-          max-width: min(34vh, 34vw);
-          width: min(100%, 34vh, 34vw);
+          max-height: min(30vh, 30vw);
+          max-width: min(30vh, 30vw);
+          width: min(100%, 30vh, 30vw);
         }
         .octane-zone-focused .octane-donut {
           height: 100%;
@@ -397,13 +397,17 @@
           width: 100%;
         }
         .octane-risk-heat-map {
+          aspect-ratio: 1;
+          border: 1px solid var(--panel-border-color);
+          border-radius: 50%;
+          box-sizing: border-box;
           display: block;
           height: auto;
-          max-height: min(100%, 225px);
-          max-width: 225px;
-          overflow: visible;
+          max-height: min(100%, 173px);
+          max-width: 173px;
+          overflow: hidden;
           shape-rendering: geometricPrecision;
-          width: min(100%, 225px);
+          width: min(100%, 173px);
         }
         .octane-risk-heat-map-slice {
           stroke: var(--background);
@@ -514,9 +518,9 @@
           max-width: min(76vh, 76vw);
         }
         .octane-chart-card.octane-expanded .octane-risk-heat-map {
-          max-height: min(70vh, 70vw);
-          max-width: min(70vh, 70vw);
-          width: min(100%, 70vh, 70vw);
+          max-height: min(60vh, 60vw);
+          max-width: min(60vh, 60vw);
+          width: min(100%, 60vh, 60vw);
         }
         .octane-chart-card.octane-expanded .octane-donut {
           max-height: min(72vh, 72vw);
