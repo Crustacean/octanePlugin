@@ -16,6 +16,8 @@ flow, Octane API calls, metrics model, and criteria evaluation behavior.
 ```groovy
 octaneSuiteGate(
   serverId: 'octane-prod',
+  sharedSpaceId: '1001',
+  workspaceId: '2002',
   suiteRunId: '1196,1200,1204',
   criteria: '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
       + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
@@ -125,16 +127,10 @@ each Pipeline select a configured server by `serverId`.
 3. Add a server entry with:
    - **Server ID**: a logical name used from pipelines, for example `octane-prod`
    - **Base URL**: the Octane server root, for example `https://octane.example.com`
-   - **Default shared space ID**: the shared space that contains the suite run data
-   - **Default workspace ID**: the workspace inside that shared space
    - **API key credentials**: the Jenkins credential created in the previous step
 4. Click **Test Base URL** to verify Jenkins can reach the URL. The result shows
    **OK** for HTTP 2xx/3xx responses and **Not OK** for HTTP 4xx/5xx responses
    or connection errors.
-5. Click **Test Octane Workspace** to verify the Base URL, default shared space,
-   default workspace, and selected API key credentials together. The result shows
-   the test path, such as
-   `https://your-octane-host/api/shared_spaces/1001/workspaces/2002/runs?fields=id&limit=1 using credentials octane-api-prod {TEST}`.
 
 The base URL should be the host root used by Octane authentication and API requests, such as:
 
@@ -143,32 +139,21 @@ The base URL should be the host root used by Octane authentication and API reque
 
 ### 3. Reference the server from a Jenkinsfile
 
-Once the server is configured, the pipeline only needs the `serverId` and the suite run ID:
+Once the server is configured, the pipeline supplies the Octane workspace and suite run ID:
 
 ```groovy
 octaneSuiteGate(
   serverId: 'octane-prod',
+  sharedSpaceId: '1001',
+  workspaceId: '2002',
   suiteRunId: params.OCTANE_REGRESSION_SUITE_RUN_ID,
   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95'
 )
 ```
 
 `suiteRunId` may be a single ID or a comma/space-separated list such as `1196,1200`.
-
-### 4. Optionally override shared space and workspace per pipeline
-
-If a job needs to point at a different Octane location than the global default, override
-`sharedSpaceId` and `workspaceId` in the step:
-
-```groovy
-octaneSuiteGate(
-  serverId: 'octane-prod',
-  suiteRunId: params.OCTANE_REGRESSION_SUITE_RUN_ID,
-  sharedSpaceId: '1001',
-  workspaceId: '2002',
-  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95'
-)
-```
+`sharedSpaceId` and `workspaceId` are required because suite runs are workspace-scoped
+in ALM Octane.
 
 ## Sample Jenkinsfiles
 

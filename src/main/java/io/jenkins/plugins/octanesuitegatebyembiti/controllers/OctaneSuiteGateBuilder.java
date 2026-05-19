@@ -227,6 +227,14 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckSuiteRunId(value);
     }
 
+    public FormValidation doCheckSharedSpaceId(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckSharedSpaceId(value);
+    }
+
+    public FormValidation doCheckWorkspaceId(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckWorkspaceId(value);
+    }
+
     public FormValidation doCheckCriteria(@QueryParameter String value) {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckCriteria(value);
     }

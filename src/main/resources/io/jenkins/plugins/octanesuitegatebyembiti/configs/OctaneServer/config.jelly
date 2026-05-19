@@ -11,18 +11,7 @@
       progress="Testing Base URL..."
       method="testBaseUrl"
       with="baseUrl" />
-  <f:entry title="Default shared space ID" field="sharedSpaceId">
-    <f:textbox />
-  </f:entry>
-  <f:entry title="Default workspace ID" field="workspaceId">
-    <f:textbox />
-  </f:entry>
   <f:entry title="API key credentials" field="credentialsId">
     <c:select />
   </f:entry>
-  <f:validateButton
-      title="Test Octane Workspace"
-      progress="Testing Octane workspace..."
-      method="testOctaneWorkspace"
-      with="baseUrl,sharedSpaceId,workspaceId,credentialsId" />
 </j:jelly>

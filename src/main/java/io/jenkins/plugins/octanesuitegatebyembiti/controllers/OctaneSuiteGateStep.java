@@ -334,6 +334,14 @@ public class OctaneSuiteGateStep extends Step {
       return FormValidation.ok();
     }
 
+    public FormValidation doCheckSharedSpaceId(@QueryParameter String value) {
+      return checkRequiredNumber("Shared space ID", value);
+    }
+
+    public FormValidation doCheckWorkspaceId(@QueryParameter String value) {
+      return checkRequiredNumber("Workspace ID", value);
+    }
+
     public FormValidation doCheckCriteria(@QueryParameter String value) {
       try {
         CriteriaExpression.parse(Util.isBlank(value) ? GateRequest.DEFAULT_CRITERIA : value);
@@ -353,6 +361,18 @@ public class OctaneSuiteGateStep extends Step {
 
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {
       return checkPositiveInteger("Risk heat map max defects", value);
+    }
+
+    private FormValidation checkRequiredNumber(String label, String value) {
+      if (Util.isBlank(value)) {
+        return FormValidation.error(label + " is required.");
+      }
+      try {
+        Long.parseLong(value);
+        return FormValidation.ok();
+      } catch (NumberFormatException e) {
+        return FormValidation.error(label + " must be numeric.");
+      }
     }
 
     private FormValidation checkPositiveInteger(String label, String value) {

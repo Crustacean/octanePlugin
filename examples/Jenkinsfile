@@ -2,6 +2,8 @@ pipeline {
   agent any
 
   environment {
+    OCTANE_SHARED_SPACE_ID = '9016'
+    OCTANE_WORKSPACE_ID = '4001'
     OCTANE_REGRESSION_SUITE_RUN_ID = '1196,1200,1204'
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
   }
@@ -56,6 +58,8 @@ pipeline {
           Map gateResult =
               octaneSuiteGate(
                   serverId: 'octane-prod',
+                  sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
+                  workspaceId: env.OCTANE_WORKSPACE_ID,
                   suiteRunId: suiteRunIds.join(','),
                   criteria:
                       '(regressions.executionRate == 100 AND regressions.passRate >= 95) '

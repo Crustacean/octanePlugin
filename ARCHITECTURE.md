@@ -98,8 +98,6 @@ Each server entry contains:
 
 - `serverId`: logical name used by jobs, such as `octane-prod`.
 - `baseUrl`: Octane host root, such as `https://octane.example.com`.
-- `sharedSpaceId`: default ALM Octane shared space ID.
-- `workspaceId`: default ALM Octane workspace ID.
 - `credentialsId`: Jenkins username/password credential ID.
 
 The Jenkins credential maps to Octane API key authentication:
@@ -107,14 +105,12 @@ The Jenkins credential maps to Octane API key authentication:
 - Jenkins username: Octane `client_id`.
 - Jenkins password: Octane `client_secret`.
 
-The server form also exposes two validation actions:
+The server form exposes one validation action:
 
 - **Test Base URL**: performs a basic HTTP reachability check against `baseUrl`.
-- **Test Octane Workspace**: authenticates with the selected credential and probes
-  `/api/shared_spaces/{sharedSpaceId}/workspaces/{workspaceId}/runs?fields=id&limit=1`.
 
-These checks validate connectivity and workspace access, but they do not validate
-that a particular suite run ID exists.
+The shared space and workspace are supplied by each Pipeline/Freestyle job because
+suite runs are workspace-scoped in ALM Octane.
 
 ## Job Entry Points
 
@@ -125,6 +121,8 @@ Pipeline jobs call:
 ```groovy
 octaneSuiteGate(
   serverId: 'octane-prod',
+  sharedSpaceId: '1001',
+  workspaceId: '2002',
   suiteRunId: '1196,1200',
   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   pollIntervalSeconds: 30,
@@ -135,6 +133,8 @@ octaneSuiteGate(
 
 `suiteRunId` accepts either a single ID or a comma/space-separated list. Multiple
 suite runs are aggregated into one regression metrics set.
+`sharedSpaceId` and `workspaceId` are required job-level values because suite runs
+are scoped to an ALM Octane workspace.
 
 ### Freestyle
 

@@ -60,8 +60,8 @@ public class OctaneGateRunner {
       throws IOException, InterruptedException {
     validateRequest(request);
     OctaneServer server = resolveServer(request.getServerId());
-    String sharedSpaceId = chooseValue(request.getSharedSpaceId(), server.getSharedSpaceId());
-    String workspaceId = chooseValue(request.getWorkspaceId(), server.getWorkspaceId());
+    String sharedSpaceId = requiredWorkspaceValue("Shared space ID", request.getSharedSpaceId());
+    String workspaceId = requiredWorkspaceValue("Workspace ID", request.getWorkspaceId());
     StandardUsernamePasswordCredentials credentials = resolveCredentials(server.getCredentialsId());
 
     CriteriaExpression criteria = CriteriaExpression.parse(request.getCriteria());
@@ -453,10 +453,16 @@ public class OctaneGateRunner {
     return credentials;
   }
 
-  private String chooseValue(String override, String defaultValue) throws AbortException {
-    String chosen = Util.isBlank(override) ? defaultValue : override;
-    if (Util.isBlank(chosen)) {
-      throw new AbortException("Shared space ID and workspace ID must be configured.");
+  private String requiredWorkspaceValue(String label, String value) throws AbortException {
+    String chosen = Util.trimToEmpty(value);
+    if (chosen.isEmpty()) {
+      throw new AbortException(
+          "Shared space ID and workspace ID must be provided in the Jenkins job configuration.");
+    }
+    try {
+      Long.parseLong(chosen);
+    } catch (NumberFormatException e) {
+      throw new AbortException(label + " must be numeric.");
     }
     return chosen;
   }
