@@ -212,6 +212,9 @@ public class OctaneClient implements AutoCloseable {
     try {
       node = getJson(fallbackPath);
     } catch (IOException e) {
+      if (isNotFound(e) || isNotFound(runsLookupFailure)) {
+        throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
+      }
       if (runsLookupFailure != null) {
         throw new AbortException(
             "ALM Octane suite run lookup failed. Runs collection lookup failed: "
@@ -228,7 +231,23 @@ public class OctaneClient implements AutoCloseable {
     if (!node.path("id").isMissingNode()) {
       return node;
     }
-    throw new AbortException("ALM Octane suite run was not found: " + suiteRunId);
+    throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
+  }
+
+  private boolean isNotFound(IOException exception) {
+    return exception != null && Util.trimToEmpty(exception.getMessage()).contains("HTTP 404");
+  }
+
+  private String suiteRunNotFoundMessage(
+      String sharedSpaceId, String workspaceId, String suiteRunId) {
+    return "ALM Octane suite run "
+        + Util.trimToEmpty(suiteRunId)
+        + " was not found in shared space "
+        + Util.trimToEmpty(sharedSpaceId)
+        + " / workspace "
+        + Util.trimToEmpty(workspaceId)
+        + ". Check that the job's shared space ID and workspace ID match the Octane workspace "
+        + "that owns this suite run.";
   }
 
   private List<RunRecord> fetchRunsByIds(
