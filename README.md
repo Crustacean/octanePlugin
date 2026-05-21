@@ -169,6 +169,17 @@ mvn spotless:check test
 mvn hpi:run
 ```
 
+### Version Display
+
+The System page displays the plugin version beside **Octane Suite Gate by Embiti**.
+The current display version is `v1.0.0`.
+
+Use `major.medium.minor` when changing the display version:
+
+- Increase **major** for breaking behavior changes or large backend changes that affect existing jobs.
+- Increase **medium** for user-visible features, UI/reporting changes, or compatible workflow changes.
+- Increase **minor** for small fixes, copy changes, and low-risk polish.
+
 Use Java 21 for Jenkins plugin development. If your system Maven reports
 `Unknown packaging: hpi`, use a Jenkins-plugin-compatible Maven distribution rather than a
 distribution-packaged Maven runtime that does not load the HPI lifecycle correctly.

@@ -1,6 +1,28 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
   <style>
+    .octane-suite-gate-heading {
+      align-items: baseline;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0 0 1rem;
+    }
+
+    .octane-suite-gate-heading-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .octane-suite-gate-heading-version {
+      color: #737373;
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
     .octane-suite-gate-servers .octane-suite-gate-server-actions {
       display: flex;
       justify-content: flex-end;
@@ -11,7 +33,11 @@
       margin-bottom: 1rem;
     }
   </style>
-  <f:section title="Octane Suite Gate by Embiti">
+  <f:section title="">
+    <div class="octane-suite-gate-heading">
+      <span class="octane-suite-gate-heading-title">Octane Suite Gate by Embiti</span>
+      <span class="octane-suite-gate-heading-version">${it.displayVersion}</span>
+    </div>
     <div class="octane-suite-gate-servers">
       <f:repeatableProperty field="servers" add="Add server">
         <f:block>

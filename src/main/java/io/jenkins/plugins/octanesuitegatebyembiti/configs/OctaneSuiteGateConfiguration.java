@@ -11,6 +11,10 @@ import org.kohsuke.stapler.StaplerRequest2;
 
 @Extension
 public class OctaneSuiteGateConfiguration extends GlobalConfiguration {
+  private static final int VERSION_MAJOR = 1;
+  private static final int VERSION_MEDIUM = 0;
+  private static final int VERSION_MINOR = 0;
+
   private List<OctaneServer> servers = new ArrayList<>();
 
   public OctaneSuiteGateConfiguration() {
@@ -24,6 +28,10 @@ public class OctaneSuiteGateConfiguration extends GlobalConfiguration {
   @Override
   public String getDisplayName() {
     return "Octane Suite Gate by Embiti";
+  }
+
+  public String getDisplayVersion() {
+    return "v" + VERSION_MAJOR + "." + VERSION_MEDIUM + "." + VERSION_MINOR;
   }
 
   public List<OctaneServer> getServers() {
