@@ -9,12 +9,12 @@
         .octane-report h1 {
           margin-bottom: 0.25rem;
         }
-        @keyframes octaneGradientBorderFlow {
+        @keyframes octaneGradientBorderClockwise {
           0% {
-            background-position: 0 0, 0% 50%;
+            transform: rotate(0turn);
           }
           100% {
-            background-position: 0 0, 200% 50%;
+            transform: rotate(1turn);
           }
         }
         .octane-muted {
@@ -512,18 +512,37 @@
         .octane-chart-card.octane-expanded,
         .octane-timer-zone.octane-zone-focused,
         .octane-report-zone.octane-zone-focused {
-          background:
-              linear-gradient(var(--background), var(--background)) padding-box,
-              linear-gradient(
-                  90deg,
-                  rgba(67, 145, 245, 0.18),
-                  #4391F5,
-                  rgba(67, 145, 245, 0.34),
-                  #4391F5,
-                  rgba(67, 145, 245, 0.18)) border-box;
-          background-size: 100% 100%, 200% 100%;
+          isolation: isolate;
           border: 2px solid transparent;
-          animation: octaneGradientBorderFlow 2.8s linear infinite;
+        }
+        .octane-chart-card.octane-expanded::before,
+        .octane-timer-zone.octane-zone-focused::before,
+        .octane-report-zone.octane-zone-focused::before {
+          animation: octaneGradientBorderClockwise 2.8s linear infinite;
+          background:
+              conic-gradient(
+                  from 0turn,
+                  rgba(67, 145, 245, 0.16) 0deg,
+                  rgba(67, 145, 245, 0.22) 235deg,
+                  #4391F5 315deg,
+                  rgba(67, 145, 245, 0.42) 345deg,
+                  rgba(67, 145, 245, 0.16) 360deg);
+          border-radius: inherit;
+          box-sizing: border-box;
+          content: "";
+          inset: 0;
+          mask:
+              linear-gradient(#000 0 0) content-box,
+              linear-gradient(#000 0 0);
+          mask-composite: exclude;
+          padding: 2px;
+          pointer-events: none;
+          position: absolute;
+          z-index: 1;
+          -webkit-mask:
+              linear-gradient(#000 0 0) content-box,
+              linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor;
         }
         .octane-chart-card.octane-expanded .octane-icon-expand {
           display: none;
@@ -917,8 +936,12 @@
           .octane-chart-card.octane-expanded,
           .octane-timer-zone.octane-zone-focused,
           .octane-report-zone.octane-zone-focused {
-            animation: none;
             border-color: #4391F5;
+          }
+          .octane-chart-card.octane-expanded::before,
+          .octane-timer-zone.octane-zone-focused::before,
+          .octane-report-zone.octane-zone-focused::before {
+            display: none;
           }
         }
       </style>
