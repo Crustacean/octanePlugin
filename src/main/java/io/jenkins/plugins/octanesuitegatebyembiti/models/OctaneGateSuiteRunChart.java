@@ -9,6 +9,13 @@ import java.util.Map;
 
 public class OctaneGateSuiteRunChart implements Serializable {
   private static final long serialVersionUID = 1L;
+  private static final List<OctaneGateStatusBucket> DOMINANT_STATUS_PRIORITY =
+      List.of(
+          OctaneGateStatusBucket.FAILED,
+          OctaneGateStatusBucket.BLOCKED,
+          OctaneGateStatusBucket.RUNNING,
+          OctaneGateStatusBucket.SKIPPED,
+          OctaneGateStatusBucket.PASSED);
 
   private final String suiteRunId;
   private final String displayName;
@@ -105,6 +112,21 @@ public class OctaneGateSuiteRunChart implements Serializable {
     return statuses;
   }
 
+  public String getDominantStatusLabel() {
+    OctaneGateStatusCount dominantStatus = getDominantStatus();
+    return dominantStatus == null ? "" : dominantStatus.getLabel();
+  }
+
+  public String getDominantStatusColor() {
+    OctaneGateStatusCount dominantStatus = getDominantStatus();
+    return dominantStatus == null ? "" : dominantStatus.getColor();
+  }
+
+  public int getDominantStatusCount() {
+    OctaneGateStatusCount dominantStatus = getDominantStatus();
+    return dominantStatus == null ? 0 : dominantStatus.getCount();
+  }
+
   public String getBarHeightStyle() {
     if (maxTotal <= 0 || total <= 0) {
       return "height: 0%;";
@@ -115,6 +137,27 @@ public class OctaneGateSuiteRunChart implements Serializable {
 
   public boolean isEmpty() {
     return total == 0;
+  }
+
+  private OctaneGateStatusCount getDominantStatus() {
+    if (total <= 0) {
+      return null;
+    }
+    int largestCount = 0;
+    for (OctaneGateStatusCount status : statuses) {
+      largestCount = Math.max(largestCount, status.getCount());
+    }
+    if (largestCount <= 0) {
+      return null;
+    }
+    for (OctaneGateStatusBucket bucket : DOMINANT_STATUS_PRIORITY) {
+      for (OctaneGateStatusCount status : statuses) {
+        if (status.getBucket() == bucket && status.getCount() == largestCount) {
+          return status;
+        }
+      }
+    }
+    return null;
   }
 
   private static String groupKey(String displayName, List<String> suiteRunIds) {

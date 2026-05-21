@@ -1407,6 +1407,8 @@
                             <div class="octane-suite-column" tabindex="0"
                                 data-card-key="bars-${section.source}"
                                 data-bar-key="${suiteRun.suiteRunId}"
+                                data-dominant-status-color="${suiteRun.dominantStatusColor}"
+                                data-dominant-status-label="${suiteRun.dominantStatusLabel}"
                                 aria-label="${suiteRun.title}">
                               <div class="octane-vertical-bar-wrap">
                                 <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
@@ -2136,7 +2138,10 @@
 	            barPopupOverlay.classList.remove(
 	                "octane-bar-popup-visible", "octane-bar-popup-restoring");
 	            barPopupOverlay.removeAttribute("data-placement");
+	            barPopupOverlay.removeAttribute("data-dominant-status-label");
 	            barPopupOverlay.setAttribute("aria-hidden", "true");
+	            barPopupOverlay.style.borderColor = "";
+	            barPopupOverlay.style.boxShadow = "";
 	            barPopupOverlay.style.left = "";
 	            barPopupOverlay.style.top = "";
 	            activeBarPopupState = {
@@ -2156,6 +2161,23 @@
 	          }
 	          function barKeyForColumn(column) {
 	            return column ? column.getAttribute("data-bar-key") || "" : "";
+	          }
+	          function applyBarPopupDominantColor(column) {
+	            if (!barPopupOverlay) {
+	              return;
+	            }
+	            var color = column ? column.getAttribute("data-dominant-status-color") || "" : "";
+	            var label = column ? column.getAttribute("data-dominant-status-label") || "" : "";
+	            if (!color) {
+	              barPopupOverlay.removeAttribute("data-dominant-status-label");
+	              barPopupOverlay.style.borderColor = "";
+	              barPopupOverlay.style.boxShadow = "";
+	              return;
+	            }
+	            barPopupOverlay.setAttribute("data-dominant-status-label", label);
+	            barPopupOverlay.style.borderColor = color;
+	            barPopupOverlay.style.boxShadow =
+	                "0 0 0 1px " + color + ", 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18)";
 	          }
 	          function pointForColumn(column) {
 	            var bar = column ? column.querySelector(".octane-vertical-bar") : null;
@@ -2215,6 +2237,7 @@
 	              return;
 	            }
 	            barPopupOverlay.innerHTML = source.innerHTML;
+	            applyBarPopupDominantColor(column);
 	            if (restoring) {
 	              barPopupOverlay.classList.add("octane-bar-popup-restoring");
 	            } else {

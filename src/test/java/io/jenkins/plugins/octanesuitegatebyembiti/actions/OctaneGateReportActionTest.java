@@ -182,6 +182,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-popup"));
     assertTrue(xml.contains("id=\"octane-bar-popup-overlay\""));
     assertTrue(xml.contains("data-bar-key=\""));
+    assertTrue(xml.contains("data-dominant-status-color=\""));
+    assertTrue(xml.contains("data-dominant-status-label=\""));
     assertTrue(xml.contains("min-width: 10.92rem"));
     assertTrue(xml.contains("position: fixed"));
     assertTrue(xml.contains("font-size: 0.644rem"));
@@ -310,6 +312,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("barPopupRefreshInProgress = true"));
     assertTrue(xml.contains("restoreBarPopupAfterRefresh(updatedReportZone"));
     assertTrue(xml.contains("barPopupOverlay.innerHTML = source.innerHTML"));
+    assertTrue(xml.contains("applyBarPopupDominantColor"));
+    assertTrue(xml.contains("barPopupOverlay.style.borderColor = color"));
+    assertTrue(xml.contains("barPopupOverlay.style.boxShadow ="));
+    assertTrue(xml.contains("barPopupOverlay.style.borderColor = \"\""));
     assertTrue(xml.contains("findColumnByKeys"));
     assertTrue(xml.contains("replaceWith(updatedReportZone)"));
     assertTrue(xml.contains("payload.passRateProgress"));

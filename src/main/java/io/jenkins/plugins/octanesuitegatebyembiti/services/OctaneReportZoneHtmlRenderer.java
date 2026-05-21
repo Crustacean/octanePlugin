@@ -511,6 +511,10 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(escapeAttribute(cardKey));
     html.append("\" data-bar-key=\"");
     html.append(escapeAttribute(suiteRun.getSuiteRunId()));
+    html.append("\" data-dominant-status-color=\"");
+    html.append(escapeAttribute(suiteRun.getDominantStatusColor()));
+    html.append("\" data-dominant-status-label=\"");
+    html.append(escapeAttribute(suiteRun.getDominantStatusLabel()));
     html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");

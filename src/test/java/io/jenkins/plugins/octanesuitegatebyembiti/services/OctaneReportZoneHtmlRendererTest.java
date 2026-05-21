@@ -101,6 +101,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-bar-popup"));
     assertTrue(html.contains("data-card-key=\"bars-regressions\""));
     assertTrue(html.contains("data-bar-key=\""));
+    assertTrue(html.contains("data-dominant-status-color=\""));
+    assertTrue(html.contains("data-dominant-status-label=\""));
     assertTrue(html.contains("min-width: 175px"));
     assertTrue(html.contains("font-size: 10.35px"));
     assertTrue(html.contains("overflow-wrap: anywhere"));

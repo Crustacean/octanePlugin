@@ -173,6 +173,42 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void suiteRunDominantStatusUsesLargestStatusCount() {
+    OctaneGateSuiteRunChart chart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Ada Tester",
+            List.of("4501"),
+            List.of(
+                new RunRecord("1", "one", "passed", "Ada Tester"),
+                new RunRecord("2", "two", "failed", "Ada Tester"),
+                new RunRecord("3", "three", "failed", "Ada Tester")),
+            classifier);
+
+    assertEquals("Failed", chart.getDominantStatusLabel());
+    assertEquals("#990000", chart.getDominantStatusColor());
+    assertEquals(2, chart.getDominantStatusCount());
+  }
+
+  @Test
+  public void suiteRunDominantStatusTieBreaksTowardRisk() {
+    assertDominantStatusForTie("failed", "blocked", "Failed", "#990000");
+    assertDominantStatusForTie("blocked", "planned", "Blocked", "#631919");
+    assertDominantStatusForTie("planned", "skipped", "Running", "#808080");
+    assertDominantStatusForTie("skipped", "passed", "Skipped", "#ffb74d");
+  }
+
+  @Test
+  public void emptySuiteRunHasNoDominantStatus() {
+    OctaneGateSuiteRunChart chart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Empty Tester", List.of("empty"), List.of(), classifier);
+
+    assertEquals("", chart.getDominantStatusLabel());
+    assertEquals("", chart.getDominantStatusColor());
+    assertEquals(0, chart.getDominantStatusCount());
+  }
+
+  @Test
   public void reportsBlockedStatusesSeparatelyFromFailedChartBucket() {
     Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
     suiteRuns.put(
@@ -309,6 +345,22 @@ public class OctaneGateReportSnapshotTest {
         .findFirst()
         .orElseThrow()
         .getCount();
+  }
+
+  private void assertDominantStatusForTie(
+      String firstStatus, String secondStatus, String expectedLabel, String expectedColor) {
+    OctaneGateSuiteRunChart chart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Tie Tester",
+            List.of("4501"),
+            List.of(
+                new RunRecord("1", "one", firstStatus, "Tie Tester"),
+                new RunRecord("2", "two", secondStatus, "Tie Tester")),
+            classifier);
+
+    assertEquals(expectedLabel, chart.getDominantStatusLabel());
+    assertEquals(expectedColor, chart.getDominantStatusColor());
+    assertEquals(1, chart.getDominantStatusCount());
   }
 
   private GateResult result() {
