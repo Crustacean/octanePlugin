@@ -1,12 +1,25 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
   <style>
-    .octane-suite-gate-section .jenkins-section__title::after {
+    .octane-suite-gate-heading {
+      align-items: baseline;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0 0 1rem;
+    }
+
+    .octane-suite-gate-heading-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .octane-suite-gate-heading-version {
       color: #737373;
-      content: "${it.displayVersion}";
       font-size: 0.875rem;
       font-weight: 500;
-      margin-left: 0.5rem;
+      line-height: 1.3;
       white-space: nowrap;
     }
 
@@ -20,17 +33,19 @@
       margin-bottom: 1rem;
     }
   </style>
-  <div class="octane-suite-gate-section">
-    <f:section title="${it.displayName}">
-      <div class="octane-suite-gate-servers">
-        <f:repeatableProperty field="servers" add="Add server">
-          <f:block>
-            <div class="octane-suite-gate-server-actions">
-              <f:repeatableDeleteButton value="Remove server" />
-            </div>
-          </f:block>
-        </f:repeatableProperty>
-      </div>
-    </f:section>
-  </div>
+  <f:section title="">
+    <div class="octane-suite-gate-heading">
+      <span class="octane-suite-gate-heading-title">Octane Suite Gate by Embiti</span>
+      <span class="octane-suite-gate-heading-version">${it.displayVersion}</span>
+    </div>
+    <div class="octane-suite-gate-servers">
+      <f:repeatableProperty field="servers" add="Add server">
+        <f:block>
+          <div class="octane-suite-gate-server-actions">
+            <f:repeatableDeleteButton value="Remove server" />
+          </div>
+        </f:block>
+      </f:repeatableProperty>
+    </div>
+  </f:section>
 </j:jelly>
