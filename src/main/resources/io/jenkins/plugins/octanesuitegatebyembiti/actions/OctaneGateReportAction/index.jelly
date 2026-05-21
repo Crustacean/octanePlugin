@@ -64,7 +64,7 @@
         .octane-timer-zone.octane-zone-focused,
         .octane-report-zone.octane-zone-focused {
           background: var(--background);
-          border-color: var(--input-border);
+          border-color: #4391F5;
           border-radius: 14px;
           box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
           box-sizing: border-box;
@@ -487,6 +487,7 @@
           z-index: 9998;
         }
         .octane-chart-card.octane-expanded {
+          border-color: #4391F5;
           display: flex;
           flex-direction: column;
           height: auto;
