@@ -9,6 +9,14 @@
         .octane-report h1 {
           margin-bottom: 0.25rem;
         }
+        @keyframes octaneGradientBorderFlow {
+          0% {
+            background-position: 0 0, 0% 50%;
+          }
+          100% {
+            background-position: 0 0, 200% 50%;
+          }
+        }
         .octane-muted {
           color: var(--text-color-secondary);
         }
@@ -501,6 +509,22 @@
           width: auto;
           z-index: 9999;
         }
+        .octane-chart-card.octane-expanded,
+        .octane-timer-zone.octane-zone-focused,
+        .octane-report-zone.octane-zone-focused {
+          background:
+              linear-gradient(var(--background), var(--background)) padding-box,
+              linear-gradient(
+                  90deg,
+                  rgba(67, 145, 245, 0.18),
+                  #4391F5,
+                  rgba(67, 145, 245, 0.34),
+                  #4391F5,
+                  rgba(67, 145, 245, 0.18)) border-box;
+          background-size: 100% 100%, 200% 100%;
+          border: 2px solid transparent;
+          animation: octaneGradientBorderFlow 2.8s linear infinite;
+        }
         .octane-chart-card.octane-expanded .octane-icon-expand {
           display: none;
         }
@@ -887,6 +911,14 @@
           }
           .octane-donut-wrap {
             justify-content: center;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .octane-chart-card.octane-expanded,
+          .octane-timer-zone.octane-zone-focused,
+          .octane-report-zone.octane-zone-focused {
+            animation: none;
+            border-color: #4391F5;
           }
         }
       </style>
