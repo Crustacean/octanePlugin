@@ -801,6 +801,9 @@
           opacity: 1;
           visibility: visible;
         }
+        .octane-bar-popup.octane-bar-popup-restoring {
+          transition: none;
+        }
         .octane-bar-popup-name {
           border-bottom: 1px solid var(--panel-border-color);
           font-weight: 700;
@@ -1402,6 +1405,8 @@
                         <div class="octane-vertical-bars">
                           <j:forEach var="suiteRun" items="${section.suiteRuns}">
                             <div class="octane-suite-column" tabindex="0"
+                                data-card-key="bars-${section.source}"
+                                data-bar-key="${suiteRun.suiteRunId}"
                                 aria-label="${suiteRun.title}">
                               <div class="octane-vertical-bar-wrap">
                                 <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
@@ -1481,6 +1486,8 @@
             </j:choose>
           </div>
         </div>
+        <div id="octane-bar-popup-overlay" class="octane-bar-popup" role="tooltip"
+            aria-hidden="true"></div>
       </div>
       <script>
         //<![CDATA[
@@ -1931,7 +1938,9 @@
                 expandedCard && reportZone && reportZone.contains(expandedCard);
             var focusedKey = focusedZone ? zoneKeyFor(focusedZone) : "";
             var restoreReportFocus = focusedZone && reportZone && focusedZone === reportZone;
+            var popupRestoreState = captureBarPopupRestoreState();
             if (reportZone && updatedReportZone) {
+              barPopupRefreshInProgress = true;
               if (restoreReportExpansion) {
                 removeExpandedState(expandedCard);
                 expandedCard = null;
@@ -1957,6 +1966,10 @@
                   collapseFocusedZone();
                 }
               }
+              requestFrame(function () {
+                barPopupRefreshInProgress = false;
+                restoreBarPopupAfterRefresh(updatedReportZone, popupRestoreState);
+              });
             }
             for (var index = 0; index < progressCards.length; index += 1) {
               var progressKind = progressCards[index].getAttribute("data-octane-progress");
@@ -2106,65 +2119,214 @@
           for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
             updateExecutionProgress(progressCards[progressIndex]);
           }
-          var activeBarPopup = null;
-          function hideBarPopup() {
-            if (!activeBarPopup) {
-              return;
-            }
-            activeBarPopup.classList.remove("octane-bar-popup-visible");
-            activeBarPopup.removeAttribute("data-placement");
-            activeBarPopup.style.left = "";
-            activeBarPopup.style.top = "";
-            activeBarPopup = null;
-          }
-          function popupForBar(bar) {
-            var column = bar ? bar.closest(".octane-suite-column") : null;
-            return column ? column.querySelector(".octane-bar-popup") : null;
-          }
-          function positionBarPopup(popup, event) {
-            var margin = 8;
-            var gap = 14;
-            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-            var popupWidth = popup.offsetWidth || 180;
-            var popupHeight = popup.offsetHeight || 80;
-            var fitsRight = event.clientX + gap + popupWidth <= viewportWidth - margin;
-            var left = fitsRight ? event.clientX + gap : event.clientX - gap - popupWidth;
-            var top = event.clientY - popupHeight / 2;
-            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
-            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
-            popup.style.left = trimNumber(left) + "px";
-            popup.style.top = trimNumber(top) + "px";
-            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
-          }
-          dashboard.addEventListener("mousemove", function (event) {
-            var bar = event.target.closest(".octane-vertical-bar");
-            if (!bar || !dashboard.contains(bar)) {
-              return;
-            }
-            var popup = popupForBar(bar);
-            if (!popup) {
-              return;
-            }
-            if (activeBarPopup && activeBarPopup !== popup) {
-              hideBarPopup();
-            }
-            activeBarPopup = popup;
-            popup.classList.add("octane-bar-popup-visible");
-            positionBarPopup(popup, event);
-          });
-          dashboard.addEventListener("mouseout", function (event) {
-            var bar = event.target.closest(".octane-vertical-bar");
-            if (!bar) {
-              return;
-            }
-            if (event.relatedTarget && bar.contains(event.relatedTarget)) {
-              return;
-            }
-            hideBarPopup();
-          });
-          window.addEventListener("scroll", hideBarPopup, true);
-          window.addEventListener("resize", hideBarPopup);
+	          var barPopupOverlay = document.getElementById("octane-bar-popup-overlay");
+	          var barPopupRefreshInProgress = false;
+	          var activeBarPopupState = {
+	            barKey: "",
+	            cardKey: "",
+	            clientX: 0,
+	            clientY: 0,
+	            input: "",
+	            visible: false
+	          };
+	          function hideBarPopup() {
+	            if (!activeBarPopupState.visible || !barPopupOverlay) {
+	              return;
+	            }
+	            barPopupOverlay.classList.remove(
+	                "octane-bar-popup-visible", "octane-bar-popup-restoring");
+	            barPopupOverlay.removeAttribute("data-placement");
+	            barPopupOverlay.setAttribute("aria-hidden", "true");
+	            barPopupOverlay.style.left = "";
+	            barPopupOverlay.style.top = "";
+	            activeBarPopupState = {
+	              barKey: "",
+	              cardKey: "",
+	              clientX: 0,
+	              clientY: 0,
+	              input: "",
+	              visible: false
+	            };
+	          }
+	          function popupForColumn(column) {
+	            return column ? column.querySelector(".octane-bar-popup") : null;
+	          }
+	          function cardKeyForColumn(column) {
+	            return column ? column.getAttribute("data-card-key") || "" : "";
+	          }
+	          function barKeyForColumn(column) {
+	            return column ? column.getAttribute("data-bar-key") || "" : "";
+	          }
+	          function pointForColumn(column) {
+	            var bar = column ? column.querySelector(".octane-vertical-bar") : null;
+	            var rect = (bar || column).getBoundingClientRect();
+	            return {
+	              clientX: rect.left + rect.width / 2,
+	              clientY: rect.top + rect.height / 2
+	            };
+	          }
+	          function pointInsideColumn(column, point) {
+	            if (!column || !point) {
+	              return false;
+	            }
+	            var rect = column.getBoundingClientRect();
+	            return point.clientX >= rect.left
+	                && point.clientX <= rect.right
+	                && point.clientY >= rect.top
+	                && point.clientY <= rect.bottom;
+	          }
+	          function findColumnByKeys(root, cardKey, barKey) {
+	            if (!root || !cardKey || !barKey) {
+	              return null;
+	            }
+	            var columns = root.querySelectorAll(".octane-suite-column[data-bar-key]");
+	            for (var index = 0; index < columns.length; index += 1) {
+	              if (cardKeyForColumn(columns[index]) === cardKey
+	                  && barKeyForColumn(columns[index]) === barKey) {
+	                return columns[index];
+	              }
+	            }
+	            return null;
+	          }
+	          function positionBarPopup(popup, point) {
+	            var margin = 8;
+	            var gap = 14;
+	            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+	            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+	            var popupWidth = popup.offsetWidth || 180;
+	            var popupHeight = popup.offsetHeight || 80;
+	            var fitsRight = point.clientX + gap + popupWidth <= viewportWidth - margin;
+	            var left = fitsRight ? point.clientX + gap : point.clientX - gap - popupWidth;
+	            var top = point.clientY - popupHeight / 2;
+	            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
+	            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
+	            popup.style.left = trimNumber(left) + "px";
+	            popup.style.top = trimNumber(top) + "px";
+	            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
+	          }
+	          function showBarPopup(column, point, input, restoring) {
+	            var source = popupForColumn(column);
+	            if (!source || !barPopupOverlay) {
+	              return;
+	            }
+	            var cardKey = cardKeyForColumn(column);
+	            var barKey = barKeyForColumn(column);
+	            if (!cardKey || !barKey) {
+	              return;
+	            }
+	            barPopupOverlay.innerHTML = source.innerHTML;
+	            if (restoring) {
+	              barPopupOverlay.classList.add("octane-bar-popup-restoring");
+	            } else {
+	              barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+	            }
+	            activeBarPopupState = {
+	              barKey: barKey,
+	              cardKey: cardKey,
+	              clientX: point.clientX,
+	              clientY: point.clientY,
+	              input: input,
+	              visible: true
+	            };
+	            barPopupOverlay.setAttribute("aria-hidden", "false");
+	            barPopupOverlay.classList.add("octane-bar-popup-visible");
+	            positionBarPopup(barPopupOverlay, point);
+	            if (restoring) {
+	              requestFrame(function () {
+	                barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+	              });
+	            }
+	          }
+	          function captureBarPopupRestoreState() {
+	            if (!activeBarPopupState.visible) {
+	              return null;
+	            }
+	            return {
+	              barKey: activeBarPopupState.barKey,
+	              cardKey: activeBarPopupState.cardKey,
+	              clientX: activeBarPopupState.clientX,
+	              clientY: activeBarPopupState.clientY,
+	              input: activeBarPopupState.input,
+	              visible: activeBarPopupState.visible
+	            };
+	          }
+	          function restoreBarPopupAfterRefresh(root, restoreState) {
+	            if (!restoreState || !restoreState.visible) {
+	              return;
+	            }
+	            var column =
+	                findColumnByKeys(root || dashboard, restoreState.cardKey, restoreState.barKey);
+	            if (!column) {
+	              hideBarPopup();
+	              return;
+	            }
+	            var point = restoreState.input === "focus"
+	                ? pointForColumn(column)
+	                : {clientX: restoreState.clientX, clientY: restoreState.clientY};
+	            if (restoreState.input !== "focus" && !pointInsideColumn(column, point)) {
+	              hideBarPopup();
+	              return;
+	            }
+	            showBarPopup(column, point, restoreState.input, true);
+	          }
+	          function refreshActiveBarPopup() {
+	            if (!activeBarPopupState.visible) {
+	              return;
+	            }
+	            restoreBarPopupAfterRefresh(dashboard, captureBarPopupRestoreState());
+	          }
+	          dashboard.addEventListener("mousemove", function (event) {
+	            var bar = event.target.closest(".octane-vertical-bar");
+	            if (!bar || !dashboard.contains(bar)) {
+	              return;
+	            }
+	            var column = bar.closest(".octane-suite-column");
+	            if (!column) {
+	              return;
+	            }
+	            showBarPopup(
+	                column, {clientX: event.clientX, clientY: event.clientY}, "mouse", false);
+	          });
+	          dashboard.addEventListener("mouseout", function (event) {
+	            if (barPopupRefreshInProgress) {
+	              return;
+	            }
+	            var column = event.target.closest(".octane-suite-column");
+	            if (!column) {
+	              return;
+	            }
+	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
+	              return;
+	            }
+	            if (activeBarPopupState.input === "mouse"
+	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+	              hideBarPopup();
+	            }
+	          });
+	          dashboard.addEventListener("focusin", function (event) {
+	            var column = event.target.closest(".octane-suite-column");
+	            if (!column || !dashboard.contains(column)) {
+	              return;
+	            }
+	            showBarPopup(column, pointForColumn(column), "focus", false);
+	          });
+	          dashboard.addEventListener("focusout", function (event) {
+	            var column = event.target.closest(".octane-suite-column");
+	            if (!column) {
+	              return;
+	            }
+	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
+	              return;
+	            }
+	            if (activeBarPopupState.input === "focus"
+	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+	              hideBarPopup();
+	            }
+	          });
+	          window.addEventListener("scroll", refreshActiveBarPopup, true);
+	          window.addEventListener("resize", refreshActiveBarPopup);
           var expandedCard = null;
           var focusedZone = null;
           var expandedBackdrop = document.createElement("div");
@@ -2332,12 +2494,13 @@
             }
             expandCard(card);
           });
-          document.addEventListener("keydown", function (event) {
-            if (event.key === "Escape") {
-              collapseExpandedCard();
-              collapseFocusedZone();
-            }
-          });
+	          document.addEventListener("keydown", function (event) {
+	            if (event.key === "Escape") {
+	              hideBarPopup();
+	              collapseExpandedCard();
+	              collapseFocusedZone();
+	            }
+	          });
           var dragged = null;
           var draggedZone = null;
           function zoneForCard(card) {

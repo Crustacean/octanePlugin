@@ -180,6 +180,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("transform: none"));
     assertFalse(xml.contains("rotate(-45deg)"));
     assertTrue(xml.contains("octane-bar-popup"));
+    assertTrue(xml.contains("id=\"octane-bar-popup-overlay\""));
+    assertTrue(xml.contains("data-bar-key=\""));
     assertTrue(xml.contains("min-width: 10.92rem"));
     assertTrue(xml.contains("position: fixed"));
     assertTrue(xml.contains("font-size: 0.644rem"));
@@ -188,10 +190,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-popup-row"));
     assertTrue(xml.contains("octane-bar-popup-total"));
     assertTrue(xml.contains("octane-bar-popup-visible"));
+    assertTrue(xml.contains("octane-bar-popup-restoring"));
     assertTrue(xml.contains("positionBarPopup"));
-    assertTrue(xml.contains("event.clientX + gap + popupWidth"));
+    assertTrue(xml.contains("point.clientX + gap + popupWidth"));
     assertTrue(xml.contains("popup.setAttribute(\"data-placement\""));
-    assertTrue(xml.contains("window.addEventListener(\"resize\", hideBarPopup)"));
+    assertTrue(xml.contains("window.addEventListener(\"resize\", refreshActiveBarPopup)"));
     assertFalse(xml.contains(".octane-suite-column:hover .octane-bar-popup"));
     assertFalse(xml.contains("transform: translate(-50%"));
     assertFalse(xml.contains("class=\"octane-total\""));
@@ -303,6 +306,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("event.target.closest(\".octane-zone-focus-toggle\")"));
     assertTrue(xml.contains("card.setAttribute(\"draggable\", \"false\")"));
     assertTrue(xml.contains("card.classList.contains(\"octane-expanded\")"));
+    assertTrue(xml.contains("captureBarPopupRestoreState"));
+    assertTrue(xml.contains("barPopupRefreshInProgress = true"));
+    assertTrue(xml.contains("restoreBarPopupAfterRefresh(updatedReportZone"));
+    assertTrue(xml.contains("barPopupOverlay.innerHTML = source.innerHTML"));
+    assertTrue(xml.contains("findColumnByKeys"));
     assertTrue(xml.contains("replaceWith(updatedReportZone)"));
     assertTrue(xml.contains("payload.passRateProgress"));
     assertTrue(xml.contains("payload.passRateLabel"));

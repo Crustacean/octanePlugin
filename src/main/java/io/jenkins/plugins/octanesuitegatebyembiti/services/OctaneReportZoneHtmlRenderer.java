@@ -493,8 +493,9 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div>\n");
     html.append("<div class=\"octane-bar-plot\">\n");
     html.append("<div class=\"octane-vertical-bars\">\n");
+    String cardKey = "bars-" + section.getSource();
     for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
-      renderSuiteRunColumn(html, suiteRun);
+      renderSuiteRunColumn(html, suiteRun, cardKey);
     }
     html.append("</div>\n");
     html.append("</div>\n");
@@ -502,9 +503,14 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</section>\n");
   }
 
-  private void renderSuiteRunColumn(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
+  private void renderSuiteRunColumn(
+      StringBuilder html, OctaneGateSuiteRunChart suiteRun, String cardKey) {
     html.append("<div class=\"octane-suite-column\" tabindex=\"0\" aria-label=\"");
     html.append(escapeAttribute(suiteRun.getTitle()));
+    html.append("\" data-card-key=\"");
+    html.append(escapeAttribute(cardKey));
+    html.append("\" data-bar-key=\"");
+    html.append(escapeAttribute(suiteRun.getSuiteRunId()));
     html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
