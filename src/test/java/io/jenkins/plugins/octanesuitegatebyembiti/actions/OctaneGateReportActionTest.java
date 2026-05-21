@@ -299,6 +299,13 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("removeFocusedZone"));
     assertTrue(xml.contains("findZoneByKey"));
     assertTrue(xml.contains("findCardByKey"));
+    assertTrue(xml.contains("function autoShowHeatMapOnCompletion"));
+    assertTrue(xml.contains("card.querySelector(\".octane-view-toggle\")"));
+    assertTrue(xml.contains("payload.stateLabel === \"Timed out\""));
+    assertTrue(xml.contains("progress >= 100"));
+    assertTrue(xml.contains("setCardView(card, \"heatmap\")"));
+    assertTrue(xml.contains("autoShowHeatMapOnCompletion(currentReportPayload())"));
+    assertTrue(xml.contains("autoShowHeatMapOnCompletion(payload)"));
     assertTrue(xml.contains("expandedKey"));
     assertTrue(xml.contains("expandedBackdrop.addEventListener(\"click\""));
     assertTrue(xml.contains("setExpandButtonState"));

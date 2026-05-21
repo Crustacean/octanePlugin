@@ -1671,16 +1671,46 @@
               setCardView(cards[index], activeCardView(cards[index]));
             }
           }
-          function updateRiskHeatMap(payload) {
-            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
-              return;
-            }
-            var panel = dashboard.querySelector("[data-heat-map-panel]");
-            if (panel) {
-              panel.innerHTML = payload.riskHeatMapHtml;
-            }
-          }
-          function zoneKeyFor(zone) {
+	          function updateRiskHeatMap(payload) {
+	            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
+	              return;
+	            }
+	            var panel = dashboard.querySelector("[data-heat-map-panel]");
+	            if (panel) {
+	              panel.innerHTML = payload.riskHeatMapHtml;
+	            }
+	          }
+	          function currentReportPayload() {
+	            var executionProgressCard =
+	                dashboard.querySelector('[data-octane-progress="execution"]');
+	            var executionProgress = executionProgressCard
+	                ? parseFloat(executionProgressCard.getAttribute("data-progress-value") || "0")
+	                : 0;
+	            return {
+	              building: dashboard.getAttribute("data-report-building") === "true",
+	              executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
+	              stateLabel: stateLabel ? stateLabel.textContent : ""
+	            };
+	          }
+	          function autoShowHeatMapOnCompletion(payload) {
+	            var card = dashboard.querySelector('[data-card-key="timer-poll"]');
+	            if (!card || !card.querySelector(".octane-view-toggle")) {
+	              return;
+	            }
+	            if (activeCardView(card) === "heatmap") {
+	              return;
+	            }
+	            var progress = Number(payload && payload.executionProgress ? payload.executionProgress : 0);
+	            if (isNaN(progress)) {
+	              progress = 0;
+	            }
+	            var timedOut =
+	                payload && payload.building !== true && payload.stateLabel === "Timed out";
+	            if (timedOut || progress >= 100) {
+	              setCardView(card, "heatmap");
+	            }
+	          }
+	          function zoneKeyFor(zone) {
             if (!zone) {
               return "";
             }
@@ -1749,10 +1779,11 @@
               actions.appendChild(createExpandButton());
               actions.appendChild(tools);
             }
-          }
-          decorateCardZones(dashboard);
-          initializeCardViews(dashboard);
-          function createTimerState(card) {
+	          }
+	          decorateCardZones(dashboard);
+	          initializeCardViews(dashboard);
+	          autoShowHeatMapOnCompletion(currentReportPayload());
+	          function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
               totalSeconds = 1;
@@ -1927,11 +1958,12 @@
             if (updatedAtLabel) {
               updatedAtLabel.textContent = payload.updatedAtText || payload.updatedAt || "";
             }
-            if (messageLabel) {
-              messageLabel.textContent = payload.message || "";
-            }
-            updateRiskHeatMap(payload);
-            var reportZone = document.getElementById("octane-report-zone");
+	            if (messageLabel) {
+	              messageLabel.textContent = payload.message || "";
+	            }
+	            updateRiskHeatMap(payload);
+	            autoShowHeatMapOnCompletion(payload);
+	            var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
             decorateCardZones(updatedReportZone);
@@ -2042,9 +2074,10 @@
                 throw new Error("Snapshot request failed: " + response.status);
               }
               return response.json();
-            }).then(function (payload) {
-              updateRiskHeatMap(payload);
-            }).catch(function () {
+	            }).then(function (payload) {
+	              updateRiskHeatMap(payload);
+	              autoShowHeatMapOnCompletion(payload);
+	            }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
             });
           }
