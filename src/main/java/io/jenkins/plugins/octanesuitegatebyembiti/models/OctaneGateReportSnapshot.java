@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneRiskHeatMapRenderer;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,6 +27,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final String startedAt;
   private final String updatedAt;
   private final List<OctaneGateReportSection> sections;
+  private final OctaneRiskHeatMap riskHeatMap;
 
   private OctaneGateReportSnapshot(
       OctaneGateReportState state,
@@ -36,7 +38,8 @@ public class OctaneGateReportSnapshot implements Serializable {
       int timeoutSeconds,
       String startedAt,
       String updatedAt,
-      List<OctaneGateReportSection> sections) {
+      List<OctaneGateReportSection> sections,
+      OctaneRiskHeatMap riskHeatMap) {
     this.state = state;
     this.message = message;
     this.criteria = criteria;
@@ -46,6 +49,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     this.startedAt = startedAt;
     this.updatedAt = updatedAt;
     this.sections = List.copyOf(sections);
+    this.riskHeatMap = riskHeatMap == null ? OctaneRiskHeatMap.disabled() : riskHeatMap;
   }
 
   private static int toSeconds(int minutes) {
@@ -63,7 +67,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         toSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES),
         now,
         now,
-        List.of());
+        List.of(),
+        OctaneRiskHeatMap.disabled());
   }
 
   public static OctaneGateReportSnapshot waiting(GateRequest request, int refreshSeconds) {
@@ -81,7 +86,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         toSeconds(request.getTimeoutMinutes()),
         startedAt,
         Instant.now().toString(),
-        List.of());
+        List.of(),
+        request.isRiskHeatMap() ? OctaneRiskHeatMap.waiting() : OctaneRiskHeatMap.disabled());
   }
 
   public static OctaneGateReportSnapshot fromResult(
@@ -122,7 +128,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutSeconds,
         startedAt,
         result.getPolledAt().toString(),
-        sections);
+        sections,
+        result.getRiskHeatMap());
   }
 
   public static OctaneGateReportSnapshot error(
@@ -133,7 +140,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         suiteRunId,
         refreshSeconds,
         toSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES),
-        Instant.now().toString());
+        Instant.now().toString(),
+        false);
   }
 
   public static OctaneGateReportSnapshot error(
@@ -143,6 +151,17 @@ public class OctaneGateReportSnapshot implements Serializable {
       int refreshSeconds,
       int timeoutSeconds,
       String startedAt) {
+    return error(message, criteria, suiteRunId, refreshSeconds, timeoutSeconds, startedAt, false);
+  }
+
+  public static OctaneGateReportSnapshot error(
+      String message,
+      String criteria,
+      String suiteRunId,
+      int refreshSeconds,
+      int timeoutSeconds,
+      String startedAt,
+      boolean riskHeatMapEnabled) {
     return new OctaneGateReportSnapshot(
         OctaneGateReportState.ERROR,
         message,
@@ -152,7 +171,10 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutSeconds,
         startedAt,
         Instant.now().toString(),
-        List.of());
+        List.of(),
+        riskHeatMapEnabled
+            ? OctaneRiskHeatMap.unavailable("Risk heat map is unavailable because polling stopped.")
+            : OctaneRiskHeatMap.disabled());
   }
 
   public OctaneGateReportState getState() {
@@ -205,6 +227,18 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public List<OctaneGateReportSection> getSections() {
     return sections;
+  }
+
+  public OctaneRiskHeatMap getRiskHeatMap() {
+    return riskHeatMap;
+  }
+
+  public boolean isRiskHeatMapEnabled() {
+    return riskHeatMap.isEnabled();
+  }
+
+  public String getRiskHeatMapHtml() {
+    return new OctaneRiskHeatMapRenderer().render(riskHeatMap);
   }
 
   public List<OctaneGateReportSection> getReportSections() {

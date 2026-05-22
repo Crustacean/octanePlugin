@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import hudson.AbortException;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
@@ -15,8 +16,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -28,7 +31,12 @@ public class OctaneClient implements AutoCloseable {
   private static final String TECH_PREVIEW_HEADER = "ALM-OCTANE-TECH-PREVIEW";
   private static final String RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
-          + "runs_in_suite";
+          + "test{id,name},product_areas{id,name},runs_in_suite";
+  private static final String DEFECT_FIELDS =
+      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
+          + "run{id,name},test{id,name},product_areas{id,name}";
+  private static final String MINIMAL_DEFECT_FIELDS =
+      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name}";
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -105,6 +113,39 @@ public class OctaneClient implements AutoCloseable {
     return runIds;
   }
 
+  public List<DefectRecord> fetchLinkedDefects(
+      String sharedSpaceId,
+      String workspaceId,
+      Map<String, List<RunRecord>> suiteRuns,
+      String defectQuery,
+      int maxDefects)
+      throws IOException, InterruptedException {
+    if (suiteRuns.isEmpty() || maxDefects <= 0) {
+      return List.of();
+    }
+
+    LinkedHashSet<String> runIds = collectRunIds(suiteRuns);
+    LinkedHashSet<String> testIds = collectTestIds(suiteRuns);
+    if (runIds.isEmpty() && testIds.isEmpty()) {
+      return List.of();
+    }
+
+    Map<String, DefectRecord> recordsById = new LinkedHashMap<>();
+    fetchDefectsForRelation(
+        sharedSpaceId, workspaceId, "test", testIds, defectQuery, maxDefects, recordsById);
+    fetchDefectsForRelation(
+        sharedSpaceId, workspaceId, "run", runIds, defectQuery, maxDefects, recordsById);
+    fetchDefectsForRelation(
+        sharedSpaceId,
+        workspaceId,
+        "detected_in_run",
+        runIds,
+        defectQuery,
+        maxDefects,
+        recordsById);
+    return new ArrayList<>(recordsById.values());
+  }
+
   public int testWorkspaceAccess(String sharedSpaceId, String workspaceId)
       throws IOException, InterruptedException {
     String path =
@@ -171,6 +212,9 @@ public class OctaneClient implements AutoCloseable {
     try {
       node = getJson(fallbackPath);
     } catch (IOException e) {
+      if (isNotFound(e) || isNotFound(runsLookupFailure)) {
+        throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
+      }
       if (runsLookupFailure != null) {
         throw new AbortException(
             "ALM Octane suite run lookup failed. Runs collection lookup failed: "
@@ -187,7 +231,23 @@ public class OctaneClient implements AutoCloseable {
     if (!node.path("id").isMissingNode()) {
       return node;
     }
-    throw new AbortException("ALM Octane suite run was not found: " + suiteRunId);
+    throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
+  }
+
+  private boolean isNotFound(IOException exception) {
+    return exception != null && Util.trimToEmpty(exception.getMessage()).contains("HTTP 404");
+  }
+
+  private String suiteRunNotFoundMessage(
+      String sharedSpaceId, String workspaceId, String suiteRunId) {
+    return "ALM Octane suite run "
+        + Util.trimToEmpty(suiteRunId)
+        + " was not found in shared space "
+        + Util.trimToEmpty(sharedSpaceId)
+        + " / workspace "
+        + Util.trimToEmpty(workspaceId)
+        + ". Check that the job's shared space ID and workspace ID match the Octane workspace "
+        + "that owns this suite run.";
   }
 
   private List<RunRecord> fetchRunsByIds(
@@ -245,6 +305,141 @@ public class OctaneClient implements AutoCloseable {
       clauses.add("id EQ " + runId);
     }
     return String.join("||", clauses);
+  }
+
+  private LinkedHashSet<String> collectRunIds(Map<String, List<RunRecord>> suiteRuns) {
+    LinkedHashSet<String> runIds = new LinkedHashSet<>();
+    for (List<RunRecord> runs : suiteRuns.values()) {
+      for (RunRecord run : runs) {
+        if (!Util.isBlank(run.getId())) {
+          runIds.add(run.getId());
+        }
+      }
+    }
+    return runIds;
+  }
+
+  private LinkedHashSet<String> collectTestIds(Map<String, List<RunRecord>> suiteRuns) {
+    LinkedHashSet<String> testIds = new LinkedHashSet<>();
+    for (List<RunRecord> runs : suiteRuns.values()) {
+      for (RunRecord run : runs) {
+        if (!Util.isBlank(run.getTestId())) {
+          testIds.add(run.getTestId());
+        }
+      }
+    }
+    return testIds;
+  }
+
+  private void fetchDefectsForRelation(
+      String sharedSpaceId,
+      String workspaceId,
+      String relationField,
+      Set<String> relatedIds,
+      String defectQuery,
+      int maxDefects,
+      Map<String, DefectRecord> recordsById)
+      throws InterruptedException {
+    if (relatedIds.isEmpty() || recordsById.size() >= maxDefects) {
+      return;
+    }
+    List<String> clauses = buildRelationClauses(relationField, relatedIds);
+    try {
+      for (int start = 0; start < clauses.size() && recordsById.size() < maxDefects;
+          start += QUERY_CHUNK_SIZE) {
+        int end = Math.min(start + QUERY_CHUNK_SIZE, clauses.size());
+        List<DefectRecord> records =
+            fetchDefectsChunk(
+                sharedSpaceId,
+                workspaceId,
+                clauses.subList(start, end),
+                defectQuery,
+                maxDefects - recordsById.size());
+        for (DefectRecord record : records) {
+          recordsById.putIfAbsent(record.getId(), record);
+        }
+      }
+    } catch (IOException e) {
+      // Octane schemas differ by version. Ignore unsupported relationship fields and keep
+      // any defects found through the other supported relationships.
+    }
+  }
+
+  private List<String> buildRelationClauses(String relationField, Set<String> relatedIds) {
+    List<String> clauses = new ArrayList<>();
+    for (String relatedId : relatedIds) {
+      clauses.add(relationField + " EQ {id EQ " + relatedId + "}");
+    }
+    return clauses;
+  }
+
+  private List<DefectRecord> fetchDefectsChunk(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> clauses,
+      String defectQuery,
+      int maxDefects)
+      throws IOException, InterruptedException {
+    String query = String.join("||", clauses);
+    if (!Util.isBlank(defectQuery)) {
+      query = "(" + query + ");(" + defectQuery + ")";
+    }
+
+    List<DefectRecord> records = new ArrayList<>();
+    int offset = 0;
+    while (records.size() < maxDefects) {
+      int limit = Math.min(PAGE_SIZE, maxDefects - records.size());
+      JsonNode collection = getDefectsJson(sharedSpaceId, workspaceId, query, limit, offset);
+      JsonNode data = collection.path("data");
+      if (!data.isArray() || data.isEmpty()) {
+        break;
+      }
+      for (JsonNode node : data) {
+        records.add(parseDefect(node));
+      }
+      if (data.size() < limit) {
+        break;
+      }
+      offset += limit;
+    }
+    return records;
+  }
+
+  private JsonNode getDefectsJson(
+      String sharedSpaceId, String workspaceId, String query, int limit, int offset)
+      throws IOException, InterruptedException {
+    try {
+      return getJson(defectsPath(sharedSpaceId, workspaceId, query, DEFECT_FIELDS, limit, offset));
+    } catch (IOException e) {
+      if (!isUnknownFieldFailure(e)) {
+        throw e;
+      }
+      return getJson(
+          defectsPath(sharedSpaceId, workspaceId, query, MINIMAL_DEFECT_FIELDS, limit, offset));
+    }
+  }
+
+  private String defectsPath(
+      String sharedSpaceId,
+      String workspaceId,
+      String query,
+      String fields,
+      int limit,
+      int offset) {
+    return workspacePath(sharedSpaceId, workspaceId)
+        + "/defects?"
+        + parameter("query", quote(query))
+        + "&"
+        + parameter("fields", fields)
+        + "&"
+        + parameter("limit", Integer.toString(limit))
+        + "&"
+        + parameter("offset", Integer.toString(offset));
+  }
+
+  private boolean isUnknownFieldFailure(IOException exception) {
+    String message = exception.getMessage();
+    return message != null && message.contains("platform.unknown_field");
   }
 
   private JsonNode getJson(String path) throws IOException, InterruptedException {
@@ -386,8 +581,33 @@ public class OctaneClient implements AutoCloseable {
     if (status.isEmpty()) {
       status = readStatus(node.path("status"));
     }
+    EntityReference test = readEntity(node.path("test"));
+    EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
     return new RunRecord(
-        node.path("id").asText(), node.path("name").asText(), status, readPersonName(node));
+        node.path("id").asText(),
+        node.path("name").asText(),
+        status,
+        readPersonName(node),
+        test.id,
+        test.name,
+        project.id,
+        project.name);
+  }
+
+  private DefectRecord parseDefect(JsonNode node) {
+    EntityReference run = readEntity(node.path("run"));
+    EntityReference test = readEntity(node.path("test"));
+    EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
+    return new DefectRecord(
+        node.path("id").asText(),
+        node.path("name").asText(),
+        readStatus(node.path("severity")),
+        readStatus(node.path("priority")),
+        readStatus(node.path("phase")),
+        run.id,
+        test.id,
+        project.id,
+        project.name);
   }
 
   private String readStatus(JsonNode statusNode) {
@@ -410,6 +630,41 @@ public class OctaneClient implements AutoCloseable {
       return Optional.empty();
     }
     return Optional.of(value.asText());
+  }
+
+  private EntityReference readFirstEntity(JsonNode node, List<String> fieldNames) {
+    for (String fieldName : fieldNames) {
+      EntityReference reference = readEntity(node.path(fieldName));
+      if (!reference.isEmpty()) {
+        return reference;
+      }
+    }
+    return EntityReference.EMPTY;
+  }
+
+  private EntityReference readEntity(JsonNode entityNode) {
+    if (entityNode.isMissingNode() || entityNode.isNull()) {
+      return EntityReference.EMPTY;
+    }
+    if (entityNode.isArray()) {
+      for (JsonNode item : entityNode) {
+        EntityReference reference = readEntity(item);
+        if (!reference.isEmpty()) {
+          return reference;
+        }
+      }
+      return EntityReference.EMPTY;
+    }
+    if (entityNode.isObject()) {
+      JsonNode data = entityNode.path("data");
+      if (data.isArray() && !data.isEmpty()) {
+        return readEntity(data.get(0));
+      }
+      String id = readOptionalText(entityNode, "id").orElse("");
+      String name = readOptionalText(entityNode, "name").orElse("");
+      return new EntityReference(id, name);
+    }
+    return new EntityReference(entityNode.asText(), entityNode.asText());
   }
 
   private String readPersonName(JsonNode node) {
@@ -466,5 +721,21 @@ public class OctaneClient implements AutoCloseable {
 
   private interface RequestFactory {
     HttpRequest create();
+  }
+
+  private static final class EntityReference {
+    private static final EntityReference EMPTY = new EntityReference("", "");
+
+    private final String id;
+    private final String name;
+
+    private EntityReference(String id, String name) {
+      this.id = Util.trimToEmpty(id);
+      this.name = Util.trimToEmpty(name);
+    }
+
+    private boolean isEmpty() {
+      return id.isEmpty() && name.isEmpty();
+    }
   }
 }

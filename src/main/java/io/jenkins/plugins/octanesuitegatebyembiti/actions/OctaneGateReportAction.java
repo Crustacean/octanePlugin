@@ -106,7 +106,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
             request.getSuiteRunId(),
             refreshSeconds,
             timeoutSeconds,
-            startedAt);
+            startedAt,
+            request.isRiskHeatMap());
     saveRun();
   }
 
@@ -146,6 +147,9 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("passRateProgressText", safeSnapshot.getPassRateProgressText());
     payload.put("passRateLabel", safeSnapshot.getPassRateLabel());
     payload.put("refreshSeconds", safeSnapshot.getRefreshSeconds());
+    payload.put("riskHeatMapEnabled", safeSnapshot.isRiskHeatMapEnabled());
+    payload.put("riskHeatMapHtml", safeSnapshot.getRiskHeatMapHtml());
+    payload.put("riskHeatMap", safeSnapshot.getRiskHeatMap().toMap());
     payload.put("reportZoneHtml", new OctaneReportZoneHtmlRenderer().renderZone(safeSnapshot));
 
     response.setContentType("application/json;charset=UTF-8");

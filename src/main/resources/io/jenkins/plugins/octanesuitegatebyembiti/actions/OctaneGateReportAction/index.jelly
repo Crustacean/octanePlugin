@@ -64,7 +64,7 @@
         .octane-timer-zone.octane-zone-focused,
         .octane-report-zone.octane-zone-focused {
           background: var(--background);
-          border-color: var(--input-border);
+          border-color: #4391F5;
           border-radius: 14px;
           box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
           box-sizing: border-box;
@@ -122,7 +122,8 @@
           resize: none;
           width: auto;
         }
-        .octane-zone-focused .octane-card-header {
+        .octane-zone-focused .octane-card-header,
+        .octane-zone-focused .octane-flip-face-header {
           align-items: flex-start;
           flex: 0 1 auto;
           margin-bottom: clamp(0.25rem, 0.7vh, 0.65rem);
@@ -132,6 +133,9 @@
           font-size: clamp(0.72rem, 1vw, 1rem);
           font-size: clamp(0.66rem, 2.6cqw, 1rem);
           line-height: 1.15;
+        }
+        .octane-report-zone.octane-zone-focused .octane-card-title {
+          font-size: clamp(0.66rem, 2.6cqw, 0.85rem);
         }
         .octane-zone-focused .octane-distribution-meta,
         .octane-zone-focused .octane-suite-chart-meta {
@@ -145,11 +149,17 @@
           font-size: clamp(0.58rem, 0.85vw, 0.82rem);
           font-size: clamp(0.52rem, 1.9cqw, 0.82rem);
         }
+        .octane-report-zone.octane-zone-focused .octane-legend-row,
+        .octane-report-zone.octane-zone-focused .octane-total-label {
+          font-size: clamp(0.52rem, 1.9cqw, 0.697rem);
+        }
         .octane-zone-focused .octane-swatch {
           height: clamp(0.45rem, 0.75vw, 0.7rem);
           width: clamp(0.45rem, 0.75vw, 0.7rem);
         }
         .octane-zone-focused .octane-timer-wrap,
+        .octane-zone-focused .octane-flip-viewport,
+        .octane-zone-focused .octane-flip-face-body,
         .octane-zone-focused .octane-donut-wrap,
         .octane-zone-focused .octane-bar-graph {
           flex: 1 1 auto;
@@ -164,6 +174,11 @@
         .octane-zone-focused .octane-timer-donut {
           max-height: min(38vh, 38vw);
           max-width: min(38vh, 38vw);
+        }
+        .octane-zone-focused .octane-risk-heat-map {
+          max-height: min(30vh, 30vw);
+          max-width: min(30vh, 30vw);
+          width: min(100%, 30vh, 30vw);
         }
         .octane-zone-focused .octane-donut {
           height: 100%;
@@ -244,13 +259,22 @@
           font-size: clamp(0.58rem, 2.35cqw, 0.9rem);
           line-height: 1.2;
         }
+        .octane-report-zone .octane-card-title {
+          font-size: clamp(0.72rem, 3.2cqw, 0.918rem);
+        }
+        .octane-report-zone .octane-card-header .octane-muted,
+        .octane-report-zone .octane-total-label,
+        .octane-report-zone .octane-legend-row {
+          font-size: clamp(0.58rem, 2.35cqw, 0.765rem);
+        }
         .octane-card-actions {
           align-items: center;
           display: inline-flex;
           flex: 0 0 auto;
           gap: 0.45rem;
         }
-        .octane-expand-toggle {
+        .octane-expand-toggle,
+        .octane-view-toggle {
           align-items: center;
           appearance: none;
           background: transparent;
@@ -265,7 +289,9 @@
           width: 1.15rem;
         }
         .octane-expand-toggle:hover,
-        .octane-expand-toggle:focus {
+        .octane-expand-toggle:focus,
+        .octane-view-toggle:hover,
+        .octane-view-toggle:focus {
           background: var(--panel-border-color);
           color: var(--text-color);
           outline: none;
@@ -282,6 +308,159 @@
         }
         .octane-icon-collapse {
           display: none;
+        }
+        .octane-icon-timer {
+          display: none;
+        }
+        .octane-chart-card[data-active-view="heatmap"] .octane-icon-heatmap {
+          display: none;
+        }
+        .octane-chart-card[data-active-view="heatmap"] .octane-icon-timer {
+          display: block;
+        }
+        .octane-chart-card[data-card-key="timer-poll"] {
+          position: relative;
+        }
+        .octane-chart-card[data-card-key="timer-poll"] > .octane-card-actions {
+          position: absolute;
+          right: 1rem;
+          top: 1rem;
+          z-index: 3;
+        }
+        .octane-flip-viewport {
+          box-sizing: border-box;
+          display: flex;
+          flex: 1 1 auto;
+          min-height: 245px;
+          min-width: 0;
+          overflow: hidden;
+          position: relative;
+          width: 100%;
+        }
+        .octane-flip-face {
+          box-sizing: border-box;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          inset: 0;
+          min-height: 0;
+          min-width: 0;
+          opacity: 0;
+          pointer-events: none;
+          position: absolute;
+          transform: translateY(0.25rem);
+          transition: opacity 160ms ease, transform 160ms ease;
+          width: 100%;
+        }
+        .octane-chart-card[data-active-view="timer"] .octane-flip-face-timer,
+        .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateY(0);
+        }
+        .octane-flip-face-header {
+          align-items: flex-start;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.35rem 0.75rem;
+          justify-content: space-between;
+          min-width: 0;
+          padding-right: 4.5rem;
+        }
+        .octane-flip-face-header > div:first-child {
+          min-width: 0;
+        }
+        .octane-flip-face-body {
+          align-items: center;
+          display: flex;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-heatmap-subtitle-row {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.24rem 0.45rem;
+        }
+        .octane-heatmap-inline-legend {
+          align-items: center;
+          display: inline-flex;
+          flex-wrap: wrap;
+          gap: 0.24rem 0.45rem;
+        }
+        .octane-heatmap-inline-legend .octane-legend-row {
+          white-space: nowrap;
+        }
+        .octane-heatmap-inline-legend .octane-swatch {
+          height: 0.56rem;
+          width: 0.56rem;
+        }
+        .octane-zone-focused .octane-heatmap-inline-legend .octane-swatch {
+          height: clamp(0.32rem, 0.52vw, 0.49rem);
+          width: clamp(0.32rem, 0.52vw, 0.49rem);
+        }
+        .octane-risk-heat-map-panel-inner {
+          align-items: center;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-risk-heat-map {
+          aspect-ratio: 1;
+          border-radius: 50%;
+          box-sizing: border-box;
+          clip-path: circle(50% at 50% 50%);
+          display: block;
+          height: auto;
+          max-height: min(100%, 173px);
+          max-width: 173px;
+          overflow: hidden;
+          shape-rendering: geometricPrecision;
+          width: min(100%, 173px);
+        }
+        .octane-risk-heat-map-slice {
+          stroke: var(--background);
+          stroke-width: 1;
+        }
+        .octane-risk-heat-map-center {
+          fill: var(--background);
+          stroke: var(--panel-border-color);
+          stroke-width: 1;
+        }
+        .octane-risk-heat-map-score {
+          fill: var(--text-color);
+          font-size: 2rem;
+          font-weight: 700;
+          text-anchor: middle;
+        }
+        .octane-risk-heat-map-label {
+          fill: var(--text-color-secondary);
+          font-size: 0.85rem;
+          text-anchor: middle;
+        }
+        .octane-risk-heat-map-diagnostics {
+          color: var(--text-color-secondary);
+          font-size: clamp(0.55rem, 2cqw, 0.76rem);
+          line-height: 1.2;
+          text-align: center;
+        }
+        .octane-risk-heat-map-empty {
+          align-items: center;
+          border: 1px dashed var(--input-border);
+          border-radius: 8px;
+          color: var(--text-color-secondary);
+          display: flex;
+          justify-content: center;
+          min-height: 180px;
+          padding: 1rem;
+          text-align: center;
+          width: 100%;
         }
         .octane-card-tools {
           align-items: center;
@@ -308,6 +487,7 @@
           z-index: 9998;
         }
         .octane-chart-card.octane-expanded {
+          border-color: #4391F5;
           display: flex;
           flex-direction: column;
           height: auto;
@@ -328,19 +508,30 @@
         .octane-chart-card.octane-expanded .octane-icon-collapse {
           display: block;
         }
-        .octane-chart-card.octane-expanded .octane-card-header {
+        .octane-chart-card.octane-expanded .octane-card-header,
+        .octane-chart-card.octane-expanded .octane-flip-face-header {
           flex: 0 0 auto;
         }
         .octane-chart-card.octane-expanded .octane-card-title {
           font-size: clamp(0.9rem, 1.5vw, 1.3rem);
           font-size: clamp(0.9rem, 2.2cqw, 1.3rem);
         }
+        .octane-report-zone .octane-chart-card.octane-expanded .octane-card-title {
+          font-size: clamp(0.765rem, 2.2cqw, 1.105rem);
+        }
         .octane-chart-card.octane-expanded .octane-muted,
         .octane-chart-card.octane-expanded .octane-total-label {
           font-size: clamp(0.72rem, 1vw, 0.95rem);
           font-size: clamp(0.72rem, 1.5cqw, 0.95rem);
         }
+        .octane-report-zone .octane-chart-card.octane-expanded .octane-muted,
+        .octane-report-zone .octane-chart-card.octane-expanded .octane-total-label,
+        .octane-report-zone .octane-chart-card.octane-expanded .octane-legend-row {
+          font-size: clamp(0.612rem, 1.5cqw, 0.808rem);
+        }
         .octane-chart-card.octane-expanded .octane-timer-wrap,
+        .octane-chart-card.octane-expanded .octane-flip-viewport,
+        .octane-chart-card.octane-expanded .octane-flip-face-body,
         .octane-chart-card.octane-expanded .octane-donut-wrap,
         .octane-chart-card.octane-expanded .octane-bar-graph {
           flex: 1 1 auto;
@@ -349,6 +540,11 @@
         .octane-chart-card.octane-expanded .octane-timer-donut {
           max-height: min(76vh, 76vw);
           max-width: min(76vh, 76vw);
+        }
+        .octane-chart-card.octane-expanded .octane-risk-heat-map {
+          max-height: min(60vh, 60vw);
+          max-width: min(60vh, 60vw);
+          width: min(100%, 60vh, 60vw);
         }
         .octane-chart-card.octane-expanded .octane-donut {
           max-height: min(72vh, 72vw);
@@ -605,6 +801,9 @@
           opacity: 1;
           visibility: visible;
         }
+        .octane-bar-popup.octane-bar-popup-restoring {
+          transition: none;
+        }
         .octane-bar-popup-name {
           border-bottom: 1px solid var(--panel-border-color);
           font-weight: 700;
@@ -797,73 +996,136 @@
                 data-total-seconds="${snapshot.refreshSeconds}"
                 data-started-at="${snapshot.updatedAt}"
                 data-updated-at="${snapshot.updatedAt}"
-                data-active="${snapshot.building}">
-              <div class="octane-card-header">
-                <div>
-                  <h2 class="octane-card-title">Status Check</h2>
-                  <div class="octane-muted">
-                    Polling interval
-                    <span class="octane-live-update" data-live-update-status="true"></span>
-                  </div>
-                </div>
-                <div class="octane-card-actions">
-                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
-                      aria-expanded="false" title="Expand widget">
-                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                data-active="${snapshot.building}"
+                data-active-view="timer">
+              <div class="octane-card-actions">
+                <j:if test="${snapshot.riskHeatMapEnabled}">
+                  <button class="octane-view-toggle" type="button"
+                      aria-label="Show risk heat map" title="Show risk heat map">
+                    <svg class="octane-action-icon octane-icon-heatmap" viewBox="0 0 24 24"
                         aria-hidden="true" focusable="false">
-                      <path d="M8 4H4v4" />
-                      <path d="M16 4h4v4" />
-                      <path d="M20 16v4h-4" />
-                      <path d="M8 20H4v-4" />
+                      <path d="M4 4h6v6H4z" />
+                      <path d="M14 4h6v6h-6z" />
+                      <path d="M4 14h6v6H4z" />
+                      <path d="M14 14h6v6h-6z" />
                     </svg>
-                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                    <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
                         aria-hidden="true" focusable="false">
-                      <path d="M9 3v6H3" />
-                      <path d="M3 9l6-6" />
-                      <path d="M15 21v-6h6" />
-                      <path d="M21 15l-6 6" />
+                      <circle cx="12" cy="13" r="8" />
+                      <path d="M12 9v4l3 2" />
+                      <path d="M9 2h6" />
                     </svg>
                   </button>
-                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                    :::
-                  </span>
-                </div>
+                </j:if>
+                <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                    aria-expanded="false" title="Expand widget">
+                  <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M8 4H4v4" />
+                    <path d="M16 4h4v4" />
+                    <path d="M20 16v4h-4" />
+                    <path d="M8 20H4v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M9 3v6H3" />
+                    <path d="M3 9l6-6" />
+                    <path d="M15 21v-6h6" />
+                    <path d="M21 15l-6 6" />
+                  </svg>
+                </button>
+                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                  :::
+                </span>
               </div>
-              <div class="octane-timer-wrap">
-                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                    aria-label="Status Check">
-                  <defs>
-                    <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208" y2="32"
-                        gradientUnits="userSpaceOnUse">
-                      <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                          offset="0%" stop-color="#757575" />
-                      <stop data-timer-gradient-stop="true" offset="20%" stop-color="#696969" />
-                      <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                          offset="40%" stop-color="#5d5d5d" />
-                      <stop data-timer-gradient-stop="true" offset="60%" stop-color="#bbdefb" />
-                      <stop data-timer-gradient-stop="true" offset="80%" stop-color="#a8c7e1" />
-                      <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                          offset="100%" stop-color="#95b1c8" />
-                    </linearGradient>
-                  </defs>
-                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                  <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-progress" data-timer-progress="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-head" data-timer-head="true"
-                      cx="120" cy="36" r="9.6" fill="#1f5fff" />
-                  <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
-                    --
-                  </text>
-                  <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
-                    seconds
-                  </text>
-                </svg>
+              <div class="octane-flip-viewport">
+                <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Status Check</h2>
+                      <div class="octane-muted">
+                        Polling interval
+                        <span class="octane-live-update" data-live-update-status="true"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-timer-wrap">
+                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                          aria-label="Status Check">
+                        <defs>
+                          <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208"
+                              y2="32" gradientUnits="userSpaceOnUse">
+                            <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
+                                offset="0%" stop-color="#757575" />
+                            <stop data-timer-gradient-stop="true" offset="20%"
+                                stop-color="#696969" />
+                            <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
+                                offset="40%" stop-color="#5d5d5d" />
+                            <stop data-timer-gradient-stop="true" offset="60%"
+                                stop-color="#bbdefb" />
+                            <stop data-timer-gradient-stop="true" offset="80%"
+                                stop-color="#a8c7e1" />
+                            <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
+                                offset="100%" stop-color="#95b1c8" />
+                          </linearGradient>
+                        </defs>
+                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                        <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
+                            transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-progress" data-timer-progress="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
+                            transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-head" data-timer-head="true"
+                            cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                        <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
+                          --
+                        </text>
+                        <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
+                          seconds
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="octane-flip-face octane-flip-face-heatmap" data-card-view="heatmap">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Risk Heat Map</h2>
+                      <div class="octane-muted octane-heatmap-subtitle-row">
+                        <span class="octane-heatmap-inline-legend">
+                          <span class="octane-legend-row">
+                            <span class="octane-swatch" style="background:#009900"></span>Low
+                          </span>
+                          <span class="octane-legend-row">
+                            <span class="octane-swatch" style="background:#4391F5"></span>Moderate
+                          </span>
+                          <span class="octane-legend-row">
+                            <span class="octane-swatch" style="background:#ffb74d"></span>Warning
+                          </span>
+                          <span class="octane-legend-row">
+                            <span class="octane-swatch" style="background:#990000"></span>High
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body" data-heat-map-panel="true">
+                    <div class="octane-risk-heat-map-empty">
+                      <j:choose>
+                        <j:when test="${snapshot.riskHeatMapEnabled}">
+                          Risk heat map will appear after the next report refresh.
+                        </j:when>
+                        <j:otherwise>
+                          Risk heat map is disabled. Set riskHeatMap: true to fetch defect risk data.
+                        </j:otherwise>
+                      </j:choose>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -1143,6 +1405,10 @@
                         <div class="octane-vertical-bars">
                           <j:forEach var="suiteRun" items="${section.suiteRuns}">
                             <div class="octane-suite-column" tabindex="0"
+                                data-card-key="bars-${section.source}"
+                                data-bar-key="${suiteRun.suiteRunId}"
+                                data-dominant-status-color="${suiteRun.dominantStatusColor}"
+                                data-dominant-status-label="${suiteRun.dominantStatusLabel}"
                                 aria-label="${suiteRun.title}">
                               <div class="octane-vertical-bar-wrap">
                                 <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
@@ -1222,6 +1488,8 @@
             </j:choose>
           </div>
         </div>
+        <div id="octane-bar-popup-overlay" class="octane-bar-popup" role="tooltip"
+            aria-hidden="true"></div>
       </div>
       <script>
         //<![CDATA[
@@ -1375,7 +1643,74 @@
                 + '<path d="M20 16v4h-4"></path><path d="M8 20H4v-4"></path></svg>';
             return button;
           }
-          function zoneKeyFor(zone) {
+          function setCardView(card, view) {
+            if (!card) {
+              return;
+            }
+            var nextView = view === "heatmap" ? "heatmap" : "timer";
+            card.setAttribute("data-active-view", nextView);
+            var button = card.querySelector(".octane-view-toggle");
+            if (!button) {
+              return;
+            }
+            var label = nextView === "heatmap" ? "Show polling timer" : "Show risk heat map";
+            button.setAttribute("aria-label", label);
+            button.setAttribute("title", label);
+          }
+          function activeCardView(card) {
+            return card && card.getAttribute("data-active-view") === "heatmap"
+                ? "heatmap"
+                : "timer";
+          }
+          function toggleCardView(card) {
+            setCardView(card, activeCardView(card) === "heatmap" ? "timer" : "heatmap");
+          }
+          function initializeCardViews(root) {
+            var cards = root.querySelectorAll("[data-active-view]");
+            for (var index = 0; index < cards.length; index += 1) {
+              setCardView(cards[index], activeCardView(cards[index]));
+            }
+          }
+	          function updateRiskHeatMap(payload) {
+	            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
+	              return;
+	            }
+	            var panel = dashboard.querySelector("[data-heat-map-panel]");
+	            if (panel) {
+	              panel.innerHTML = payload.riskHeatMapHtml;
+	            }
+	          }
+	          function currentReportPayload() {
+	            var executionProgressCard =
+	                dashboard.querySelector('[data-octane-progress="execution"]');
+	            var executionProgress = executionProgressCard
+	                ? parseFloat(executionProgressCard.getAttribute("data-progress-value") || "0")
+	                : 0;
+	            return {
+	              building: dashboard.getAttribute("data-report-building") === "true",
+	              executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
+	              stateLabel: stateLabel ? stateLabel.textContent : ""
+	            };
+	          }
+	          function autoShowHeatMapOnCompletion(payload) {
+	            var card = dashboard.querySelector('[data-card-key="timer-poll"]');
+	            if (!card || !card.querySelector(".octane-view-toggle")) {
+	              return;
+	            }
+	            if (activeCardView(card) === "heatmap") {
+	              return;
+	            }
+	            var progress = Number(payload && payload.executionProgress ? payload.executionProgress : 0);
+	            if (isNaN(progress)) {
+	              progress = 0;
+	            }
+	            var timedOut =
+	                payload && payload.building !== true && payload.stateLabel === "Timed out";
+	            if (timedOut || progress >= 100) {
+	              setCardView(card, "heatmap");
+	            }
+	          }
+	          function zoneKeyFor(zone) {
             if (!zone) {
               return "";
             }
@@ -1444,9 +1779,11 @@
               actions.appendChild(createExpandButton());
               actions.appendChild(tools);
             }
-          }
-          decorateCardZones(dashboard);
-          function createTimerState(card) {
+	          }
+	          decorateCardZones(dashboard);
+	          initializeCardViews(dashboard);
+	          autoShowHeatMapOnCompletion(currentReportPayload());
+	          function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
               totalSeconds = 1;
@@ -1621,10 +1958,12 @@
             if (updatedAtLabel) {
               updatedAtLabel.textContent = payload.updatedAtText || payload.updatedAt || "";
             }
-            if (messageLabel) {
-              messageLabel.textContent = payload.message || "";
-            }
-            var reportZone = document.getElementById("octane-report-zone");
+	            if (messageLabel) {
+	              messageLabel.textContent = payload.message || "";
+	            }
+	            updateRiskHeatMap(payload);
+	            autoShowHeatMapOnCompletion(payload);
+	            var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
             decorateCardZones(updatedReportZone);
@@ -1633,7 +1972,9 @@
                 expandedCard && reportZone && reportZone.contains(expandedCard);
             var focusedKey = focusedZone ? zoneKeyFor(focusedZone) : "";
             var restoreReportFocus = focusedZone && reportZone && focusedZone === reportZone;
+            var popupRestoreState = captureBarPopupRestoreState();
             if (reportZone && updatedReportZone) {
+              barPopupRefreshInProgress = true;
               if (restoreReportExpansion) {
                 removeExpandedState(expandedCard);
                 expandedCard = null;
@@ -1659,6 +2000,10 @@
                   collapseFocusedZone();
                 }
               }
+              requestFrame(function () {
+                barPopupRefreshInProgress = false;
+                restoreBarPopupAfterRefresh(updatedReportZone, popupRestoreState);
+              });
             }
             for (var index = 0; index < progressCards.length; index += 1) {
               var progressKind = progressCards[index].getAttribute("data-octane-progress");
@@ -1715,6 +2060,27 @@
               scheduleSnapshotRetry();
             });
           }
+          function fetchRiskHeatMapSnapshot() {
+            if (!dashboard.querySelector("[data-heat-map-panel]")
+                || typeof window.fetch !== "function") {
+              return;
+            }
+            window.fetch(snapshotUrl, {
+              cache: "no-store",
+              credentials: "same-origin",
+              headers: {"Accept": "application/json"}
+            }).then(function (response) {
+              if (!response.ok) {
+                throw new Error("Snapshot request failed: " + response.status);
+              }
+              return response.json();
+	            }).then(function (payload) {
+	              updateRiskHeatMap(payload);
+	              autoShowHeatMapOnCompletion(payload);
+	            }).catch(function () {
+              updateRiskHeatMap({riskHeatMapHtml: ""});
+            });
+          }
           function animateTimers() {
             var now = currentWallTime();
             var activeTimerStillRunning = false;
@@ -1736,6 +2102,7 @@
           if (timers.length > 0) {
             scheduleTimerAnimation();
           }
+          fetchRiskHeatMapSnapshot();
           function updateExecutionProgress(card) {
             var progress = parseFloat(card.getAttribute("data-progress-value") || "0");
             if (isNaN(progress)) {
@@ -1787,65 +2154,235 @@
           for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
             updateExecutionProgress(progressCards[progressIndex]);
           }
-          var activeBarPopup = null;
-          function hideBarPopup() {
-            if (!activeBarPopup) {
-              return;
-            }
-            activeBarPopup.classList.remove("octane-bar-popup-visible");
-            activeBarPopup.removeAttribute("data-placement");
-            activeBarPopup.style.left = "";
-            activeBarPopup.style.top = "";
-            activeBarPopup = null;
-          }
-          function popupForBar(bar) {
-            var column = bar ? bar.closest(".octane-suite-column") : null;
-            return column ? column.querySelector(".octane-bar-popup") : null;
-          }
-          function positionBarPopup(popup, event) {
-            var margin = 8;
-            var gap = 14;
-            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-            var popupWidth = popup.offsetWidth || 180;
-            var popupHeight = popup.offsetHeight || 80;
-            var fitsRight = event.clientX + gap + popupWidth <= viewportWidth - margin;
-            var left = fitsRight ? event.clientX + gap : event.clientX - gap - popupWidth;
-            var top = event.clientY - popupHeight / 2;
-            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
-            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
-            popup.style.left = trimNumber(left) + "px";
-            popup.style.top = trimNumber(top) + "px";
-            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
-          }
-          dashboard.addEventListener("mousemove", function (event) {
-            var bar = event.target.closest(".octane-vertical-bar");
-            if (!bar || !dashboard.contains(bar)) {
-              return;
-            }
-            var popup = popupForBar(bar);
-            if (!popup) {
-              return;
-            }
-            if (activeBarPopup && activeBarPopup !== popup) {
-              hideBarPopup();
-            }
-            activeBarPopup = popup;
-            popup.classList.add("octane-bar-popup-visible");
-            positionBarPopup(popup, event);
-          });
-          dashboard.addEventListener("mouseout", function (event) {
-            var bar = event.target.closest(".octane-vertical-bar");
-            if (!bar) {
-              return;
-            }
-            if (event.relatedTarget && bar.contains(event.relatedTarget)) {
-              return;
-            }
-            hideBarPopup();
-          });
-          window.addEventListener("scroll", hideBarPopup, true);
-          window.addEventListener("resize", hideBarPopup);
+	          var barPopupOverlay = document.getElementById("octane-bar-popup-overlay");
+	          var barPopupRefreshInProgress = false;
+	          var activeBarPopupState = {
+	            barKey: "",
+	            cardKey: "",
+	            clientX: 0,
+	            clientY: 0,
+	            input: "",
+	            visible: false
+	          };
+	          function hideBarPopup() {
+	            if (!activeBarPopupState.visible || !barPopupOverlay) {
+	              return;
+	            }
+	            barPopupOverlay.classList.remove(
+	                "octane-bar-popup-visible", "octane-bar-popup-restoring");
+	            barPopupOverlay.removeAttribute("data-placement");
+	            barPopupOverlay.removeAttribute("data-dominant-status-label");
+	            barPopupOverlay.setAttribute("aria-hidden", "true");
+	            barPopupOverlay.style.borderColor = "";
+	            barPopupOverlay.style.boxShadow = "";
+	            barPopupOverlay.style.left = "";
+	            barPopupOverlay.style.top = "";
+	            activeBarPopupState = {
+	              barKey: "",
+	              cardKey: "",
+	              clientX: 0,
+	              clientY: 0,
+	              input: "",
+	              visible: false
+	            };
+	          }
+	          function popupForColumn(column) {
+	            return column ? column.querySelector(".octane-bar-popup") : null;
+	          }
+	          function cardKeyForColumn(column) {
+	            return column ? column.getAttribute("data-card-key") || "" : "";
+	          }
+	          function barKeyForColumn(column) {
+	            return column ? column.getAttribute("data-bar-key") || "" : "";
+	          }
+	          function applyBarPopupDominantColor(column) {
+	            if (!barPopupOverlay) {
+	              return;
+	            }
+	            var color = column ? column.getAttribute("data-dominant-status-color") || "" : "";
+	            var label = column ? column.getAttribute("data-dominant-status-label") || "" : "";
+	            if (!color) {
+	              barPopupOverlay.removeAttribute("data-dominant-status-label");
+	              barPopupOverlay.style.borderColor = "";
+	              barPopupOverlay.style.boxShadow = "";
+	              return;
+	            }
+	            barPopupOverlay.setAttribute("data-dominant-status-label", label);
+	            barPopupOverlay.style.borderColor = color;
+	            barPopupOverlay.style.boxShadow =
+	                "0 0 0 1px " + color + ", 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18)";
+	          }
+	          function pointForColumn(column) {
+	            var bar = column ? column.querySelector(".octane-vertical-bar") : null;
+	            var rect = (bar || column).getBoundingClientRect();
+	            return {
+	              clientX: rect.left + rect.width / 2,
+	              clientY: rect.top + rect.height / 2
+	            };
+	          }
+	          function pointInsideColumn(column, point) {
+	            if (!column || !point) {
+	              return false;
+	            }
+	            var rect = column.getBoundingClientRect();
+	            return point.clientX >= rect.left
+	                && point.clientX <= rect.right
+	                && point.clientY >= rect.top
+	                && point.clientY <= rect.bottom;
+	          }
+	          function findColumnByKeys(root, cardKey, barKey) {
+	            if (!root || !cardKey || !barKey) {
+	              return null;
+	            }
+	            var columns = root.querySelectorAll(".octane-suite-column[data-bar-key]");
+	            for (var index = 0; index < columns.length; index += 1) {
+	              if (cardKeyForColumn(columns[index]) === cardKey
+	                  && barKeyForColumn(columns[index]) === barKey) {
+	                return columns[index];
+	              }
+	            }
+	            return null;
+	          }
+	          function positionBarPopup(popup, point) {
+	            var margin = 8;
+	            var gap = 14;
+	            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+	            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+	            var popupWidth = popup.offsetWidth || 180;
+	            var popupHeight = popup.offsetHeight || 80;
+	            var fitsRight = point.clientX + gap + popupWidth <= viewportWidth - margin;
+	            var left = fitsRight ? point.clientX + gap : point.clientX - gap - popupWidth;
+	            var top = point.clientY - popupHeight / 2;
+	            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
+	            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
+	            popup.style.left = trimNumber(left) + "px";
+	            popup.style.top = trimNumber(top) + "px";
+	            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
+	          }
+	          function showBarPopup(column, point, input, restoring) {
+	            var source = popupForColumn(column);
+	            if (!source || !barPopupOverlay) {
+	              return;
+	            }
+	            var cardKey = cardKeyForColumn(column);
+	            var barKey = barKeyForColumn(column);
+	            if (!cardKey || !barKey) {
+	              return;
+	            }
+	            barPopupOverlay.innerHTML = source.innerHTML;
+	            applyBarPopupDominantColor(column);
+	            if (restoring) {
+	              barPopupOverlay.classList.add("octane-bar-popup-restoring");
+	            } else {
+	              barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+	            }
+	            activeBarPopupState = {
+	              barKey: barKey,
+	              cardKey: cardKey,
+	              clientX: point.clientX,
+	              clientY: point.clientY,
+	              input: input,
+	              visible: true
+	            };
+	            barPopupOverlay.setAttribute("aria-hidden", "false");
+	            barPopupOverlay.classList.add("octane-bar-popup-visible");
+	            positionBarPopup(barPopupOverlay, point);
+	            if (restoring) {
+	              requestFrame(function () {
+	                barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+	              });
+	            }
+	          }
+	          function captureBarPopupRestoreState() {
+	            if (!activeBarPopupState.visible) {
+	              return null;
+	            }
+	            return {
+	              barKey: activeBarPopupState.barKey,
+	              cardKey: activeBarPopupState.cardKey,
+	              clientX: activeBarPopupState.clientX,
+	              clientY: activeBarPopupState.clientY,
+	              input: activeBarPopupState.input,
+	              visible: activeBarPopupState.visible
+	            };
+	          }
+	          function restoreBarPopupAfterRefresh(root, restoreState) {
+	            if (!restoreState || !restoreState.visible) {
+	              return;
+	            }
+	            var column =
+	                findColumnByKeys(root || dashboard, restoreState.cardKey, restoreState.barKey);
+	            if (!column) {
+	              hideBarPopup();
+	              return;
+	            }
+	            var point = restoreState.input === "focus"
+	                ? pointForColumn(column)
+	                : {clientX: restoreState.clientX, clientY: restoreState.clientY};
+	            if (restoreState.input !== "focus" && !pointInsideColumn(column, point)) {
+	              hideBarPopup();
+	              return;
+	            }
+	            showBarPopup(column, point, restoreState.input, true);
+	          }
+	          function refreshActiveBarPopup() {
+	            if (!activeBarPopupState.visible) {
+	              return;
+	            }
+	            restoreBarPopupAfterRefresh(dashboard, captureBarPopupRestoreState());
+	          }
+	          dashboard.addEventListener("mousemove", function (event) {
+	            var bar = event.target.closest(".octane-vertical-bar");
+	            if (!bar || !dashboard.contains(bar)) {
+	              return;
+	            }
+	            var column = bar.closest(".octane-suite-column");
+	            if (!column) {
+	              return;
+	            }
+	            showBarPopup(
+	                column, {clientX: event.clientX, clientY: event.clientY}, "mouse", false);
+	          });
+	          dashboard.addEventListener("mouseout", function (event) {
+	            if (barPopupRefreshInProgress) {
+	              return;
+	            }
+	            var column = event.target.closest(".octane-suite-column");
+	            if (!column) {
+	              return;
+	            }
+	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
+	              return;
+	            }
+	            if (activeBarPopupState.input === "mouse"
+	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+	              hideBarPopup();
+	            }
+	          });
+	          dashboard.addEventListener("focusin", function (event) {
+	            var column = event.target.closest(".octane-suite-column");
+	            if (!column || !dashboard.contains(column)) {
+	              return;
+	            }
+	            showBarPopup(column, pointForColumn(column), "focus", false);
+	          });
+	          dashboard.addEventListener("focusout", function (event) {
+	            var column = event.target.closest(".octane-suite-column");
+	            if (!column) {
+	              return;
+	            }
+	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
+	              return;
+	            }
+	            if (activeBarPopupState.input === "focus"
+	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+	              hideBarPopup();
+	            }
+	          });
+	          window.addEventListener("scroll", refreshActiveBarPopup, true);
+	          window.addEventListener("resize", refreshActiveBarPopup);
           var expandedCard = null;
           var focusedZone = null;
           var expandedBackdrop = document.createElement("div");
@@ -1989,6 +2526,17 @@
             focusZone(zone);
           });
           dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-view-toggle");
+            if (!button) {
+              return;
+            }
+            var card = button.closest(".octane-chart-card");
+            event.preventDefault();
+            event.stopPropagation();
+            hideBarPopup();
+            toggleCardView(card);
+          });
+          dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-expand-toggle");
             if (!button) {
               return;
@@ -2002,12 +2550,13 @@
             }
             expandCard(card);
           });
-          document.addEventListener("keydown", function (event) {
-            if (event.key === "Escape") {
-              collapseExpandedCard();
-              collapseFocusedZone();
-            }
-          });
+	          document.addEventListener("keydown", function (event) {
+	            if (event.key === "Escape") {
+	              hideBarPopup();
+	              collapseExpandedCard();
+	              collapseFocusedZone();
+	            }
+	          });
           var dragged = null;
           var draggedZone = null;
           function zoneForCard(card) {
@@ -2018,7 +2567,8 @@
             if (!card) {
               return;
             }
-            if (event.target.closest(".octane-expand-toggle, .octane-zone-focus-toggle")
+            if (event.target.closest(
+                ".octane-expand-toggle, .octane-zone-focus-toggle, .octane-view-toggle")
                 || card.classList.contains("octane-expanded")) {
               event.preventDefault();
               return;

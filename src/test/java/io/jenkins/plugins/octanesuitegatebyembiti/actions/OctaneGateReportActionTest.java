@@ -14,7 +14,6 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
-import java.net.URL;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -181,6 +180,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("transform: none"));
     assertFalse(xml.contains("rotate(-45deg)"));
     assertTrue(xml.contains("octane-bar-popup"));
+    assertTrue(xml.contains("id=\"octane-bar-popup-overlay\""));
+    assertTrue(xml.contains("data-bar-key=\""));
+    assertTrue(xml.contains("data-dominant-status-color=\""));
+    assertTrue(xml.contains("data-dominant-status-label=\""));
     assertTrue(xml.contains("min-width: 10.92rem"));
     assertTrue(xml.contains("position: fixed"));
     assertTrue(xml.contains("font-size: 0.644rem"));
@@ -189,10 +192,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-popup-row"));
     assertTrue(xml.contains("octane-bar-popup-total"));
     assertTrue(xml.contains("octane-bar-popup-visible"));
+    assertTrue(xml.contains("octane-bar-popup-restoring"));
     assertTrue(xml.contains("positionBarPopup"));
-    assertTrue(xml.contains("event.clientX + gap + popupWidth"));
+    assertTrue(xml.contains("point.clientX + gap + popupWidth"));
     assertTrue(xml.contains("popup.setAttribute(\"data-placement\""));
-    assertTrue(xml.contains("window.addEventListener(\"resize\", hideBarPopup)"));
+    assertTrue(xml.contains("window.addEventListener(\"resize\", refreshActiveBarPopup)"));
     assertFalse(xml.contains(".octane-suite-column:hover .octane-bar-popup"));
     assertFalse(xml.contains("transform: translate(-50%"));
     assertFalse(xml.contains("class=\"octane-total\""));
@@ -295,6 +299,13 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("removeFocusedZone"));
     assertTrue(xml.contains("findZoneByKey"));
     assertTrue(xml.contains("findCardByKey"));
+    assertTrue(xml.contains("function autoShowHeatMapOnCompletion"));
+    assertTrue(xml.contains("card.querySelector(\".octane-view-toggle\")"));
+    assertTrue(xml.contains("payload.stateLabel === \"Timed out\""));
+    assertTrue(xml.contains("progress >= 100"));
+    assertTrue(xml.contains("setCardView(card, \"heatmap\")"));
+    assertTrue(xml.contains("autoShowHeatMapOnCompletion(currentReportPayload())"));
+    assertTrue(xml.contains("autoShowHeatMapOnCompletion(payload)"));
     assertTrue(xml.contains("expandedKey"));
     assertTrue(xml.contains("expandedBackdrop.addEventListener(\"click\""));
     assertTrue(xml.contains("setExpandButtonState"));
@@ -304,6 +315,15 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("event.target.closest(\".octane-zone-focus-toggle\")"));
     assertTrue(xml.contains("card.setAttribute(\"draggable\", \"false\")"));
     assertTrue(xml.contains("card.classList.contains(\"octane-expanded\")"));
+    assertTrue(xml.contains("captureBarPopupRestoreState"));
+    assertTrue(xml.contains("barPopupRefreshInProgress = true"));
+    assertTrue(xml.contains("restoreBarPopupAfterRefresh(updatedReportZone"));
+    assertTrue(xml.contains("barPopupOverlay.innerHTML = source.innerHTML"));
+    assertTrue(xml.contains("applyBarPopupDominantColor"));
+    assertTrue(xml.contains("barPopupOverlay.style.borderColor = color"));
+    assertTrue(xml.contains("barPopupOverlay.style.boxShadow ="));
+    assertTrue(xml.contains("barPopupOverlay.style.borderColor = \"\""));
+    assertTrue(xml.contains("findColumnByKeys"));
     assertTrue(xml.contains("replaceWith(updatedReportZone)"));
     assertTrue(xml.contains("payload.passRateProgress"));
     assertTrue(xml.contains("payload.passRateLabel"));
@@ -357,9 +377,11 @@ public class OctaneGateReportActionTest {
         jenkins
             .createWebClient()
             .getPage(
-                new URL(
-                    jenkins.getURL(),
-                    build.getUrl() + OctaneGateReportAction.URL_NAME + "/snapshot"));
+                jenkins
+                    .getURL()
+                    .toURI()
+                    .resolve(build.getUrl() + OctaneGateReportAction.URL_NAME + "/snapshot")
+                    .toURL());
     String json = jsonPage.getWebResponse().getContentAsString();
     JSONObject payload = JSONObject.fromObject(json);
 

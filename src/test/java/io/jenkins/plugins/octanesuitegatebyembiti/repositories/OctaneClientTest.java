@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -194,6 +195,35 @@ public class OctaneClientTest {
         assertTrue(message.contains("bad runs query"));
         assertTrue(message.contains("/api/shared_spaces/1001/workspaces/2002/suite_runs/55?"));
         assertTrue(message.contains("bad suite run"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected suite run lookup to fail.");
+  }
+
+  @Test
+  public void reportsFriendlyMissingSuiteRunMessageForWorkspaceMismatch() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> json(exchange, 200, "{\"data\":[]}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/55",
+        exchange -> json(exchange, 404, "{\"description\":\"HTTP 404 Not Found\"}"));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      try {
+        client.fetchSuiteChildRuns("1001", "2002", "55");
+      } catch (AbortException e) {
+        String message = e.getMessage();
+        assertTrue(message.contains("suite run 55"));
+        assertTrue(message.contains("shared space 1001 / workspace 2002"));
+        assertTrue(message.contains("match the Octane workspace"));
+        assertFalse(message.contains("/api/shared_spaces/1001/workspaces/2002"));
+        assertFalse(message.contains("Response body"));
         return;
       }
     }

@@ -36,8 +36,6 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 public class OctaneSuiteGateStep extends Step {
-  private static final long serialVersionUID = 1L;
-
   private final String serverId;
   private final String suiteRunId;
   private String sharedSpaceId = "";
@@ -47,6 +45,9 @@ public class OctaneSuiteGateStep extends Step {
   private int pollIntervalSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = GateRequest.DEFAULT_TIMEOUT_MINUTES;
   private boolean markUnstable;
+  private boolean riskHeatMap;
+  private String riskHeatMapDefectQuery = "";
+  private int riskHeatMapMaxDefects = GateRequest.DEFAULT_RISK_HEAT_MAP_MAX_DEFECTS;
   private String passedStatuses = StatusClassifier.DEFAULT_PASSED_STATUSES;
   private String failedStatuses = StatusClassifier.DEFAULT_FAILED_STATUSES;
   private String neutralStatuses = StatusClassifier.DEFAULT_NEUTRAL_STATUSES;
@@ -130,6 +131,33 @@ public class OctaneSuiteGateStep extends Step {
     this.markUnstable = markUnstable;
   }
 
+  public boolean isRiskHeatMap() {
+    return riskHeatMap;
+  }
+
+  @DataBoundSetter
+  public void setRiskHeatMap(boolean riskHeatMap) {
+    this.riskHeatMap = riskHeatMap;
+  }
+
+  public String getRiskHeatMapDefectQuery() {
+    return riskHeatMapDefectQuery;
+  }
+
+  @DataBoundSetter
+  public void setRiskHeatMapDefectQuery(String riskHeatMapDefectQuery) {
+    this.riskHeatMapDefectQuery = Util.trimToEmpty(riskHeatMapDefectQuery);
+  }
+
+  public int getRiskHeatMapMaxDefects() {
+    return riskHeatMapMaxDefects;
+  }
+
+  @DataBoundSetter
+  public void setRiskHeatMapMaxDefects(int riskHeatMapMaxDefects) {
+    this.riskHeatMapMaxDefects = Math.max(1, riskHeatMapMaxDefects);
+  }
+
   public String getPassedStatuses() {
     return passedStatuses;
   }
@@ -182,6 +210,9 @@ public class OctaneSuiteGateStep extends Step {
     request.setPollIntervalSeconds(pollIntervalSeconds);
     request.setTimeoutMinutes(timeoutMinutes);
     request.setMarkUnstable(markUnstable);
+    request.setRiskHeatMap(riskHeatMap);
+    request.setRiskHeatMapDefectQuery(riskHeatMapDefectQuery);
+    request.setRiskHeatMapMaxDefects(riskHeatMapMaxDefects);
     request.setPassedStatuses(passedStatuses);
     request.setFailedStatuses(failedStatuses);
     request.setNeutralStatuses(neutralStatuses);
@@ -303,6 +334,14 @@ public class OctaneSuiteGateStep extends Step {
       return FormValidation.ok();
     }
 
+    public FormValidation doCheckSharedSpaceId(@QueryParameter String value) {
+      return checkRequiredNumber("Shared space ID", value);
+    }
+
+    public FormValidation doCheckWorkspaceId(@QueryParameter String value) {
+      return checkRequiredNumber("Workspace ID", value);
+    }
+
     public FormValidation doCheckCriteria(@QueryParameter String value) {
       try {
         CriteriaExpression.parse(Util.isBlank(value) ? GateRequest.DEFAULT_CRITERIA : value);
@@ -318,6 +357,22 @@ public class OctaneSuiteGateStep extends Step {
 
     public FormValidation doCheckTimeoutMinutes(@QueryParameter String value) {
       return checkPositiveInteger("Timeout", value);
+    }
+
+    public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {
+      return checkPositiveInteger("Risk heat map max defects", value);
+    }
+
+    private FormValidation checkRequiredNumber(String label, String value) {
+      if (Util.isBlank(value)) {
+        return FormValidation.error(label + " is required.");
+      }
+      try {
+        Long.parseLong(value);
+        return FormValidation.ok();
+      } catch (NumberFormatException e) {
+        return FormValidation.error(label + " must be numeric.");
+      }
     }
 
     private FormValidation checkPositiveInteger(String label, String value) {

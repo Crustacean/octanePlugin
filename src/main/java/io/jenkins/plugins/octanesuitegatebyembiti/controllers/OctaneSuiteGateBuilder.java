@@ -108,6 +108,33 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
     delegate.setMarkUnstable(markUnstable);
   }
 
+  public boolean isRiskHeatMap() {
+    return delegate.isRiskHeatMap();
+  }
+
+  @DataBoundSetter
+  public void setRiskHeatMap(boolean riskHeatMap) {
+    delegate.setRiskHeatMap(riskHeatMap);
+  }
+
+  public String getRiskHeatMapDefectQuery() {
+    return delegate.getRiskHeatMapDefectQuery();
+  }
+
+  @DataBoundSetter
+  public void setRiskHeatMapDefectQuery(String riskHeatMapDefectQuery) {
+    delegate.setRiskHeatMapDefectQuery(riskHeatMapDefectQuery);
+  }
+
+  public int getRiskHeatMapMaxDefects() {
+    return delegate.getRiskHeatMapMaxDefects();
+  }
+
+  @DataBoundSetter
+  public void setRiskHeatMapMaxDefects(int riskHeatMapMaxDefects) {
+    delegate.setRiskHeatMapMaxDefects(riskHeatMapMaxDefects);
+  }
+
   public String getPassedStatuses() {
     return delegate.getPassedStatuses();
   }
@@ -177,6 +204,7 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
   @Symbol("octaneSuiteGateBuilder")
   public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
     @Override
+    @SuppressWarnings("rawtypes")
     public boolean isApplicable(Class<? extends AbstractProject> jobType) {
       return true;
     }
@@ -199,6 +227,14 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckSuiteRunId(value);
     }
 
+    public FormValidation doCheckSharedSpaceId(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckSharedSpaceId(value);
+    }
+
+    public FormValidation doCheckWorkspaceId(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckWorkspaceId(value);
+    }
+
     public FormValidation doCheckCriteria(@QueryParameter String value) {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckCriteria(value);
     }
@@ -209,6 +245,10 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
 
     public FormValidation doCheckTimeoutMinutes(@QueryParameter String value) {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckTimeoutMinutes(value);
+    }
+
+    public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckRiskHeatMapMaxDefects(value);
     }
   }
 }

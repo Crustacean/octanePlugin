@@ -11,6 +11,7 @@ public class GateRequest implements Serializable {
 
   public static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
   public static final int DEFAULT_TIMEOUT_MINUTES = 120;
+  public static final int DEFAULT_RISK_HEAT_MAP_MAX_DEFECTS = 1000;
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
 
   private final String serverId;
@@ -22,6 +23,9 @@ public class GateRequest implements Serializable {
   private int pollIntervalSeconds = DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = DEFAULT_TIMEOUT_MINUTES;
   private boolean markUnstable;
+  private boolean riskHeatMap;
+  private String riskHeatMapDefectQuery = "";
+  private int riskHeatMapMaxDefects = DEFAULT_RISK_HEAT_MAP_MAX_DEFECTS;
   private String passedStatuses = StatusClassifier.DEFAULT_PASSED_STATUSES;
   private String failedStatuses = StatusClassifier.DEFAULT_FAILED_STATUSES;
   private String neutralStatuses = StatusClassifier.DEFAULT_NEUTRAL_STATUSES;
@@ -99,6 +103,30 @@ public class GateRequest implements Serializable {
 
   public void setMarkUnstable(boolean markUnstable) {
     this.markUnstable = markUnstable;
+  }
+
+  public boolean isRiskHeatMap() {
+    return riskHeatMap;
+  }
+
+  public void setRiskHeatMap(boolean riskHeatMap) {
+    this.riskHeatMap = riskHeatMap;
+  }
+
+  public String getRiskHeatMapDefectQuery() {
+    return riskHeatMapDefectQuery;
+  }
+
+  public void setRiskHeatMapDefectQuery(String riskHeatMapDefectQuery) {
+    this.riskHeatMapDefectQuery = Util.trimToEmpty(riskHeatMapDefectQuery);
+  }
+
+  public int getRiskHeatMapMaxDefects() {
+    return riskHeatMapMaxDefects;
+  }
+
+  public void setRiskHeatMapMaxDefects(int riskHeatMapMaxDefects) {
+    this.riskHeatMapMaxDefects = Math.max(1, riskHeatMapMaxDefects);
   }
 
   public String getPassedStatuses() {
