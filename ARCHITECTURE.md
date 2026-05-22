@@ -3,6 +3,39 @@
 This document describes how **Octane Suite Gate by Embiti** is designed once the
 plugin is installed into Jenkins.
 
+## High-Level Flow
+
+```mermaid
+flowchart LR
+  Job["Jenkins Pipeline\nor Freestyle job"]
+  Plugin["Octane Suite Gate\nby Embiti"]
+  Config["Jenkins System config\nbase URL + credentials"]
+  Octane["ALM Octane REST API\nshared space + workspace"]
+  Runs["Suite runs\nchild test runs\ndefects"]
+  Metrics["Metrics, criteria,\nand risk view"]
+  Report["Live Jenkins build report\ncharts + timers"]
+  Decision{"Gate decision"}
+  Next["Continue to\nnext stage"]
+  Stop["Fail, timeout,\nor mark unstable"]
+  Email["Optional report-zone\nscreenshot email"]
+
+  Job --> Plugin
+  Config --> Plugin
+  Plugin --> Octane
+  Octane --> Runs
+  Runs --> Metrics
+  Metrics --> Report
+  Metrics --> Decision
+  Decision -->|"criteria passed"| Next
+  Decision -->|"criteria failed or timeout"| Stop
+  Report --> Email
+```
+
+In simple terms, Jenkins gives the plugin an Octane server, workspace, suite run
+IDs, and criteria. The plugin polls Octane, computes the latest quality metrics,
+updates a live build report, and either allows the pipeline to continue or stops
+the build according to the configured gate behavior.
+
 ## System View
 
 ```mermaid
@@ -15,8 +48,12 @@ flowchart LR
     GateStep["octaneSuiteGate / ALM Octane Suite Gate"]
     Runner["OctaneGateRunner"]
     ReportAction["Octane Gate Report\nRunAction"]
+    EmailStep["octaneEmailReport\noptional next stage"]
+    Screenshot["octane-report-zone.png\nworkspace file"]
+    Email["Jenkins Email Extension"]
     Browser["Build report page\n/octaneSuiteGateReport/"]
     Charts["Timer widgets\nDonut charts\nPer-suite bar charts"]
+    HeatMapView["Risk heat map\nStatus Check alternate view"]
     Outcome["Next stage\nFailed build\nUnstable build\nTimeout"]
   end
 
@@ -25,13 +62,16 @@ flowchart LR
     Client["OctaneClient"]
     Metrics["GateMetrics\nregressions + scopes"]
     Criteria["CriteriaExpression\nregressions.* / critical.*"]
+    RiskMap["Risk heat map model\noptional defect rollup"]
     Snapshot["Report snapshot\nupdated every poll"]
+    SnapshotEndpoint["Snapshot endpoint\nHTML + JSON"]
   end
 
   subgraph Octane["ALM Octane"]
     Auth["POST /authentication/sign_in"]
     SuiteRuns["Suite run IDs"]
     ChildRuns["Child runs\nstatus records"]
+    Defects["Linked defects\noptional risk data"]
   end
 
   Install --> GateStep
@@ -42,15 +82,22 @@ flowchart LR
   Client -->|"API key sign-in"| Auth
   Client -->|"pollIntervalSeconds loop\nfetch suite child runs"| SuiteRuns
   SuiteRuns --> ChildRuns
+  Client -->|"when riskHeatMap is enabled\nfetch linked defects"| Defects
   ChildRuns -->|"JSON statuses"| Client
+  Defects -->|"defect severity / priority"| Client
   Client --> Runner
   Runner -->|"dedupe + classify statuses"| Metrics
   Metrics --> Criteria
+  Metrics --> RiskMap
+  RiskMap --> Snapshot
   Criteria -->|"pass / fail / wait"| Runner
   Runner -->|"publish latest snapshot"| Snapshot
   Snapshot --> ReportAction
-  ReportAction -->|"snapshot JSON + HTML"| Browser
+  ReportAction --> SnapshotEndpoint
+  SnapshotEndpoint -->|"snapshot JSON + HTML"| Browser
   Browser --> Charts
+  Browser --> HeatMapView
+  ReportAction --> EmailStep --> Screenshot --> Email
   Runner --> Outcome
 ```
 
@@ -71,6 +118,7 @@ annotations:
 - `configs.OctaneSuiteGateConfiguration`: global Jenkins configuration section.
 - `configs.OctaneServer`: repeatable Octane server configuration entries.
 - `controllers.OctaneSuiteGateStep`: Pipeline step named `octaneSuiteGate`.
+- `controllers.OctaneEmailReportStep`: Pipeline step named `octaneEmailReport`.
 - `controllers.OctaneSuiteGateBuilder`: Freestyle build step named `ALM Octane Suite Gate`.
 - `models.OctaneGateScope`: nested scope object named `octaneGateScope`.
 
@@ -112,6 +160,36 @@ The server form exposes one validation action:
 The shared space and workspace are supplied by each Pipeline/Freestyle job because
 suite runs are workspace-scoped in ALM Octane.
 
+## Workspace Selection Flow
+
+Octane server configuration is intentionally small:
+
+```text
+serverId + baseUrl + credentialsId
+```
+
+The shared space and workspace are job inputs:
+
+```text
+sharedSpaceId + workspaceId
+```
+
+This avoids ambiguous routing when one Jenkins controller talks to several
+Octane workspaces. A suite run ID is only meaningful inside a specific shared
+space and workspace, so the plugin uses the Jenkinsfile values directly instead
+of trying every configured workspace behind the same `serverId`.
+
+If a suite run cannot be found in the supplied shared space/workspace, the plugin
+fails with a user-facing message that points to the likely configuration problem:
+
+```text
+Suite run 454472 was not found in shared space 10027, workspace 4004.
+Check sharedSpaceId, workspaceId, and suite run IDs in the Jenkinsfile.
+```
+
+Low-level Octane HTTP details remain useful for diagnostics, but the gate should
+surface workspace mismatch errors in language that makes sense to build users.
+
 ## Job Entry Points
 
 ### Pipeline
@@ -127,7 +205,8 @@ octaneSuiteGate(
   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
-  markUnstable: false
+  markUnstable: false,
+  riskHeatMap: true
 )
 ```
 
@@ -147,19 +226,41 @@ ALM Octane Suite Gate
 The Freestyle builder delegates to the same runtime request model used by the
 Pipeline step, so both entry points share the same gate behavior.
 
+### Optional Email Step
+
+Pipeline jobs may add a later notification stage:
+
+```groovy
+octaneEmailReport(
+  to: 'qa-team@example.com',
+  subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+  body: 'Attached is the Octane report-zone screenshot.',
+  onFailure: 'UNSTABLE'
+)
+```
+
+This step reads the current build's `Octane Gate Report`, captures only
+`octane-report-zone`, and sends it through Jenkins Email Extension. It is
+Pipeline-only and does not change gate criteria or build result unless the email
+step itself fails according to `onFailure`.
+
 ## Runtime Flow
 
 1. Jenkins reaches the `octaneSuiteGate` Pipeline step or Freestyle build step.
 2. The step creates a `GateRequest`.
 3. `OctaneGateRunner` resolves the configured `OctaneServer` by `serverId`.
-4. The runner resolves Jenkins credentials by `credentialsId`.
-5. The runner creates `OctaneClient` and signs in to Octane.
-6. The step attaches an `Octane Gate Report` action to the current build.
-7. The runner polls until the gate passes, fails, or times out.
-8. Each poll fetches suite child runs, computes metrics, and updates the report snapshot.
-9. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
-10. `CriteriaExpression` evaluates the criteria against regression and scoped metrics.
-11. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
+4. The request supplies `sharedSpaceId` and `workspaceId` from the job.
+5. The runner resolves Jenkins credentials by `credentialsId`.
+6. The runner creates `OctaneClient` and signs in to Octane.
+7. The step attaches an `Octane Gate Report` action to the current build.
+8. The runner polls until the gate passes, fails, or times out.
+9. Each poll fetches suite child runs, computes metrics, and updates the report snapshot.
+10. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
+11. When `riskHeatMap` is enabled, linked defects are fetched and rolled into the risk map.
+12. `CriteriaExpression` evaluates the criteria against regression and scoped metrics.
+13. Before the step exits, the runner publishes a final snapshot so the dashboard reflects
+    the latest pass/fail/timeout state without waiting for another poll interval.
+14. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
     when `markUnstable` is enabled.
 
 ## Build Report
@@ -195,6 +296,152 @@ The chart colors are fixed:
 - Blocked: `#631919`
 - Skipped: `#ffb74d`
 - Running: `#808080`
+
+## Live Report Refresh Flow
+
+The build report updates without reloading the whole Jenkins page.
+
+```mermaid
+sequenceDiagram
+  participant Browser as Browser report page
+  participant Action as OctaneGateReportAction
+  participant Runner as OctaneGateRunner
+  participant Octane as ALM Octane
+
+  Runner->>Octane: Poll suite runs and optional defects
+  Octane-->>Runner: Latest run and defect records
+  Runner->>Action: Store updated snapshot
+  Browser->>Action: GET /octaneSuiteGateReport/snapshot
+  Action-->>Browser: JSON + rendered report-zone HTML
+  Browser->>Browser: Replace report zone and keep timers smooth
+```
+
+The Status Check timer counts down from `pollIntervalSeconds`. When it reaches
+zero, the browser enters an updating phase and checks the snapshot endpoint every
+500ms until it sees a newer `updatedAt` value. The charts and execution progress
+then update in place. This makes the UI communicate Octane/Jenkins refresh
+overhead without changing the backend polling interval.
+
+The report keeps user interaction state during refresh:
+
+- expanded chart cards remain expanded when possible.
+- focused timer/report sections remain focused until Escape or backdrop click.
+- the active Status Check face, timer or heat map, is preserved.
+- vertical bar hover popups are restored from stable bar keys after the DOM is
+  replaced.
+
+When execution reaches 100% or the gate times out, the report auto-flips the
+Status Check card to the heat-map face if `riskHeatMap` is enabled.
+
+## Status Check And Risk Heat Map
+
+`Status Check` is a two-face card when `riskHeatMap: true`:
+
+- timer face: polling countdown, update status, and smooth progress ring.
+- heat-map face: project risk sunburst built from suite runs, run-by users,
+  test cases, and linked defects.
+
+The heat map is visual-only. It does not change criteria evaluation, pass/fail
+behavior, or `markUnstable`.
+
+Heat map hierarchy:
+
+```text
+Project / Workspace
+  -> Suite Run
+    -> Run By
+      -> Test Case
+        -> Defect
+```
+
+Risk comes from run status and defect severity/priority:
+
+- failed runs start at risk `78`.
+- blocked runs start at risk `72`.
+- running runs start at risk `20`.
+- skipped/neutral runs start at risk `12`.
+- passed runs start at risk `0`.
+- critical/blocker/urgent defects score `95`.
+- very high/high defects score `80`.
+- medium/major defects score `58`.
+- low/minor defects score `35`.
+- unknown severity/priority defects score `45`.
+
+Each node takes the highest direct signal from its own statuses and linked
+defects. Parent nodes roll up children using the stronger of weighted average
+risk or 75% of the highest child risk, so one dangerous branch remains visible
+without letting a large number of healthy tests completely hide it.
+
+Critical suite membership does not currently add an extra multiplier; risk is
+driven by actual failed/blocked/running state and defect severity data.
+
+Risk colors:
+
+- low `0-20`: green
+- moderate/unknown `21-45`: blue
+- warning `46-70`: yellow
+- high `71-100`: red
+
+The number in the middle of the heat map is the rolled-up project risk score for
+the current gate snapshot, on a 0-100 scale. Larger red or yellow branches show
+where risk is concentrated.
+
+## Bar Popup Flow
+
+Per-run-by vertical bars expose a lightweight hover popup. The popup is a single
+page-level overlay outside `octane-report-zone`, so it is not destroyed when the
+report HTML is refreshed.
+
+The flow is:
+
+1. Each bar column renders stable `data-card-key` and `data-bar-key` values.
+2. Hovering a bar copies that bar's hidden popup HTML into the persistent overlay.
+3. During snapshot replacement, the overlay remains visible.
+4. After replacement, JavaScript finds the matching new bar and copies updated
+   popup content into the overlay before the browser paints.
+5. If the bar no longer exists, the popup closes cleanly.
+
+The popup border reflects the bar's dominant status. The dominant status is the
+largest non-zero status count in the bar. Ties resolve by operational risk:
+
+```text
+Failed > Blocked > Running > Skipped > Passed
+```
+
+This keeps the popup focused on the most important status when a bar is mixed.
+
+## Email Screenshot Flow
+
+`octaneEmailReport` is a post-gate Pipeline helper:
+
+```mermaid
+flowchart LR
+  Build["Completed or running Jenkins build"]
+  Action["Octane Gate Report action"]
+  Html["Temporary static HTML\ncontaining octane-report-zone"]
+  Chrome["Headless Chrome / Chromium"]
+  Png["octane-report-zone.png"]
+  Archive["Optional Jenkins archive"]
+  Mail["Jenkins Email Extension"]
+
+  Build --> Action --> Html --> Chrome --> Png
+  Png --> Archive
+  Png --> Mail
+```
+
+Generated email files live under:
+
+```text
+$WORKSPACE/.octane-suite-gate/report-email/
+```
+
+The screenshot captures `octane-report-zone` only. Timer-zone controls and the
+Status Check heat map are intentionally outside the email screenshot so the email
+focuses on the final report charts. Email failure behavior is controlled by:
+
+- `onFailure: 'UNSTABLE'`
+- `onFailure: 'FAILURE'`
+- `onFailure: 'WARN'`
 
 ## Octane API Flow
 
@@ -242,6 +489,23 @@ GET /api/shared_spaces/{space}/workspaces/{workspace}/runs
   &limit=200
   &offset=0
 ```
+
+Linked defect lookup for the risk heat map:
+
+```text
+GET /api/shared_spaces/{space}/workspaces/{workspace}/defects
+  ?query="test EQ {id EQ 101}||run EQ {id EQ 101}||detected_in_run EQ {id EQ 101}"
+  &fields=...
+  &limit=200
+  &offset=0
+```
+
+The client queries by supported relationships (`test`, `run`, and
+`detected_in_run`) and deduplicates defects by ID. If an Octane version does not
+support one relationship field, that relationship is ignored and the client keeps
+any defects found through the other supported fields. `riskHeatMapDefectQuery`
+is appended to the defect query when supplied, and `riskHeatMapMaxDefects` caps
+the number of defect records loaded per poll.
 
 Sign out is best effort:
 
@@ -484,6 +748,10 @@ receives a map shaped like:
 ]
 ```
 
+When enabled, the result map also includes `riskHeatMap`, with summary values
+such as `enabled`, `available`, `riskScore`, `fetchedDefectCount`,
+`linkedDefectCount`, and `unlinkedOpenDefectCount`.
+
 ## Security
 
 The plugin never logs the Octane client secret. Credentials are resolved through
@@ -504,6 +772,7 @@ containing API secrets are not logged.
 | `configs.OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
 | `configs.OctaneServer` | One configured Octane server and its validation endpoints. |
 | `controllers.OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
+| `controllers.OctaneEmailReportStep` | Pipeline `octaneEmailReport` screenshot email step. |
 | `controllers.OctaneSuiteGateBuilder` | Freestyle `ALM Octane Suite Gate` build step. |
 | `models.GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
 | `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
@@ -515,11 +784,15 @@ containing API secrets are not logged.
 | `models.GateResult` | Pipeline result map model. |
 | `models.OctaneGateScope` | Named scoped suite-run or query model. |
 | `models.OctaneGateReportSnapshot` | Report sections, pie data, and bar data for the build page. |
+| `models.OctaneRiskHeatMapBuilder` | Builds defect risk hierarchy and risk scores. |
+| `services.OctaneRiskHeatMapRenderer` | Renders heat-map SVG/HTML for the Status Check card. |
+| `services.HeadlessBrowserReportScreenshotService` | Captures `octane-report-zone` with Chrome/Chromium. |
+| `services.EmailExtensionOctaneReportSender` | Sends the screenshot through Jenkins Email Extension. |
 
 ## Examples
 
-- `examples/Jenkinsfile`: scoped gate with a `critical` suite-run scope.
-- `examples/Jenkinsfile2`: regression-only gate with no scoped query.
+- `examples/Jenkinsfile`: regression and critical suite-run gate with optional heat map.
+- `examples/Jenkinsfile2`: regression-only gate, also showing the workspace/job-level setup.
 
 ## Verification
 
@@ -533,6 +806,10 @@ The test suite covers:
 - multi-ID scoped query forwarding
 - suite-run-backed scoped metrics
 - Octane Gate Report chart snapshots and Jenkins build-page rendering
+- live snapshot refresh behavior
+- persistent bar popups and dominant-status popup coloring
+- risk heat-map hierarchy, scoring, and rendering
+- optional `octaneEmailReport` failure handling
 - Pipeline result map shape
 
 Run:
