@@ -33,7 +33,7 @@
   </developers>
 
   <properties>
-    <java.level>21</java.level>
+    <java.level>25</java.level>
     <jenkins.version>2.555.2</jenkins.version>
     <jenkins-test-harness.version>2565.vd1eb_7c961d1b_</jenkins-test-harness.version>
     <spotless.check.skip>false</spotless.check.skip>
