@@ -55,7 +55,11 @@ public class OctaneRiskHeatMapRenderer {
   }
 
   private void renderChildren(
-      StringBuilder html, OctaneRiskHeatMapNode parent, double startAngle, double endAngle, int depth) {
+      StringBuilder html,
+      OctaneRiskHeatMapNode parent,
+      double startAngle,
+      double endAngle,
+      int depth) {
     if (parent.getChildren().isEmpty() || depth >= 5) {
       return;
     }
@@ -79,7 +83,11 @@ public class OctaneRiskHeatMapRenderer {
   }
 
   private void appendSlice(
-      StringBuilder html, OctaneRiskHeatMapNode node, double startAngle, double endAngle, int depth) {
+      StringBuilder html,
+      OctaneRiskHeatMapNode node,
+      double startAngle,
+      double endAngle,
+      int depth) {
     double innerRadius = INNER_RADIUS + (depth * RING_WIDTH);
     double outerRadius = innerRadius + RING_WIDTH - 2.0;
     double paddedStart = startAngle + GAP_DEGREES;
@@ -118,8 +126,7 @@ public class OctaneRiskHeatMapRenderer {
     int largeArc = safeEnd - startAngle > 180 ? 1 : 0;
     return String.format(
         Locale.ENGLISH,
-        "M %.3f %.3f A %.3f %.3f 0 %d 1 %.3f %.3f "
-            + "L %.3f %.3f A %.3f %.3f 0 %d 0 %.3f %.3f Z",
+        "M %.3f %.3f A %.3f %.3f 0 %d 1 %.3f %.3f " + "L %.3f %.3f A %.3f %.3f 0 %d 0 %.3f %.3f Z",
         outerStart.x,
         outerStart.y,
         outerRadius,

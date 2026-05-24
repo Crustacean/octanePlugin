@@ -1,7 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
-import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneRiskHeatMapRenderer;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
