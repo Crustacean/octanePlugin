@@ -27,6 +27,7 @@ public class OctaneRiskHeatMapRenderer {
 
     StringBuilder html = new StringBuilder();
     html.append("<div class=\"octane-risk-heat-map-panel-inner\">");
+    html.append("<div class=\"octane-risk-heat-map-container\">");
     html.append("<svg class=\"octane-risk-heat-map\" viewBox=\"0 0 640 640\" role=\"img\" ")
         .append("aria-label=\"Octane defect risk heat map\">");
     html.append("<circle class=\"octane-risk-heat-map-center\" cx=\"320\" cy=\"320\" r=\"54\" />");
@@ -36,6 +37,7 @@ public class OctaneRiskHeatMapRenderer {
     html.append("<text class=\"octane-risk-heat-map-label\" x=\"320\" y=\"342\">Risk</text>");
     renderChildren(html, heatMap.getRoot(), 0.0, 360.0, 0);
     html.append("</svg>");
+    html.append("</div>");
     appendDefectSeverityBar(html, heatMap, building, updatedAtText);
     html.append("</div>");
     return html.toString();
