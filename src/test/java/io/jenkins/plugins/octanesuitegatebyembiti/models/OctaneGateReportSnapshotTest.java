@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -292,6 +293,66 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void calculatesTestMetricsFromCurrentSnapshotAndPreviousCycle() {
+    OctaneGateReportSnapshot previous =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED,
+            "Previous",
+            result(),
+            classifier,
+            30,
+            3600,
+            "2026-05-14T23:45:00Z");
+    OctaneGateReportSnapshot current =
+        OctaneGateReportSnapshot.fromResult(
+                OctaneGateReportState.PASSED,
+                "Current",
+                resultWithRiskHeatMap(),
+                classifier,
+                30,
+                3600,
+                "2026-05-14T23:50:00Z")
+            .withCalculatedTestMetrics(previous);
+
+    assertEquals("2m 0s", metric(current, "avg-time").getValue());
+    assertEquals("5 executed tests", metric(current, "avg-time").getDetail());
+    assertEquals("-1m 0s from last cycle", metric(current, "avg-time").getTrendText());
+    assertEquals("positive", metric(current, "avg-time").getTrendTone());
+    assertEquals("50.0%", metric(current, "success-rate").getValue());
+    assertEquals("3 / 6 passed", metric(current, "success-rate").getDetail());
+    assertEquals("83.3%", metric(current, "execution").getValue());
+    assertEquals("5 / 6 executed", metric(current, "execution").getDetail());
+    assertEquals("3 open", metric(current, "defects").getValue());
+    assertEquals("50.0 per 100 tests", metric(current, "defects").getDetail());
+  }
+
+  @Test
+  public void testMetricsHandleZeroExecutedAndMissingRiskMap() {
+    GateResult result =
+        new GateResult(
+            "empty",
+            "100% pass",
+            false,
+            false,
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            List.of(),
+            Map.of("empty", List.of()),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    assertEquals("N/A", metric(snapshot, "avg-time").getValue());
+    assertEquals("Awaiting executed tests", metric(snapshot, "avg-time").getTrendText());
+    assertEquals("0.0%", metric(snapshot, "success-rate").getValue());
+    assertEquals("0.0%", metric(snapshot, "execution").getValue());
+    assertEquals("N/A", metric(snapshot, "defects").getValue());
+    assertEquals("Risk heat map unavailable", metric(snapshot, "defects").getDetail());
+  }
+
+  @Test
   public void reportSectionsHideEmptySectionsButKeepValidData() {
     Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
     criticalSuiteRuns.put(
@@ -345,6 +406,13 @@ public class OctaneGateReportSnapshotTest {
         .findFirst()
         .orElseThrow()
         .getCount();
+  }
+
+  private OctaneTestMetricCard metric(OctaneGateReportSnapshot snapshot, String key) {
+    return snapshot.getTestMetrics().getCards().stream()
+        .filter(card -> key.equals(card.getKey()))
+        .findFirst()
+        .orElseThrow();
   }
 
   private void assertDominantStatusForTie(
@@ -413,5 +481,36 @@ public class OctaneGateReportSnapshotTest {
                     new RunRecord("6", "six", "passed", "Cara Tester")),
                 criticalSuiteRuns)),
         Instant.parse("2026-05-15T00:00:00Z"));
+  }
+
+  private GateResult resultWithRiskHeatMap() {
+    GateResult base = result();
+    List<DefectRecord> defects =
+        List.of(
+            new DefectRecord(
+                "d1", "Critical defect", "critical", "", "new", "1", "1", "p1", "Project"),
+            new DefectRecord("d2", "High defect", "high", "", "opened", "2", "2", "p1", "Project"),
+            new DefectRecord("d3", "Missing severity", "", "", "opened", "3", "3", "p1", "Project"),
+            new DefectRecord(
+                "d4", "Closed defect", "low", "", "closed", "4", "4", "p1", "Project"));
+    OctaneRiskHeatMap riskHeatMap =
+        OctaneRiskHeatMap.of(
+            new OctaneRiskHeatMapNode("project", "Project", 80, 6, 4, List.of()),
+            4,
+            4,
+            0,
+            1,
+            OctaneDefectSeveritySummary.fromDefects(defects));
+    return new GateResult(
+        base.getSuiteRunId(),
+        base.getCriteria(),
+        base.isPassed(),
+        base.isTerminal(),
+        base.getMetrics(),
+        base.getRuns(),
+        base.getSuiteRuns(),
+        base.getScopedResults(),
+        riskHeatMap,
+        base.getPolledAt());
   }
 }

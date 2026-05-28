@@ -36,7 +36,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     action.run = run;
     action.configureTimers(request);
     action.snapshot =
-        OctaneGateReportSnapshot.waiting(request, action.refreshSeconds, action.startedAt);
+        action.withPreviousCycleMetrics(
+            OctaneGateReportSnapshot.waiting(request, action.refreshSeconds, action.startedAt));
     run.addOrReplaceAction(action);
     action.saveRun();
     return action;
@@ -70,21 +71,24 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   @Override
   public synchronized void onWaiting(GateRequest request, List<String> suiteRunIds) {
     configureTimers(request);
-    snapshot = OctaneGateReportSnapshot.waiting(request, refreshSeconds, startedAt);
+    snapshot =
+        withPreviousCycleMetrics(
+            OctaneGateReportSnapshot.waiting(request, refreshSeconds, startedAt));
     saveRun();
   }
 
   @Override
   public synchronized void onPoll(GateResult result, StatusClassifier classifier) {
     snapshot =
-        OctaneGateReportSnapshot.fromResult(
-            OctaneGateReportState.POLLING,
-            "Polling ALM Octane suite runs.",
-            result,
-            classifier,
-            refreshSeconds,
-            timeoutSeconds,
-            startedAt);
+        withPreviousCycleMetrics(
+            OctaneGateReportSnapshot.fromResult(
+                OctaneGateReportState.POLLING,
+                "Polling ALM Octane suite runs.",
+                result,
+                classifier,
+                refreshSeconds,
+                timeoutSeconds,
+                startedAt));
     saveRun();
   }
 
@@ -92,22 +96,24 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   public synchronized void onFinal(
       OctaneGateReportState state, String message, GateResult result, StatusClassifier classifier) {
     snapshot =
-        OctaneGateReportSnapshot.fromResult(
-            state, message, result, classifier, refreshSeconds, timeoutSeconds, startedAt);
+        withPreviousCycleMetrics(
+            OctaneGateReportSnapshot.fromResult(
+                state, message, result, classifier, refreshSeconds, timeoutSeconds, startedAt));
     saveRun();
   }
 
   @Override
   public synchronized void onError(String message, GateRequest request) {
     snapshot =
-        OctaneGateReportSnapshot.error(
-            defaultMessage(message),
-            request.getCriteria(),
-            request.getSuiteRunId(),
-            refreshSeconds,
-            timeoutSeconds,
-            startedAt,
-            request.isRiskHeatMap());
+        withPreviousCycleMetrics(
+            OctaneGateReportSnapshot.error(
+                defaultMessage(message),
+                request.getCriteria(),
+                request.getSuiteRunId(),
+                refreshSeconds,
+                timeoutSeconds,
+                startedAt,
+                request.isRiskHeatMap()));
     saveRun();
   }
 
@@ -146,6 +152,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("passRateProgress", safeSnapshot.getPassRateProgress());
     payload.put("passRateProgressText", safeSnapshot.getPassRateProgressText());
     payload.put("passRateLabel", safeSnapshot.getPassRateLabel());
+    payload.put("testMetricsHtml", safeSnapshot.getTestMetricsHtml());
+    payload.put("testMetrics", safeSnapshot.getTestMetrics().toMap());
     payload.put("refreshSeconds", safeSnapshot.getRefreshSeconds());
     payload.put("riskHeatMapEnabled", safeSnapshot.isRiskHeatMapEnabled());
     payload.put("riskHeatMapHtml", safeSnapshot.getRiskHeatMapHtml());
@@ -171,6 +179,25 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     refreshSeconds = request.getPollIntervalSeconds();
     timeoutSeconds = Math.max(1, request.getTimeoutMinutes()) * 60;
     startedAt = Instant.now().toString();
+  }
+
+  private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
+    return current.withCalculatedTestMetrics(previousCompletedSnapshot());
+  }
+
+  private OctaneGateReportSnapshot previousCompletedSnapshot() {
+    if (run == null) {
+      return null;
+    }
+    Run<?, ?> previous = run.getPreviousCompletedBuild();
+    while (previous != null) {
+      OctaneGateReportAction action = previous.getAction(OctaneGateReportAction.class);
+      if (action != null && action.getSnapshot() != null && !action.getSnapshot().isBuilding()) {
+        return action.getSnapshot();
+      }
+      previous = previous.getPreviousCompletedBuild();
+    }
+    return null;
   }
 
   private String defaultMessage(String message) {
