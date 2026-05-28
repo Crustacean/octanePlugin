@@ -95,9 +95,16 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("font-size: clamp(0.9rem, 2.2cqw, 1.3rem)"));
     assertTrue(xml.contains("font-size: clamp(0.58rem, 2.35cqw, 0.9rem)"));
     assertTrue(xml.contains(".octane-risk-heat-map-panel-inner"));
+    assertTrue(xml.contains("grid-template-columns: minmax(0, 1fr)"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) auto"));
     assertTrue(xml.contains("gap: 0.9rem"));
     assertTrue(xml.contains(".octane-risk-heat-map-container"));
+    assertTrue(xml.contains("min-height: 215px"));
+    assertTrue(xml.contains(".octane-risk-issues-container"));
+    assertTrue(xml.contains("max-width: 220px"));
+    assertTrue(xml.contains("width: min(100%, 220px)"));
+    assertTrue(xml.contains("width: min(100%, 38vh, 38vw)"));
+    assertTrue(xml.contains("width: min(100%, 76vh, 76vw)"));
     assertTrue(xml.contains("container-type: inline-size"));
     assertTrue(xml.contains("width: 75%"));
     assertTrue(xml.contains("font-family: Inter, &quot;Segoe UI&quot;, Arial, sans-serif"));

@@ -37,6 +37,7 @@ public class OctaneRiskHeatMapRendererTest {
     String html = new OctaneRiskHeatMapRenderer().render(heatMap, true, "17:53:39");
 
     assertTrue(html.contains("octane-risk-heat-map-container"));
+    assertTrue(html.contains("octane-risk-issues-container"));
     assertTrue(html.contains("octane-defect-severity-tracker"));
     assertTrue(html.contains("octane-defect-severity-bar"));
     assertTrue(html.contains("octane-defect-severity-label\">Critical</span>"));

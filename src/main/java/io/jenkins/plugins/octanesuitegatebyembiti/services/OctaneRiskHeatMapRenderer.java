@@ -52,6 +52,7 @@ public class OctaneRiskHeatMapRenderer {
     if (Util.isBlank(lastUpdated)) {
       lastUpdated = "UNKNOWN";
     }
+    html.append("<div class=\"octane-risk-issues-container\">");
     html.append("<div class=\"octane-defect-severity-tracker\">");
     html.append("<div class=\"octane-defect-severity-bar\" role=\"list\" ")
         .append("aria-label=\"Defect severity status\">");
@@ -74,6 +75,7 @@ public class OctaneRiskHeatMapRenderer {
         .append("</span><span>LAST UPDATED: ")
         .append(escape(lastUpdated))
         .append("</span></div>");
+    html.append("</div>");
     html.append("</div>");
   }
 
