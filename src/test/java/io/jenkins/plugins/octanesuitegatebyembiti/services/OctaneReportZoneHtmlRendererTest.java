@@ -81,7 +81,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-y-axis-label"));
     assertTrue(html.contains(">Test Runs<"));
     assertTrue(html.contains("#827C7B"));
+    assertTrue(html.contains("background-image: radial-gradient"));
     assertTrue(html.contains("rgba(33, 38, 45, 0.92)"));
+    assertTrue(html.contains("background-size: 9px calc(100% / var(--octane-grid-line-count, 4))"));
     assertTrue(html.contains("#30363D"));
     assertTrue(html.contains("octane-grid-line-count"));
     assertFalse(html.contains("border-left: 1px solid #576779"));

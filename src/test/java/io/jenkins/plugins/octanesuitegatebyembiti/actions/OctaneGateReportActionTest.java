@@ -188,7 +188,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-y-axis-label"));
     assertTrue(xml.contains(">Test Runs<"));
     assertTrue(xml.contains("#827C7B"));
+    assertTrue(xml.contains("background-image: radial-gradient"));
     assertTrue(xml.contains("rgba(33, 38, 45, 0.92)"));
+    assertTrue(
+        xml.contains("background-size: 0.55rem calc(100% / var(--octane-grid-line-count, 4))"));
     assertTrue(xml.contains("#30363D"));
     assertTrue(xml.contains("octane-grid-line-count"));
     assertFalse(xml.contains("border-left: 1px solid #576779"));

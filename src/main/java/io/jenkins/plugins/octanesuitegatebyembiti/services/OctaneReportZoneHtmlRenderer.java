@@ -185,13 +185,12 @@ public class OctaneReportZoneHtmlRenderer {
           position: relative;
         }
         .octane-bar-plot::before {
-          background-image: repeating-linear-gradient(
-            to bottom,
-            rgba(33, 38, 45, 0.92) 0,
-            rgba(33, 38, 45, 0.92) 1px,
-            transparent 1px,
-            transparent calc(100% / var(--octane-grid-line-count, 4))
+          background-image: radial-gradient(
+            circle,
+            rgba(33, 38, 45, 0.92) 0 1px,
+            transparent 1.2px
           );
+          background-size: 9px calc(100% / var(--octane-grid-line-count, 4));
           bottom: var(--octane-axis-label-row);
           content: "";
           left: 0;
