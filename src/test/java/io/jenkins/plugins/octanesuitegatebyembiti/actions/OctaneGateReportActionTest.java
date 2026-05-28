@@ -197,7 +197,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("overflow-x: hidden"));
     assertFalse(xml.contains("overflow-x: auto"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
-    assertTrue(xml.contains("width: clamp(0.85rem, 62%, 2.6rem)"));
+    assertTrue(xml.contains("width: min(clamp(0.715rem, 70.2%, 3.12rem), calc(100% - 0.1rem))"));
+    assertTrue(xml.contains("width: min(clamp(1.105rem, 80.6%, 3.38rem), calc(100% - 0.1rem))"));
     assertTrue(xml.contains("font-family: Inter, &quot;Segoe UI&quot;, Arial, sans-serif"));
     assertTrue(xml.contains("font-weight: 400"));
     assertTrue(xml.contains("color: #827C7B"));

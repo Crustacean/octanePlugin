@@ -278,7 +278,7 @@ public class OctaneReportZoneHtmlRenderer {
           flex-direction: column-reverse;
           height: 100%;
           overflow: hidden;
-          width: clamp(14px, 62%, 42px);
+          width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px));
         }
         .octane-bar-popup {
           background: #ffffff;

@@ -205,7 +205,7 @@
           max-width: none;
         }
         .octane-zone-focused .octane-vertical-bar {
-          width: clamp(0.55rem, 54%, 2.4rem);
+          width: min(clamp(0.715rem, 70.2%, 3.12rem), calc(100% - 0.1rem));
         }
         .octane-zone-focused .octane-suite-label {
           font-size: 12px;
@@ -876,7 +876,7 @@
           flex-direction: column-reverse;
           height: 100%;
           overflow: hidden;
-          width: clamp(0.85rem, 62%, 2.6rem);
+          width: min(clamp(1.105rem, 80.6%, 3.38rem), calc(100% - 0.1rem));
         }
         .octane-bar-popup {
           background: var(--background);

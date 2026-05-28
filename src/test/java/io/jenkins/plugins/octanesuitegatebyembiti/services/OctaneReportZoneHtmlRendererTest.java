@@ -97,7 +97,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("octane-axis-label-column"));
     assertTrue(html.contains("overflow-x: hidden"));
     assertTrue(html.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
-    assertTrue(html.contains("width: clamp(14px, 62%, 42px)"));
+    assertTrue(html.contains("width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px))"));
     assertTrue(html.contains("font-family: Inter, \"Segoe UI\", Arial, sans-serif"));
     assertTrue(html.contains("font-size: 12px"));
     assertTrue(html.contains("font-weight: 400"));
