@@ -150,7 +150,7 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains(".octane-zone-focused .octane-zone-focus-toggle"));
     assertTrue(xml.contains("--octane-axis-label-row: clamp(1.05rem, 2vh, 1.7rem)"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
-    assertTrue(xml.contains("font-size: clamp(0.45rem, 0.7vw, 0.62rem)"));
+    assertTrue(xml.contains("font-size: 12px"));
     assertTrue(xml.contains("max-height: 100%"));
     assertTrue(xml.contains("resize: none"));
     assertTrue(xml.contains("max-height: min(76vh, 76vw)"));
@@ -169,7 +169,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-graph"));
     assertTrue(xml.contains("octane-y-axis-label"));
     assertTrue(xml.contains(">Test Runs<"));
-    assertTrue(xml.contains("#576779"));
+    assertTrue(xml.contains("#827C7B"));
+    assertTrue(xml.contains("rgba(33, 38, 45, 0.92)"));
+    assertTrue(xml.contains("#30363D"));
+    assertTrue(xml.contains("octane-grid-line-count"));
+    assertFalse(xml.contains("border-left: 1px solid #576779"));
     assertFalse(xml.contains("#CCCCCC"));
     assertTrue(xml.contains("column-gap: 0.09rem"));
     assertTrue(xml.contains("grid-template-columns: 1.35rem max-content minmax(0, 1fr)"));
@@ -183,7 +187,9 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("overflow-x: auto"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
     assertTrue(xml.contains("width: clamp(0.85rem, 62%, 2.6rem)"));
-    assertTrue(xml.contains("font-size: clamp(0.53rem, 0.8vw, 0.7rem)"));
+    assertTrue(xml.contains("font-family: Inter, &quot;Segoe UI&quot;, Arial, sans-serif"));
+    assertTrue(xml.contains("font-weight: 400"));
+    assertTrue(xml.contains("color: #827C7B"));
     assertTrue(xml.contains("text-align: center"));
     assertTrue(xml.contains("transform: none"));
     assertFalse(xml.contains("rotate(-45deg)"));

@@ -136,6 +136,34 @@ public class OctaneGateReportSection implements Serializable {
     return suiteRuns.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);
   }
 
+  public List<Integer> getYAxisTicks() {
+    int max = getMaxSuiteRunTotal();
+    if (max <= 0) {
+      return List.of(0);
+    }
+    if (max <= 8) {
+      List<Integer> ticks = new ArrayList<>();
+      for (int value = max; value >= 0; value--) {
+        ticks.add(value);
+      }
+      return ticks;
+    }
+
+    List<Integer> ticks = new ArrayList<>();
+    Set<Integer> seen = new LinkedHashSet<>();
+    for (int index = 4; index >= 0; index--) {
+      int value = Math.round(max * index / 4.0f);
+      if (seen.add(value)) {
+        ticks.add(value);
+      }
+    }
+    return ticks;
+  }
+
+  public int getYAxisGridLineCount() {
+    return Math.max(1, getYAxisTicks().size() - 1);
+  }
+
   public boolean isEmpty() {
     return metrics.getTotal() == 0;
   }

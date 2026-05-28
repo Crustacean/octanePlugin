@@ -195,10 +195,10 @@
           row-gap: 0;
         }
         .octane-zone-focused .octane-y-axis-label {
-          font-size: clamp(0.55rem, 0.8vw, 0.8rem);
+          font-size: 12px;
         }
         .octane-zone-focused .octane-axis-value {
-          font-size: clamp(0.5rem, 0.75vw, 0.75rem);
+          font-size: 12px;
         }
         .octane-zone-focused .octane-suite-column {
           flex-basis: clamp(1.6rem, 7vw, 4.65rem);
@@ -208,7 +208,7 @@
           width: clamp(0.55rem, 54%, 2.4rem);
         }
         .octane-zone-focused .octane-suite-label {
-          font-size: clamp(0.45rem, 0.7vw, 0.62rem);
+          font-size: 12px;
           max-width: 100%;
           padding-top: clamp(0.04rem, 0.25vh, 0.16rem);
         }
@@ -716,8 +716,10 @@
           margin-top: 0.25rem;
         }
         .octane-axis-value {
-          color: var(--text-color-secondary);
-          font-size: 0.75rem;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
         }
         .octane-bar-graph {
           --octane-axis-label-row: 1.7rem;
@@ -732,8 +734,10 @@
         }
         .octane-y-axis-label {
           align-self: center;
-          color: var(--text-color-secondary);
-          font-size: 0.8rem;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
           grid-column: 1;
           grid-row: 1;
           justify-self: center;
@@ -752,7 +756,6 @@
           padding-right: 0.2rem;
         }
         .octane-bar-plot {
-          border-left: 1px solid #576779;
           box-sizing: border-box;
           grid-column: 3;
           grid-row: 1 / span 2;
@@ -760,8 +763,25 @@
           overflow: visible;
           position: relative;
         }
+        .octane-bar-plot::before {
+          background-image: repeating-linear-gradient(
+            to bottom,
+            rgba(33, 38, 45, 0.92) 0,
+            rgba(33, 38, 45, 0.92) 1px,
+            transparent 1px,
+            transparent calc(100% / var(--octane-grid-line-count, 4))
+          );
+          bottom: var(--octane-axis-label-row);
+          content: "";
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          top: 0;
+          z-index: 0;
+        }
         .octane-bar-plot::after {
-          background: #576779;
+          background: #30363D;
           bottom: var(--octane-axis-label-row);
           content: "";
           height: 1px;
@@ -832,7 +852,7 @@
           align-items: stretch;
           align-self: end;
           background: var(--panel-border-color);
-          border-radius: 4px 4px 0 0;
+          border-radius: 0;
           display: flex;
           flex-direction: column-reverse;
           height: 100%;
@@ -910,7 +930,10 @@
           align-self: start;
           box-sizing: border-box;
           display: block;
-          font-size: clamp(0.53rem, 0.8vw, 0.7rem);
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
           grid-row: 2;
           line-height: 1.1;
           max-width: min(100%, 6.8rem);
@@ -1492,10 +1515,12 @@
                     <div class="octane-bar-graph">
                       <div class="octane-y-axis-label">Test Runs</div>
                       <div class="octane-y-axis-scale">
-                        <span class="octane-axis-value">${section.maxSuiteRunTotal}</span>
-                        <span class="octane-axis-value">0</span>
+                        <j:forEach var="tick" items="${section.yAxisTicks}">
+                          <span class="octane-axis-value">${tick}</span>
+                        </j:forEach>
                       </div>
-                      <div class="octane-bar-plot">
+                      <div class="octane-bar-plot"
+                          style="--octane-grid-line-count: ${section.yAxisGridLineCount};">
                         <div class="octane-vertical-bars">
                           <j:forEach var="suiteRun" items="${section.suiteRuns}">
                             <div class="octane-suite-column" tabindex="0"
