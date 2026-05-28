@@ -448,13 +448,14 @@
           display: flex;
           flex-direction: column;
           gap: 0.48rem;
-          width: min(100%, 64rem);
+          width: min(75%, 64rem);
         }
         .octane-defect-severity-bar {
           border-radius: 0;
           display: grid;
-          font-size: clamp(0.48rem, 1.45cqw, 0.8rem);
-          font-weight: 700;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 14px;
+          font-weight: 500;
           gap: 0;
           grid-template-columns: repeat(7, minmax(0, 1fr));
           line-height: 1;
@@ -490,8 +491,9 @@
         .octane-defect-severity-meta {
           color: var(--text-color-secondary);
           display: flex;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: clamp(0.58rem, 1.45cqw, 0.78rem);
-          font-weight: 700;
+          font-weight: 500;
           gap: 0.75rem;
           justify-content: space-between;
           letter-spacing: 0;
@@ -531,15 +533,12 @@
           background: var(--panel-border-color);
           color: var(--text-color);
         }
-        .octane-card-tools::before {
-          background: currentColor;
-          border-radius: 50%;
-          box-shadow: 0 -0.36rem 0 currentColor, 0 0.36rem 0 currentColor;
-          content: "";
+        .octane-grabber-icon {
           display: block;
-          height: 0.16rem;
-          opacity: 0.9;
-          width: 0.16rem;
+          fill: currentColor;
+          height: 0.95rem;
+          opacity: 0.92;
+          width: 0.95rem;
         }
         .octane-chart-card.octane-dragging {
           border-color: #4391F5;
@@ -1010,7 +1009,12 @@
                     </svg>
                   </button>
                   <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                    :::
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
                   </span>
                 </div>
               </div>
@@ -1100,7 +1104,12 @@
                   </svg>
                 </button>
                 <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
+                  <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                      focusable="false">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
                 </span>
               </div>
               <div class="octane-flip-viewport">
@@ -1222,7 +1231,12 @@
                     </svg>
                   </button>
                   <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                    :::
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
                   </span>
                 </div>
               </div>
@@ -1295,7 +1309,12 @@
                     </svg>
                   </button>
                   <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                    :::
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
                   </span>
                 </div>
               </div>
@@ -1381,7 +1400,12 @@
                         </button>
                         <span class="octane-card-tools"
                             title="Drag to move. Resize from the corner.">
-                          :::
+                          <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                              focusable="false">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                          </svg>
                         </span>
                       </div>
                     </div>
@@ -1456,7 +1480,12 @@
                         </button>
                         <span class="octane-card-tools"
                             title="Drag to move. Resize from the corner.">
-                          :::
+                          <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                              focusable="false">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                          </svg>
                         </span>
                       </div>
                     </div>
@@ -1543,7 +1572,12 @@
                         </svg>
                       </button>
                       <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                        :::
+                        <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                            focusable="false">
+                          <circle cx="12" cy="5" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="19" r="2" />
+                        </svg>
                       </span>
                     </div>
                   </div>
