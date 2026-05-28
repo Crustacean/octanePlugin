@@ -16,6 +16,7 @@ public class OctaneRiskHeatMap implements Serializable {
   private final int linkedDefectCount;
   private final int unlinkedOpenDefectCount;
   private final int ignoredClosedDefectCount;
+  private final OctaneDefectSeveritySummary defectSeveritySummary;
 
   private OctaneRiskHeatMap(
       boolean enabled,
@@ -25,7 +26,8 @@ public class OctaneRiskHeatMap implements Serializable {
       int fetchedDefectCount,
       int linkedDefectCount,
       int unlinkedOpenDefectCount,
-      int ignoredClosedDefectCount) {
+      int ignoredClosedDefectCount,
+      OctaneDefectSeveritySummary defectSeveritySummary) {
     this.enabled = enabled;
     this.available = available;
     this.message = Util.trimToEmpty(message);
@@ -34,19 +36,31 @@ public class OctaneRiskHeatMap implements Serializable {
     this.linkedDefectCount = Math.max(0, linkedDefectCount);
     this.unlinkedOpenDefectCount = Math.max(0, unlinkedOpenDefectCount);
     this.ignoredClosedDefectCount = Math.max(0, ignoredClosedDefectCount);
+    this.defectSeveritySummary =
+        defectSeveritySummary == null ? OctaneDefectSeveritySummary.empty() : defectSeveritySummary;
   }
 
   public static OctaneRiskHeatMap disabled() {
-    return new OctaneRiskHeatMap(false, false, "", null, 0, 0, 0, 0);
+    return new OctaneRiskHeatMap(
+        false, false, "", null, 0, 0, 0, 0, OctaneDefectSeveritySummary.empty());
   }
 
   public static OctaneRiskHeatMap waiting() {
     return new OctaneRiskHeatMap(
-        true, false, "Risk heat map will appear after the first poll.", null, 0, 0, 0, 0);
+        true,
+        false,
+        "Risk heat map will appear after the first poll.",
+        null,
+        0,
+        0,
+        0,
+        0,
+        OctaneDefectSeveritySummary.empty());
   }
 
   public static OctaneRiskHeatMap unavailable(String message) {
-    return new OctaneRiskHeatMap(true, false, message, null, 0, 0, 0, 0);
+    return new OctaneRiskHeatMap(
+        true, false, message, null, 0, 0, 0, 0, OctaneDefectSeveritySummary.empty());
   }
 
   public static OctaneRiskHeatMap empty(String workspaceId) {
@@ -54,7 +68,15 @@ public class OctaneRiskHeatMap implements Serializable {
     OctaneRiskHeatMapNode root =
         new OctaneRiskHeatMapNode("workspace", label, 0, 0, 0, java.util.List.of());
     return new OctaneRiskHeatMap(
-        true, true, "No linked open defects were found.", root, 0, 0, 0, 0);
+        true,
+        true,
+        "No linked open defects were found.",
+        root,
+        0,
+        0,
+        0,
+        0,
+        OctaneDefectSeveritySummary.empty());
   }
 
   public static OctaneRiskHeatMap of(
@@ -62,7 +84,8 @@ public class OctaneRiskHeatMap implements Serializable {
       int fetchedDefectCount,
       int linkedDefectCount,
       int unlinkedOpenDefectCount,
-      int ignoredClosedDefectCount) {
+      int ignoredClosedDefectCount,
+      OctaneDefectSeveritySummary defectSeveritySummary) {
     return new OctaneRiskHeatMap(
         true,
         true,
@@ -71,7 +94,8 @@ public class OctaneRiskHeatMap implements Serializable {
         fetchedDefectCount,
         linkedDefectCount,
         unlinkedOpenDefectCount,
-        ignoredClosedDefectCount);
+        ignoredClosedDefectCount,
+        defectSeveritySummary);
   }
 
   public boolean isEnabled() {
@@ -110,6 +134,10 @@ public class OctaneRiskHeatMap implements Serializable {
     return ignoredClosedDefectCount;
   }
 
+  public OctaneDefectSeveritySummary getDefectSeveritySummary() {
+    return defectSeveritySummary;
+  }
+
   public Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("enabled", enabled);
@@ -120,6 +148,7 @@ public class OctaneRiskHeatMap implements Serializable {
     values.put("linkedDefectCount", linkedDefectCount);
     values.put("unlinkedOpenDefectCount", unlinkedOpenDefectCount);
     values.put("ignoredClosedDefectCount", ignoredClosedDefectCount);
+    values.put("defectSeveritySummary", defectSeveritySummary.toMap());
     values.put("root", root == null ? null : root.toMap());
     return values;
   }

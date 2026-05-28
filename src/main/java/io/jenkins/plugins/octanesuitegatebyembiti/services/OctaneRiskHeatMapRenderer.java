@@ -31,22 +31,27 @@ public class OctaneRiskHeatMapRenderer {
     html.append("<text class=\"octane-risk-heat-map-label\" x=\"320\" y=\"342\">Risk</text>");
     renderChildren(html, heatMap.getRoot(), 0.0, 360.0, 0);
     html.append("</svg>");
-    html.append("<div class=\"octane-risk-heat-map-diagnostics\">")
-        .append("Defects: ")
-        .append(heatMap.getLinkedDefectCount())
-        .append(" linked")
-        .append(", ")
-        .append(heatMap.getUnlinkedOpenDefectCount())
-        .append(" unlinked")
-        .append(", ")
-        .append(heatMap.getIgnoredClosedDefectCount())
-        .append(" ignored closed")
-        .append(", ")
-        .append(heatMap.getFetchedDefectCount())
-        .append(" fetched")
-        .append("</div>");
+    appendDefectSeverityBar(html, heatMap);
     html.append("</div>");
     return html.toString();
+  }
+
+  private void appendDefectSeverityBar(StringBuilder html, OctaneRiskHeatMap heatMap) {
+    if (!heatMap.getDefectSeveritySummary().isVisible()) {
+      return;
+    }
+    html.append("<div class=\"octane-defect-severity-bar\" role=\"list\" ")
+        .append("aria-label=\"Defect severity status\">");
+    for (var bucket : heatMap.getDefectSeveritySummary().getBuckets()) {
+      html.append("<span class=\"octane-defect-severity-segment\" role=\"listitem\" title=\"")
+          .append(escape(bucket.getTooltip()))
+          .append("\" style=\"background:")
+          .append(bucket.getColor())
+          .append("\"><span class=\"octane-defect-severity-count\">")
+          .append(bucket.getCount())
+          .append("</span></span>");
+    }
+    html.append("</div>");
   }
 
   private String unavailable(String message) {
