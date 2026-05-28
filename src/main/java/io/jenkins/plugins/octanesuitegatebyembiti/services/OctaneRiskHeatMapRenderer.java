@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary.Bucket;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMapNode;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -56,6 +57,8 @@ public class OctaneRiskHeatMapRenderer {
       html.append(
               "<span class=\"octane-defect-severity-segment\" role=\"listitem\" style=\"background:")
           .append(bucket.getColor())
+          .append(";color:")
+          .append(textColorFor(bucket, heatMap))
           .append("\"><span class=\"octane-defect-severity-count\">")
           .append(bucket.getCount())
           .append("</span><span class=\"octane-defect-severity-label\">")
@@ -70,6 +73,17 @@ public class OctaneRiskHeatMapRenderer {
         .append(escape(lastUpdated))
         .append("</span></div>");
     html.append("</div>");
+  }
+
+  private String textColorFor(Bucket bucket, OctaneRiskHeatMap heatMap) {
+    String label = bucket.getLabel().toLowerCase(Locale.ENGLISH);
+    if (label.equals("medium") || label.equals("low") || label.equals("unspecified")) {
+      return "#000000";
+    }
+    if (label.equals("closed") && heatMap.getDefectSeveritySummary().isAllClosed()) {
+      return "#000000";
+    }
+    return "#ffffff";
   }
 
   private String unavailable(String message) {

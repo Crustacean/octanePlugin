@@ -49,9 +49,47 @@ public class OctaneRiskHeatMapRendererTest {
     assertTrue(html.contains("#9D1D34"));
     assertTrue(html.contains("#ED8D25"));
     assertTrue(html.contains("#5A5B5B"));
+    assertTrue(html.contains("background:#9D1D34;color:#ffffff"));
+    assertTrue(html.contains("background:#ED8D25;color:#ffffff"));
+    assertTrue(html.contains("background:#5A5B5B;color:#ffffff"));
     assertFalse(html.contains("Defects: "));
     assertFalse(html.contains(" linked"));
     assertFalse(html.contains(" unlinked"));
+  }
+
+  @Test
+  public void rendersDarkTextForLightSeveritySegments() {
+    OctaneRiskHeatMap heatMap =
+        new OctaneRiskHeatMapBuilder()
+            .build(
+                "4001",
+                Map.of("4501", List.of(new RunRecord("run-1", "one", "failed"))),
+                List.of(
+                    defect("1", "Medium", "", "opened"),
+                    defect("2", "Low", "", "opened"),
+                    defect("3", "", "", "opened")),
+                classifier);
+
+    String html = new OctaneRiskHeatMapRenderer().render(heatMap, true, "17:53:39");
+
+    assertTrue(html.contains("background:#FFD700;color:#000000"));
+    assertTrue(html.contains("background:#ACAF4B;color:#000000"));
+    assertTrue(html.contains("background:#D4D59F;color:#000000"));
+  }
+
+  @Test
+  public void rendersDarkTextForClosedSegmentWhenAllIssuesAreClosed() {
+    OctaneRiskHeatMap heatMap =
+        new OctaneRiskHeatMapBuilder()
+            .build(
+                "4001",
+                Map.of("4501", List.of(new RunRecord("run-1", "one", "failed"))),
+                List.of(defect("1", "Critical", "", "closed"), defect("2", "Low", "", "fixed")),
+                classifier);
+
+    String html = new OctaneRiskHeatMapRenderer().render(heatMap, false, "17:53:39");
+
+    assertTrue(html.contains("background:#7BE5B3;color:#000000"));
   }
 
   @Test

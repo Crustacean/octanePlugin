@@ -466,7 +466,7 @@
         }
         .octane-defect-severity-segment {
           align-items: center;
-          color: #F3F6FB;
+          color: #ffffff;
           display: inline-flex;
           gap: 0.22rem;
           justify-content: center;
@@ -475,14 +475,14 @@
           white-space: nowrap;
         }
         .octane-defect-severity-count {
-          color: #F3F6FB;
+          color: inherit;
           display: inline-block;
           flex: 0 0 auto;
           min-width: 2ch;
           text-align: right;
         }
         .octane-defect-severity-label {
-          color: #F3F6FB;
+          color: inherit;
           display: inline-block;
           min-width: 0;
           overflow: hidden;
