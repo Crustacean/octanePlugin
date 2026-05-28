@@ -43,7 +43,7 @@ public class OctaneRiskHeatMapRendererTest {
     assertTrue(html.contains("octane-defect-severity-label\">Critical</span>"));
     assertTrue(html.contains("octane-defect-severity-label\">High</span>"));
     assertTrue(html.contains("octane-defect-severity-label\">Closed</span>"));
-    assertTrue(html.contains("TOTAL ISSUES: 3"));
+    assertTrue(html.contains("TOTAL ISSUES: 2"));
     assertTrue(html.contains("LAST UPDATED: JUST NOW"));
     assertFalse(html.contains("title=\"Critical severity\""));
     assertFalse(html.contains("title=\"High severity\""));
@@ -92,6 +92,7 @@ public class OctaneRiskHeatMapRendererTest {
     String html = new OctaneRiskHeatMapRenderer().render(heatMap, false, "17:53:39");
 
     assertTrue(html.contains("background:#7BE5B3;color:#000000"));
+    assertTrue(html.contains("TOTAL ISSUES: 0"));
   }
 
   @Test

@@ -71,7 +71,7 @@ public class OctaneRiskHeatMapRenderer {
     html.append("</div>");
     html.append("<div class=\"octane-defect-severity-meta\">")
         .append("<span>TOTAL ISSUES: ")
-        .append(heatMap.getDefectSeveritySummary().getTotal())
+        .append(heatMap.getDefectSeveritySummary().getOpenTotal())
         .append("</span><span>LAST UPDATED: ")
         .append(escape(lastUpdated))
         .append("</span></div>");
