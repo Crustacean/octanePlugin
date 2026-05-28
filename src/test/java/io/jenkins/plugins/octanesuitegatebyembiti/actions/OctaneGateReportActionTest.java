@@ -94,6 +94,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("font-size: clamp(0.66rem, 2.6cqw, 1rem)"));
     assertTrue(xml.contains("font-size: clamp(0.9rem, 2.2cqw, 1.3rem)"));
     assertTrue(xml.contains("font-size: clamp(0.58rem, 2.35cqw, 0.9rem)"));
+    assertTrue(xml.contains(".octane-chart-card[data-card-key=&quot;timer-poll&quot;]"));
+    assertTrue(xml.contains("display: flex"));
+    assertTrue(xml.contains("flex-direction: column"));
     assertTrue(xml.contains(".octane-risk-heat-map-panel-inner"));
     assertTrue(xml.contains("align-content: stretch"));
     assertTrue(xml.contains("grid-template-columns: minmax(0, 1fr)"));

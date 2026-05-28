@@ -320,6 +320,8 @@
           display: block;
         }
         .octane-chart-card[data-card-key="timer-poll"] {
+          display: flex;
+          flex-direction: column;
           position: relative;
         }
         .octane-chart-card[data-card-key="timer-poll"][data-active-view="heatmap"] {
