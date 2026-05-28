@@ -95,10 +95,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("font-size: clamp(0.9rem, 2.2cqw, 1.3rem)"));
     assertTrue(xml.contains("font-size: clamp(0.58rem, 2.35cqw, 0.9rem)"));
     assertTrue(xml.contains("border-color: #4391F5"));
-    assertTrue(xml.contains("font-size: 0.85rem"));
+    assertTrue(xml.contains("font-size: 0"));
     assertTrue(xml.contains("height: 1.15rem"));
-    assertTrue(xml.contains("letter-spacing: 0.04rem"));
+    assertTrue(xml.contains("letter-spacing: 0"));
     assertTrue(xml.contains("width: 1.15rem"));
+    assertTrue(xml.contains(".octane-card-tools::before"));
+    assertTrue(xml.contains("box-shadow: 0 -0.36rem 0 currentColor, 0 0.36rem 0 currentColor"));
     assertTrue(xml.contains("octane-card-actions"));
     assertTrue(xml.contains("octane-expand-toggle"));
     assertTrue(xml.contains("octane-icon-expand"));

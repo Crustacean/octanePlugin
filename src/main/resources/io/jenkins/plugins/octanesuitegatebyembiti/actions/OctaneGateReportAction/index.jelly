@@ -512,17 +512,34 @@
         }
         .octane-card-tools {
           align-items: center;
+          appearance: none;
+          border-radius: 4px;
           color: var(--text-color-secondary);
           cursor: grab;
           display: inline-flex;
-          font-size: 0.85rem;
+          font-size: 0;
           height: 1.15rem;
           justify-content: center;
-          letter-spacing: 0.04rem;
+          letter-spacing: 0;
           line-height: 1;
           overflow: hidden;
+          padding: 0;
           user-select: none;
           width: 1.15rem;
+        }
+        .octane-card-tools:hover {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-card-tools::before {
+          background: currentColor;
+          border-radius: 50%;
+          box-shadow: 0 -0.36rem 0 currentColor, 0 0.36rem 0 currentColor;
+          content: "";
+          display: block;
+          height: 0.16rem;
+          opacity: 0.9;
+          width: 0.16rem;
         }
         .octane-chart-card.octane-dragging {
           border-color: #4391F5;
