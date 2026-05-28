@@ -238,7 +238,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public String getRiskHeatMapHtml() {
-    return new OctaneRiskHeatMapRenderer().render(riskHeatMap);
+    return new OctaneRiskHeatMapRenderer().render(riskHeatMap, isBuilding(), getUpdatedAtText());
   }
 
   public List<OctaneGateReportSection> getReportSections() {

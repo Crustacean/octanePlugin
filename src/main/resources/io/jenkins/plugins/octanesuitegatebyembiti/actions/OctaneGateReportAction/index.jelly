@@ -444,30 +444,59 @@
           font-size: 0.85rem;
           text-anchor: middle;
         }
+        .octane-defect-severity-tracker {
+          display: flex;
+          flex-direction: column;
+          gap: 0.48rem;
+          width: min(100%, 64rem);
+        }
         .octane-defect-severity-bar {
-          border-radius: 4px;
-          display: inline-flex;
-          font-size: clamp(0.58rem, 2.1cqw, 0.82rem);
+          border-radius: 0;
+          display: grid;
+          font-size: clamp(0.48rem, 1.45cqw, 0.8rem);
           font-weight: 700;
           gap: 0;
+          grid-template-columns: repeat(7, minmax(0, 1fr));
           line-height: 1;
-          max-width: min(100%, 17.5rem);
-          min-height: 1.45rem;
+          min-height: 1.85rem;
           overflow: hidden;
           text-align: center;
+          width: 100%;
         }
         .octane-defect-severity-segment {
           align-items: center;
           color: #F3F6FB;
           display: inline-flex;
+          gap: 0.22rem;
           justify-content: center;
-          min-width: clamp(1.75rem, 5.5cqw, 2.25rem);
-          padding: 0.28rem 0.48rem;
+          min-width: 0;
+          padding: 0.38rem 0.34rem;
+          white-space: nowrap;
         }
         .octane-defect-severity-count {
           color: #F3F6FB;
           display: inline-block;
-          min-width: 1ch;
+          flex: 0 0 auto;
+          min-width: 2ch;
+          text-align: right;
+        }
+        .octane-defect-severity-label {
+          color: #F3F6FB;
+          display: inline-block;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .octane-defect-severity-meta {
+          color: var(--text-color-secondary);
+          display: flex;
+          font-size: clamp(0.58rem, 1.45cqw, 0.78rem);
+          font-weight: 700;
+          gap: 0.75rem;
+          justify-content: space-between;
+          letter-spacing: 0;
+          text-transform: uppercase;
+          width: 100%;
         }
         .octane-risk-heat-map-empty {
           align-items: center;

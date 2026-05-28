@@ -12,6 +12,10 @@ public class OctaneRiskHeatMapRenderer {
   private static final double GAP_DEGREES = 0.55;
 
   public String render(OctaneRiskHeatMap heatMap) {
+    return render(heatMap, false, "");
+  }
+
+  public String render(OctaneRiskHeatMap heatMap, boolean building, String updatedAtText) {
     if (heatMap == null || !heatMap.isEnabled()) {
       return unavailable(
           "Risk heat map is disabled. Set riskHeatMap: true to fetch defect risk data.");
@@ -31,26 +35,40 @@ public class OctaneRiskHeatMapRenderer {
     html.append("<text class=\"octane-risk-heat-map-label\" x=\"320\" y=\"342\">Risk</text>");
     renderChildren(html, heatMap.getRoot(), 0.0, 360.0, 0);
     html.append("</svg>");
-    appendDefectSeverityBar(html, heatMap);
+    appendDefectSeverityBar(html, heatMap, building, updatedAtText);
     html.append("</div>");
     return html.toString();
   }
 
-  private void appendDefectSeverityBar(StringBuilder html, OctaneRiskHeatMap heatMap) {
+  private void appendDefectSeverityBar(
+      StringBuilder html, OctaneRiskHeatMap heatMap, boolean building, String updatedAtText) {
     if (!heatMap.getDefectSeveritySummary().isVisible()) {
       return;
     }
+    String lastUpdated = building ? "JUST NOW" : Util.trimToEmpty(updatedAtText);
+    if (Util.isBlank(lastUpdated)) {
+      lastUpdated = "UNKNOWN";
+    }
+    html.append("<div class=\"octane-defect-severity-tracker\">");
     html.append("<div class=\"octane-defect-severity-bar\" role=\"list\" ")
         .append("aria-label=\"Defect severity status\">");
     for (var bucket : heatMap.getDefectSeveritySummary().getBuckets()) {
-      html.append("<span class=\"octane-defect-severity-segment\" role=\"listitem\" title=\"")
-          .append(escape(bucket.getTooltip()))
-          .append("\" style=\"background:")
+      html.append(
+              "<span class=\"octane-defect-severity-segment\" role=\"listitem\" style=\"background:")
           .append(bucket.getColor())
           .append("\"><span class=\"octane-defect-severity-count\">")
           .append(bucket.getCount())
+          .append("</span><span class=\"octane-defect-severity-label\">")
+          .append(escape(bucket.getLabel()))
           .append("</span></span>");
     }
+    html.append("</div>");
+    html.append("<div class=\"octane-defect-severity-meta\">")
+        .append("<span>TOTAL ISSUES: ")
+        .append(heatMap.getDefectSeveritySummary().getTotal())
+        .append("</span><span>LAST UPDATED: ")
+        .append(escape(lastUpdated))
+        .append("</span></div>");
     html.append("</div>");
   }
 

@@ -34,21 +34,40 @@ public class OctaneRiskHeatMapRendererTest {
                     defect("3", "Low", "", "closed")),
                 classifier);
 
-    String html = new OctaneRiskHeatMapRenderer().render(heatMap);
+    String html = new OctaneRiskHeatMapRenderer().render(heatMap, true, "17:53:39");
 
+    assertTrue(html.contains("octane-defect-severity-tracker"));
     assertTrue(html.contains("octane-defect-severity-bar"));
-    assertTrue(html.contains("title=\"Critical severity\""));
-    assertTrue(html.contains("title=\"High severity\""));
-    assertTrue(html.contains("title=\"Closed Issues\""));
-    assertFalse(html.contains("title=\"Critical: 1\""));
-    assertFalse(html.contains("title=\"High: 1\""));
-    assertFalse(html.contains("title=\"Closed: 1\""));
+    assertTrue(html.contains("octane-defect-severity-label\">Critical</span>"));
+    assertTrue(html.contains("octane-defect-severity-label\">High</span>"));
+    assertTrue(html.contains("octane-defect-severity-label\">Closed</span>"));
+    assertTrue(html.contains("TOTAL ISSUES: 3"));
+    assertTrue(html.contains("LAST UPDATED: JUST NOW"));
+    assertFalse(html.contains("title=\"Critical severity\""));
+    assertFalse(html.contains("title=\"High severity\""));
+    assertFalse(html.contains("title=\"Closed Issues\""));
     assertTrue(html.contains("#9D1D34"));
     assertTrue(html.contains("#ED8D25"));
     assertTrue(html.contains("#5A5B5B"));
     assertFalse(html.contains("Defects: "));
     assertFalse(html.contains(" linked"));
     assertFalse(html.contains(" unlinked"));
+  }
+
+  @Test
+  public void rendersExactIssuePollTimeAfterBuildCompletes() {
+    OctaneRiskHeatMap heatMap =
+        new OctaneRiskHeatMapBuilder()
+            .build(
+                "4001",
+                Map.of("4501", List.of(new RunRecord("run-1", "one", "failed"))),
+                List.of(defect("1", "Critical", "", "opened")),
+                classifier);
+
+    String html = new OctaneRiskHeatMapRenderer().render(heatMap, false, "17:53:39");
+
+    assertTrue(html.contains("LAST UPDATED: 17:53:39"));
+    assertFalse(html.contains("LAST UPDATED: JUST NOW"));
   }
 
   @Test
