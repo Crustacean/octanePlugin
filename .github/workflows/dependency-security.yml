@@ -68,23 +68,15 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "25"
           cache: maven
 
       - name: Run Dependency-Check
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          NVD_ARGS=""
-          if [ -n "${NVD_API_KEY:-}" ]; then
-            NVD_ARGS="-DnvdApiKey=${NVD_API_KEY}"
-          fi
-
           mvn org.owasp:dependency-check-maven:12.2.1:check \
             -Dformat=JSON \
             -DfailBuildOnCVSS=11 \
-            -DassemblyAnalyzerEnabled=false \
-            ${NVD_ARGS}
+            -DassemblyAnalyzerEnabled=false
 
       - name: Upload Dependency-Check report
         if: always()

@@ -137,8 +137,10 @@ public class OctaneReportZoneHtmlRenderer {
           margin-top: 4px;
         }
         .octane-axis-value {
-          color: #5f6b7a;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
+          font-weight: 400;
         }
         .octane-bar-graph {
           --octane-axis-label-row: 27px;
@@ -153,8 +155,10 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-y-axis-label {
           align-self: center;
-          color: #5f6b7a;
-          font-size: 13px;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
           grid-column: 1;
           grid-row: 1;
           justify-self: center;
@@ -173,7 +177,6 @@ public class OctaneReportZoneHtmlRenderer {
           padding-right: 3px;
         }
         .octane-bar-plot {
-          border-left: 1px solid #576779;
           box-sizing: border-box;
           grid-column: 3;
           grid-row: 1 / span 2;
@@ -181,8 +184,24 @@ public class OctaneReportZoneHtmlRenderer {
           overflow: visible;
           position: relative;
         }
+        .octane-bar-plot::before {
+          background-image: radial-gradient(
+            circle,
+            rgba(33, 38, 45, 0.92) 0 1px,
+            transparent 1.2px
+          );
+          background-size: 9px calc(100% / var(--octane-grid-line-count, 4));
+          bottom: var(--octane-axis-label-row);
+          content: "";
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          top: 0;
+          z-index: 0;
+        }
         .octane-bar-plot::after {
-          background: #576779;
+          background: #30363D;
           bottom: var(--octane-axis-label-row);
           content: "";
           height: 1px;
@@ -253,12 +272,12 @@ public class OctaneReportZoneHtmlRenderer {
           align-items: stretch;
           align-self: end;
           background: #e6ebf2;
-          border-radius: 4px 4px 0 0;
+          border-radius: 0;
           display: flex;
           flex-direction: column-reverse;
           height: 100%;
           overflow: hidden;
-          width: clamp(14px, 62%, 42px);
+          width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px));
         }
         .octane-bar-popup {
           background: #ffffff;
@@ -328,7 +347,10 @@ public class OctaneReportZoneHtmlRenderer {
           align-self: start;
           box-sizing: border-box;
           display: block;
-          font-size: clamp(9px, 0.8vw, 11px);
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
           grid-row: 2;
           line-height: 1.1;
           max-width: min(100%, 109px);
@@ -371,11 +393,13 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("data-card-key=\"suite-run-empty\">\n");
       html.append("<div class=\"octane-card-header\"><div>");
       html.append("<h2 class=\"octane-card-title\">Suite run charts</h2>");
-      html.append("<div class=\"octane-muted\">Waiting for first poll</div>");
+      html.append("<div class=\"octane-muted\">");
+      html.append(escapeHtml(snapshot.getStateLabel()));
+      html.append("</div>");
       html.append("</div><span class=\"octane-card-tools\" ");
       html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
       html.append("<div class=\"octane-empty\">");
-      html.append("The report will populate after the first Octane poll.");
+      html.append(escapeHtml(snapshot.getEmptyReportMessage()));
       html.append("</div>\n");
       html.append("</section>\n");
     }
@@ -486,12 +510,15 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<div class=\"octane-bar-graph\">\n");
     html.append("<div class=\"octane-y-axis-label\">Test Runs</div>\n");
     html.append("<div class=\"octane-y-axis-scale\">");
-    html.append("<span class=\"octane-axis-value\">");
-    html.append(section.getMaxSuiteRunTotal());
-    html.append("</span>");
-    html.append("<span class=\"octane-axis-value\">0</span>");
+    for (Integer tick : section.getYAxisTicks()) {
+      html.append("<span class=\"octane-axis-value\">");
+      html.append(tick);
+      html.append("</span>");
+    }
     html.append("</div>\n");
-    html.append("<div class=\"octane-bar-plot\">\n");
+    html.append("<div class=\"octane-bar-plot\" style=\"--octane-grid-line-count: ");
+    html.append(section.getYAxisGridLineCount());
+    html.append(";\">\n");
     html.append("<div class=\"octane-vertical-bars\">\n");
     String cardKey = "bars-" + section.getSource();
     for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {

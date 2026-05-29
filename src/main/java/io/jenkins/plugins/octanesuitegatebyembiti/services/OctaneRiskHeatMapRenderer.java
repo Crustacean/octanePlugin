@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary.Bucket;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMapNode;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -12,6 +13,10 @@ public class OctaneRiskHeatMapRenderer {
   private static final double GAP_DEGREES = 0.55;
 
   public String render(OctaneRiskHeatMap heatMap) {
+    return render(heatMap, false, "");
+  }
+
+  public String render(OctaneRiskHeatMap heatMap, boolean building, String updatedAtText) {
     if (heatMap == null || !heatMap.isEnabled()) {
       return unavailable(
           "Risk heat map is disabled. Set riskHeatMap: true to fetch defect risk data.");
@@ -22,6 +27,7 @@ public class OctaneRiskHeatMapRenderer {
 
     StringBuilder html = new StringBuilder();
     html.append("<div class=\"octane-risk-heat-map-panel-inner\">");
+    html.append("<div class=\"octane-risk-heat-map-container\">");
     html.append("<svg class=\"octane-risk-heat-map\" viewBox=\"0 0 640 640\" role=\"img\" ")
         .append("aria-label=\"Octane defect risk heat map\">");
     html.append("<circle class=\"octane-risk-heat-map-center\" cx=\"320\" cy=\"320\" r=\"54\" />");
@@ -31,22 +37,57 @@ public class OctaneRiskHeatMapRenderer {
     html.append("<text class=\"octane-risk-heat-map-label\" x=\"320\" y=\"342\">Risk</text>");
     renderChildren(html, heatMap.getRoot(), 0.0, 360.0, 0);
     html.append("</svg>");
-    html.append("<div class=\"octane-risk-heat-map-diagnostics\">")
-        .append("Defects: ")
-        .append(heatMap.getLinkedDefectCount())
-        .append(" linked")
-        .append(", ")
-        .append(heatMap.getUnlinkedOpenDefectCount())
-        .append(" unlinked")
-        .append(", ")
-        .append(heatMap.getIgnoredClosedDefectCount())
-        .append(" ignored closed")
-        .append(", ")
-        .append(heatMap.getFetchedDefectCount())
-        .append(" fetched")
-        .append("</div>");
+    html.append("</div>");
+    appendDefectSeverityBar(html, heatMap, building, updatedAtText);
     html.append("</div>");
     return html.toString();
+  }
+
+  private void appendDefectSeverityBar(
+      StringBuilder html, OctaneRiskHeatMap heatMap, boolean building, String updatedAtText) {
+    if (!heatMap.getDefectSeveritySummary().isVisible()) {
+      return;
+    }
+    String lastUpdated = building ? "JUST NOW" : Util.trimToEmpty(updatedAtText);
+    if (Util.isBlank(lastUpdated)) {
+      lastUpdated = "UNKNOWN";
+    }
+    html.append("<div class=\"octane-risk-issues-container\">");
+    html.append("<div class=\"octane-defect-severity-tracker\">");
+    html.append("<div class=\"octane-defect-severity-bar\" role=\"list\" ")
+        .append("aria-label=\"Defect severity status\">");
+    for (var bucket : heatMap.getDefectSeveritySummary().getBuckets()) {
+      html.append(
+              "<span class=\"octane-defect-severity-segment\" role=\"listitem\" style=\"background:")
+          .append(bucket.getColor())
+          .append(";color:")
+          .append(textColorFor(bucket, heatMap))
+          .append("\"><span class=\"octane-defect-severity-count\">")
+          .append(bucket.getCount())
+          .append("</span><span class=\"octane-defect-severity-label\">")
+          .append(escape(bucket.getLabel()))
+          .append("</span></span>");
+    }
+    html.append("</div>");
+    html.append("<div class=\"octane-defect-severity-meta\">")
+        .append("<span>TOTAL ISSUES: ")
+        .append(heatMap.getDefectSeveritySummary().getOpenTotal())
+        .append("</span><span>LAST UPDATED: ")
+        .append(escape(lastUpdated))
+        .append("</span></div>");
+    html.append("</div>");
+    html.append("</div>");
+  }
+
+  private String textColorFor(Bucket bucket, OctaneRiskHeatMap heatMap) {
+    String label = bucket.getLabel().toLowerCase(Locale.ENGLISH);
+    if (label.equals("medium") || label.equals("low") || label.equals("unspecified")) {
+      return "#000000";
+    }
+    if (label.equals("closed") && heatMap.getDefectSeveritySummary().isAllClosed()) {
+      return "#000000";
+    }
+    return "#ffffff";
   }
 
   private String unavailable(String message) {
@@ -55,7 +96,11 @@ public class OctaneRiskHeatMapRenderer {
   }
 
   private void renderChildren(
-      StringBuilder html, OctaneRiskHeatMapNode parent, double startAngle, double endAngle, int depth) {
+      StringBuilder html,
+      OctaneRiskHeatMapNode parent,
+      double startAngle,
+      double endAngle,
+      int depth) {
     if (parent.getChildren().isEmpty() || depth >= 5) {
       return;
     }
@@ -79,7 +124,11 @@ public class OctaneRiskHeatMapRenderer {
   }
 
   private void appendSlice(
-      StringBuilder html, OctaneRiskHeatMapNode node, double startAngle, double endAngle, int depth) {
+      StringBuilder html,
+      OctaneRiskHeatMapNode node,
+      double startAngle,
+      double endAngle,
+      int depth) {
     double innerRadius = INNER_RADIUS + (depth * RING_WIDTH);
     double outerRadius = innerRadius + RING_WIDTH - 2.0;
     double paddedStart = startAngle + GAP_DEGREES;
@@ -118,8 +167,7 @@ public class OctaneRiskHeatMapRenderer {
     int largeArc = safeEnd - startAngle > 180 ? 1 : 0;
     return String.format(
         Locale.ENGLISH,
-        "M %.3f %.3f A %.3f %.3f 0 %d 1 %.3f %.3f "
-            + "L %.3f %.3f A %.3f %.3f 0 %d 0 %.3f %.3f Z",
+        "M %.3f %.3f A %.3f %.3f 0 %d 1 %.3f %.3f " + "L %.3f %.3f A %.3f %.3f 0 %d 0 %.3f %.3f Z",
         outerStart.x,
         outerStart.y,
         outerRadius,

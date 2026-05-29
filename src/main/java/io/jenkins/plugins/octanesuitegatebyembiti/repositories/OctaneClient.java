@@ -345,7 +345,8 @@ public class OctaneClient implements AutoCloseable {
     }
     List<String> clauses = buildRelationClauses(relationField, relatedIds);
     try {
-      for (int start = 0; start < clauses.size() && recordsById.size() < maxDefects;
+      for (int start = 0;
+          start < clauses.size() && recordsById.size() < maxDefects;
           start += QUERY_CHUNK_SIZE) {
         int end = Math.min(start + QUERY_CHUNK_SIZE, clauses.size());
         List<DefectRecord> records =

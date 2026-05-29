@@ -176,9 +176,10 @@
           max-width: min(38vh, 38vw);
         }
         .octane-zone-focused .octane-risk-heat-map {
-          max-height: min(30vh, 30vw);
-          max-width: min(30vh, 30vw);
-          width: min(100%, 30vh, 30vw);
+          height: min(100cqw, 100cqh, 38vh, 38vw);
+          max-height: min(38vh, 38vw);
+          max-width: min(38vh, 38vw);
+          width: min(100cqw, 100cqh, 38vh, 38vw);
         }
         .octane-zone-focused .octane-donut {
           height: 100%;
@@ -195,20 +196,20 @@
           row-gap: 0;
         }
         .octane-zone-focused .octane-y-axis-label {
-          font-size: clamp(0.55rem, 0.8vw, 0.8rem);
+          font-size: 12px;
         }
         .octane-zone-focused .octane-axis-value {
-          font-size: clamp(0.5rem, 0.75vw, 0.75rem);
+          font-size: 12px;
         }
         .octane-zone-focused .octane-suite-column {
           flex-basis: clamp(1.6rem, 7vw, 4.65rem);
           max-width: none;
         }
         .octane-zone-focused .octane-vertical-bar {
-          width: clamp(0.55rem, 54%, 2.4rem);
+          width: min(clamp(0.715rem, 70.2%, 3.12rem), calc(100% - 0.1rem));
         }
         .octane-zone-focused .octane-suite-label {
-          font-size: clamp(0.45rem, 0.7vw, 0.62rem);
+          font-size: 12px;
           max-width: 100%;
           padding-top: clamp(0.04rem, 0.25vh, 0.16rem);
         }
@@ -315,12 +316,29 @@
         .octane-chart-card[data-active-view="heatmap"] .octane-icon-heatmap {
           display: none;
         }
+        .octane-chart-card[data-active-view="metrics"] .octane-icon-metrics {
+          display: none;
+        }
         .octane-chart-card[data-active-view="heatmap"] .octane-icon-timer {
           display: block;
         }
+        .octane-chart-card[data-active-view="metrics"] .octane-icon-timer {
+          display: block;
+        }
+        .octane-chart-card[data-card-key="timer-timeout"],
         .octane-chart-card[data-card-key="timer-poll"] {
+          display: flex;
+          flex-direction: column;
           position: relative;
         }
+        .octane-chart-card[data-card-key="timer-poll"][data-active-view="heatmap"] {
+          padding-bottom: clamp(0.45rem, 0.8cqw, 0.7rem);
+        }
+        .octane-chart-card[data-card-key="timer-poll"][data-active-view="heatmap"]
+          .octane-flip-viewport {
+          min-height: 0;
+        }
+        .octane-chart-card[data-card-key="timer-timeout"] > .octane-card-actions,
         .octane-chart-card[data-card-key="timer-poll"] > .octane-card-actions {
           position: absolute;
           right: 1rem;
@@ -352,7 +370,8 @@
           width: 100%;
         }
         .octane-chart-card[data-active-view="timer"] .octane-flip-face-timer,
-        .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap {
+        .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap,
+        .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics {
           opacity: 1;
           pointer-events: auto;
           transform: translateY(0);
@@ -378,6 +397,15 @@
           overflow: hidden;
           width: 100%;
         }
+        .octane-chart-card[data-card-key="timer-poll"][data-active-view="heatmap"]
+          .octane-flip-face-body {
+          align-items: stretch;
+        }
+        .octane-chart-card[data-card-key="timer-timeout"][data-active-view="metrics"]
+          .octane-flip-face-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
         .octane-heatmap-subtitle-row {
           align-items: center;
           display: flex;
@@ -402,13 +430,36 @@
           width: clamp(0.32rem, 0.52vw, 0.49rem);
         }
         .octane-risk-heat-map-panel-inner {
+          align-content: stretch;
           align-items: center;
+          display: grid;
+          gap: clamp(0.35rem, 1vh, 0.65rem);
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) max-content;
+          height: 100%;
+          justify-items: stretch;
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-risk-heat-map-container {
+          align-items: center;
+          box-sizing: border-box;
+          container-type: size;
           display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
           height: 100%;
           justify-content: center;
           min-height: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-risk-issues-container {
+          align-items: center;
+          align-self: end;
+          box-sizing: border-box;
+          display: flex;
+          justify-content: center;
+          min-width: 0;
+          padding-top: clamp(0.2rem, 0.8vh, 0.55rem);
           width: 100%;
         }
         .octane-risk-heat-map {
@@ -418,11 +469,13 @@
           clip-path: circle(50% at 50% 50%);
           display: block;
           height: auto;
-          max-height: min(100%, 173px);
-          max-width: 173px;
+          height: min(100cqw, 100cqh, 220px);
+          max-height: min(100%, 220px);
+          max-width: 220px;
           overflow: hidden;
           shape-rendering: geometricPrecision;
-          width: min(100%, 173px);
+          width: min(100%, 220px);
+          width: min(100cqw, 100cqh, 220px);
         }
         .octane-risk-heat-map-slice {
           stroke: var(--background);
@@ -444,11 +497,209 @@
           font-size: 0.85rem;
           text-anchor: middle;
         }
-        .octane-risk-heat-map-diagnostics {
-          color: var(--text-color-secondary);
-          font-size: clamp(0.55rem, 2cqw, 0.76rem);
-          line-height: 1.2;
+        .octane-test-metrics-grid {
+          box-sizing: border-box;
+          display: grid;
+          gap: 0;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-rows: repeat(2, minmax(0, 1fr));
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-test-metric-card {
+          align-items: center;
+          background: rgba(48, 54, 61, 0.28);
+          border: 1px solid var(--input-border);
+          border-radius: 0;
+          box-sizing: border-box;
+          container-type: size;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          padding: clamp(0.25rem, 1.1vmin, 2rem);
           text-align: center;
+        }
+        .octane-test-metric-card:nth-child(3) {
+          border-bottom-left-radius: 14px;
+        }
+        .octane-test-metric-card:nth-child(4) {
+          border-bottom-right-radius: 14px;
+        }
+        .octane-test-metric-heading {
+          align-items: center;
+          color: var(--text-color);
+          display: inline-flex;
+          font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+          font-size: clamp(0.54rem, min(2.85cqw, 3cqh), 1.75rem);
+          font-weight: 500;
+          gap: clamp(0.2rem, min(1.1cqw, 1.1cqh), 0.8rem);
+          justify-content: center;
+          letter-spacing: clamp(0.01em, 0.36cqw, 0.2em);
+          line-height: 1.12;
+          min-width: 0;
+          max-width: 98%;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .octane-test-metric-heading span {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          white-space: nowrap;
+        }
+        .octane-test-metric-icon {
+          fill: none;
+          flex: 0 0 auto;
+          height: clamp(1.05em, 1.55em, 2em);
+          stroke: currentColor;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 2;
+          width: clamp(1.05em, 1.55em, 2em);
+        }
+        .octane-test-metric-value {
+          color: var(--text-color);
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(1.26rem, min(15.6cqw, 26.4cqh), 9.6rem);
+          font-weight: 700;
+          letter-spacing: 0;
+          line-height: 0.95;
+          margin-top: clamp(0.22rem, min(2.6cqw, 2.6cqh), 2.25rem);
+          max-width: 98%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-test-metric-detail,
+        .octane-test-metric-trend {
+          color: var(--text-color-secondary);
+          font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+          font-size: clamp(0.48rem, min(2.45cqw, 2.65cqh), 1.55rem);
+          line-height: 1.14;
+          margin-top: clamp(0.08rem, min(0.8cqw, 0.8cqh), 0.75rem);
+          max-width: 98%;
+          overflow: hidden;
+          overflow-wrap: anywhere;
+          text-overflow: ellipsis;
+        }
+        .octane-test-metric-trend {
+          font-weight: 700;
+        }
+        @container (max-width: 16rem), (max-height: 10.5rem) {
+          .octane-test-metric-heading {
+            font-size: clamp(0.46rem, min(2.45cqw, 2.55cqh), 0.74rem);
+            gap: clamp(0.14rem, 0.8cqw, 0.34rem);
+            letter-spacing: clamp(0, 0.22cqw, 0.08em);
+            line-height: 1.05;
+            max-width: 100%;
+          }
+          .octane-test-metric-icon {
+            height: 1.15em;
+            width: 1.15em;
+          }
+          .octane-test-metric-value {
+            font-size: clamp(1.14rem, min(12cqw, 21.6cqh), 2.94rem);
+            line-height: 0.9;
+            margin-top: clamp(0.08rem, min(1.1cqw, 1.1cqh), 0.32rem);
+          }
+          .octane-test-metric-detail,
+          .octane-test-metric-trend {
+            font-size: clamp(0.44rem, min(2.2cqw, 2.25cqh), 0.72rem);
+            line-height: 1.08;
+            margin-top: clamp(0.04rem, min(0.55cqw, 0.55cqh), 0.18rem);
+            max-width: 100%;
+          }
+        }
+        @container (max-width: 12rem), (max-height: 8.25rem) {
+          .octane-test-metric-heading {
+            font-size: clamp(0.4rem, min(2.15cqw, 2.2cqh), 0.58rem);
+            letter-spacing: 0;
+          }
+          .octane-test-metric-value {
+            font-size: clamp(0.984rem, min(10.2cqw, 18cqh), 1.98rem);
+          }
+          .octane-test-metric-detail,
+          .octane-test-metric-trend {
+            font-size: clamp(0.38rem, min(1.9cqw, 2cqh), 0.58rem);
+            line-height: 1.05;
+          }
+        }
+        .octane-test-metric-trend-positive {
+          color: #7BE5B3;
+        }
+        .octane-test-metric-trend-negative {
+          color: #ff6361;
+        }
+        .octane-defect-severity-tracker {
+          container-type: inline-size;
+          display: flex;
+          flex-direction: column;
+          gap: clamp(0.16rem, 0.4cqw, 0.32rem);
+          width: 75%;
+        }
+        .octane-defect-severity-bar {
+          border-radius: 0;
+          display: grid;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 0.875em;
+          font-weight: 500;
+          gap: 0;
+          grid-template-columns: repeat(7, minmax(0, 1fr));
+          line-height: 1.35;
+          min-height: clamp(2.58em, 3.4cqw, 4.25em);
+          overflow: hidden;
+          text-align: center;
+          width: 100%;
+        }
+        .octane-defect-severity-segment {
+          align-items: center;
+          color: #ffffff;
+          display: inline-flex;
+          gap: 0.28em;
+          justify-content: center;
+          min-width: 0;
+          overflow: hidden;
+          padding: 0.45em 0.55em;
+          white-space: nowrap;
+        }
+        .octane-defect-severity-count {
+          color: inherit;
+          display: inline-block;
+          flex: 0 0 auto;
+          min-width: 2ch;
+          text-align: right;
+        }
+        .octane-defect-severity-label {
+          color: inherit;
+          display: inline-block;
+          min-width: 0;
+          overflow: visible;
+          text-overflow: clip;
+        }
+        .octane-defect-severity-meta {
+          color: var(--text-color-secondary);
+          display: flex;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, 1.45cqw, 0.78rem);
+          font-weight: 500;
+          gap: 0.75rem;
+          justify-content: space-between;
+          letter-spacing: 0;
+          text-transform: uppercase;
+          width: 100%;
+        }
+        @container (max-width: 44rem) {
+          .octane-defect-severity-label {
+            display: none;
+          }
+          .octane-defect-severity-count {
+            min-width: auto;
+            text-align: center;
+          }
         }
         .octane-risk-heat-map-empty {
           align-items: center;
@@ -456,25 +707,40 @@
           border-radius: 8px;
           color: var(--text-color-secondary);
           display: flex;
+          height: 100%;
           justify-content: center;
-          min-height: 180px;
+          min-height: 0;
           padding: 1rem;
           text-align: center;
           width: 100%;
         }
         .octane-card-tools {
           align-items: center;
+          appearance: none;
+          border-radius: 4px;
           color: var(--text-color-secondary);
           cursor: grab;
           display: inline-flex;
-          font-size: 0.85rem;
+          font-size: 0;
           height: 1.15rem;
           justify-content: center;
-          letter-spacing: 0.04rem;
+          letter-spacing: 0;
           line-height: 1;
           overflow: hidden;
+          padding: 0;
           user-select: none;
           width: 1.15rem;
+        }
+        .octane-card-tools:hover {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-grabber-icon {
+          display: block;
+          fill: currentColor;
+          height: 0.95rem;
+          opacity: 0.92;
+          width: 0.95rem;
         }
         .octane-chart-card.octane-dragging {
           border-color: #4391F5;
@@ -542,9 +808,10 @@
           max-width: min(76vh, 76vw);
         }
         .octane-chart-card.octane-expanded .octane-risk-heat-map {
-          max-height: min(60vh, 60vw);
-          max-width: min(60vh, 60vw);
-          width: min(100%, 60vh, 60vw);
+          height: min(100cqw, 100cqh, 76vh, 76vw);
+          max-height: min(76vh, 76vw);
+          max-width: min(76vh, 76vw);
+          width: min(100cqw, 100cqh, 76vh, 76vw);
         }
         .octane-chart-card.octane-expanded .octane-donut {
           max-height: min(72vh, 72vw);
@@ -652,8 +919,10 @@
           margin-top: 0.25rem;
         }
         .octane-axis-value {
-          color: var(--text-color-secondary);
-          font-size: 0.75rem;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
         }
         .octane-bar-graph {
           --octane-axis-label-row: 1.7rem;
@@ -668,8 +937,10 @@
         }
         .octane-y-axis-label {
           align-self: center;
-          color: var(--text-color-secondary);
-          font-size: 0.8rem;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
           grid-column: 1;
           grid-row: 1;
           justify-self: center;
@@ -688,7 +959,6 @@
           padding-right: 0.2rem;
         }
         .octane-bar-plot {
-          border-left: 1px solid #576779;
           box-sizing: border-box;
           grid-column: 3;
           grid-row: 1 / span 2;
@@ -696,8 +966,24 @@
           overflow: visible;
           position: relative;
         }
+        .octane-bar-plot::before {
+          background-image: radial-gradient(
+            circle,
+            rgba(33, 38, 45, 0.92) 0 1px,
+            transparent 1.2px
+          );
+          background-size: 0.55rem calc(100% / var(--octane-grid-line-count, 4));
+          bottom: var(--octane-axis-label-row);
+          content: "";
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          top: 0;
+          z-index: 0;
+        }
         .octane-bar-plot::after {
-          background: #576779;
+          background: #30363D;
           bottom: var(--octane-axis-label-row);
           content: "";
           height: 1px;
@@ -768,12 +1054,12 @@
           align-items: stretch;
           align-self: end;
           background: var(--panel-border-color);
-          border-radius: 4px 4px 0 0;
+          border-radius: 0;
           display: flex;
           flex-direction: column-reverse;
           height: 100%;
           overflow: hidden;
-          width: clamp(0.85rem, 62%, 2.6rem);
+          width: min(clamp(1.105rem, 80.6%, 3.38rem), calc(100% - 0.1rem));
         }
         .octane-bar-popup {
           background: var(--background);
@@ -846,7 +1132,10 @@
           align-self: start;
           box-sizing: border-box;
           display: block;
-          font-size: clamp(0.53rem, 0.8vw, 0.7rem);
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
           grid-row: 2;
           line-height: 1.1;
           max-width: min(100%, 6.8rem);
@@ -902,7 +1191,7 @@
           Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
         </p>
         <p data-report-message="true">${snapshot.message}</p>
-        <j:if test="${!empty(snapshot.criteria)}">
+        <j:if test="${snapshot.hasCriteria()}">
           <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
         </j:if>
 
@@ -918,75 +1207,163 @@
                 data-total-seconds="${snapshot.timeoutSeconds}"
                 data-started-at="${snapshot.startedAt}"
                 data-updated-at="${snapshot.updatedAt}"
-                data-active="${snapshot.building}">
-              <div class="octane-card-header">
-                <div>
-                  <h2 class="octane-card-title" data-timeout-title="true">
-                    ${snapshot.testingTimeTitle}
-                  </h2>
-                  <div class="octane-muted">Testing Session Timer</div>
-                </div>
-                <div class="octane-card-actions">
-                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
-                      aria-expanded="false" title="Expand widget">
-                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M8 4H4v4" />
-                      <path d="M16 4h4v4" />
-                      <path d="M20 16v4h-4" />
-                      <path d="M8 20H4v-4" />
-                    </svg>
-                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M9 3v6H3" />
-                      <path d="M3 9l6-6" />
-                      <path d="M15 21v-6h6" />
-                      <path d="M21 15l-6 6" />
-                    </svg>
-                  </button>
-                  <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                    :::
-                  </span>
-                </div>
+                data-active="${snapshot.building}"
+                data-active-view="timer">
+              <div class="octane-card-actions">
+                <button class="octane-view-toggle" type="button"
+                    data-target-view="metrics" data-target-view-label="test metrics"
+                    aria-label="Show test metrics" title="Show test metrics">
+                  <svg class="octane-action-icon octane-icon-metrics" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M4 19V5" />
+                    <path d="M4 19h16" />
+                    <path d="M8 15h2" />
+                    <path d="M12 11h2" />
+                    <path d="M16 7h2" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l3 2" />
+                    <path d="M9 2h6" />
+                  </svg>
+                </button>
+                <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                    aria-expanded="false" title="Expand widget">
+                  <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M8 4H4v4" />
+                    <path d="M16 4h4v4" />
+                    <path d="M20 16v4h-4" />
+                    <path d="M8 20H4v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M9 3v6H3" />
+                    <path d="M3 9l6-6" />
+                    <path d="M15 21v-6h6" />
+                    <path d="M21 15l-6 6" />
+                  </svg>
+                </button>
+                <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
+                  <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                      focusable="false">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
+                </span>
               </div>
-              <div class="octane-timer-wrap">
-                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                    aria-label="Testing time remaining">
-                  <defs>
-                    <linearGradient id="octane-timeout-gradient" x1="32" y1="208" x2="208"
-                        y2="32" gradientUnits="userSpaceOnUse">
-                      <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                          offset="0%" stop-color="#4caf50" />
-                      <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                          offset="50%" stop-color="#449d48" />
-                      <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                          offset="100%" stop-color="#3c8c40" />
-                    </linearGradient>
-                  </defs>
-                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                  <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-progress" data-timer-progress="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-head" data-timer-head="true"
-                      cx="120" cy="36" r="9.6" fill="#1f5fff" />
-                  <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
-                    <j:choose>
-                      <j:when test="${snapshot.building}">--</j:when>
-                      <j:otherwise>${snapshot.testingTimeSpentMinutes}</j:otherwise>
-                    </j:choose>
-                  </text>
-                  <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
-                    <j:choose>
-                      <j:when test="${snapshot.building}">minutes</j:when>
-                      <j:otherwise>${snapshot.testingTimeSpentUnit}</j:otherwise>
-                    </j:choose>
-                  </text>
-                </svg>
+              <div class="octane-flip-viewport">
+                <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title" data-timeout-title="true">
+                        ${snapshot.testingTimeTitle}
+                      </h2>
+                      <div class="octane-muted">Testing Session Timer</div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-timer-wrap">
+                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                          aria-label="Testing time remaining">
+                        <defs>
+                          <linearGradient id="octane-timeout-gradient" x1="32" y1="208" x2="208"
+                              y2="32" gradientUnits="userSpaceOnUse">
+                            <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
+                                offset="0%" stop-color="#4caf50" />
+                            <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
+                                offset="50%" stop-color="#449d48" />
+                            <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
+                                offset="100%" stop-color="#3c8c40" />
+                          </linearGradient>
+                        </defs>
+                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                        <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
+                            transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-progress" data-timer-progress="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
+                            transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-head" data-timer-head="true"
+                            cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                        <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
+                          <j:choose>
+                            <j:when test="${snapshot.building}">--</j:when>
+                            <j:otherwise>${snapshot.testingTimeSpentMinutes}</j:otherwise>
+                          </j:choose>
+                        </text>
+                        <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
+                          <j:choose>
+                            <j:when test="${snapshot.building}">minutes</j:when>
+                            <j:otherwise>${snapshot.testingTimeSpentUnit}</j:otherwise>
+                          </j:choose>
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="octane-flip-face octane-flip-face-metrics" data-card-view="metrics">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Test Metrics</h2>
+                      <div class="octane-muted">Current Cycle Data</div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body" data-test-metrics-panel="true">
+                    <div class="octane-test-metrics-grid">
+                      <j:forEach var="metric" items="${snapshot.testMetrics.cards}">
+                        <article class="octane-test-metric-card octane-test-metric-${metric.key}"
+                            data-test-metric-key="${metric.key}">
+                          <div class="octane-test-metric-heading">
+                            <j:choose>
+                              <j:when test="${metric.icon == 'chart'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M4 20h16" />
+                                  <path d="M6 16v-5" />
+                                  <path d="M12 16V7" />
+                                  <path d="M18 16v-9" />
+                                </svg>
+                              </j:when>
+                              <j:when test="${metric.icon == 'activity'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M4 12h4l2-6 4 12 2-6h4" />
+                                </svg>
+                              </j:when>
+                              <j:when test="${metric.icon == 'defect'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M12 3l9 16H3z" />
+                                  <path d="M12 9v4" />
+                                  <path d="M12 17h.01" />
+                                </svg>
+                              </j:when>
+                              <j:otherwise>
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <circle cx="12" cy="13" r="8" />
+                                  <path d="M12 9v4l3 2" />
+                                  <path d="M9 2h6" />
+                                </svg>
+                              </j:otherwise>
+                            </j:choose>
+                            <span>${metric.title}</span>
+                          </div>
+                          <div class="octane-test-metric-value">${metric.value}</div>
+                          <div class="octane-test-metric-detail">${metric.detail}</div>
+                          <div class="octane-test-metric-trend octane-test-metric-trend-${metric.trendTone}">
+                            ${metric.trendText}
+                          </div>
+                        </article>
+                      </j:forEach>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -1001,6 +1378,7 @@
               <div class="octane-card-actions">
                 <j:if test="${snapshot.riskHeatMapEnabled}">
                   <button class="octane-view-toggle" type="button"
+                      data-target-view="heatmap" data-target-view-label="risk heat map"
                       aria-label="Show risk heat map" title="Show risk heat map">
                     <svg class="octane-action-icon octane-icon-heatmap" viewBox="0 0 24 24"
                         aria-hidden="true" focusable="false">
@@ -1035,7 +1413,12 @@
                   </svg>
                 </button>
                 <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                  :::
+                  <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                      focusable="false">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
                 </span>
               </div>
               <div class="octane-flip-viewport">
@@ -1157,7 +1540,12 @@
                     </svg>
                   </button>
                   <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                    :::
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
                   </span>
                 </div>
               </div>
@@ -1230,7 +1618,12 @@
                     </svg>
                   </button>
                   <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                    :::
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
                   </span>
                 </div>
               </div>
@@ -1316,7 +1709,12 @@
                         </button>
                         <span class="octane-card-tools"
                             title="Drag to move. Resize from the corner.">
-                          :::
+                          <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                              focusable="false">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                          </svg>
                         </span>
                       </div>
                     </div>
@@ -1391,17 +1789,24 @@
                         </button>
                         <span class="octane-card-tools"
                             title="Drag to move. Resize from the corner.">
-                          :::
+                          <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                              focusable="false">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                          </svg>
                         </span>
                       </div>
                     </div>
                     <div class="octane-bar-graph">
                       <div class="octane-y-axis-label">Test Runs</div>
                       <div class="octane-y-axis-scale">
-                        <span class="octane-axis-value">${section.maxSuiteRunTotal}</span>
-                        <span class="octane-axis-value">0</span>
+                        <j:forEach var="tick" items="${section.yAxisTicks}">
+                          <span class="octane-axis-value">${tick}</span>
+                        </j:forEach>
                       </div>
-                      <div class="octane-bar-plot">
+                      <div class="octane-bar-plot"
+                          style="--octane-grid-line-count: ${section.yAxisGridLineCount};">
                         <div class="octane-vertical-bars">
                           <j:forEach var="suiteRun" items="${section.suiteRuns}">
                             <div class="octane-suite-column" tabindex="0"
@@ -1457,7 +1862,7 @@
                   <div class="octane-card-header">
                     <div>
                       <h2 class="octane-card-title">Suite run charts</h2>
-                      <div class="octane-muted">Waiting for first poll</div>
+                      <div class="octane-muted">${snapshot.stateLabel}</div>
                     </div>
                     <div class="octane-card-actions">
                       <button class="octane-expand-toggle" type="button"
@@ -1478,11 +1883,16 @@
                         </svg>
                       </button>
                       <span class="octane-card-tools" title="Drag to move. Resize from the corner.">
-                        :::
+                        <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                            focusable="false">
+                          <circle cx="12" cy="5" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="19" r="2" />
+                        </svg>
                       </span>
                     </div>
                   </div>
-                  <div class="octane-empty">The report will populate after the first Octane poll.</div>
+                  <div class="octane-empty">${snapshot.emptyReportMessage}</div>
                 </section>
               </j:when>
             </j:choose>
@@ -1647,23 +2057,29 @@
             if (!card) {
               return;
             }
-            var nextView = view === "heatmap" ? "heatmap" : "timer";
-            card.setAttribute("data-active-view", nextView);
             var button = card.querySelector(".octane-view-toggle");
+            var targetView =
+                button ? button.getAttribute("data-target-view") || "heatmap" : "heatmap";
+            var targetLabel =
+                button
+                    ? button.getAttribute("data-target-view-label") || "risk heat map"
+                    : "risk heat map";
+            var nextView = view === targetView ? targetView : "timer";
+            card.setAttribute("data-active-view", nextView);
             if (!button) {
               return;
             }
-            var label = nextView === "heatmap" ? "Show polling timer" : "Show risk heat map";
+            var label = nextView === targetView ? "Show timer" : "Show " + targetLabel;
             button.setAttribute("aria-label", label);
             button.setAttribute("title", label);
           }
           function activeCardView(card) {
-            return card && card.getAttribute("data-active-view") === "heatmap"
-                ? "heatmap"
-                : "timer";
+            return card ? card.getAttribute("data-active-view") || "timer" : "timer";
           }
           function toggleCardView(card) {
-            setCardView(card, activeCardView(card) === "heatmap" ? "timer" : "heatmap");
+            var button = card ? card.querySelector(".octane-view-toggle") : null;
+            var targetView = button ? button.getAttribute("data-target-view") || "heatmap" : "heatmap";
+            setCardView(card, activeCardView(card) === targetView ? "timer" : targetView);
           }
           function initializeCardViews(root) {
             var cards = root.querySelectorAll("[data-active-view]");
@@ -1671,46 +2087,74 @@
               setCardView(cards[index], activeCardView(cards[index]));
             }
           }
-	          function updateRiskHeatMap(payload) {
-	            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
-	              return;
-	            }
-	            var panel = dashboard.querySelector("[data-heat-map-panel]");
-	            if (panel) {
-	              panel.innerHTML = payload.riskHeatMapHtml;
-	            }
-	          }
-	          function currentReportPayload() {
-	            var executionProgressCard =
-	                dashboard.querySelector('[data-octane-progress="execution"]');
-	            var executionProgress = executionProgressCard
-	                ? parseFloat(executionProgressCard.getAttribute("data-progress-value") || "0")
-	                : 0;
-	            return {
-	              building: dashboard.getAttribute("data-report-building") === "true",
-	              executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
-	              stateLabel: stateLabel ? stateLabel.textContent : ""
-	            };
-	          }
-	          function autoShowHeatMapOnCompletion(payload) {
-	            var card = dashboard.querySelector('[data-card-key="timer-poll"]');
-	            if (!card || !card.querySelector(".octane-view-toggle")) {
-	              return;
-	            }
-	            if (activeCardView(card) === "heatmap") {
-	              return;
-	            }
-	            var progress = Number(payload && payload.executionProgress ? payload.executionProgress : 0);
-	            if (isNaN(progress)) {
-	              progress = 0;
-	            }
-	            var timedOut =
-	                payload && payload.building !== true && payload.stateLabel === "Timed out";
-	            if (timedOut || progress >= 100) {
-	              setCardView(card, "heatmap");
-	            }
-	          }
-	          function zoneKeyFor(zone) {
+          function updateRiskHeatMap(payload) {
+            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-heat-map-panel]");
+            if (panel) {
+              panel.innerHTML = payload.riskHeatMapHtml;
+            }
+          }
+          function updateTestMetrics(payload) {
+            if (!payload || typeof payload.testMetricsHtml !== "string") {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-test-metrics-panel]");
+            if (panel) {
+              panel.innerHTML = payload.testMetricsHtml;
+            }
+          }
+          function currentReportPayload() {
+            var executionProgressCard =
+                dashboard.querySelector('[data-octane-progress="execution"]');
+            var executionProgress =
+                executionProgressCard
+                    ? parseFloat(executionProgressCard.getAttribute("data-progress-value") || "0")
+                    : 0;
+            return {
+              building: dashboard.getAttribute("data-report-building") === "true",
+              executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
+              stateLabel: stateLabel ? stateLabel.textContent : ""
+            };
+          }
+          function autoShowHeatMapOnCompletion(payload) {
+            var card = dashboard.querySelector('[data-card-key="timer-poll"]');
+            if (!card || !card.querySelector(".octane-view-toggle")) {
+              return;
+            }
+            if (activeCardView(card) === "heatmap") {
+              return;
+            }
+            var progress =
+                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
+            if (isNaN(progress)) {
+              progress = 0;
+            }
+            var timedOut =
+                payload && payload.building !== true && payload.stateLabel === "Timed out";
+            if (timedOut || progress >= 100) {
+              setCardView(card, "heatmap");
+            }
+          }
+          function autoShowTestMetricsOnCompletion(payload) {
+            var card = dashboard.querySelector('[data-card-key="timer-timeout"]');
+            if (!card || !card.querySelector(".octane-view-toggle")) {
+              return;
+            }
+            if (activeCardView(card) === "metrics") {
+              return;
+            }
+            var progress =
+                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
+            if (isNaN(progress)) {
+              progress = 0;
+            }
+            if ((payload && payload.building !== true) || progress >= 100) {
+              setCardView(card, "metrics");
+            }
+          }
+          function zoneKeyFor(zone) {
             if (!zone) {
               return "";
             }
@@ -1780,10 +2224,11 @@
               actions.appendChild(tools);
             }
 	          }
-	          decorateCardZones(dashboard);
-	          initializeCardViews(dashboard);
-	          autoShowHeatMapOnCompletion(currentReportPayload());
-	          function createTimerState(card) {
+          decorateCardZones(dashboard);
+          initializeCardViews(dashboard);
+          autoShowHeatMapOnCompletion(currentReportPayload());
+          autoShowTestMetricsOnCompletion(currentReportPayload());
+          function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
               totalSeconds = 1;
@@ -1958,12 +2403,14 @@
             if (updatedAtLabel) {
               updatedAtLabel.textContent = payload.updatedAtText || payload.updatedAt || "";
             }
-	            if (messageLabel) {
-	              messageLabel.textContent = payload.message || "";
-	            }
-	            updateRiskHeatMap(payload);
-	            autoShowHeatMapOnCompletion(payload);
-	            var reportZone = document.getElementById("octane-report-zone");
+            if (messageLabel) {
+              messageLabel.textContent = payload.message || "";
+            }
+            updateRiskHeatMap(payload);
+            updateTestMetrics(payload);
+            autoShowHeatMapOnCompletion(payload);
+            autoShowTestMetricsOnCompletion(payload);
+            var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
             decorateCardZones(updatedReportZone);
@@ -2074,10 +2521,12 @@
                 throw new Error("Snapshot request failed: " + response.status);
               }
               return response.json();
-	            }).then(function (payload) {
-	              updateRiskHeatMap(payload);
-	              autoShowHeatMapOnCompletion(payload);
-	            }).catch(function () {
+            }).then(function (payload) {
+              updateRiskHeatMap(payload);
+              updateTestMetrics(payload);
+              autoShowHeatMapOnCompletion(payload);
+              autoShowTestMetricsOnCompletion(payload);
+            }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
             });
           }

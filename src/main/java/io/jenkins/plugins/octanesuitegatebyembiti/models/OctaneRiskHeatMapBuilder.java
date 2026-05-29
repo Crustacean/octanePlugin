@@ -24,6 +24,8 @@ public class OctaneRiskHeatMapBuilder {
 
     Map<String, List<DefectRecord>> defectsByRunId = indexDefectsByRunId(defects);
     Map<String, List<DefectRecord>> defectsByTestId = indexDefectsByTestId(defects);
+    OctaneDefectSeveritySummary defectSeveritySummary =
+        OctaneDefectSeveritySummary.fromDefects(defects);
     NodeAccumulator root = new NodeAccumulator("root", "Risk Heat Map");
     int fetchedDefectCount = defects == null ? 0 : defects.size();
     int linkedDefectCount = 0;
@@ -84,7 +86,8 @@ public class OctaneRiskHeatMapBuilder {
         fetchedDefectCount,
         linkedDefectCount,
         unlinkedOpenDefectCount,
-        ignoredClosedDefectCount);
+        ignoredClosedDefectCount,
+        defectSeveritySummary);
   }
 
   private Map<String, List<DefectRecord>> indexDefectsByRunId(List<DefectRecord> defects) {

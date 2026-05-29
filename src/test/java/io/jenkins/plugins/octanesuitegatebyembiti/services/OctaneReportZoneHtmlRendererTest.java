@@ -80,7 +80,13 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-bar-graph"));
     assertTrue(html.contains("octane-y-axis-label"));
     assertTrue(html.contains(">Test Runs<"));
-    assertTrue(html.contains("#576779"));
+    assertTrue(html.contains("#827C7B"));
+    assertTrue(html.contains("background-image: radial-gradient"));
+    assertTrue(html.contains("rgba(33, 38, 45, 0.92)"));
+    assertTrue(html.contains("background-size: 9px calc(100% / var(--octane-grid-line-count, 4))"));
+    assertTrue(html.contains("#30363D"));
+    assertTrue(html.contains("octane-grid-line-count"));
+    assertFalse(html.contains("border-left: 1px solid #576779"));
     assertFalse(html.contains("#CCCCCC"));
     assertTrue(html.contains("column-gap: 1px"));
     assertTrue(html.contains("grid-template-columns: 22px max-content minmax(0, 1fr)"));
@@ -93,8 +99,10 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("octane-axis-label-column"));
     assertTrue(html.contains("overflow-x: hidden"));
     assertTrue(html.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
-    assertTrue(html.contains("width: clamp(14px, 62%, 42px)"));
-    assertTrue(html.contains("font-size: clamp(9px, 0.8vw, 11px)"));
+    assertTrue(html.contains("width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px))"));
+    assertTrue(html.contains("font-family: Inter, \"Segoe UI\", Arial, sans-serif"));
+    assertTrue(html.contains("font-size: 12px"));
+    assertTrue(html.contains("font-weight: 400"));
     assertTrue(html.contains("text-align: center"));
     assertTrue(html.contains("transform: none"));
     assertFalse(html.contains("rotate(-45deg)"));
