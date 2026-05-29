@@ -226,8 +226,19 @@ public class OctaneGateReportSnapshot implements Serializable {
     return message;
   }
 
+  public String getEmptyReportMessage() {
+    if (message == null || message.isBlank()) {
+      return "The report will populate after the first Octane poll.";
+    }
+    return message;
+  }
+
   public String getCriteria() {
     return criteria;
+  }
+
+  public boolean hasCriteria() {
+    return criteria != null && !criteria.isBlank();
   }
 
   public String getSuiteRunId() {

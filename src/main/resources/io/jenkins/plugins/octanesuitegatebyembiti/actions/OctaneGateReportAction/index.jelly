@@ -401,6 +401,11 @@
           .octane-flip-face-body {
           align-items: stretch;
         }
+        .octane-chart-card[data-card-key="timer-timeout"][data-active-view="metrics"]
+          .octane-flip-face-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
         .octane-heatmap-subtitle-row {
           align-items: center;
           display: flex;
@@ -495,24 +500,29 @@
         .octane-test-metrics-grid {
           box-sizing: border-box;
           display: grid;
-          gap: 0.5rem;
+          gap: 0;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           grid-template-rows: repeat(2, minmax(0, 1fr));
           height: 100%;
           min-height: 0;
+          overflow: hidden;
           width: 100%;
         }
         .octane-test-metric-card {
+          align-items: center;
           background: rgba(48, 54, 61, 0.28);
           border: 1px solid var(--input-border);
           border-radius: 0;
           box-sizing: border-box;
+          container-type: size;
           display: flex;
           flex-direction: column;
           justify-content: center;
           min-height: 0;
           min-width: 0;
-          padding: clamp(0.55rem, 1.7cqw, 1rem);
+          overflow: hidden;
+          padding: clamp(0.25rem, 1.1vmin, 2rem);
+          text-align: center;
         }
         .octane-test-metric-card:nth-child(3) {
           border-bottom-left-radius: 14px;
@@ -524,38 +534,99 @@
           align-items: center;
           color: var(--text-color);
           display: inline-flex;
-          font-size: clamp(0.72rem, 2.4cqw, 1rem);
-          font-weight: 650;
-          gap: 0.45rem;
-          line-height: 1.1;
+          font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+          font-size: clamp(0.54rem, min(2.85cqw, 3cqh), 1.75rem);
+          font-weight: 500;
+          gap: clamp(0.2rem, min(1.1cqw, 1.1cqh), 0.8rem);
+          justify-content: center;
+          letter-spacing: clamp(0.01em, 0.36cqw, 0.2em);
+          line-height: 1.12;
           min-width: 0;
+          max-width: 98%;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .octane-test-metric-heading span {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          white-space: nowrap;
         }
         .octane-test-metric-icon {
           fill: none;
           flex: 0 0 auto;
-          height: 1.05em;
+          height: clamp(1.05em, 1.55em, 2em);
           stroke: currentColor;
           stroke-linecap: round;
           stroke-linejoin: round;
           stroke-width: 2;
-          width: 1.05em;
+          width: clamp(1.05em, 1.55em, 2em);
         }
         .octane-test-metric-value {
           color: var(--text-color);
-          font-size: clamp(1.2rem, 6.2cqw, 2.55rem);
-          font-weight: 750;
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(1.26rem, min(15.6cqw, 26.4cqh), 9.6rem);
+          font-weight: 700;
           letter-spacing: 0;
-          line-height: 1;
-          margin-top: clamp(0.45rem, 1.6cqw, 0.9rem);
+          line-height: 0.95;
+          margin-top: clamp(0.22rem, min(2.6cqw, 2.6cqh), 2.25rem);
+          max-width: 98%;
+          overflow: hidden;
+          text-overflow: ellipsis;
           white-space: nowrap;
         }
         .octane-test-metric-detail,
         .octane-test-metric-trend {
           color: var(--text-color-secondary);
-          font-size: clamp(0.62rem, 2.2cqw, 0.9rem);
-          line-height: 1.15;
-          margin-top: clamp(0.25rem, 0.8cqw, 0.45rem);
+          font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+          font-size: clamp(0.48rem, min(2.45cqw, 2.65cqh), 1.55rem);
+          line-height: 1.14;
+          margin-top: clamp(0.08rem, min(0.8cqw, 0.8cqh), 0.75rem);
+          max-width: 98%;
+          overflow: hidden;
           overflow-wrap: anywhere;
+          text-overflow: ellipsis;
+        }
+        .octane-test-metric-trend {
+          font-weight: 700;
+        }
+        @container (max-width: 16rem), (max-height: 10.5rem) {
+          .octane-test-metric-heading {
+            font-size: clamp(0.46rem, min(2.45cqw, 2.55cqh), 0.74rem);
+            gap: clamp(0.14rem, 0.8cqw, 0.34rem);
+            letter-spacing: clamp(0, 0.22cqw, 0.08em);
+            line-height: 1.05;
+            max-width: 100%;
+          }
+          .octane-test-metric-icon {
+            height: 1.15em;
+            width: 1.15em;
+          }
+          .octane-test-metric-value {
+            font-size: clamp(1.14rem, min(12cqw, 21.6cqh), 2.94rem);
+            line-height: 0.9;
+            margin-top: clamp(0.08rem, min(1.1cqw, 1.1cqh), 0.32rem);
+          }
+          .octane-test-metric-detail,
+          .octane-test-metric-trend {
+            font-size: clamp(0.44rem, min(2.2cqw, 2.25cqh), 0.72rem);
+            line-height: 1.08;
+            margin-top: clamp(0.04rem, min(0.55cqw, 0.55cqh), 0.18rem);
+            max-width: 100%;
+          }
+        }
+        @container (max-width: 12rem), (max-height: 8.25rem) {
+          .octane-test-metric-heading {
+            font-size: clamp(0.4rem, min(2.15cqw, 2.2cqh), 0.58rem);
+            letter-spacing: 0;
+          }
+          .octane-test-metric-value {
+            font-size: clamp(0.984rem, min(10.2cqw, 18cqh), 1.98rem);
+          }
+          .octane-test-metric-detail,
+          .octane-test-metric-trend {
+            font-size: clamp(0.38rem, min(1.9cqw, 2cqh), 0.58rem);
+            line-height: 1.05;
+          }
         }
         .octane-test-metric-trend-positive {
           color: #7BE5B3;
@@ -1120,7 +1191,7 @@
           Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
         </p>
         <p data-report-message="true">${snapshot.message}</p>
-        <j:if test="${!empty(snapshot.criteria)}">
+        <j:if test="${snapshot.hasCriteria()}">
           <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
         </j:if>
 
@@ -1238,12 +1309,59 @@
                 <div class="octane-flip-face octane-flip-face-metrics" data-card-view="metrics">
                   <div class="octane-flip-face-header">
                     <div>
-                      <h2 class="octane-card-title">Test metrics</h2>
-                      <div class="octane-muted">Current cycle facts</div>
+                      <h2 class="octane-card-title">Test Metrics</h2>
+                      <div class="octane-muted">Current Cycle Data</div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body" data-test-metrics-panel="true">
-                    <j:out value="${snapshot.testMetricsHtml}" escape="false" />
+                    <div class="octane-test-metrics-grid">
+                      <j:forEach var="metric" items="${snapshot.testMetrics.cards}">
+                        <article class="octane-test-metric-card octane-test-metric-${metric.key}"
+                            data-test-metric-key="${metric.key}">
+                          <div class="octane-test-metric-heading">
+                            <j:choose>
+                              <j:when test="${metric.icon == 'chart'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M4 20h16" />
+                                  <path d="M6 16v-5" />
+                                  <path d="M12 16V7" />
+                                  <path d="M18 16v-9" />
+                                </svg>
+                              </j:when>
+                              <j:when test="${metric.icon == 'activity'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M4 12h4l2-6 4 12 2-6h4" />
+                                </svg>
+                              </j:when>
+                              <j:when test="${metric.icon == 'defect'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M12 3l9 16H3z" />
+                                  <path d="M12 9v4" />
+                                  <path d="M12 17h.01" />
+                                </svg>
+                              </j:when>
+                              <j:otherwise>
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <circle cx="12" cy="13" r="8" />
+                                  <path d="M12 9v4l3 2" />
+                                  <path d="M9 2h6" />
+                                </svg>
+                              </j:otherwise>
+                            </j:choose>
+                            <span>${metric.title}</span>
+                          </div>
+                          <div class="octane-test-metric-value">${metric.value}</div>
+                          <div class="octane-test-metric-detail">${metric.detail}</div>
+                          <div class="octane-test-metric-trend octane-test-metric-trend-${metric.trendTone}">
+                            ${metric.trendText}
+                          </div>
+                        </article>
+                      </j:forEach>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1744,7 +1862,7 @@
                   <div class="octane-card-header">
                     <div>
                       <h2 class="octane-card-title">Suite run charts</h2>
-                      <div class="octane-muted">Waiting for first poll</div>
+                      <div class="octane-muted">${snapshot.stateLabel}</div>
                     </div>
                     <div class="octane-card-actions">
                       <button class="octane-expand-toggle" type="button"
@@ -1774,7 +1892,7 @@
                       </span>
                     </div>
                   </div>
-                  <div class="octane-empty">The report will populate after the first Octane poll.</div>
+                  <div class="octane-empty">${snapshot.emptyReportMessage}</div>
                 </section>
               </j:when>
             </j:choose>

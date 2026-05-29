@@ -393,11 +393,13 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("data-card-key=\"suite-run-empty\">\n");
       html.append("<div class=\"octane-card-header\"><div>");
       html.append("<h2 class=\"octane-card-title\">Suite run charts</h2>");
-      html.append("<div class=\"octane-muted\">Waiting for first poll</div>");
+      html.append("<div class=\"octane-muted\">");
+      html.append(escapeHtml(snapshot.getStateLabel()));
+      html.append("</div>");
       html.append("</div><span class=\"octane-card-tools\" ");
       html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
       html.append("<div class=\"octane-empty\">");
-      html.append("The report will populate after the first Octane poll.");
+      html.append(escapeHtml(snapshot.getEmptyReportMessage()));
       html.append("</div>\n");
       html.append("</section>\n");
     }
