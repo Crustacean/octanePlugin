@@ -2518,6 +2518,19 @@
             }
             state.title.textContent = state.active ? "Testing Time Remaining" : "Testing Time";
           }
+          function fitTimerText(state, displayValue, displayUnit) {
+            if (!state.value || !state.unit) {
+              return;
+            }
+            var valueLength = Math.max(1, displayValue.length);
+            var unitLength = Math.max(1, displayUnit.length);
+            var valueSize = clamp(116 / (valueLength * 0.56), 23, 42);
+            var unitSize = clamp(78 / (unitLength * 0.52), 10, 14.7);
+            var valueWeight = valueSize < 27 ? "600" : valueSize < 32 ? "650" : "700";
+            state.value.style.fontSize = trimNumber(valueSize) + "px";
+            state.value.style.fontWeight = valueWeight;
+            state.unit.style.fontSize = trimNumber(unitSize) + "px";
+          }
           function setTimerText(state, remaining) {
             if (!state.value || !state.unit) {
               return;
@@ -2528,12 +2541,22 @@
               var primaryMinutes = Math.ceil(state.totalMillis / 60000);
               var extendedElapsed =
                   testingTimeSpentMillis(state, currentWallTime()) - state.totalMillis;
-              var extendedMinutes =
-                  Math.min(
-                      Math.floor(Math.max(0, extendedElapsed) / 60000),
-                      Math.ceil((state.extendedTotalMillis || 0) / 60000));
-              displayValue = String(primaryMinutes) + " + " + String(extendedMinutes);
-              displayUnit = "minutes";
+              var firstExtendedWindow = Math.min(
+                  60000,
+                  Math.max(1000, state.extendedTotalMillis || 60000));
+              if (extendedElapsed < firstExtendedWindow) {
+                var extendedSeconds =
+                    Math.max(1, Math.ceil((firstExtendedWindow - extendedElapsed) / 1000));
+                displayValue = String(primaryMinutes) + " + " + String(extendedSeconds);
+                displayUnit = "min + sec";
+              } else {
+                var extendedMinutes =
+                    Math.min(
+                        Math.floor(Math.max(0, extendedElapsed) / 60000),
+                        Math.ceil((state.extendedTotalMillis || 0) / 60000));
+                displayValue = String(primaryMinutes) + " + " + String(extendedMinutes);
+                displayUnit = "min + min";
+              }
             } else if (!state.active && state.mode === "timeout") {
               var spentMinutes = Math.round(testingTimeSpentMillis(state, currentWallTime()) / 60000);
               displayValue = String(spentMinutes);
@@ -2553,6 +2576,7 @@
               state.unit.textContent = displayUnit;
               state.lastDisplayedUnit = displayUnit;
             }
+            fitTimerText(state, displayValue, displayUnit);
           }
           function updateTimer(state, now) {
             setTimeoutTitle(state);

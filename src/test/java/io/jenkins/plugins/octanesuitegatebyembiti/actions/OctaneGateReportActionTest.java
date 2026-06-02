@@ -347,6 +347,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-timer-unit=\"true\" x=\"120\" y=\"132.4\""));
     assertTrue(xml.contains("data-timeout-title=\"true\""));
     assertTrue(xml.contains("testingTimeSpentMillis"));
+    assertTrue(xml.contains("function fitTimerText"));
+    assertTrue(xml.contains("116 / (valueLength * 0.56)"));
+    assertTrue(xml.contains("displayUnit = \"min + sec\""));
+    assertTrue(xml.contains("displayUnit = \"min + min\""));
     assertTrue(xml.contains("Testing Time Remaining"));
     assertTrue(xml.contains("stroke-width: 16"));
     assertTrue(xml.contains("style=\"height: 100.00%;\""));
