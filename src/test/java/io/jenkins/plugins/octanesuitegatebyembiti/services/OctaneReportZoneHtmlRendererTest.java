@@ -46,8 +46,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("suite runs: 4501"));
     assertFalse(html.contains("Total Testcases"));
     assertTrue(html.contains("border: 1px solid #f5f7fb"));
-    assertTrue(html.contains("font-size: 11px"));
-    assertTrue(html.contains("letter-spacing: 2px"));
+    assertTrue(html.contains("aria-label=\"Move widget\""));
+    assertTrue(html.contains("octane-grabber-icon"));
+    assertTrue(html.contains("Use arrow keys to reorder"));
     assertTrue(html.contains("data-card-key=\"distribution-regressions\""));
     assertTrue(html.contains("data-card-key=\"bars-regressions\""));
     assertTrue(html.contains("data-card-key=\"distribution-critical\""));
