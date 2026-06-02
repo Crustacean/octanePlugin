@@ -61,7 +61,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Testing Time"));
     assertFalse(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Test Metrics"));
-    assertTrue(text.contains("Current Cycle Data"));
+    assertTrue(text.contains("Current Job Analytics"));
     assertTrue(text.contains("Avg. Execution Time"));
     assertTrue(text.contains("Success Rate"));
     assertTrue(text.contains("Execution Completion"));

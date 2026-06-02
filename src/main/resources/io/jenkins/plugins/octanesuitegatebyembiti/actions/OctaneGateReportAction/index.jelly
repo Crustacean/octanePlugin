@@ -254,6 +254,7 @@
           overflow-wrap: anywhere;
         }
         .octane-card-header .octane-muted,
+        .octane-flip-face-header .octane-muted,
         .octane-total-label,
         .octane-legend-row {
           font-size: clamp(0.62rem, 0.9vw, 0.88rem);
@@ -578,7 +579,7 @@
         .octane-test-metric-trend {
           color: var(--text-color-secondary);
           font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-          font-size: clamp(0.48rem, min(2.45cqw, 2.65cqh), 1.55rem);
+          font-size: clamp(0.6rem, min(3.0625cqw, 3.3125cqh), 1.9375rem);
           line-height: 1.14;
           margin-top: clamp(0.08rem, min(0.8cqw, 0.8cqh), 0.75rem);
           max-width: 98%;
@@ -608,7 +609,7 @@
           }
           .octane-test-metric-detail,
           .octane-test-metric-trend {
-            font-size: clamp(0.44rem, min(2.2cqw, 2.25cqh), 0.72rem);
+            font-size: clamp(0.55rem, min(2.75cqw, 2.8125cqh), 0.9rem);
             line-height: 1.08;
             margin-top: clamp(0.04rem, min(0.55cqw, 0.55cqh), 0.18rem);
             max-width: 100%;
@@ -624,7 +625,7 @@
           }
           .octane-test-metric-detail,
           .octane-test-metric-trend {
-            font-size: clamp(0.38rem, min(1.9cqw, 2cqh), 0.58rem);
+            font-size: clamp(0.475rem, min(2.375cqw, 2.5cqh), 0.725rem);
             line-height: 1.05;
           }
         }
@@ -1310,7 +1311,7 @@
                   <div class="octane-flip-face-header">
                     <div>
                       <h2 class="octane-card-title">Test Metrics</h2>
-                      <div class="octane-muted">Current Cycle Data</div>
+                      <div class="octane-muted">Current Job Analytics</div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body" data-test-metrics-panel="true">
