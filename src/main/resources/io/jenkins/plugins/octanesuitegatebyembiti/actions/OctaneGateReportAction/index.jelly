@@ -29,11 +29,6 @@
           white-space: nowrap;
         }
         .octane-live-update-last-updated {
-          color: var(--text-color-secondary);
-          font-family: Inter, "Segoe UI", Arial, sans-serif;
-          font-size: clamp(0.58rem, 1.45cqw, 0.78rem);
-          font-weight: 500;
-          letter-spacing: 0;
           text-transform: uppercase;
         }
         .octane-dashboard {
