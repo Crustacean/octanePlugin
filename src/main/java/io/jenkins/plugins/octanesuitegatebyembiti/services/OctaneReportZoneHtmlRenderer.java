@@ -88,11 +88,37 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-muted {
           color: #5f6b7a;
         }
+        .octane-visually-hidden:where(:not(:focus-within, :active)) {
+          border: 0 !important;
+          clip-path: inset(50%) !important;
+          height: 1px !important;
+          margin: -1px !important;
+          overflow: hidden !important;
+          padding: 0 !important;
+          position: absolute !important;
+          white-space: nowrap !important;
+          width: 1px !important;
+        }
         .octane-card-tools {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 4px;
           color: #8a94a6;
-          font-size: 11px;
-          letter-spacing: 2px;
+          cursor: grab;
+          display: inline-flex;
+          height: 18px;
+          justify-content: center;
+          padding: 0;
           user-select: none;
+          width: 18px;
+        }
+        .octane-grabber-icon {
+          display: block;
+          fill: currentColor;
+          height: 14px;
+          width: 14px;
         }
         .octane-donut-wrap {
           align-items: center;
@@ -396,8 +422,9 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("<div class=\"octane-muted\">");
       html.append(escapeHtml(snapshot.getStateLabel()));
       html.append("</div>");
-      html.append("</div><span class=\"octane-card-tools\" ");
-      html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
+      html.append("</div>");
+      renderCardTools(html);
+      html.append("</div>\n");
       html.append("<div class=\"octane-empty\">");
       html.append(escapeHtml(snapshot.getEmptyReportMessage()));
       html.append("</div>\n");
@@ -427,13 +454,17 @@ public class OctaneReportZoneHtmlRenderer {
     }
     html.append("</div>");
     html.append("</div>");
-    html.append("</div><span class=\"octane-card-tools\" ");
-    html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
+    html.append("</div>");
+    renderCardTools(html);
+    html.append("</div>\n");
     html.append("<div class=\"octane-donut-wrap\">\n");
     html.append("<svg class=\"octane-donut\" viewBox=\"-10 -10 120 120\" role=\"img\" ");
     html.append("aria-label=\"");
     html.append(escapeAttribute(section.getStatusDistributionTitle()));
     html.append("\">\n");
+    html.append("<title>");
+    html.append(escapeHtml(section.getStatusDistributionTitle()));
+    html.append("</title>\n");
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSlice(html, slice);
     }
@@ -443,6 +474,7 @@ public class OctaneReportZoneHtmlRenderer {
     }
     html.append("</svg>\n");
     html.append("</div>\n");
+    renderDistributionSummaryTable(html, section);
     html.append("</section>\n");
   }
 
@@ -505,8 +537,9 @@ public class OctaneReportZoneHtmlRenderer {
     }
     html.append("</div>");
     html.append("</div>");
-    html.append("</div><span class=\"octane-card-tools\" ");
-    html.append("title=\"Drag to move. Resize from the corner.\">:::</span></div>\n");
+    html.append("</div>");
+    renderCardTools(html);
+    html.append("</div>\n");
     html.append("<div class=\"octane-bar-graph\">\n");
     html.append("<div class=\"octane-y-axis-label\">Test Runs</div>\n");
     html.append("<div class=\"octane-y-axis-scale\">");
@@ -527,7 +560,75 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div>\n");
     html.append("</div>\n");
     html.append("</div>\n");
+    renderSuiteRunSummaryTable(html, section);
     html.append("</section>\n");
+  }
+
+  private void renderCardTools(StringBuilder html) {
+    html.append("<button class=\"octane-card-tools\" type=\"button\" ");
+    html.append("aria-label=\"Move widget\" ");
+    html.append("title=\"Drag to move. Use arrow keys to reorder. Resize from the corner.\">");
+    html.append("<svg class=\"octane-grabber-icon\" viewBox=\"0 0 24 24\" ");
+    html.append("aria-hidden=\"true\" focusable=\"false\">");
+    html.append("<circle cx=\"12\" cy=\"5\" r=\"2\" />");
+    html.append("<circle cx=\"12\" cy=\"12\" r=\"2\" />");
+    html.append("<circle cx=\"12\" cy=\"19\" r=\"2\" />");
+    html.append("</svg>");
+    html.append("</button>");
+  }
+
+  private void renderDistributionSummaryTable(StringBuilder html, OctaneGateReportSection section) {
+    html.append("<table class=\"octane-chart-data-summary octane-visually-hidden\">");
+    html.append("<caption>");
+    html.append(escapeHtml(section.getStatusDistributionTitle()));
+    html.append("</caption><thead><tr>");
+    html.append("<th scope=\"col\">Status</th>");
+    html.append("<th scope=\"col\">Count</th>");
+    html.append("<th scope=\"col\">Percent</th>");
+    html.append("</tr></thead><tbody>");
+    for (OctaneGateStatusCount status : section.getTotals()) {
+      if (status.getCount() > 0) {
+        html.append("<tr><th scope=\"row\">");
+        html.append(escapeHtml(status.getLabel()));
+        html.append("</th><td>");
+        html.append(status.getCount());
+        html.append("</td><td>");
+        html.append(escapeHtml(status.getPercentageLabel()));
+        html.append("</td></tr>");
+      }
+    }
+    html.append("</tbody></table>\n");
+  }
+
+  private void renderSuiteRunSummaryTable(StringBuilder html, OctaneGateReportSection section) {
+    html.append("<table class=\"octane-chart-data-summary octane-visually-hidden\">");
+    html.append("<caption>");
+    html.append(escapeHtml(section.getSuiteRunChartTitle()));
+    html.append("</caption><thead><tr>");
+    html.append("<th scope=\"col\">Run by</th>");
+    html.append("<th scope=\"col\">Status</th>");
+    html.append("<th scope=\"col\">Count</th>");
+    html.append("<th scope=\"col\">Percent</th>");
+    html.append("<th scope=\"col\">Total</th>");
+    html.append("</tr></thead><tbody>");
+    for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
+      for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
+        if (status.getCount() > 0) {
+          html.append("<tr><th scope=\"row\">");
+          html.append(escapeHtml(suiteRun.getDisplayName()));
+          html.append("</th><td>");
+          html.append(escapeHtml(status.getLabel()));
+          html.append("</td><td>");
+          html.append(status.getCount());
+          html.append("</td><td>");
+          html.append(escapeHtml(status.getPercentageLabel()));
+          html.append("</td><td>");
+          html.append(suiteRun.getTotal());
+          html.append("</td></tr>");
+        }
+      }
+    }
+    html.append("</tbody></table>\n");
   }
 
   private void renderSuiteRunColumn(

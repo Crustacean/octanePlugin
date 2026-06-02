@@ -7,3 +7,6 @@ target/
 logs
 agent.md
 DESIGN.MD
+skills-lock.json
+skills.json
+skills/

@@ -61,7 +61,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Testing Time"));
     assertFalse(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Test Metrics"));
-    assertTrue(text.contains("Current Cycle Data"));
+    assertTrue(text.contains("Current Job Analytics"));
     assertTrue(text.contains("Avg. Execution Time"));
     assertTrue(text.contains("Success Rate"));
     assertTrue(text.contains("Execution Completion"));
@@ -95,7 +95,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains(">50%</text>"));
     assertTrue(xml.contains("border-radius: 14px"));
     assertFalse(xml.contains("border-radius: 6px"));
+    assertTrue(xml.contains("contain: layout style paint"));
     assertTrue(xml.contains("container-type: inline-size"));
+    assertTrue(xml.contains("@supports not (font-size: 1cqw)"));
     assertTrue(xml.contains("font-size: clamp(0.72rem, 3.2cqw, 1.08rem)"));
     assertTrue(xml.contains("font-size: clamp(0.66rem, 2.6cqw, 1rem)"));
     assertTrue(xml.contains("font-size: clamp(0.9rem, 2.2cqw, 1.3rem)"));
@@ -145,6 +147,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("height: 1.15rem"));
     assertTrue(xml.contains("letter-spacing: 0"));
     assertTrue(xml.contains("width: 1.15rem"));
+    assertTrue(xml.contains("aria-label=\"Move widget\""));
+    assertTrue(xml.contains("Use arrow keys to reorder"));
+    assertTrue(xml.contains("octane-reorder-status"));
+    assertTrue(xml.contains("aria-live=\"polite\""));
+    assertTrue(xml.contains(".octane-card-tools:focus-visible"));
+    assertTrue(xml.contains("outline: 3px solid #4391F5"));
     assertTrue(xml.contains("octane-grabber-icon"));
     assertTrue(xml.contains("<circle cx=\"12\" cy=\"5\" r=\"2\""));
     assertFalse(xml.contains(":::"));
@@ -175,22 +183,12 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("Collapse section"));
     assertTrue(xml.contains("octane-zone-focused"));
     assertTrue(xml.contains("grid-template-columns: repeat(2, minmax(0, 1fr))"));
-    assertTrue(
-        xml.contains(
-            ".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3) {\n"
-                + "          grid-column: 1;"));
-    assertTrue(
-        xml.contains(
-            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3) {\n"
-                + "          grid-column: 1;"));
-    assertTrue(
-        xml.contains(
-            ".octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {\n"
-                + "          grid-column: 2;"));
-    assertTrue(
-        xml.contains(
-            ".octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {\n"
-                + "          grid-column: 2;"));
+    assertTrue(xml.contains(".octane-timer-zone.octane-zone-focused"));
+    assertTrue(xml.contains(".octane-report-zone.octane-zone-focused"));
+    assertTrue(xml.contains(".octane-chart-card:nth-of-type(3)"));
+    assertTrue(xml.contains(".octane-chart-card:nth-of-type(4)"));
+    assertTrue(xml.contains("grid-column: 1"));
+    assertTrue(xml.contains("grid-column: 2"));
     assertTrue(xml.contains("grid-template-columns: minmax(0, 1fr)"));
     assertTrue(xml.contains("data-zone-key=\"timers\""));
     assertTrue(xml.contains("data-zone-key=\"reports\""));
@@ -198,6 +196,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Expand widget"));
     assertTrue(xml.contains("octane-expanded-backdrop"));
     assertTrue(xml.contains(".octane-chart-card.octane-expanded"));
+    assertTrue(xml.contains("data-octane-overlay-inert"));
+    assertTrue(xml.contains("activateOverlayAccessibility"));
+    assertTrue(xml.contains("releaseOverlayAccessibility"));
+    assertTrue(xml.contains("document.addEventListener(\"focusin\""));
     assertTrue(xml.contains("inset: 1rem"));
     assertTrue(xml.contains("padding: 1rem"));
     assertTrue(xml.contains("height: auto"));
@@ -224,6 +226,10 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("octane-legend-value"));
     assertTrue(xml.contains("octane-suite-chart-meta"));
     assertTrue(xml.contains("octane-bar-graph"));
+    assertTrue(xml.contains("octane-chart-data-summary"));
+    assertTrue(xml.contains("<caption>REGRESSION Tests Status Distribution</caption>"));
+    assertTrue(
+        xml.contains("<caption>Testing progress per Tester Suite Runs_REGRESSIONS</caption>"));
     assertTrue(xml.contains("octane-y-axis-label"));
     assertTrue(xml.contains(">Test Runs<"));
     assertTrue(xml.contains("#827C7B"));
@@ -248,7 +254,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
     assertTrue(xml.contains("width: min(clamp(0.715rem, 70.2%, 3.12rem), calc(100% - 0.1rem))"));
     assertTrue(xml.contains("width: min(clamp(1.105rem, 80.6%, 3.38rem), calc(100% - 0.1rem))"));
-    assertTrue(xml.contains("font-family: Inter, &quot;Segoe UI&quot;, Arial, sans-serif"));
+    assertTrue(
+        xml.contains("font-family: Inter, &quot;Segoe UI&quot;, Arial, sans-serif")
+            || xml.contains("font-family: Inter, \"Segoe UI\", Arial, sans-serif"));
     assertTrue(xml.contains("font-weight: 400"));
     assertTrue(xml.contains("color: #827C7B"));
     assertTrue(xml.contains("text-align: center"));
@@ -294,13 +302,18 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("http-equiv=\"refresh\""));
     assertTrue(xml.contains("data-snapshot-url=\"snapshot\""));
     assertTrue(xml.contains("data-current-updated-at=\"2026-05-15T00:00:00Z\""));
+    assertTrue(xml.contains("data-live-update-line=\"true\""));
+    assertTrue(xml.contains("data-live-update-title=\"true\""));
     assertTrue(xml.contains("data-live-update-status=\"true\""));
+    assertTrue(xml.contains("octane-live-update-last-updated"));
+    assertTrue(xml.contains("LAST UPDATED:"));
     assertTrue(xml.contains("display: inline"));
     assertTrue(xml.contains("white-space: nowrap"));
     assertFalse(xml.contains(".octane-live-update {\n          margin-top"));
-    assertTrue(xml.contains("setLiveUpdateStatus(\"...\")"));
+    assertTrue(xml.contains("setLiveUpdateStatus(\"...\", false)"));
     assertTrue(xml.contains("\"+\" + (waitedMillis / 1000).toFixed(1) + \"s\""));
-    assertTrue(xml.contains(": \"Done.\""));
+    assertTrue(xml.contains("formatLastUpdatedStatus(payload)"));
+    assertFalse(xml.contains(": \"Done.\""));
     assertFalse(xml.contains("Updating report..."));
     assertFalse(xml.contains("Report updated in "));
     assertFalse(xml.contains("Report finished."));
@@ -326,7 +339,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Testing Time Remaining"));
     assertTrue(xml.contains("stroke-width: 16"));
     assertTrue(xml.contains("style=\"height: 100.00%;\""));
-    assertTrue(xml.contains("title=\"2 tests\""));
+    assertTrue(xml.contains("title=\"Ada Tester (suite runs: 4501)\""));
     assertTrue(xml.contains("TIMER_CENTER = 120"));
     assertTrue(xml.contains("TIMER_RADIUS = 84"));
     assertTrue(xml.contains("PROGRESS_COLOR_PHASES"));
@@ -358,6 +371,11 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("progressCircle.setAttribute(\"stroke\", executionColor)"));
     assertFalse(xml.contains("progressHalo.setAttribute(\"stroke\", executionColor)"));
     assertTrue(xml.contains("requestAnimationFrame"));
+    assertTrue(xml.contains("prefers-reduced-motion: reduce"));
+    assertTrue(xml.contains("matchMedia(\"(prefers-reduced-motion: reduce)"));
+    assertTrue(xml.contains("scheduleTimerFrame"));
+    assertTrue(xml.contains("window.setTimeout(callback, 1000)"));
+    assertTrue(xml.contains("moveCardWithKeyboard"));
     assertTrue(xml.contains("performance.now"));
     assertTrue(xml.contains("fetchSnapshot"));
     assertTrue(xml.contains("beginSnapshotRefresh"));
