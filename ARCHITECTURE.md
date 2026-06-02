@@ -205,6 +205,7 @@ octaneSuiteGate(
   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
+  timeoutMinutesExtended: 0,
   markUnstable: false,
   riskHeatMap: true
 )
@@ -632,8 +633,12 @@ Default criteria:
 100% execution AND 100% pass
 ```
 
-Criteria are evaluated on every poll. The gate passes as soon as the expression
-evaluates to true.
+Criteria are evaluated on every poll. With the default `timeoutMinutesExtended: 0`,
+the gate passes as soon as the expression evaluates to true. When
+`timeoutMinutesExtended` is greater than zero, the gate keeps polling after the
+primary timeout and only exits when the extended window depletes or the operator
+uses **Exit Octane and Continue**. That manual exit still evaluates the latest
+Octane data against the configured criteria.
 
 Unqualified regression metrics and shorthand expressions remain supported for
 backward compatibility, but new Jenkinsfiles should prefer `regressions.executionRate`
@@ -652,6 +657,13 @@ The gate fails when:
 The gate times out when:
 
 - `timeoutMinutes` is reached before pass or terminal failure.
+
+When `timeoutMinutesExtended` is greater than zero, primary timeout starts an
+`Extended time` report state instead of immediately ending the step. During that
+state, execution reaching `100%` does not advance the Pipeline. Finalization
+happens only when the extended window expires or **Exit Octane and Continue** is
+clicked, then the latest data is judged by the same criteria and `markUnstable`
+rules.
 
 When `markUnstable` is false, gate failure stops the build. When `markUnstable`
 is true, the build result is set to `UNSTABLE` and the step returns the latest

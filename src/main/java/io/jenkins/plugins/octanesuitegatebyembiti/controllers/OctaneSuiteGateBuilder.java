@@ -99,6 +99,15 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
     delegate.setTimeoutMinutes(timeoutMinutes);
   }
 
+  public int getTimeoutMinutesExtended() {
+    return delegate.getTimeoutMinutesExtended();
+  }
+
+  @DataBoundSetter
+  public void setTimeoutMinutesExtended(int timeoutMinutesExtended) {
+    delegate.setTimeoutMinutesExtended(timeoutMinutesExtended);
+  }
+
   public boolean isMarkUnstable() {
     return delegate.isMarkUnstable();
   }
@@ -245,6 +254,10 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
 
     public FormValidation doCheckTimeoutMinutes(@QueryParameter String value) {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckTimeoutMinutes(value);
+    }
+
+    public FormValidation doCheckTimeoutMinutesExtended(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckTimeoutMinutesExtended(value);
     }
 
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {

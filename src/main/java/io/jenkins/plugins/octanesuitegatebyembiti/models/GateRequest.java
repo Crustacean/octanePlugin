@@ -11,6 +11,7 @@ public class GateRequest implements Serializable {
 
   public static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
   public static final int DEFAULT_TIMEOUT_MINUTES = 120;
+  public static final int DEFAULT_TIMEOUT_MINUTES_EXTENDED = 0;
   public static final int DEFAULT_RISK_HEAT_MAP_MAX_DEFECTS = 1000;
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
 
@@ -22,6 +23,7 @@ public class GateRequest implements Serializable {
   private List<OctaneGateScope> scopes = new ArrayList<>();
   private int pollIntervalSeconds = DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = DEFAULT_TIMEOUT_MINUTES;
+  private int timeoutMinutesExtended = DEFAULT_TIMEOUT_MINUTES_EXTENDED;
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -95,6 +97,14 @@ public class GateRequest implements Serializable {
 
   public void setTimeoutMinutes(int timeoutMinutes) {
     this.timeoutMinutes = Math.max(1, timeoutMinutes);
+  }
+
+  public int getTimeoutMinutesExtended() {
+    return timeoutMinutesExtended;
+  }
+
+  public void setTimeoutMinutesExtended(int timeoutMinutesExtended) {
+    this.timeoutMinutesExtended = Math.max(0, timeoutMinutesExtended);
   }
 
   public boolean isMarkUnstable() {

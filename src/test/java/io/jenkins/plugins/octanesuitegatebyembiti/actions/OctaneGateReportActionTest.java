@@ -289,7 +289,17 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("octane-timer-border"));
     assertTrue(xml.contains("octane-timer-progress-halo"));
     assertTrue(xml.contains("data-timer-progress-halo=\"true\""));
+    assertTrue(xml.contains("octane-timer-extended-progress"));
+    assertTrue(xml.contains("data-timer-extended-progress=\"true\""));
+    assertTrue(xml.contains("#881113"));
     assertTrue(xml.contains("data-total-seconds=\"2700\""));
+    assertTrue(xml.contains("data-extended-total-seconds=\"0\""));
+    assertTrue(xml.contains("data-extended-active=\"false\""));
+    assertTrue(xml.contains("data-extended-time=\"false\""));
+    assertTrue(xml.contains("data-exit-extended-form=\"true\""));
+    assertTrue(xml.contains("data-visible=\"false\""));
+    assertTrue(xml.contains("Exit Octane and Continue"));
+    assertTrue(xml.contains("exitOctaneAndContinue"));
     assertTrue(xml.contains("data-total-seconds=\"15\""));
     assertTrue(xml.contains("data-timer-value=\"true\""));
     assertTrue(xml.contains("data-timer-progress=\"true\""));
@@ -403,6 +413,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("button.getAttribute(\"data-target-view-label\")"));
     assertTrue(xml.contains("card.querySelector(\".octane-view-toggle\")"));
     assertTrue(xml.contains("payload.stateLabel === \"Timed out\""));
+    assertTrue(xml.contains("payload.extendedTime !== true"));
     assertTrue(xml.contains("progress >= 100"));
     assertTrue(xml.contains("setCardView(card, \"heatmap\")"));
     assertTrue(xml.contains("autoShowHeatMapOnCompletion(currentReportPayload())"));
@@ -492,6 +503,10 @@ public class OctaneGateReportActionTest {
     assertFalse(payload.getBoolean("building"));
     assertEquals("Passed", payload.getString("stateLabel"));
     assertEquals(15, payload.getInt("refreshSeconds"));
+    assertEquals(7200, payload.getInt("timeoutSeconds"));
+    assertEquals(0, payload.getInt("timeoutExtendedSeconds"));
+    assertFalse(payload.getBoolean("extendedTime"));
+    assertFalse(payload.getBoolean("manualExitRequested"));
     assertEquals("100%", payload.getString("executionProgressText"));
     assertEquals(50.0, payload.getDouble("passRateProgress"), 0.001);
     assertEquals("50%", payload.getString("passRateProgressText"));
@@ -504,6 +519,35 @@ public class OctaneGateReportActionTest {
     assertFalse(json.toLowerCase(Locale.ROOT).contains("client_secret"));
     assertFalse(json.toLowerCase(Locale.ROOT).contains("password"));
     assertFalse(json.toLowerCase(Locale.ROOT).contains("credentialsid"));
+  }
+
+  @Test
+  public void extendedTimeReportShowsManualExitControl() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setTimeoutMinutes(45);
+    request.setTimeoutMinutesExtended(10);
+
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    action.onExtendedTime(
+        result(),
+        new StatusClassifier(
+            StatusClassifier.DEFAULT_PASSED_STATUSES,
+            StatusClassifier.DEFAULT_FAILED_STATUSES,
+            StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+            StatusClassifier.DEFAULT_RUNNING_STATUSES));
+
+    HtmlPage page = jenkins.createWebClient().getPage(build, OctaneGateReportAction.URL_NAME);
+    String xml = page.asXml();
+
+    assertTrue(xml.contains("Extended time"));
+    assertTrue(xml.contains("data-extended-time=\"true\""));
+    assertTrue(xml.contains("data-extended-total-seconds=\"600\""));
+    assertTrue(xml.contains("data-extended-active=\"true\""));
+    assertTrue(xml.contains("data-visible=\"true\""));
+    assertTrue(xml.contains("Exit Octane and Continue"));
+    assertTrue(xml.contains("Extended time is active"));
   }
 
   private GateResult result() {

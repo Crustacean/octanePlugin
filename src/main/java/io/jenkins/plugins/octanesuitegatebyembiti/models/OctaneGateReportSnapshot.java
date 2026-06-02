@@ -25,6 +25,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final String suiteRunId;
   private final int refreshSeconds;
   private final int timeoutSeconds;
+  private final int timeoutExtendedSeconds;
   private final String startedAt;
   private final String updatedAt;
   private final List<OctaneGateReportSection> sections;
@@ -38,6 +39,7 @@ public class OctaneGateReportSnapshot implements Serializable {
       String suiteRunId,
       int refreshSeconds,
       int timeoutSeconds,
+      int timeoutExtendedSeconds,
       String startedAt,
       String updatedAt,
       List<OctaneGateReportSection> sections,
@@ -49,6 +51,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     this.suiteRunId = suiteRunId;
     this.refreshSeconds = Math.max(1, refreshSeconds);
     this.timeoutSeconds = Math.max(1, timeoutSeconds);
+    this.timeoutExtendedSeconds = Math.max(0, timeoutExtendedSeconds);
     this.startedAt = startedAt;
     this.updatedAt = updatedAt;
     this.sections = List.copyOf(sections);
@@ -58,6 +61,10 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   private static int toSeconds(int minutes) {
     return Math.max(1, minutes) * 60;
+  }
+
+  private static int toExtendedSeconds(int minutes) {
+    return Math.max(0, minutes) * 60;
   }
 
   public static OctaneGateReportSnapshot empty() {
@@ -70,6 +77,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             "",
             30,
             toSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES),
+            toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED),
             now,
             now,
             List.of(),
@@ -92,6 +100,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             request.getSuiteRunId(),
             refreshSeconds,
             toSeconds(request.getTimeoutMinutes()),
+            toExtendedSeconds(request.getTimeoutMinutesExtended()),
             startedAt,
             Instant.now().toString(),
             List.of(),
@@ -113,6 +122,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         classifier,
         refreshSeconds,
         toSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES),
+        toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED),
         result.getPolledAt().toString());
   }
 
@@ -123,6 +133,26 @@ public class OctaneGateReportSnapshot implements Serializable {
       StatusClassifier classifier,
       int refreshSeconds,
       int timeoutSeconds,
+      String startedAt) {
+    return fromResult(
+        state,
+        message,
+        result,
+        classifier,
+        refreshSeconds,
+        timeoutSeconds,
+        toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED),
+        startedAt);
+  }
+
+  public static OctaneGateReportSnapshot fromResult(
+      OctaneGateReportState state,
+      String message,
+      GateResult result,
+      StatusClassifier classifier,
+      int refreshSeconds,
+      int timeoutSeconds,
+      int timeoutExtendedSeconds,
       String startedAt) {
     List<OctaneGateReportSection> sections = new ArrayList<>();
     sections.add(OctaneGateReportSection.regressions(result, classifier));
@@ -137,6 +167,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             result.getSuiteRunId(),
             refreshSeconds,
             timeoutSeconds,
+            timeoutExtendedSeconds,
             startedAt,
             result.getPolledAt().toString(),
             sections,
@@ -153,6 +184,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         suiteRunId,
         refreshSeconds,
         toSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES),
+        toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED),
         Instant.now().toString(),
         false);
   }
@@ -164,7 +196,15 @@ public class OctaneGateReportSnapshot implements Serializable {
       int refreshSeconds,
       int timeoutSeconds,
       String startedAt) {
-    return error(message, criteria, suiteRunId, refreshSeconds, timeoutSeconds, startedAt, false);
+    return error(
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED),
+        startedAt,
+        false);
   }
 
   public static OctaneGateReportSnapshot error(
@@ -173,6 +213,7 @@ public class OctaneGateReportSnapshot implements Serializable {
       String suiteRunId,
       int refreshSeconds,
       int timeoutSeconds,
+      int timeoutExtendedSeconds,
       String startedAt,
       boolean riskHeatMapEnabled) {
     OctaneGateReportSnapshot snapshot =
@@ -183,6 +224,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             suiteRunId,
             refreshSeconds,
             timeoutSeconds,
+            timeoutExtendedSeconds,
             startedAt,
             Instant.now().toString(),
             List.of(),
@@ -207,6 +249,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         suiteRunId,
         refreshSeconds,
         timeoutSeconds,
+        timeoutExtendedSeconds,
         startedAt,
         updatedAt,
         sections,
@@ -257,6 +300,10 @@ public class OctaneGateReportSnapshot implements Serializable {
     return timeoutSeconds;
   }
 
+  public int getTimeoutExtendedSeconds() {
+    return timeoutExtendedSeconds;
+  }
+
   public String getStartedAt() {
     return startedAt;
   }
@@ -305,6 +352,10 @@ public class OctaneGateReportSnapshot implements Serializable {
     return state.isBuilding();
   }
 
+  public boolean isExtendedTime() {
+    return state == OctaneGateReportState.EXTENDED_TIME;
+  }
+
   public String getTestingTimeTitle() {
     return isBuilding() ? "Testing Time Remaining" : "Testing Time";
   }
@@ -324,7 +375,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     try {
       Instant started = Instant.parse(startedAt);
       Instant updated = Instant.parse(updatedAt);
-      long timeoutMillis = timeoutSeconds * 1000L;
+      long timeoutMillis = (timeoutSeconds + timeoutExtendedSeconds) * 1000L;
       long elapsedMillis = Duration.between(started, updated).toMillis();
       return Math.max(0L, Math.min(timeoutMillis, elapsedMillis));
     } catch (RuntimeException e) {

@@ -1,5 +1,5 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+<j:jelly xmlns:f="/lib/form" xmlns:j="jelly:core" xmlns:l="/lib/layout">
   <l:layout title="${it.displayName}">
     <l:main-panel>
       <style>
@@ -37,6 +37,28 @@
           flex-wrap: wrap;
           gap: 1rem;
           margin-top: 1rem;
+        }
+        .octane-exit-extended-form {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.65rem;
+          margin-top: 0.85rem;
+        }
+        .octane-exit-extended-form form {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.65rem;
+          margin: 0;
+        }
+        .octane-exit-extended-form[data-visible="false"] {
+          display: none;
+        }
+        .octane-exit-extended-note {
+          color: var(--text-color-secondary);
+          font-size: 0.9rem;
+          line-height: 1.3;
         }
         .octane-timer-zone,
         .octane-report-zone {
@@ -76,6 +98,7 @@
         .octane-zone-focus-toggle:focus-visible,
         .octane-expand-toggle:focus-visible,
         .octane-view-toggle:focus-visible,
+        .octane-exit-extended-button:focus-visible,
         .octane-card-tools:focus-visible,
         .octane-suite-column:focus-visible {
           outline: 3px solid #4391F5;
@@ -883,6 +906,14 @@
           stroke-linecap: round;
           stroke-width: 16;
         }
+        .octane-timer-extended-progress {
+          fill: none;
+          filter: drop-shadow(0 0 1px rgba(136, 17, 19, 0.35));
+          opacity: 0;
+          stroke: #881113;
+          stroke-linecap: round;
+          stroke-width: 16;
+        }
         .octane-timer-head {
           transition: fill 0.25s ease;
         }
@@ -1242,6 +1273,18 @@
           Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
         </p>
         <p data-report-message="true">${snapshot.message}</p>
+          <div class="octane-exit-extended-form" data-exit-extended-form="true"
+            data-visible="${snapshot.extendedTime}">
+            <f:form method="post" action="exitOctaneAndContinue">
+              <button class="jenkins-button jenkins-button--primary octane-exit-extended-button"
+                  type="submit">
+                Exit Octane and Continue
+              </button>
+              <span class="octane-exit-extended-note">
+                Extended time is active. The latest Octane data will still be checked before continuing.
+              </span>
+            </f:form>
+          </div>
         <j:if test="${snapshot.hasCriteria()}">
           <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
         </j:if>
@@ -1249,6 +1292,7 @@
         <div class="octane-dashboard octane-card-zone" id="octane-dashboard"
             data-current-updated-at="${snapshot.updatedAt}"
             data-report-building="${snapshot.building}"
+            data-extended-time="${snapshot.extendedTime}"
             data-snapshot-url="snapshot">
           <div id="octane-reorder-status" class="octane-visually-hidden"
               aria-live="polite" aria-atomic="true"></div>
@@ -1258,6 +1302,8 @@
                 data-card-key="timer-timeout"
                 data-octane-timer="timeout"
                 data-total-seconds="${snapshot.timeoutSeconds}"
+                data-extended-total-seconds="${snapshot.timeoutExtendedSeconds}"
+                data-extended-active="${snapshot.extendedTime}"
                 data-started-at="${snapshot.startedAt}"
                 data-updated-at="${snapshot.updatedAt}"
                 data-active="${snapshot.building}"
@@ -1342,6 +1388,10 @@
                         <circle class="octane-timer-progress" data-timer-progress="true"
                             cx="120" cy="120" r="84" pathLength="100"
                             stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
+                            transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-extended-progress"
+                            data-timer-extended-progress="true" cx="120" cy="120" r="84"
+                            pathLength="100" stroke-dasharray="0 100"
                             transform="rotate(-90 120 120)" />
                         <circle class="octane-timer-head" data-timer-head="true"
                             cx="120" cy="36" r="9.6" fill="#1f5fff" />
@@ -2061,6 +2111,7 @@
           var liveUpdateLine = dashboard.querySelector("[data-live-update-line]");
           var liveUpdateTitle = dashboard.querySelector("[data-live-update-title]");
           var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
+          var exitExtendedForm = document.querySelector("[data-exit-extended-form]");
           var reorderStatus = document.getElementById("octane-reorder-status");
           var liveRefresh = {
             fetching: false,
@@ -2169,6 +2220,11 @@
               liveUpdateStatus.textContent = isLastUpdated === true ? "" : message || "";
             }
           }
+          function setExtendedExitVisibility(extendedTime) {
+            if (exitExtendedForm) {
+              exitExtendedForm.setAttribute("data-visible", String(extendedTime === true));
+            }
+          }
           function htmlToElement(html) {
             var container = document.createElement("div");
             container.innerHTML = html || "";
@@ -2267,6 +2323,7 @@
                     : 0;
             return {
               building: dashboard.getAttribute("data-report-building") === "true",
+              extendedTime: dashboard.getAttribute("data-extended-time") === "true",
               executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
               stateLabel: stateLabel ? stateLabel.textContent : ""
             };
@@ -2286,7 +2343,7 @@
             }
             var timedOut =
                 payload && payload.building !== true && payload.stateLabel === "Timed out";
-            if (timedOut || progress >= 100) {
+            if (timedOut || (payload && payload.extendedTime !== true && progress >= 100)) {
               setCardView(card, "heatmap");
             }
           }
@@ -2303,7 +2360,8 @@
             if (isNaN(progress)) {
               progress = 0;
             }
-            if ((payload && payload.building !== true) || progress >= 100) {
+            if ((payload && payload.building !== true)
+                || (payload && payload.extendedTime !== true && progress >= 100)) {
               setCardView(card, "metrics");
             }
           }
@@ -2387,19 +2445,28 @@
               totalSeconds = 1;
             }
             var totalMillis = Math.max(1, totalSeconds) * 1000;
+            var extendedTotalSeconds =
+                parseInt(card.getAttribute("data-extended-total-seconds") || "0", 10);
+            if (isNaN(extendedTotalSeconds)) {
+              extendedTotalSeconds = 0;
+            }
             var startedAt = parseTimestamp(card.getAttribute("data-started-at"));
             var updatedAt = parseTimestamp(card.getAttribute("data-updated-at"));
             var active = card.getAttribute("data-active") === "true";
+            var extendedActive = card.getAttribute("data-extended-active") === "true";
             var mode = card.getAttribute("data-octane-timer");
             return {
               active: active,
               card: card,
               endAt: startedAt + totalMillis,
+              extendedActive: extendedActive,
+              extendedTotalMillis: Math.max(0, extendedTotalSeconds) * 1000,
               gradientStops: card.querySelectorAll("[data-timer-gradient-stop]"),
               head: card.querySelector("[data-timer-head]"),
               lastDisplayedUnit: "",
               lastDisplayedValue: "",
               mode: mode,
+              extendedProgressCircle: card.querySelector("[data-timer-extended-progress]"),
               progressHalo: card.querySelector("[data-timer-progress-halo]"),
               progressCircle: card.querySelector("[data-timer-progress]"),
               title: card.querySelector("[data-timeout-title]"),
@@ -2413,13 +2480,28 @@
             if (!state.active && state.mode === "poll") {
               return 0;
             }
+            if (state.mode === "timeout" && state.extendedActive) {
+              return 0;
+            }
             var sampleTime = state.active ? now : state.updatedAt;
             return clamp(state.endAt - sampleTime, 0, state.totalMillis);
           }
           function testingTimeSpentMillis(state, now) {
             var sampleTime = state.active ? now : state.updatedAt;
             var elapsed = sampleTime - (state.endAt - state.totalMillis);
-            return clamp(elapsed, 0, state.totalMillis);
+            var maximum = state.totalMillis + (state.extendedTotalMillis || 0);
+            return clamp(elapsed, 0, maximum);
+          }
+          function extendedProgressPercent(state, now) {
+            if (
+                !state.active
+                || state.mode !== "timeout"
+                || !state.extendedActive
+                || !state.extendedTotalMillis) {
+              return 0;
+            }
+            var extendedElapsed = testingTimeSpentMillis(state, now) - state.totalMillis;
+            return clamp((extendedElapsed / state.extendedTotalMillis) * 100, 0, 100);
           }
           function setTimeoutTitle(state) {
             if (state.mode !== "timeout" || !state.title) {
@@ -2433,7 +2515,17 @@
             }
             var displayValue;
             var displayUnit;
-            if (!state.active && state.mode === "timeout") {
+            if (state.active && state.mode === "timeout" && state.extendedActive) {
+              var primaryMinutes = Math.ceil(state.totalMillis / 60000);
+              var extendedElapsed =
+                  testingTimeSpentMillis(state, currentWallTime()) - state.totalMillis;
+              var extendedMinutes =
+                  Math.min(
+                      Math.floor(Math.max(0, extendedElapsed) / 60000),
+                      Math.ceil((state.extendedTotalMillis || 0) / 60000));
+              displayValue = String(primaryMinutes) + " + " + String(extendedMinutes);
+              displayUnit = "minutes";
+            } else if (!state.active && state.mode === "timeout") {
               var spentMinutes = Math.round(testingTimeSpentMillis(state, currentWallTime()) / 60000);
               displayValue = String(spentMinutes);
               displayUnit = displayValue === "1" ? "minute" : "minutes";
@@ -2458,6 +2550,7 @@
             var remaining = remainingMillis(state, now);
             var elapsed = state.totalMillis - remaining;
             var progress = clamp((elapsed / state.totalMillis) * 100, 0, 100);
+            var extendedProgress = extendedProgressPercent(state, now);
             var colors = colorsForProgress(state.mode, progress);
             if (state.progressCircle) {
               state.progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
@@ -2467,10 +2560,17 @@
               state.progressHalo.style.strokeDasharray = trimNumber(progress) + " 100";
               state.progressHalo.style.opacity = progress <= 0 ? "0" : "0.22";
             }
+            if (state.extendedProgressCircle) {
+              state.extendedProgressCircle.style.strokeDasharray =
+                  trimNumber(extendedProgress) + " 100";
+              state.extendedProgressCircle.style.opacity = extendedProgress <= 0 ? "0" : "1";
+            }
             applyGradientStops(state.gradientStops, colors);
             var headColor = colors[colors.length - 1];
             if (state.head) {
-              var angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
+              var headProgress =
+                  state.mode === "timeout" && state.extendedActive ? extendedProgress : progress;
+              var angle = (headProgress / 100) * Math.PI * 2 - Math.PI / 2;
               state.head.setAttribute(
                   "cx", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle)));
               state.head.setAttribute(
@@ -2529,10 +2629,19 @@
             if (isNaN(refreshSeconds)) {
               refreshSeconds = 1;
             }
+            var timeoutSeconds = parseInt(payload.timeoutSeconds || "1", 10);
+            if (isNaN(timeoutSeconds)) {
+              timeoutSeconds = 1;
+            }
+            var timeoutExtendedSeconds = parseInt(payload.timeoutExtendedSeconds || "0", 10);
+            if (isNaN(timeoutExtendedSeconds)) {
+              timeoutExtendedSeconds = 0;
+            }
             for (var index = 0; index < timers.length; index += 1) {
               var state = timers[index];
               state.active = payload.building === true;
               state.updatedAt = updatedAt;
+              state.extendedActive = payload.extendedTime === true && state.mode === "timeout";
               state.card.setAttribute("data-active", String(state.active));
               state.card.setAttribute("data-updated-at", payload.updatedAt || "");
               if (state.mode === "poll") {
@@ -2540,6 +2649,17 @@
                 state.endAt = updatedAt + state.totalMillis;
                 state.card.setAttribute("data-total-seconds", String(refreshSeconds));
                 state.card.setAttribute("data-started-at", payload.updatedAt || "");
+                state.lastDisplayedUnit = "";
+                state.lastDisplayedValue = "";
+              } else if (state.mode === "timeout") {
+                state.totalMillis = Math.max(1, timeoutSeconds) * 1000;
+                state.extendedTotalMillis = Math.max(0, timeoutExtendedSeconds) * 1000;
+                state.endAt = parseTimestamp(state.card.getAttribute("data-started-at"))
+                    + state.totalMillis;
+                state.card.setAttribute("data-total-seconds", String(timeoutSeconds));
+                state.card.setAttribute(
+                    "data-extended-total-seconds", String(timeoutExtendedSeconds));
+                state.card.setAttribute("data-extended-active", String(state.extendedActive));
                 state.lastDisplayedUnit = "";
                 state.lastDisplayedValue = "";
               }
@@ -2550,6 +2670,8 @@
             currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
             dashboard.setAttribute("data-current-updated-at", currentUpdatedAt);
             dashboard.setAttribute("data-report-building", String(payload.building === true));
+            dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
+            setExtendedExitVisibility(payload.extendedTime === true);
             if (stateLabel) {
               stateLabel.textContent = payload.stateLabel || "";
             }

@@ -10,12 +10,16 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import jenkins.model.Jenkins;
 import jenkins.model.RunAction2;
 import net.sf.json.JSONObject;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerResponse2;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 public class OctaneGateReportAction implements RunAction2, OctaneGateReportPublisher, Serializable {
   private static final long serialVersionUID = 1L;
@@ -26,7 +30,10 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private OctaneGateReportSnapshot snapshot = OctaneGateReportSnapshot.empty();
   private int refreshSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES * 60;
+  private int timeoutExtendedSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED * 60;
   private String startedAt = Instant.now().toString();
+  private volatile boolean manualExitRequested;
+  private transient Object manualExitLock = new Object();
 
   public static OctaneGateReportAction attachTo(Run<?, ?> run, GateRequest request) {
     OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
@@ -88,6 +95,23 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
                 classifier,
                 refreshSeconds,
                 timeoutSeconds,
+                timeoutExtendedSeconds,
+                startedAt));
+    saveRun();
+  }
+
+  @Override
+  public synchronized void onExtendedTime(GateResult result, StatusClassifier classifier) {
+    snapshot =
+        withPreviousCycleMetrics(
+            OctaneGateReportSnapshot.fromResult(
+                OctaneGateReportState.EXTENDED_TIME,
+                "Extended Octane polling time is active.",
+                result,
+                classifier,
+                refreshSeconds,
+                timeoutSeconds,
+                timeoutExtendedSeconds,
                 startedAt));
     saveRun();
   }
@@ -98,7 +122,14 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     snapshot =
         withPreviousCycleMetrics(
             OctaneGateReportSnapshot.fromResult(
-                state, message, result, classifier, refreshSeconds, timeoutSeconds, startedAt));
+                state,
+                message,
+                result,
+                classifier,
+                refreshSeconds,
+                timeoutSeconds,
+                timeoutExtendedSeconds,
+                startedAt));
     saveRun();
   }
 
@@ -112,6 +143,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
                 request.getSuiteRunId(),
                 refreshSeconds,
                 timeoutSeconds,
+                timeoutExtendedSeconds,
                 startedAt,
                 request.isRiskHeatMap()));
     saveRun();
@@ -155,6 +187,10 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("testMetricsHtml", safeSnapshot.getTestMetricsHtml());
     payload.put("testMetrics", safeSnapshot.getTestMetrics().toMap());
     payload.put("refreshSeconds", safeSnapshot.getRefreshSeconds());
+    payload.put("timeoutSeconds", safeSnapshot.getTimeoutSeconds());
+    payload.put("timeoutExtendedSeconds", safeSnapshot.getTimeoutExtendedSeconds());
+    payload.put("extendedTime", safeSnapshot.isExtendedTime());
+    payload.put("manualExitRequested", isManualExitRequested());
     payload.put("riskHeatMapEnabled", safeSnapshot.isRiskHeatMapEnabled());
     payload.put("riskHeatMapHtml", safeSnapshot.getRiskHeatMapHtml());
     payload.put("riskHeatMap", safeSnapshot.getRiskHeatMap().toMap());
@@ -162,6 +198,39 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
     response.setContentType("application/json;charset=UTF-8");
     response.getWriter().print(payload.toString());
+  }
+
+  @RequirePOST
+  public HttpResponse doExitOctaneAndContinue() {
+    if (run != null) {
+      run.getACL().checkPermission(Run.UPDATE);
+    }
+    synchronized (manualExitLock()) {
+      if (snapshot != null && snapshot.isExtendedTime()) {
+        manualExitRequested = true;
+        manualExitLock().notifyAll();
+      }
+    }
+    saveRun();
+    return HttpResponses.redirectToDot();
+  }
+
+  @Override
+  public synchronized boolean isManualExitRequested() {
+    return manualExitRequested;
+  }
+
+  @Override
+  public boolean awaitNextPollOrManualExit(Duration duration) throws InterruptedException {
+    long timeoutMillis = Math.max(0L, duration.toMillis());
+    long deadline = System.currentTimeMillis() + timeoutMillis;
+    synchronized (manualExitLock()) {
+      while (!manualExitRequested && timeoutMillis > 0L) {
+        manualExitLock().wait(timeoutMillis);
+        timeoutMillis = deadline - System.currentTimeMillis();
+      }
+      return manualExitRequested;
+    }
   }
 
   private void saveRun() {
@@ -178,7 +247,16 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private void configureTimers(GateRequest request) {
     refreshSeconds = request.getPollIntervalSeconds();
     timeoutSeconds = Math.max(1, request.getTimeoutMinutes()) * 60;
+    timeoutExtendedSeconds = Math.max(0, request.getTimeoutMinutesExtended()) * 60;
     startedAt = Instant.now().toString();
+    manualExitRequested = false;
+  }
+
+  private Object manualExitLock() {
+    if (manualExitLock == null) {
+      manualExitLock = new Object();
+    }
+    return manualExitLock;
   }
 
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {

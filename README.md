@@ -26,6 +26,7 @@ octaneSuiteGate(
   ],
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
+  timeoutMinutesExtended: 30,
   markUnstable: false
 )
 ```
@@ -71,6 +72,13 @@ SVG rings with a subtle halo stroke to reduce jagged circular edges. Status colo
 - Blocked: `#631919`
 - Skipped: `#ffb74d`
 - Running: `#808080`
+
+`timeoutMinutesExtended` is optional and defaults to `0`. When it is `0`, the gate keeps the
+standard behavior. When it is greater than `0`, the gate continues polling after the primary
+`timeoutMinutes` window and does not leave the stage just because execution reaches `100%`.
+During this extended time, the report shows an **Exit Octane and Continue** button. That button
+stops waiting early, but it does not bypass the configured criteria; the latest Octane data is
+still evaluated before the build proceeds, fails, or becomes unstable.
 
 To email the report image in a later Pipeline stage, use `octaneEmailReport` after
 `octaneSuiteGate`:
@@ -147,7 +155,8 @@ octaneSuiteGate(
   sharedSpaceId: '1001',
   workspaceId: '2002',
   suiteRunId: params.OCTANE_REGRESSION_SUITE_RUN_ID,
-  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95'
+  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
+  timeoutMinutesExtended: 0
 )
 ```
 

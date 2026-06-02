@@ -44,6 +44,7 @@ public class OctaneSuiteGateStep extends Step {
   private List<OctaneGateScope> scopes = new ArrayList<>();
   private int pollIntervalSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = GateRequest.DEFAULT_TIMEOUT_MINUTES;
+  private int timeoutMinutesExtended = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED;
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -120,6 +121,15 @@ public class OctaneSuiteGateStep extends Step {
   @DataBoundSetter
   public void setTimeoutMinutes(int timeoutMinutes) {
     this.timeoutMinutes = Math.max(1, timeoutMinutes);
+  }
+
+  public int getTimeoutMinutesExtended() {
+    return timeoutMinutesExtended;
+  }
+
+  @DataBoundSetter
+  public void setTimeoutMinutesExtended(int timeoutMinutesExtended) {
+    this.timeoutMinutesExtended = Math.max(0, timeoutMinutesExtended);
   }
 
   public boolean isMarkUnstable() {
@@ -209,6 +219,7 @@ public class OctaneSuiteGateStep extends Step {
     request.setScopes(scopes);
     request.setPollIntervalSeconds(pollIntervalSeconds);
     request.setTimeoutMinutes(timeoutMinutes);
+    request.setTimeoutMinutesExtended(timeoutMinutesExtended);
     request.setMarkUnstable(markUnstable);
     request.setRiskHeatMap(riskHeatMap);
     request.setRiskHeatMapDefectQuery(riskHeatMapDefectQuery);
@@ -359,6 +370,10 @@ public class OctaneSuiteGateStep extends Step {
       return checkPositiveInteger("Timeout", value);
     }
 
+    public FormValidation doCheckTimeoutMinutesExtended(@QueryParameter String value) {
+      return checkNonNegativeInteger("Extended timeout", value);
+    }
+
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {
       return checkPositiveInteger("Risk heat map max defects", value);
     }
@@ -379,6 +394,17 @@ public class OctaneSuiteGateStep extends Step {
       try {
         if (Integer.parseInt(value) <= 0) {
           return FormValidation.error(label + " must be greater than zero.");
+        }
+        return FormValidation.ok();
+      } catch (NumberFormatException e) {
+        return FormValidation.error(label + " must be a number.");
+      }
+    }
+
+    private FormValidation checkNonNegativeInteger(String label, String value) {
+      try {
+        if (Integer.parseInt(value) < 0) {
+          return FormValidation.error(label + " must be zero or greater.");
         }
         return FormValidation.ok();
       } catch (NumberFormatException e) {

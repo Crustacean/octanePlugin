@@ -25,6 +25,9 @@
     <f:entry title="Timeout minutes" field="timeoutMinutes">
       <f:number />
     </f:entry>
+    <f:entry title="Extended timeout minutes" field="timeoutMinutesExtended">
+      <f:number />
+    </f:entry>
     <f:entry title="Mark unstable instead of failed" field="markUnstable">
       <f:checkbox />
     </f:entry>

@@ -51,6 +51,7 @@ pipeline {
                   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
+                  timeoutMinutesExtended: 0,
                   markUnstable: false,
                   riskHeatMap: true,
                   riskHeatMapDefectQuery: '',

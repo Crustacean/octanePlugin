@@ -54,6 +54,19 @@ public class OctaneGateRunnerTest {
   }
 
   @Test
+  public void timeoutMinutesExtendedDefaultsToZeroAndRejectsNegativeValues() {
+    GateRequest request = new GateRequest("octane-prod", "4501");
+
+    assertEquals(0, request.getTimeoutMinutesExtended());
+
+    request.setTimeoutMinutesExtended(30);
+    assertEquals(30, request.getTimeoutMinutesExtended());
+
+    request.setTimeoutMinutesExtended(-5);
+    assertEquals(0, request.getTimeoutMinutesExtended());
+  }
+
+  @Test
   public void refreshPassedResultPublishesFreshMetricsBeforeFinal() throws Exception {
     OctaneGateRunner runner =
         new OctaneGateRunner(

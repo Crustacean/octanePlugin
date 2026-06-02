@@ -66,7 +66,11 @@ public class OctaneGateRunner {
 
     CriteriaExpression criteria = CriteriaExpression.parse(request.getCriteria());
     StatusClassifier classifier = request.createStatusClassifier();
-    Instant deadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
+    Instant primaryDeadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
+    Instant extendedDeadline =
+        primaryDeadline.plus(Duration.ofMinutes(request.getTimeoutMinutesExtended()));
+    boolean extendedTimeoutConfigured = request.getTimeoutMinutesExtended() > 0;
+    boolean extendedTimeActive = false;
     List<String> suiteRunIds = regressionSuiteRunIdsForCriteria(request);
 
     logListener.logWaiting(listener, request, suiteRunIds);
@@ -90,8 +94,8 @@ public class OctaneGateRunner {
                 classifier,
                 listener);
         logListener.logPollResult(listener, result);
-        reportPublisher.onPoll(result, classifier);
-        if (result.isPassed()) {
+        publishPollResult(reportPublisher, result, classifier, extendedTimeActive);
+        if (!extendedTimeoutConfigured && result.isPassed()) {
           result =
               refreshPassedResult(
                   client,
@@ -105,25 +109,102 @@ public class OctaneGateRunner {
                   listener,
                   reportPublisher);
         }
-        if (result.isPassed()) {
-          logListener.logPassed(listener);
-          reportPublisher.onFinal(
-              OctaneGateReportState.PASSED, "ALM Octane suite gate passed.", result, classifier);
-          return result;
+        if (!extendedTimeoutConfigured && result.isPassed()) {
+          return passGate(listener, reportPublisher, result, classifier);
         }
-        if (result.isTerminal()) {
+        if (!extendedTimeoutConfigured && result.isTerminal()) {
           String message = "ALM Octane suite gate failed.";
           reportPublisher.onFinal(failureState(request), message, result, classifier);
           throw new GateFailedException(message, result);
         }
-        if (!clock.instant().isBefore(deadline)) {
-          String message = "Timed out waiting for ALM Octane suite gate.";
-          reportPublisher.onFinal(timeoutState(request), message, result, classifier);
-          throw new GateFailedException(message, result);
+        Instant now = clock.instant();
+        if (!extendedTimeActive && !now.isBefore(primaryDeadline)) {
+          if (!extendedTimeoutConfigured) {
+            String message = "Timed out waiting for ALM Octane suite gate.";
+            reportPublisher.onFinal(timeoutState(request), message, result, classifier);
+            throw new GateFailedException(message, result);
+          }
+          extendedTimeActive = true;
+          logListener.logExtendedTimeStarted(listener, request.getTimeoutMinutesExtended());
+          reportPublisher.onExtendedTime(result, classifier);
         }
-        Thread.sleep(Duration.ofSeconds(request.getPollIntervalSeconds()).toMillis());
+        if (extendedTimeActive
+            && (reportPublisher.isManualExitRequested() || !now.isBefore(extendedDeadline))) {
+          return finishExtendedGate(
+              request,
+              listener,
+              reportPublisher,
+              result,
+              classifier,
+              reportPublisher.isManualExitRequested());
+        }
+        Duration waitDuration =
+            waitDuration(request, extendedTimeActive ? extendedDeadline : primaryDeadline);
+        if (waitDuration.isZero() || waitDuration.isNegative()) {
+          continue;
+        }
+        reportPublisher.awaitNextPollOrManualExit(waitDuration);
       }
     }
+  }
+
+  private void publishPollResult(
+      OctaneGateReportPublisher reportPublisher,
+      GateResult result,
+      StatusClassifier classifier,
+      boolean extendedTimeActive) {
+    if (extendedTimeActive) {
+      reportPublisher.onExtendedTime(result, classifier);
+    } else {
+      reportPublisher.onPoll(result, classifier);
+    }
+  }
+
+  private GateResult passGate(
+      TaskListener listener,
+      OctaneGateReportPublisher reportPublisher,
+      GateResult result,
+      StatusClassifier classifier) {
+    logListener.logPassed(listener);
+    reportPublisher.onFinal(
+        OctaneGateReportState.PASSED, "ALM Octane suite gate passed.", result, classifier);
+    return result;
+  }
+
+  private GateResult finishExtendedGate(
+      GateRequest request,
+      TaskListener listener,
+      OctaneGateReportPublisher reportPublisher,
+      GateResult result,
+      StatusClassifier classifier,
+      boolean manualExitRequested)
+      throws GateFailedException {
+    if (manualExitRequested) {
+      logListener.logManualExitRequested(listener);
+    } else {
+      logListener.logExtendedTimeExpired(listener);
+    }
+    if (result.isPassed()) {
+      return passGate(listener, reportPublisher, result, classifier);
+    }
+
+    String message =
+        manualExitRequested
+            ? "Exit Octane and Continue requested before criteria passed."
+            : "Extended timeout elapsed before the ALM Octane suite gate passed.";
+    OctaneGateReportState state =
+        manualExitRequested ? failureState(request) : timeoutState(request);
+    reportPublisher.onFinal(state, message, result, classifier);
+    throw new GateFailedException(message, result);
+  }
+
+  private Duration waitDuration(GateRequest request, Instant deadline) {
+    Duration pollInterval = Duration.ofSeconds(request.getPollIntervalSeconds());
+    Duration remaining = Duration.between(clock.instant(), deadline);
+    if (remaining.isZero() || remaining.isNegative()) {
+      return Duration.ZERO;
+    }
+    return remaining.compareTo(pollInterval) < 0 ? remaining : pollInterval;
   }
 
   GateResult refreshPassedResult(

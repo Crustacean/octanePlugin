@@ -248,12 +248,14 @@ public class OctaneGateReportSnapshotTest {
     GateRequest request = new GateRequest("octane-prod", "4501");
     request.setPollIntervalSeconds(17);
     request.setTimeoutMinutes(45);
+    request.setTimeoutMinutesExtended(12);
 
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.waiting(request, 17, "2026-05-15T00:00:00Z");
 
     assertEquals(17, snapshot.getRefreshSeconds());
     assertEquals(2700, snapshot.getTimeoutSeconds());
+    assertEquals(720, snapshot.getTimeoutExtendedSeconds());
     assertEquals("2026-05-15T00:00:00Z", snapshot.getStartedAt());
   }
 
