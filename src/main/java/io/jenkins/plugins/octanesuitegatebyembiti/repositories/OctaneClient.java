@@ -146,6 +146,37 @@ public class OctaneClient implements AutoCloseable {
     return new ArrayList<>(recordsById.values());
   }
 
+  public List<DefectRecord> fetchDefectsByIds(
+      String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects)
+      throws IOException, InterruptedException {
+    if (defectIds.isEmpty() || maxDefects <= 0) {
+      return List.of();
+    }
+    List<String> clauses = new ArrayList<>();
+    for (String defectId : defectIds) {
+      if (!Util.isBlank(defectId)) {
+        clauses.add("id EQ " + defectId);
+      }
+    }
+    if (clauses.isEmpty()) {
+      return List.of();
+    }
+    List<DefectRecord> records = new ArrayList<>();
+    for (int start = 0;
+        start < clauses.size() && records.size() < maxDefects;
+        start += QUERY_CHUNK_SIZE) {
+      int end = Math.min(start + QUERY_CHUNK_SIZE, clauses.size());
+      records.addAll(
+          fetchDefectsChunk(
+              sharedSpaceId,
+              workspaceId,
+              clauses.subList(start, end),
+              "",
+              maxDefects - records.size()));
+    }
+    return records;
+  }
+
   public int testWorkspaceAccess(String sharedSpaceId, String workspaceId)
       throws IOException, InterruptedException {
     String path =

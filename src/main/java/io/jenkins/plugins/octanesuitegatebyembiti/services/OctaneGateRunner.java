@@ -17,6 +17,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectLedger;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
@@ -72,6 +73,7 @@ public class OctaneGateRunner {
     boolean extendedTimeoutConfigured = request.getTimeoutMinutesExtended() > 0;
     boolean extendedTimeActive = false;
     List<String> suiteRunIds = regressionSuiteRunIdsForCriteria(request);
+    OctaneDefectLedger defectLedger = new OctaneDefectLedger();
 
     logListener.logWaiting(listener, request, suiteRunIds);
     reportPublisher.onWaiting(request, suiteRunIds);
@@ -92,7 +94,8 @@ public class OctaneGateRunner {
                 workspaceId,
                 criteria,
                 classifier,
-                listener);
+                listener,
+                defectLedger);
         logListener.logPollResult(listener, result);
         publishPollResult(reportPublisher, result, classifier, extendedTimeActive);
         if (!extendedTimeoutConfigured && result.isPassed()) {
@@ -107,7 +110,8 @@ public class OctaneGateRunner {
                   criteria,
                   classifier,
                   listener,
-                  reportPublisher);
+                  reportPublisher,
+                  defectLedger);
         }
         if (!extendedTimeoutConfigured && result.isPassed()) {
           return passGate(listener, reportPublisher, result, classifier);
@@ -219,6 +223,33 @@ public class OctaneGateRunner {
       TaskListener listener,
       OctaneGateReportPublisher reportPublisher)
       throws InterruptedException {
+    return refreshPassedResult(
+        client,
+        previousResult,
+        request,
+        suiteRunIds,
+        sharedSpaceId,
+        workspaceId,
+        criteria,
+        classifier,
+        listener,
+        reportPublisher,
+        new OctaneDefectLedger());
+  }
+
+  GateResult refreshPassedResult(
+      OctaneClient client,
+      GateResult previousResult,
+      GateRequest request,
+      List<String> suiteRunIds,
+      String sharedSpaceId,
+      String workspaceId,
+      CriteriaExpression criteria,
+      StatusClassifier classifier,
+      TaskListener listener,
+      OctaneGateReportPublisher reportPublisher,
+      OctaneDefectLedger defectLedger)
+      throws InterruptedException {
     logListener.logFinalRefresh(listener);
     try {
       GateResult refreshedResult =
@@ -230,7 +261,8 @@ public class OctaneGateRunner {
               workspaceId,
               criteria,
               classifier,
-              listener);
+              listener,
+              defectLedger);
       logListener.logPollResult(listener, refreshedResult);
       reportPublisher.onPoll(refreshedResult, classifier);
       return refreshedResult;
@@ -248,7 +280,8 @@ public class OctaneGateRunner {
       String workspaceId,
       CriteriaExpression criteria,
       StatusClassifier classifier,
-      TaskListener listener)
+      TaskListener listener,
+      OctaneDefectLedger defectLedger)
       throws IOException, InterruptedException {
     Map<String, List<RunRecord>> suiteRuns =
         fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, suiteRunIds);
@@ -278,7 +311,8 @@ public class OctaneGateRunner {
             workspaceId,
             heatMapSuiteRuns(suiteRuns, scopedResults),
             classifier,
-            listener);
+            listener,
+            defectLedger);
     return new GateResult(
         String.join(",", suiteRunIds),
         request.getCriteria(),
@@ -314,7 +348,8 @@ public class OctaneGateRunner {
       String workspaceId,
       Map<String, List<RunRecord>> suiteRuns,
       StatusClassifier classifier,
-      TaskListener listener)
+      TaskListener listener,
+      OctaneDefectLedger defectLedger)
       throws InterruptedException {
     if (!request.isRiskHeatMap()) {
       return OctaneRiskHeatMap.disabled();
@@ -327,8 +362,12 @@ public class OctaneGateRunner {
               suiteRuns,
               request.getRiskHeatMapDefectQuery(),
               request.getRiskHeatMapMaxDefects());
+      defectLedger.merge(defects);
+      refreshKnownDefects(
+          client, sharedSpaceId, workspaceId, request.getRiskHeatMapMaxDefects(), defectLedger);
       OctaneRiskHeatMap heatMap =
-          new OctaneRiskHeatMapBuilder().build(workspaceId, suiteRuns, defects, classifier);
+          new OctaneRiskHeatMapBuilder()
+              .build(workspaceId, suiteRuns, defectLedger.getDefects(), classifier);
       logRiskHeatMapSummary(listener, heatMap);
       return heatMap;
     } catch (IOException e) {
@@ -336,6 +375,25 @@ public class OctaneGateRunner {
           .getLogger()
           .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
       return OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage());
+    }
+  }
+
+  private void refreshKnownDefects(
+      OctaneClient client,
+      String sharedSpaceId,
+      String workspaceId,
+      int maxDefects,
+      OctaneDefectLedger defectLedger)
+      throws InterruptedException {
+    if (defectLedger.isEmpty()) {
+      return;
+    }
+    try {
+      defectLedger.merge(
+          client.fetchDefectsByIds(
+              sharedSpaceId, workspaceId, defectLedger.getDefectIds(), maxDefects));
+    } catch (IOException e) {
+      // Keep the last known defect states rather than making the whole report unavailable.
     }
   }
 
