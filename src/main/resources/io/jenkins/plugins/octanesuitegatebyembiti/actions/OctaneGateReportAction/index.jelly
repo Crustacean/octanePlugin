@@ -28,6 +28,14 @@
           margin-left: 0.35rem;
           white-space: nowrap;
         }
+        .octane-live-update-last-updated {
+          color: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, 1.45cqw, 0.78rem);
+          font-weight: 500;
+          letter-spacing: 0;
+          text-transform: uppercase;
+        }
         .octane-dashboard {
           align-items: stretch;
           display: flex;
@@ -1480,10 +1488,23 @@
                   <div class="octane-flip-face-header">
                     <div>
                       <h2 class="octane-card-title">Status Check</h2>
-                      <div class="octane-muted">
-                        Polling interval
-                        <span class="octane-live-update" data-live-update-status="true"></span>
-                      </div>
+                      <j:choose>
+                        <j:when test="${snapshot.building}">
+                          <div class="octane-muted" data-live-update-line="true">
+                            <span data-live-update-title="true">Polling interval</span>
+                            <span class="octane-live-update" data-live-update-status="true"></span>
+                          </div>
+                        </j:when>
+                        <j:otherwise>
+                          <div class="octane-muted octane-live-update-last-updated"
+                              data-live-update-line="true">
+                            <span data-live-update-title="true">
+                              LAST UPDATED: ${snapshot.updatedAtText}
+                            </span>
+                            <span class="octane-live-update" data-live-update-status="true"></span>
+                          </div>
+                        </j:otherwise>
+                      </j:choose>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
@@ -2042,6 +2063,8 @@
           var stateLabel = document.querySelector("[data-report-state-label]");
           var updatedAtLabel = document.querySelector("[data-report-updated-at]");
           var messageLabel = document.querySelector("[data-report-message]");
+          var liveUpdateLine = dashboard.querySelector("[data-live-update-line]");
+          var liveUpdateTitle = dashboard.querySelector("[data-live-update-title]");
           var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
           var reorderStatus = document.getElementById("octane-reorder-status");
           var liveRefresh = {
@@ -2134,9 +2157,21 @@
               stops[index].setAttribute("stop-color", stopColorAt(colors, index, stops.length));
             }
           }
-          function setLiveUpdateStatus(message) {
+          function formatLastUpdatedStatus(payload) {
+            var value = payload && (payload.updatedAtText || payload.updatedAt);
+            return "LAST UPDATED: " + (value || "UNKNOWN");
+          }
+          function setLiveUpdateStatus(message, isLastUpdated) {
+            if (liveUpdateLine) {
+              liveUpdateLine.classList.toggle(
+                  "octane-live-update-last-updated", isLastUpdated === true);
+            }
+            if (liveUpdateTitle) {
+              liveUpdateTitle.textContent =
+                  isLastUpdated === true ? message || "" : "Polling interval";
+            }
             if (liveUpdateStatus) {
-              liveUpdateStatus.textContent = message || "";
+              liveUpdateStatus.textContent = isLastUpdated === true ? "" : message || "";
             }
           }
           function htmlToElement(html) {
@@ -2476,7 +2511,7 @@
             if (!liveRefresh.waiting) {
               liveRefresh.waiting = true;
               liveRefresh.waitingSince = now;
-              setLiveUpdateStatus("...");
+              setLiveUpdateStatus("...", false);
             }
             fetchSnapshot();
             scheduleTimerAnimation();
@@ -2598,7 +2633,8 @@
             setLiveUpdateStatus(
                 payload.building === true
                     ? "+" + (waitedMillis / 1000).toFixed(1) + "s"
-                    : "Done.");
+                    : formatLastUpdatedStatus(payload),
+                payload.building !== true);
             if (payload.building === true) {
               scheduleTimerAnimation();
             }
@@ -2626,7 +2662,7 @@
               scheduleSnapshotRetry();
             }).catch(function () {
               liveRefresh.fetching = false;
-              setLiveUpdateStatus("...");
+              setLiveUpdateStatus("...", false);
               scheduleSnapshotRetry();
             });
           }
