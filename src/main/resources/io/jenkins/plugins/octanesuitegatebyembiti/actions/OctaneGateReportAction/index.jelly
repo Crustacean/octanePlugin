@@ -55,11 +55,6 @@
         .octane-exit-extended-form[data-visible="false"] {
           display: none;
         }
-        .octane-exit-extended-note {
-          color: var(--text-color-secondary);
-          font-size: 0.9rem;
-          line-height: 1.3;
-        }
         .octane-timer-zone,
         .octane-report-zone {
           align-items: stretch;
@@ -1280,9 +1275,6 @@
                   type="submit">
                 Exit Octane and Continue
               </button>
-              <span class="octane-exit-extended-note">
-                Extended time is active. The latest Octane data will still be checked before continuing.
-              </span>
             </f:form>
           </div>
         <j:if test="${snapshot.hasCriteria()}">

@@ -556,7 +556,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-extended-active=\"true\""));
     assertTrue(xml.contains("data-visible=\"true\""));
     assertTrue(xml.contains("Exit Octane and Continue"));
-    assertTrue(xml.contains("Extended time is active"));
+    assertFalse(xml.contains("Extended time is active"));
+    assertFalse(xml.contains("The latest Octane data will still be checked before continuing"));
   }
 
   private GateResult result() {
