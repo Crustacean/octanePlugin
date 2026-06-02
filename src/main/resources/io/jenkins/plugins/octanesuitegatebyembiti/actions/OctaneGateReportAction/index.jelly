@@ -1293,6 +1293,7 @@
             data-current-updated-at="${snapshot.updatedAt}"
             data-report-building="${snapshot.building}"
             data-extended-time="${snapshot.extendedTime}"
+            data-manual-exit-requested="${it.manualExitRequested}"
             data-snapshot-url="snapshot">
           <div id="octane-reorder-status" class="octane-visually-hidden"
               aria-live="polite" aria-atomic="true"></div>
@@ -2324,9 +2325,29 @@
             return {
               building: dashboard.getAttribute("data-report-building") === "true",
               extendedTime: dashboard.getAttribute("data-extended-time") === "true",
+              manualExitRequested:
+                  dashboard.getAttribute("data-manual-exit-requested") === "true",
               executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
               stateLabel: stateLabel ? stateLabel.textContent : ""
             };
+          }
+          function snapshotProgress(payload) {
+            var progress =
+                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
+            if (isNaN(progress)) {
+              progress = 0;
+            }
+            return progress;
+          }
+          function manualExitRequested(payload) {
+            return payload && payload.manualExitRequested === true;
+          }
+          function completionReached(payload) {
+            var timedOut =
+                payload && payload.building !== true && payload.stateLabel === "Timed out";
+            return timedOut
+                || manualExitRequested(payload)
+                || (payload && payload.extendedTime !== true && snapshotProgress(payload) >= 100);
           }
           function autoShowHeatMapOnCompletion(payload) {
             var card = dashboard.querySelector('[data-card-key="timer-poll"]');
@@ -2336,14 +2357,7 @@
             if (activeCardView(card) === "heatmap") {
               return;
             }
-            var progress =
-                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
-            if (isNaN(progress)) {
-              progress = 0;
-            }
-            var timedOut =
-                payload && payload.building !== true && payload.stateLabel === "Timed out";
-            if (timedOut || (payload && payload.extendedTime !== true && progress >= 100)) {
+            if (completionReached(payload)) {
               setCardView(card, "heatmap");
             }
           }
@@ -2355,13 +2369,8 @@
             if (activeCardView(card) === "metrics") {
               return;
             }
-            var progress =
-                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
-            if (isNaN(progress)) {
-              progress = 0;
-            }
             if ((payload && payload.building !== true)
-                || (payload && payload.extendedTime !== true && progress >= 100)) {
+                || completionReached(payload)) {
               setCardView(card, "metrics");
             }
           }
@@ -2671,6 +2680,8 @@
             dashboard.setAttribute("data-current-updated-at", currentUpdatedAt);
             dashboard.setAttribute("data-report-building", String(payload.building === true));
             dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
+            dashboard.setAttribute(
+                "data-manual-exit-requested", String(payload.manualExitRequested === true));
             setExtendedExitVisibility(payload.extendedTime === true);
             if (stateLabel) {
               stateLabel.textContent = payload.stateLabel || "";

@@ -296,6 +296,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-extended-total-seconds=\"0\""));
     assertTrue(xml.contains("data-extended-active=\"false\""));
     assertTrue(xml.contains("data-extended-time=\"false\""));
+    assertTrue(xml.contains("data-manual-exit-requested=\"false\""));
     assertTrue(xml.contains("data-exit-extended-form=\"true\""));
     assertTrue(xml.contains("data-visible=\"false\""));
     assertTrue(xml.contains("Exit Octane and Continue"));
@@ -404,6 +405,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("findCardByKey"));
     assertTrue(xml.contains("function autoShowHeatMapOnCompletion"));
     assertTrue(xml.contains("function autoShowTestMetricsOnCompletion"));
+    assertTrue(xml.contains("function completionReached"));
+    assertTrue(xml.contains("function manualExitRequested"));
+    assertTrue(xml.contains("payload.manualExitRequested === true"));
+    assertTrue(xml.contains("data-manual-exit-requested"));
     assertTrue(xml.contains("function updateTestMetrics"));
     assertTrue(xml.contains("payload.testMetricsHtml"));
     assertTrue(xml.contains("setCardView(card, \"metrics\")"));
