@@ -4,6 +4,7 @@ import hudson.model.Run;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPublisher;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectTrend;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
@@ -87,7 +88,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   @Override
   public synchronized void onPoll(GateResult result, StatusClassifier classifier) {
     snapshot =
-        withPreviousCycleMetrics(
+        withLiveReportData(
             OctaneGateReportSnapshot.fromResult(
                 OctaneGateReportState.POLLING,
                 "Polling ALM Octane suite runs.",
@@ -103,7 +104,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   @Override
   public synchronized void onExtendedTime(GateResult result, StatusClassifier classifier) {
     snapshot =
-        withPreviousCycleMetrics(
+        withLiveReportData(
             OctaneGateReportSnapshot.fromResult(
                 OctaneGateReportState.EXTENDED_TIME,
                 "Extended Octane polling time is active.",
@@ -120,7 +121,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   public synchronized void onFinal(
       OctaneGateReportState state, String message, GateResult result, StatusClassifier classifier) {
     snapshot =
-        withPreviousCycleMetrics(
+        withLiveReportData(
             OctaneGateReportSnapshot.fromResult(
                 state,
                 message,
@@ -135,17 +136,20 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   @Override
   public synchronized void onError(String message, GateRequest request) {
-    snapshot =
-        withPreviousCycleMetrics(
-            OctaneGateReportSnapshot.error(
-                defaultMessage(message),
-                request.getCriteria(),
-                request.getSuiteRunId(),
-                refreshSeconds,
-                timeoutSeconds,
-                timeoutExtendedSeconds,
-                startedAt,
-                request.isRiskHeatMap()));
+    OctaneGateReportSnapshot errorSnapshot =
+        OctaneGateReportSnapshot.error(
+            defaultMessage(message),
+            request.getCriteria(),
+            request.getSuiteRunId(),
+            refreshSeconds,
+            timeoutSeconds,
+            timeoutExtendedSeconds,
+            startedAt,
+            request.isRiskHeatMap());
+    if (snapshot != null) {
+      errorSnapshot = errorSnapshot.withDefectTrend(snapshot.getDefectTrend());
+    }
+    snapshot = withPreviousCycleMetrics(errorSnapshot);
     saveRun();
   }
 
@@ -188,6 +192,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("passRateLabel", safeSnapshot.getPassRateLabel());
     payload.put("testMetricsHtml", safeSnapshot.getTestMetricsHtml());
     payload.put("testMetrics", safeSnapshot.getTestMetrics().toMap());
+    payload.put("defectTrend", safeSnapshot.getDefectTrend().toMap());
     payload.put("refreshSeconds", safeSnapshot.getRefreshSeconds());
     payload.put("timeoutSeconds", safeSnapshot.getTimeoutSeconds());
     payload.put("timeoutExtendedSeconds", safeSnapshot.getTimeoutExtendedSeconds());
@@ -263,6 +268,14 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
     return current.withCalculatedTestMetrics(previousCompletedSnapshot());
+  }
+
+  private OctaneGateReportSnapshot withLiveReportData(OctaneGateReportSnapshot current) {
+    OctaneDefectTrend trend = current.getDefectTrend();
+    if (snapshot != null) {
+      trend = snapshot.getDefectTrend().append(current.getUpdatedAt(), current.getRiskHeatMap());
+    }
+    return withPreviousCycleMetrics(current.withDefectTrend(trend));
   }
 
   private OctaneGateReportSnapshot previousCompletedSnapshot() {

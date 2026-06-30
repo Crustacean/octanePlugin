@@ -234,10 +234,10 @@
           row-gap: 0;
         }
         .octane-zone-focused .octane-y-axis-label {
-          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
         }
         .octane-zone-focused .octane-axis-value {
-          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
         }
         .octane-zone-focused .octane-suite-column {
           flex-basis: clamp(1.6rem, 7vw, 4.65rem);
@@ -359,6 +359,9 @@
         .octane-chart-card[data-active-view="metrics"] .octane-icon-metrics {
           display: none;
         }
+        .octane-chart-card[data-active-view="defects"] .octane-icon-defects {
+          display: none;
+        }
         .octane-chart-card[data-active-view="breakdown"] .octane-icon-timer {
           display: block;
         }
@@ -368,9 +371,13 @@
         .octane-chart-card[data-active-view="metrics"] .octane-icon-timer {
           display: block;
         }
+        .octane-chart-card[data-active-view="defects"] .octane-icon-timer {
+          display: block;
+        }
         .octane-chart-card[data-card-key="timer-timeout"],
         .octane-chart-card[data-card-key="timer-poll"],
-        .octane-chart-card[data-card-key="progress-execution"] {
+        .octane-chart-card[data-card-key="progress-execution"],
+        .octane-chart-card[data-card-key="progress-pass-rate"] {
           display: flex;
           flex-direction: column;
           position: relative;
@@ -384,7 +391,8 @@
         }
         .octane-chart-card[data-card-key="timer-timeout"] > .octane-card-actions,
         .octane-chart-card[data-card-key="timer-poll"] > .octane-card-actions,
-        .octane-chart-card[data-card-key="progress-execution"] > .octane-card-actions {
+        .octane-chart-card[data-card-key="progress-execution"] > .octane-card-actions,
+        .octane-chart-card[data-card-key="progress-pass-rate"] > .octane-card-actions {
           position: absolute;
           right: 1rem;
           top: 1rem;
@@ -417,7 +425,8 @@
         .octane-chart-card[data-active-view="timer"] .octane-flip-face-timer,
         .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap,
         .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics,
-        .octane-chart-card[data-active-view="breakdown"] .octane-flip-face-breakdown {
+        .octane-chart-card[data-active-view="breakdown"] .octane-flip-face-breakdown,
+        .octane-chart-card[data-active-view="defects"] .octane-flip-face-defects {
           opacity: 1;
           pointer-events: auto;
           transform: translateY(0);
@@ -453,6 +462,11 @@
           justify-content: stretch;
         }
         .octane-chart-card[data-card-key="progress-execution"][data-active-view="breakdown"]
+          .octane-flip-face-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-pass-rate"][data-active-view="defects"]
           .octane-flip-face-body {
           align-items: stretch;
           justify-content: stretch;
@@ -598,6 +612,141 @@
           padding: 1rem;
           text-align: center;
           width: 100%;
+        }
+        .octane-defect-trend {
+          align-items: stretch;
+          box-sizing: border-box;
+          container-type: size;
+          display: grid;
+          gap: clamp(0.45rem, 2.4cqw, 1.5rem);
+          grid-template-columns: clamp(5.2rem, 22cqw, 12rem) minmax(0, 1fr);
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          padding: clamp(0.25rem, min(1.2cqw, 1.2cqh), 0.75rem);
+          width: 100%;
+        }
+        .octane-defect-trend-totals {
+          align-content: center;
+          display: grid;
+          gap: clamp(0.65rem, 4cqh, 2rem);
+          min-width: 0;
+        }
+        .octane-defect-trend-total[data-visible="false"] {
+          display: none;
+        }
+        .octane-defect-trend-value {
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(1.55rem, min(8cqw, 10cqh), 4.8rem);
+          font-variant-numeric: tabular-nums;
+          font-weight: 700;
+          line-height: 0.95;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-defect-trend-total-opened .octane-defect-trend-value {
+          color: #ff6361;
+        }
+        .octane-defect-trend-total-closed .octane-defect-trend-value {
+          color: #7BE5B3;
+        }
+        .octane-defect-trend-total-label {
+          color: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, min(2.4cqw, 2.8cqh), 1rem);
+          font-weight: 500;
+          line-height: 1.2;
+          margin-top: clamp(0.2rem, 0.8cqh, 0.45rem);
+        }
+        .octane-defect-trend-chart {
+          column-gap: clamp(0.16rem, 0.8cqw, 0.45rem);
+          display: grid;
+          grid-template-columns: max-content max-content minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) max-content;
+          min-height: 0;
+          min-width: 0;
+          row-gap: clamp(0.12rem, 0.6cqh, 0.3rem);
+        }
+        .octane-defect-trend-plot {
+          grid-column: 3;
+          grid-row: 1;
+          min-height: 0;
+          min-width: 0;
+        }
+        .octane-defect-trend-svg {
+          display: block;
+          height: 100%;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: 100%;
+        }
+        .octane-defect-trend-grid-line {
+          stroke: #576779;
+          stroke-dasharray: 5 7;
+          stroke-opacity: 0.58;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-trend-axis-line {
+          stroke: #576779;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-trend-axis-label {
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
+          font-weight: 400;
+          line-height: 1;
+          white-space: nowrap;
+        }
+        .octane-defect-trend-axis-title {
+          align-self: center;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
+          font-weight: 400;
+          grid-column: 1;
+          grid-row: 1;
+          justify-self: center;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          writing-mode: vertical-rl;
+        }
+        .octane-defect-trend-y-labels {
+          align-items: flex-end;
+          display: flex;
+          flex-direction: column;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          min-height: 0;
+        }
+        .octane-defect-trend-x-labels {
+          display: flex;
+          grid-column: 3;
+          grid-row: 2;
+          justify-content: space-between;
+          min-width: 0;
+        }
+        .octane-defect-trend-line {
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: clamp(2px, 0.28cqw, 4px);
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-trend-line-opened {
+          stroke: #ff6361;
+        }
+        .octane-defect-trend-line-closed {
+          stroke: #7BE5B3;
+        }
+        .octane-defect-trend-points {
+          display: none;
         }
         .octane-heatmap-subtitle-row {
           align-items: center;
@@ -1125,6 +1274,7 @@
           color: #827C7B;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
           font-weight: 400;
         }
         .octane-bar-graph {
@@ -1143,6 +1293,7 @@
           color: #827C7B;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
           font-weight: 400;
           grid-column: 1;
           grid-row: 1;
@@ -1946,76 +2097,166 @@
             <section class="octane-chart-card octane-timer-card" draggable="true"
                 data-card-key="progress-pass-rate"
                 data-octane-progress="pass-rate"
-                data-progress-value="${snapshot.passRateProgress}">
-              <div class="octane-card-header">
-                <div>
-                  <h2 class="octane-card-title">Execution Pass Rate</h2>
-                  <div class="octane-muted" data-pass-rate-label="true">
-                    ${snapshot.passRateLabel}
+                data-progress-value="${snapshot.passRateProgress}"
+                data-active-view="timer">
+              <div class="octane-card-actions">
+                <button class="octane-view-toggle" type="button"
+                    data-target-view="defects" data-target-view-label="execution defect rate"
+                    aria-label="Show execution defect rate" title="Show execution defect rate">
+                  <svg class="octane-action-icon octane-icon-defects" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M4 18l4-5 4 2 4-8 4 3" />
+                    <path d="M4 20h16" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l3 2" />
+                    <path d="M9 2h6" />
+                  </svg>
+                </button>
+                <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                    aria-expanded="false" title="Expand widget">
+                  <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M8 4H4v4" />
+                    <path d="M16 4h4v4" />
+                    <path d="M20 16v4h-4" />
+                    <path d="M8 20H4v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M9 3v6H3" />
+                    <path d="M3 9l6-6" />
+                    <path d="M15 21v-6h6" />
+                    <path d="M21 15l-6 6" />
+                  </svg>
+                </button>
+                <button class="octane-card-tools" type="button"
+                    aria-label="Move widget"
+                    title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                  <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                      focusable="false">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
+                </button>
+              </div>
+              <div class="octane-flip-viewport">
+                <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Execution Pass Rate</h2>
+                      <div class="octane-muted" data-pass-rate-label="true">
+                        ${snapshot.passRateLabel}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-timer-wrap">
+                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                          aria-label="Execution Pass Rate">
+                        <defs>
+                          <linearGradient id="octane-pass-rate-progress-gradient" x1="32" y1="208"
+                              x2="208" y2="32" gradientUnits="userSpaceOnUse">
+                            <stop data-progress-gradient-stop="true" offset="0%"
+                                stop-color="#fb4b4b" />
+                            <stop data-progress-gradient-stop="true" offset="50%"
+                                stop-color="#e14343" />
+                            <stop data-progress-gradient-stop="true" offset="100%"
+                                stop-color="#e14343" />
+                          </linearGradient>
+                        </defs>
+                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                        <circle class="octane-timer-progress-halo" data-progress-halo="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-pass-rate-progress-gradient)"
+                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-progress" data-progress-circle="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-pass-rate-progress-gradient)"
+                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-head" data-progress-head="true"
+                            cx="120" cy="36" r="9.6" fill="#e14343" />
+                        <text class="octane-timer-value" data-progress-value-text="true"
+                            x="120" y="118">
+                          ${snapshot.passRateProgressText}
+                        </text>
+                        <text class="octane-timer-unit" x="120" y="132.4">
+                          passed
+                        </text>
+                      </svg>
+                    </div>
                   </div>
                 </div>
-                <div class="octane-card-actions">
-                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
-                      aria-expanded="false" title="Expand widget">
-                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M8 4H4v4" />
-                      <path d="M16 4h4v4" />
-                      <path d="M20 16v4h-4" />
-                      <path d="M8 20H4v-4" />
-                    </svg>
-                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M9 3v6H3" />
-                      <path d="M3 9l6-6" />
-                      <path d="M15 21v-6h6" />
-                      <path d="M21 15l-6 6" />
-                    </svg>
-                  </button>
-                  <button class="octane-card-tools" type="button"
-                      aria-label="Move widget"
-                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
-                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
-                        focusable="false">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </button>
+                <div class="octane-flip-face octane-flip-face-defects"
+                    data-card-view="defects">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Execution Defect Rate</h2>
+                      <div class="octane-muted">
+                        Defect Arrival vs. Resolution Trend Analysis
+                      </div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-defect-trend" data-defect-trend-panel="true"
+                        data-started-at="${snapshot.defectTrend.startedAt}"
+                        data-duration-millis="${snapshot.defectTrend.durationMillis}"
+                        data-building="${snapshot.building}">
+                      <div class="octane-defect-trend-totals">
+                        <div class="octane-defect-trend-total octane-defect-trend-total-opened">
+                          <div class="octane-defect-trend-value"
+                              data-defect-trend-opened-total="true">
+                            ${snapshot.defectTrend.openedTotal}
+                          </div>
+                          <div class="octane-defect-trend-total-label">Opened Defects</div>
+                        </div>
+                        <div class="octane-defect-trend-total octane-defect-trend-total-closed"
+                            data-defect-trend-closed="true"
+                            data-visible="${snapshot.defectTrend.openedTotal > 0}">
+                          <div class="octane-defect-trend-value"
+                              data-defect-trend-closed-total="true">
+                            ${snapshot.defectTrend.closedTotal}
+                          </div>
+                          <div class="octane-defect-trend-total-label">Closed Defects</div>
+                        </div>
+                      </div>
+                      <div class="octane-defect-trend-chart">
+                        <div class="octane-defect-trend-axis-title">Defects</div>
+                        <div class="octane-defect-trend-y-labels"
+                            data-defect-trend-y-labels="true"></div>
+                        <div class="octane-defect-trend-plot">
+                          <svg class="octane-defect-trend-svg" viewBox="0 0 1000 434"
+                              preserveAspectRatio="none" role="img"
+                              aria-labelledby="octane-defect-trend-title octane-defect-trend-description">
+                            <title id="octane-defect-trend-title">Defects raised and closed over time</title>
+                            <desc id="octane-defect-trend-description">
+                              Red tracks all defects raised. Green tracks closed defects.
+                            </desc>
+                            <g data-defect-trend-grid="true"></g>
+                            <line class="octane-defect-trend-axis-line" x1="0" y1="434"
+                                x2="1000" y2="434" />
+                            <path class="octane-defect-trend-line octane-defect-trend-line-opened"
+                                data-defect-trend-opened-line="true" d="" />
+                            <path class="octane-defect-trend-line octane-defect-trend-line-closed"
+                                data-defect-trend-closed-line="true" d="" />
+                          </svg>
+                        </div>
+                        <div class="octane-defect-trend-x-labels"
+                            data-defect-trend-x-labels="true"></div>
+                      </div>
+                      <div class="octane-defect-trend-points" aria-hidden="true">
+                        <j:forEach var="point" items="${snapshot.defectTrend.points}">
+                          <span data-defect-trend-point="true"
+                              data-elapsed-millis="${point.elapsedMillis}"
+                              data-opened="${point.opened}" data-closed="${point.closed}"></span>
+                        </j:forEach>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div class="octane-timer-wrap">
-                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                    aria-label="Execution Pass Rate">
-                  <defs>
-                    <linearGradient id="octane-pass-rate-progress-gradient" x1="32" y1="208"
-                        x2="208" y2="32" gradientUnits="userSpaceOnUse">
-                      <stop data-progress-gradient-stop="true" offset="0%" stop-color="#fb4b4b" />
-                      <stop data-progress-gradient-stop="true" offset="50%"
-                          stop-color="#e14343" />
-                      <stop data-progress-gradient-stop="true" offset="100%"
-                          stop-color="#e14343" />
-                    </linearGradient>
-                  </defs>
-                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                  <circle class="octane-timer-progress-halo" data-progress-halo="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-pass-rate-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-progress" data-progress-circle="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-pass-rate-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-head" data-progress-head="true"
-                      cx="120" cy="36" r="9.6" fill="#e14343" />
-                  <text class="octane-timer-value" data-progress-value-text="true"
-                      x="120" y="118">
-                    ${snapshot.passRateProgressText}
-                  </text>
-                  <text class="octane-timer-unit" x="120" y="132.4">
-                    passed
-                  </text>
-                </svg>
               </div>
             </section>
           </div>
@@ -2521,7 +2762,11 @@
           function toggleCardView(card) {
             var button = card ? card.querySelector(".octane-view-toggle") : null;
             var targetView = button ? button.getAttribute("data-target-view") || "heatmap" : "heatmap";
-            setCardView(card, activeCardView(card) === targetView ? "timer" : targetView);
+            var nextView = activeCardView(card) === targetView ? "timer" : targetView;
+            setCardView(card, nextView);
+            if (nextView === "defects") {
+              scheduleDefectTrendAnimation();
+            }
           }
           function initializeCardViews(root) {
             var cards = root.querySelectorAll("[data-active-view]");
@@ -2555,6 +2800,281 @@
             if (panel) {
               panel.innerHTML = payload.executionStatusDistributionHtml;
             }
+          }
+          var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+          var DEFECT_TREND_BOUNDS = {
+            left: 0,
+            right: 1000,
+            top: 0,
+            bottom: 434
+          };
+          var defectTrendState = null;
+          var defectTrendLoopRunning = false;
+          function safeTrendNumber(value, fallback) {
+            var parsed = Number(value);
+            return isFinite(parsed) ? parsed : fallback;
+          }
+          function readDefectTrendPoints(panel) {
+            var points = [];
+            var sources = panel ? panel.querySelectorAll("[data-defect-trend-point]") : [];
+            for (var index = 0; index < sources.length; index += 1) {
+              points.push({
+                elapsedMillis: Math.max(
+                    0, safeTrendNumber(sources[index].getAttribute("data-elapsed-millis"), 0)),
+                opened: Math.max(0, safeTrendNumber(sources[index].getAttribute("data-opened"), 0)),
+                closed: Math.max(0, safeTrendNumber(sources[index].getAttribute("data-closed"), 0))
+              });
+            }
+            return points.length ? points : [{elapsedMillis: 0, opened: 0, closed: 0}];
+          }
+          function normalizeDefectTrendPoints(points, durationMillis) {
+            var normalized = [];
+            if (points && typeof points.length === "number") {
+              for (var index = 0; index < points.length; index += 1) {
+                normalized.push({
+                  elapsedMillis: clamp(
+                      safeTrendNumber(points[index].elapsedMillis, 0), 0, durationMillis),
+                  opened: Math.max(0, safeTrendNumber(points[index].opened, 0)),
+                  closed: Math.max(0, safeTrendNumber(points[index].closed, 0))
+                });
+              }
+            }
+            normalized.sort(function (left, right) {
+              return left.elapsedMillis - right.elapsedMillis;
+            });
+            return normalized.length
+                ? normalized
+                : [{elapsedMillis: 0, opened: 0, closed: 0}];
+          }
+          function initializeDefectTrend() {
+            var panel = dashboard.querySelector("[data-defect-trend-panel]");
+            if (!panel) {
+              return;
+            }
+            var durationMillis = Math.max(
+                1, safeTrendNumber(panel.getAttribute("data-duration-millis"), 1));
+            defectTrendState = {
+              panel: panel,
+              startedAt: parseTimestamp(panel.getAttribute("data-started-at")),
+              durationMillis: durationMillis,
+              building: panel.getAttribute("data-building") === "true",
+              points: normalizeDefectTrendPoints(readDefectTrendPoints(panel), durationMillis),
+              renderedYMaximum: -1,
+              renderedDurationMillis: -1
+            };
+            renderDefectTrend(currentWallTime());
+          }
+          function defectTrendVisible() {
+            var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
+            return card && activeCardView(card) === "defects";
+          }
+          function latestDefectTrendPoint() {
+            if (!defectTrendState || !defectTrendState.points.length) {
+              return {elapsedMillis: 0, opened: 0, closed: 0};
+            }
+            return defectTrendState.points[defectTrendState.points.length - 1];
+          }
+          function niceDefectTrendScale(maximumCount) {
+            if (maximumCount <= 5) {
+              return {maximum: 5, step: 1};
+            }
+            var roughStep = maximumCount / 5;
+            var magnitude = Math.pow(10, Math.floor(Math.log(roughStep) / Math.LN10));
+            var normalizedStep = roughStep / magnitude;
+            var multiplier = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 :
+                normalizedStep <= 5 ? 5 : 10;
+            var step = multiplier * magnitude;
+            return {
+              maximum: Math.ceil(maximumCount / step) * step,
+              step: step
+            };
+          }
+          function formatDefectTrendTime(milliseconds) {
+            var totalSeconds = Math.max(0, Math.round(milliseconds / 1000));
+            if (totalSeconds < 60) {
+              return totalSeconds + "s";
+            }
+            var totalMinutes = Math.round(totalSeconds / 60);
+            if (totalMinutes < 60) {
+              return totalMinutes + "m";
+            }
+            var hours = Math.floor(totalMinutes / 60);
+            var minutes = totalMinutes % 60;
+            return minutes ? hours + "h " + minutes + "m" : hours + "h";
+          }
+          function createTrendSvgElement(name, attributes, textValue) {
+            var element = document.createElementNS(SVG_NAMESPACE, name);
+            for (var key in attributes) {
+              if (Object.prototype.hasOwnProperty.call(attributes, key)) {
+                element.setAttribute(key, attributes[key]);
+              }
+            }
+            if (typeof textValue === "string") {
+              element.textContent = textValue;
+            }
+            return element;
+          }
+          function createTrendAxisLabel(value) {
+            var label = document.createElement("span");
+            label.className = "octane-defect-trend-axis-label";
+            label.textContent = value;
+            return label;
+          }
+          function rebuildDefectTrendAxes(scale) {
+            if (!defectTrendState) {
+              return;
+            }
+            var panel = defectTrendState.panel;
+            var grid = panel.querySelector("[data-defect-trend-grid]");
+            var yLabels = panel.querySelector("[data-defect-trend-y-labels]");
+            var xLabels = panel.querySelector("[data-defect-trend-x-labels]");
+            if (!grid || !yLabels || !xLabels) {
+              return;
+            }
+            grid.textContent = "";
+            yLabels.textContent = "";
+            xLabels.textContent = "";
+            var height = DEFECT_TREND_BOUNDS.bottom - DEFECT_TREND_BOUNDS.top;
+            for (var value = scale.step; value <= scale.maximum; value += scale.step) {
+              var y = DEFECT_TREND_BOUNDS.bottom - (value / scale.maximum) * height;
+              grid.appendChild(createTrendSvgElement("line", {
+                "class": "octane-defect-trend-grid-line",
+                x1: DEFECT_TREND_BOUNDS.left,
+                y1: y,
+                x2: DEFECT_TREND_BOUNDS.right,
+                y2: y
+              }));
+            }
+            for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step) {
+              yLabels.appendChild(createTrendAxisLabel(String(yValue)));
+            }
+            for (var index = 0; index <= 4; index += 1) {
+              var ratio = index / 4;
+              xLabels.appendChild(
+                  createTrendAxisLabel(
+                      formatDefectTrendTime(defectTrendState.durationMillis * ratio)));
+            }
+            defectTrendState.renderedYMaximum = scale.maximum;
+            defectTrendState.renderedDurationMillis = defectTrendState.durationMillis;
+          }
+          function defectTrendPath(points, property, scale) {
+            if (!points.length) {
+              return "";
+            }
+            var width = DEFECT_TREND_BOUNDS.right - DEFECT_TREND_BOUNDS.left;
+            var height = DEFECT_TREND_BOUNDS.bottom - DEFECT_TREND_BOUNDS.top;
+            function xFor(point) {
+              return DEFECT_TREND_BOUNDS.left
+                  + (point.elapsedMillis / defectTrendState.durationMillis) * width;
+            }
+            function yFor(point) {
+              return DEFECT_TREND_BOUNDS.bottom - (point[property] / scale.maximum) * height;
+            }
+            var path = "M " + xFor(points[0]).toFixed(2) + " " + yFor(points[0]).toFixed(2);
+            for (var index = 1; index < points.length; index += 1) {
+              path += " H " + xFor(points[index]).toFixed(2)
+                  + " V " + yFor(points[index]).toFixed(2);
+            }
+            return path;
+          }
+          function renderDefectTrend(now) {
+            if (!defectTrendState || !defectTrendState.panel) {
+              return;
+            }
+            var points = defectTrendState.points.slice();
+            var latest = latestDefectTrendPoint();
+            var elapsedMillis = latest.elapsedMillis;
+            if (defectTrendState.building) {
+              elapsedMillis = Math.max(
+                  elapsedMillis,
+                  clamp(now - defectTrendState.startedAt, 0, defectTrendState.durationMillis));
+            }
+            if (elapsedMillis > latest.elapsedMillis) {
+              points.push({
+                elapsedMillis: elapsedMillis,
+                opened: latest.opened,
+                closed: latest.closed
+              });
+            }
+            var maximumCount = 0;
+            for (var index = 0; index < points.length; index += 1) {
+              maximumCount = Math.max(maximumCount, points[index].opened, points[index].closed);
+            }
+            var scale = niceDefectTrendScale(maximumCount);
+            if (scale.maximum !== defectTrendState.renderedYMaximum
+                || defectTrendState.durationMillis !== defectTrendState.renderedDurationMillis) {
+              rebuildDefectTrendAxes(scale);
+            }
+            var openedLine =
+                defectTrendState.panel.querySelector("[data-defect-trend-opened-line]");
+            var closedLine =
+                defectTrendState.panel.querySelector("[data-defect-trend-closed-line]");
+            if (openedLine) {
+              openedLine.setAttribute("d", defectTrendPath(points, "opened", scale));
+            }
+            if (closedLine) {
+              closedLine.setAttribute("d", defectTrendPath(points, "closed", scale));
+            }
+          }
+          function animateDefectTrend() {
+            if (!defectTrendState || !defectTrendState.building || !defectTrendVisible()) {
+              defectTrendLoopRunning = false;
+              return;
+            }
+            renderDefectTrend(currentWallTime());
+            var latest = latestDefectTrendPoint();
+            var elapsed = Math.max(
+                latest.elapsedMillis,
+                currentWallTime() - defectTrendState.startedAt);
+            if (elapsed < defectTrendState.durationMillis) {
+              scheduleTimerFrame(animateDefectTrend);
+              return;
+            }
+            defectTrendLoopRunning = false;
+          }
+          function scheduleDefectTrendAnimation() {
+            if (defectTrendLoopRunning || !defectTrendState || !defectTrendVisible()) {
+              return;
+            }
+            defectTrendLoopRunning = true;
+            scheduleTimerFrame(animateDefectTrend);
+          }
+          function updateDefectTrend(payload) {
+            if (!payload || !payload.defectTrend) {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-defect-trend-panel]");
+            if (!panel) {
+              return;
+            }
+            var trend = payload.defectTrend;
+            var durationMillis = Math.max(
+                1, safeTrendNumber(trend.durationMillis, defectTrendState
+                    ? defectTrendState.durationMillis : 1));
+            defectTrendState = {
+              panel: panel,
+              startedAt: parseTimestamp(trend.startedAt),
+              durationMillis: durationMillis,
+              building: payload.building === true,
+              points: normalizeDefectTrendPoints(trend.points, durationMillis),
+              renderedYMaximum: -1,
+              renderedDurationMillis: -1
+            };
+            var latest = latestDefectTrendPoint();
+            var openedTotal = panel.querySelector("[data-defect-trend-opened-total]");
+            var closedTotal = panel.querySelector("[data-defect-trend-closed-total]");
+            var closedContainer = panel.querySelector("[data-defect-trend-closed]");
+            if (openedTotal) {
+              openedTotal.textContent = String(latest.opened);
+            }
+            if (closedTotal) {
+              closedTotal.textContent = String(latest.closed);
+            }
+            if (closedContainer) {
+              closedContainer.setAttribute("data-visible", String(latest.opened > 0));
+            }
+            renderDefectTrend(currentWallTime());
+            scheduleDefectTrendAnimation();
           }
           function currentReportPayload() {
             var executionProgressCard =
@@ -2700,6 +3220,8 @@
           }
           decorateCardZones(dashboard);
           initializeCardViews(dashboard);
+          initializeDefectTrend();
+          scheduleDefectTrendAnimation();
           autoShowHeatMapOnCompletion(currentReportPayload());
           autoShowTestMetricsOnCompletion(currentReportPayload());
           autoShowExecutionBreakdownOnCompletion(currentReportPayload());
@@ -2974,6 +3496,7 @@
             updateRiskHeatMap(payload);
             updateTestMetrics(payload);
             updateExecutionStatusDistribution(payload);
+            updateDefectTrend(payload);
             autoShowHeatMapOnCompletion(payload);
             autoShowTestMetricsOnCompletion(payload);
             autoShowExecutionBreakdownOnCompletion(payload);
@@ -3093,6 +3616,7 @@
               updateRiskHeatMap(payload);
               updateTestMetrics(payload);
               updateExecutionStatusDistribution(payload);
+              updateDefectTrend(payload);
               autoShowHeatMapOnCompletion(payload);
               autoShowTestMetricsOnCompletion(payload);
               autoShowExecutionBreakdownOnCompletion(payload);
