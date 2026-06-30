@@ -471,6 +471,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("function autoShowHeatMapOnCompletion"));
     assertTrue(xml.contains("function autoShowTestMetricsOnCompletion"));
     assertTrue(xml.contains("function autoShowExecutionBreakdownOnCompletion"));
+    assertTrue(xml.contains("function autoShowDefectTrendOnCompletion"));
     assertTrue(xml.contains("function completionReached"));
     assertTrue(xml.contains("function manualExitRequested"));
     assertTrue(xml.contains("payload.manualExitRequested === true"));
@@ -485,6 +486,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("setCardView(card, \"breakdown\")"));
     assertTrue(xml.contains("autoShowExecutionBreakdownOnCompletion(currentReportPayload())"));
     assertTrue(xml.contains("autoShowExecutionBreakdownOnCompletion(payload)"));
+    assertTrue(xml.contains("setCardView(card, \"defects\")"));
+    assertTrue(xml.contains("autoShowDefectTrendOnCompletion(currentReportPayload())"));
+    assertTrue(xml.contains("autoShowDefectTrendOnCompletion(payload)"));
     assertTrue(xml.contains("button.getAttribute(\"data-target-view\")"));
     assertTrue(xml.contains("button.getAttribute(\"data-target-view-label\")"));
     assertTrue(xml.contains("card.querySelector(\".octane-view-toggle\")"));

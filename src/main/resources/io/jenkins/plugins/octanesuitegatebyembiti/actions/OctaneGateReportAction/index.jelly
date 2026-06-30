@@ -3148,6 +3148,20 @@
               setCardView(card, "breakdown");
             }
           }
+          function autoShowDefectTrendOnCompletion(payload) {
+            var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
+            if (!card || !card.querySelector(".octane-view-toggle")) {
+              return;
+            }
+            if (activeCardView(card) === "defects") {
+              return;
+            }
+            if ((payload && payload.building !== true)
+                || completionReached(payload)) {
+              setCardView(card, "defects");
+              scheduleDefectTrendAnimation();
+            }
+          }
           function zoneKeyFor(zone) {
             if (!zone) {
               return "";
@@ -3225,6 +3239,7 @@
           autoShowHeatMapOnCompletion(currentReportPayload());
           autoShowTestMetricsOnCompletion(currentReportPayload());
           autoShowExecutionBreakdownOnCompletion(currentReportPayload());
+          autoShowDefectTrendOnCompletion(currentReportPayload());
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
@@ -3500,6 +3515,7 @@
             autoShowHeatMapOnCompletion(payload);
             autoShowTestMetricsOnCompletion(payload);
             autoShowExecutionBreakdownOnCompletion(payload);
+            autoShowDefectTrendOnCompletion(payload);
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
@@ -3620,6 +3636,7 @@
               autoShowHeatMapOnCompletion(payload);
               autoShowTestMetricsOnCompletion(payload);
               autoShowExecutionBreakdownOnCompletion(payload);
+              autoShowDefectTrendOnCompletion(payload);
             }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
             });
