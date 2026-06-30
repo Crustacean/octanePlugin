@@ -48,7 +48,19 @@ pipeline {
                   sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                   workspaceId: env.OCTANE_WORKSPACE_ID,
                   suiteRunId: suiteRunIds.join(','),
-                  criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
+                  // Defect groups and individual severity references are case-insensitive.
+                  // Rates use open matching defects / total defects raised. The deduplicated total
+                  // includes closed defects; append Count for a raw open count. Group and individual
+                  // references are independent and do not duplicate defects inside either metric.
+                  defectGroups: [
+                    octaneDefectGroup(
+                        name: 'major',
+                        types: 'Critical, Very High, High, Unspecified'),
+                    octaneDefectGroup(name: 'minor', types: 'Low, Medium')
+                  ],
+                  criteria:
+                      '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
+                          + 'AND (defects.major < 10% AND defects.minor < 20%)',
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
                   timeoutMinutesExtended: 0,

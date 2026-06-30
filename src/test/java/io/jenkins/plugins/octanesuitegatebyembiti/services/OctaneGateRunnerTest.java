@@ -7,12 +7,14 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import hudson.model.TaskListener;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPublisher;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
@@ -155,6 +157,37 @@ public class OctaneGateRunnerTest {
     assertTrue(log.toString(StandardCharsets.UTF_8).contains("Skipped final ALM Octane refresh"));
   }
 
+  @Test
+  public void defectCriteriaFetchesDefectsWithoutEnablingHeatMapReport() throws Exception {
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, Very High, High, Unspecified");
+    request.setDefectGroups(List.of(major));
+    request.setCriteria("defects.MAJOR == 100% AND defects.criticalCount == 1");
+
+    GateResult result =
+        runner.refreshPassedResult(
+            new DefectAwareOctaneClient(),
+            previousPassedResult(request),
+            request,
+            request.getSuiteRunIds(),
+            "1001",
+            "2001",
+            CriteriaExpression.parse(request.getCriteria()),
+            request.createStatusClassifier(),
+            taskListener(new ByteArrayOutputStream()),
+            new OctaneGateReportPublisher() {});
+
+    assertTrue(result.isPassed());
+    assertFalse(result.getRiskHeatMap().isEnabled());
+    assertEquals(1.0, result.getDefectMetrics().value("majorCount"), 0.000001);
+    assertEquals(100.0, result.getDefectMetrics().value("major"), 0.000001);
+  }
+
   private GateResult previousPassedResult(GateRequest request) {
     List<RunRecord> runs = List.of(new RunRecord("1", "one", "passed"));
     return new GateResult(
@@ -206,6 +239,32 @@ public class OctaneGateRunnerTest {
     public List<RunRecord> fetchSuiteChildRuns(
         String sharedSpaceId, String workspaceId, String suiteRunId) throws IOException {
       throw new IOException("Octane not ready");
+    }
+  }
+
+  private static class DefectAwareOctaneClient extends FakeOctaneClient {
+    private final List<DefectRecord> defects =
+        List.of(
+            new DefectRecord("d1", "Critical defect", "Critical", "", "opened", "1", "", "", ""));
+
+    DefectAwareOctaneClient() {
+      super(List.of(new RunRecord("1", "one", "passed")));
+    }
+
+    @Override
+    public List<DefectRecord> fetchLinkedDefects(
+        String sharedSpaceId,
+        String workspaceId,
+        Map<String, List<RunRecord>> suiteRuns,
+        String defectQuery,
+        int maxDefects) {
+      return defects;
+    }
+
+    @Override
+    public List<DefectRecord> fetchDefectsByIds(
+        String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
+      return defects;
     }
   }
 }

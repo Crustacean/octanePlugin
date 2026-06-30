@@ -4,26 +4,53 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class CriteriaExpression implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private final Node root;
+  private final Set<String> metricReferences;
 
-  private CriteriaExpression(Node root) {
+  private CriteriaExpression(Node root, Set<String> metricReferences) {
     this.root = root;
+    this.metricReferences = Set.copyOf(metricReferences);
   }
 
   public static CriteriaExpression parse(String expression) {
-    Parser parser = new Parser(tokenize(expression));
-    CriteriaExpression parsed = new CriteriaExpression(parser.parseExpression());
+    List<Token> tokens = tokenize(expression);
+    Parser parser = new Parser(tokens);
+    CriteriaExpression parsed =
+        new CriteriaExpression(parser.parseExpression(), metricReferences(tokens));
     parser.expect(TokenType.END);
     return parsed;
   }
 
   public boolean evaluate(MetricsContext context) {
     return root.evaluate(context);
+  }
+
+  public boolean usesMetricNamespace(String namespace) {
+    String prefix = Util.trimToEmpty(namespace).toLowerCase(Locale.ROOT) + ".";
+    if (metricReferences == null) {
+      return false;
+    }
+    return metricReferences.stream()
+        .map(reference -> reference.toLowerCase(Locale.ROOT))
+        .anyMatch(reference -> reference.startsWith(prefix));
+  }
+
+  private static Set<String> metricReferences(List<Token> tokens) {
+    Set<String> references = new LinkedHashSet<>();
+    for (Token token : tokens) {
+      if (token.type == TokenType.IDENTIFIER) {
+        references.add(token.text);
+      }
+    }
+    return references;
   }
 
   private static List<Token> tokenize(String expression) {

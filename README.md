@@ -19,8 +19,16 @@ octaneSuiteGate(
   sharedSpaceId: '1001',
   workspaceId: '2002',
   suiteRunId: '1196,1200,1204',
+  defectGroups: [
+    octaneDefectGroup(
+        name: 'major',
+        types: 'Critical, Very High, High, Unspecified'),
+    octaneDefectGroup(name: 'minor', types: 'Low, Medium')
+  ],
   criteria: '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
-      + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
+      + 'AND (critical.executionRate == 100 AND critical.passRate == 100) '
+      + 'AND (defects.major < 10% AND defects.minor < 20%) '
+      + 'AND (defects.Unspecified == 0%)',
   scopes: [
     octaneGateScope(name: 'critical', suiteRunId: '1204,1210')
   ],
@@ -30,6 +38,29 @@ octaneSuiteGate(
   markUnstable: false
 )
 ```
+
+### Defect criteria
+
+`defectGroups` gives a case-insensitive name to one or more open ALM Octane defect
+severities. Supported types are `Critical`, `Very High`, `High`, `Medium`, `Low`, and
+`Unspecified`. Group names and type values are case-insensitive, so `defects.MAJOR` and
+`defects.major` resolve to the same group. Individual severities are always available without
+creating a group; write `VeryHigh`, `very_high`, or `very-high` for the two-word severity.
+
+`defects.<name>` is the number of matching open defects divided by the total defects raised,
+multiplied by 100. Total defects raised is deduplicated by defect ID and includes both open and
+closed defects retained in the gate's defect ledger. Closing a defect therefore lowers its open
+severity rate without lowering the denominator. Append `Count` for a raw open defect count, such
+as `defects.majorCount < 3` or `defects.UnspecifiedCount == 0`.
+
+A severity can be included in a group and referenced individually. For example, if `major`
+contains `Unspecified`, one open unspecified defect contributes to both `defects.major` and
+`defects.Unspecified` when both expressions are present. These are independent views of the
+same defect data: the defect is not duplicated inside either metric or in report totals.
+
+Defect criteria trigger defect polling even when `riskHeatMap` is `false`. If current defect
+data cannot be fetched, the gate stops with a clear evaluation error rather than treating the
+missing data as zero.
 
 When `suiteRunId` contains multiple IDs, the plugin polls each suite run and combines their
 child runs into one regression metric set. A scope can also name suite run IDs. The plugin polls

@@ -16,6 +16,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
@@ -79,6 +80,15 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
   @DataBoundSetter
   public void setScopes(List<OctaneGateScope> scopes) {
     delegate.setScopes(scopes);
+  }
+
+  public List<OctaneDefectGroup> getDefectGroups() {
+    return Collections.unmodifiableList(new ArrayList<>(delegate.getDefectGroups()));
+  }
+
+  @DataBoundSetter
+  public void setDefectGroups(List<OctaneDefectGroup> defectGroups) {
+    delegate.setDefectGroups(defectGroups);
   }
 
   public int getPollIntervalSeconds() {

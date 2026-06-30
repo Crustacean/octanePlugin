@@ -18,6 +18,9 @@
   <f:entry title="Scopes">
     <f:repeatableProperty field="scopes" />
   </f:entry>
+  <f:entry title="Defect groups">
+    <f:repeatableProperty field="defectGroups" />
+  </f:entry>
   <f:advanced>
     <f:entry title="Poll interval seconds" field="pollIntervalSeconds">
       <f:number />

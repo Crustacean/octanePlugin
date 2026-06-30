@@ -14,6 +14,9 @@ import java.util.Set;
 public class OctaneDefectSeveritySummary implements Serializable {
   private static final long serialVersionUID = 1L;
 
+  private static final List<String> OPEN_TYPES =
+      List.of("critical", "veryHigh", "high", "medium", "low", "unspecified");
+
   private static final String EMPTY_COLOR = "#AEAFB1";
   private static final String CLOSED_COLOR = "#5A5B5B";
   private static final String ALL_CLOSED_COLOR = "#7BE5B3";
@@ -113,6 +116,49 @@ public class OctaneDefectSeveritySummary implements Serializable {
 
   public int getOpenTotal() {
     return critical + veryHigh + high + medium + low + unspecified;
+  }
+
+  public int getOpenCount(String defectType) {
+    switch (normalizeOpenType(defectType)) {
+      case "critical":
+        return critical;
+      case "veryhigh":
+        return veryHigh;
+      case "high":
+        return high;
+      case "medium":
+        return medium;
+      case "low":
+        return low;
+      case "unspecified":
+        return unspecified;
+      default:
+        throw new IllegalArgumentException("Unknown open defect type: " + defectType);
+    }
+  }
+
+  public static List<String> getOpenTypes() {
+    return OPEN_TYPES;
+  }
+
+  public static String normalizeOpenType(String value) {
+    String normalized =
+        Util.trimToEmpty(value)
+            .toLowerCase(Locale.ROOT)
+            .replace(" ", "")
+            .replace("_", "")
+            .replace("-", "");
+    switch (normalized) {
+      case "critical":
+      case "veryhigh":
+      case "high":
+      case "medium":
+      case "low":
+      case "unspecified":
+        return normalized;
+      default:
+        return "";
+    }
   }
 
   public int getTotal() {

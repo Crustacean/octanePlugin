@@ -21,6 +21,7 @@ public class GateRequest implements Serializable {
   private String workspaceId = "";
   private String criteria = DEFAULT_CRITERIA;
   private List<OctaneGateScope> scopes = new ArrayList<>();
+  private List<OctaneDefectGroup> defectGroups = new ArrayList<>();
   private int pollIntervalSeconds = DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = DEFAULT_TIMEOUT_MINUTES;
   private int timeoutMinutesExtended = DEFAULT_TIMEOUT_MINUTES_EXTENDED;
@@ -81,6 +82,14 @@ public class GateRequest implements Serializable {
 
   public void setScopes(List<OctaneGateScope> scopes) {
     this.scopes = scopes == null ? new ArrayList<>() : new ArrayList<>(scopes);
+  }
+
+  public List<OctaneDefectGroup> getDefectGroups() {
+    return defectGroups == null ? List.of() : Collections.unmodifiableList(defectGroups);
+  }
+
+  public void setDefectGroups(List<OctaneDefectGroup> defectGroups) {
+    this.defectGroups = defectGroups == null ? new ArrayList<>() : new ArrayList<>(defectGroups);
   }
 
   public int getPollIntervalSeconds() {

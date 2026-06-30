@@ -61,9 +61,24 @@ pipeline {
                   sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                   workspaceId: env.OCTANE_WORKSPACE_ID,
                   suiteRunId: suiteRunIds.join(','),
+                  // Defect rates are open matching defects / total defects raised. The total is
+                  // deduplicated by defect ID and includes defects closed during this gate session.
+                  // Group names and types are case-insensitive. Supported individual types are
+                  // Critical, VeryHigh, High, Medium, Low, and Unspecified. Append Count for a
+                  // raw count, for example defects.majorCount or defects.UnspecifiedCount.
+                  // A type can be used in a group and individually. It contributes independently
+                  // to both criteria, but is counted only once inside each metric.
+                  defectGroups: [
+                    octaneDefectGroup(
+                        name: 'major',
+                        types: 'Critical, Very High, High, Unspecified'),
+                    octaneDefectGroup(name: 'minor', types: 'Low, Medium')
+                  ],
                   criteria:
                       '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
-                          + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
+                          + 'AND (critical.executionRate == 100 AND critical.passRate == 100) '
+                          + 'AND (defects.major < 10% AND defects.minor < 20%) '
+                          + 'AND (defects.Unspecified == 0%)',
                   scopes: [
                     octaneGateScope(
                         name: 'critical',

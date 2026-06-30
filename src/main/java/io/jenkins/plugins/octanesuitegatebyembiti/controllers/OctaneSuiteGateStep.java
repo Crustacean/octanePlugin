@@ -12,6 +12,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfigu
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaException;
@@ -42,6 +43,7 @@ public class OctaneSuiteGateStep extends Step {
   private String workspaceId = "";
   private String criteria = GateRequest.DEFAULT_CRITERIA;
   private List<OctaneGateScope> scopes = new ArrayList<>();
+  private List<OctaneDefectGroup> defectGroups = new ArrayList<>();
   private int pollIntervalSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = GateRequest.DEFAULT_TIMEOUT_MINUTES;
   private int timeoutMinutesExtended = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED;
@@ -103,6 +105,15 @@ public class OctaneSuiteGateStep extends Step {
   @DataBoundSetter
   public void setScopes(List<OctaneGateScope> scopes) {
     this.scopes = scopes == null ? new ArrayList<>() : new ArrayList<>(scopes);
+  }
+
+  public List<OctaneDefectGroup> getDefectGroups() {
+    return defectGroups == null ? List.of() : Collections.unmodifiableList(defectGroups);
+  }
+
+  @DataBoundSetter
+  public void setDefectGroups(List<OctaneDefectGroup> defectGroups) {
+    this.defectGroups = defectGroups == null ? new ArrayList<>() : new ArrayList<>(defectGroups);
   }
 
   public int getPollIntervalSeconds() {
@@ -217,6 +228,7 @@ public class OctaneSuiteGateStep extends Step {
     request.setWorkspaceId(workspaceId);
     request.setCriteria(criteria);
     request.setScopes(scopes);
+    request.setDefectGroups(getDefectGroups());
     request.setPollIntervalSeconds(pollIntervalSeconds);
     request.setTimeoutMinutes(timeoutMinutes);
     request.setTimeoutMinutesExtended(timeoutMinutesExtended);

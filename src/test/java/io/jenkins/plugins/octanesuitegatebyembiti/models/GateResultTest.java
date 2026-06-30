@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.time.Instant;
 import java.util.List;
@@ -156,5 +157,40 @@ public class GateResultTest {
 
     assertEquals(List.of("450303", "450204"), scope.getSuiteRunIds());
     assertTrue(scope.isSuiteRunScope());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void exposesGroupedDefectRatesAndCountsInPipelineMap() {
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, High");
+    DefectCriteriaMetrics defectMetrics =
+        new DefectCriteriaMetrics(
+            OctaneDefectSeveritySummary.fromDefects(
+                List.of(
+                    new DefectRecord("d1", "Critical", "Critical", "", "opened", "1", "", "", ""),
+                    new DefectRecord("d2", "Closed low", "Low", "", "closed", "1", "", "", ""))),
+            List.of(major));
+    GateResult result =
+        new GateResult(
+            "1196",
+            "defects.major < 20%",
+            true,
+            true,
+            new GateMetrics(10, 10, 10, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            defectMetrics,
+            Instant.parse("2026-05-13T00:00:00Z"));
+
+    Map<String, Object> defects = (Map<String, Object>) result.toPipelineMap().get("defects");
+    Map<String, Object> groups = (Map<String, Object>) defects.get("groups");
+    Map<String, Object> majorMetrics = (Map<String, Object>) groups.get("major");
+    assertEquals(2, defects.get("totalDefectsRaised"));
+    assertEquals(1, defects.get("closedCount"));
+    assertEquals(1, majorMetrics.get("count"));
+    assertEquals(50.0, majorMetrics.get("rate"));
   }
 }

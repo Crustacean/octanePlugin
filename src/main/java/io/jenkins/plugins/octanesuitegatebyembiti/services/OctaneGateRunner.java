@@ -12,12 +12,15 @@ import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPublisher;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectLedger;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
@@ -298,13 +301,9 @@ public class OctaneGateRunner {
       scopedResults.put(scope.getName(), scopeResult);
     }
 
-    MetricsContext metricsContext = new MetricsContext(regressionMetrics, scopedMetrics);
-    boolean passed = criteria.evaluate(metricsContext);
-    boolean terminal =
-        regressionMetrics.isTerminal()
-            && scopedMetrics.values().stream().allMatch(GateMetrics::isTerminal);
-    OctaneRiskHeatMap riskHeatMap =
-        buildRiskHeatMap(
+    boolean defectCriteriaRequired = criteria.usesMetricNamespace("defects");
+    DefectPollResult defectPollResult =
+        pollDefects(
             client,
             request,
             sharedSpaceId,
@@ -312,7 +311,16 @@ public class OctaneGateRunner {
             heatMapSuiteRuns(suiteRuns, scopedResults),
             classifier,
             listener,
-            defectLedger);
+            defectLedger,
+            defectCriteriaRequired);
+    DefectCriteriaMetrics defectMetrics =
+        new DefectCriteriaMetrics(defectPollResult.severitySummary, request.getDefectGroups());
+    MetricsContext metricsContext =
+        new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
+    boolean passed = criteria.evaluate(metricsContext);
+    boolean terminal =
+        regressionMetrics.isTerminal()
+            && scopedMetrics.values().stream().allMatch(GateMetrics::isTerminal);
     return new GateResult(
         String.join(",", suiteRunIds),
         request.getCriteria(),
@@ -322,7 +330,8 @@ public class OctaneGateRunner {
         childRuns,
         suiteRuns,
         scopedResults,
-        riskHeatMap,
+        defectPollResult.reportHeatMap,
+        defectMetrics,
         clock.instant());
   }
 
@@ -341,7 +350,7 @@ public class OctaneGateRunner {
     return values;
   }
 
-  private OctaneRiskHeatMap buildRiskHeatMap(
+  private DefectPollResult pollDefects(
       OctaneClient client,
       GateRequest request,
       String sharedSpaceId,
@@ -349,10 +358,11 @@ public class OctaneGateRunner {
       Map<String, List<RunRecord>> suiteRuns,
       StatusClassifier classifier,
       TaskListener listener,
-      OctaneDefectLedger defectLedger)
-      throws InterruptedException {
-    if (!request.isRiskHeatMap()) {
-      return OctaneRiskHeatMap.disabled();
+      OctaneDefectLedger defectLedger,
+      boolean defectCriteriaRequired)
+      throws IOException, InterruptedException {
+    if (!request.isRiskHeatMap() && !defectCriteriaRequired) {
+      return DefectPollResult.empty();
     }
     try {
       List<DefectRecord> defects =
@@ -364,17 +374,36 @@ public class OctaneGateRunner {
               request.getRiskHeatMapMaxDefects());
       defectLedger.merge(defects);
       refreshKnownDefects(
-          client, sharedSpaceId, workspaceId, request.getRiskHeatMapMaxDefects(), defectLedger);
+          client,
+          sharedSpaceId,
+          workspaceId,
+          request.getRiskHeatMapMaxDefects(),
+          defectLedger,
+          defectCriteriaRequired);
       OctaneRiskHeatMap heatMap =
           new OctaneRiskHeatMapBuilder()
               .build(workspaceId, suiteRuns, defectLedger.getDefects(), classifier);
-      logRiskHeatMapSummary(listener, heatMap);
-      return heatMap;
+      if (request.isRiskHeatMap()) {
+        logRiskHeatMapSummary(listener, heatMap);
+      }
+      return new DefectPollResult(
+          request.isRiskHeatMap() ? heatMap : OctaneRiskHeatMap.disabled(),
+          heatMap.getDefectSeveritySummary());
     } catch (IOException e) {
+      if (defectCriteriaRequired) {
+        listener
+            .getLogger()
+            .println(
+                "Octane defect criteria data unavailable: " + Util.trimToEmpty(e.getMessage()));
+        throw new AbortException(
+            "Defect criteria could not be evaluated because current ALM Octane defect data is unavailable.");
+      }
       listener
           .getLogger()
           .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
-      return OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage());
+      return new DefectPollResult(
+          OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage()),
+          OctaneDefectSeveritySummary.empty());
     }
   }
 
@@ -383,8 +412,9 @@ public class OctaneGateRunner {
       String sharedSpaceId,
       String workspaceId,
       int maxDefects,
-      OctaneDefectLedger defectLedger)
-      throws InterruptedException {
+      OctaneDefectLedger defectLedger,
+      boolean defectCriteriaRequired)
+      throws IOException, InterruptedException {
     if (defectLedger.isEmpty()) {
       return;
     }
@@ -393,6 +423,9 @@ public class OctaneGateRunner {
           client.fetchDefectsByIds(
               sharedSpaceId, workspaceId, defectLedger.getDefectIds(), maxDefects));
     } catch (IOException e) {
+      if (defectCriteriaRequired) {
+        throw e;
+      }
       // Keep the last known defect states rather than making the whole report unavailable.
     }
   }
@@ -545,6 +578,25 @@ public class OctaneGateRunner {
     for (OctaneGateScope scope : request.getScopes()) {
       validateScope(scope);
     }
+    validateDefectGroups(request.getDefectGroups());
+  }
+
+  private void validateDefectGroups(List<OctaneDefectGroup> defectGroups) throws AbortException {
+    Set<String> names = new LinkedHashSet<>();
+    for (OctaneDefectGroup group : defectGroups) {
+      if (group == null) {
+        throw new AbortException("Defect group configuration cannot be empty.");
+      }
+      String validationError = group.getValidationError();
+      if (!validationError.isEmpty()) {
+        throw new AbortException(validationError);
+      }
+      String normalizedName = OctaneDefectGroup.normalizeName(group.getName());
+      if (!names.add(normalizedName)) {
+        throw new AbortException(
+            "Defect group names must be unique regardless of letter case: " + group.getName());
+      }
+    }
   }
 
   private void validateScope(OctaneGateScope scope) throws AbortException {
@@ -604,5 +656,21 @@ public class OctaneGateRunner {
       throw new AbortException(label + " must be numeric.");
     }
     return chosen;
+  }
+
+  private static class DefectPollResult {
+    private final OctaneRiskHeatMap reportHeatMap;
+    private final OctaneDefectSeveritySummary severitySummary;
+
+    private DefectPollResult(
+        OctaneRiskHeatMap reportHeatMap, OctaneDefectSeveritySummary severitySummary) {
+      this.reportHeatMap = reportHeatMap;
+      this.severitySummary = severitySummary;
+    }
+
+    private static DefectPollResult empty() {
+      return new DefectPollResult(
+          OctaneRiskHeatMap.disabled(), OctaneDefectSeveritySummary.empty());
+    }
   }
 }

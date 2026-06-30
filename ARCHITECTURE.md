@@ -61,7 +61,8 @@ flowchart LR
     Request["GateRequest"]
     Client["OctaneClient"]
     Metrics["GateMetrics\nregressions + scopes"]
-    Criteria["CriteriaExpression\nregressions.* / critical.*"]
+    Criteria["CriteriaExpression\nregressions.* / critical.* / defects.*"]
+    DefectMetrics["DefectCriteriaMetrics\ngroups + individual severities"]
     RiskMap["Risk heat map model\noptional defect rollup"]
     Snapshot["Report snapshot\nupdated every poll"]
     SnapshotEndpoint["Snapshot endpoint\nHTML + JSON"]
@@ -82,13 +83,14 @@ flowchart LR
   Client -->|"API key sign-in"| Auth
   Client -->|"pollIntervalSeconds loop\nfetch suite child runs"| SuiteRuns
   SuiteRuns --> ChildRuns
-  Client -->|"when riskHeatMap is enabled\nfetch linked defects"| Defects
+  Client -->|"when riskHeatMap is enabled\nor criteria uses defects.*"| Defects
   ChildRuns -->|"JSON statuses"| Client
   Defects -->|"defect severity / priority"| Client
   Client --> Runner
   Runner -->|"dedupe + classify statuses"| Metrics
   Metrics --> Criteria
   Metrics --> RiskMap
+  Defects --> DefectMetrics --> Criteria
   RiskMap --> Snapshot
   Criteria -->|"pass / fail / wait"| Runner
   Runner -->|"publish latest snapshot"| Snapshot
@@ -257,8 +259,10 @@ step itself fails according to `onFailure`.
 8. The runner polls until the gate passes, fails, or times out.
 9. Each poll fetches suite child runs, computes metrics, and updates the report snapshot.
 10. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
-11. When `riskHeatMap` is enabled, linked defects are fetched and rolled into the risk map.
-12. `CriteriaExpression` evaluates the criteria against regression and scoped metrics.
+11. When `riskHeatMap` is enabled or criteria reference `defects.*`, linked defects are fetched
+    and refreshed from the per-build defect ledger.
+12. The runner computes case-insensitive grouped and individual open-defect rates before
+    `CriteriaExpression` evaluates regression, scoped, and defect metrics together.
 13. Before the step exits, the runner publishes a final snapshot so the dashboard reflects
     the latest pass/fail/timeout state without waiting for another poll interval.
 14. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
@@ -342,8 +346,8 @@ Status Check card to the heat-map face if `riskHeatMap` is enabled.
 - heat-map face: project risk sunburst built from suite runs, run-by users,
   test cases, and linked defects.
 
-The heat map is visual-only. It does not change criteria evaluation, pass/fail
-behavior, or `markUnstable`.
+The heat-map risk score and visualization are visual-only. Open-defect severity data changes
+gate behavior only when the Jenkins criteria explicitly reference the `defects.*` namespace.
 
 Heat map hierarchy:
 
@@ -625,6 +629,9 @@ The criteria parser supports:
 - `==`, `!=`, `>`, `>=`, `<`, `<=`
 - regression metrics, such as `regressions.passRate >= 95`
 - scoped metrics, such as `critical.passRate == 100`
+- grouped open-defect rates, such as `defects.major < 10%`
+- individual open-defect rates, such as `defects.Unspecified == 0%`
+- raw open-defect counts using `Count`, such as `defects.majorCount < 3`
 - shorthand thresholds, such as `100% execution` and `95% pass`
 
 Default criteria:
@@ -643,6 +650,14 @@ Octane data against the configured criteria.
 Unqualified regression metrics and shorthand expressions remain supported for
 backward compatibility, but new Jenkinsfiles should prefer `regressions.executionRate`
 and `regressions.passRate` for readability.
+
+Defect groups are configured with `octaneDefectGroup`. Names and severity values are
+case-insensitive. A defect metric without `Count` is calculated as matching open defects divided
+by total defects raised, multiplied by 100. Total defects raised is deduplicated by defect ID and
+includes open and closed defects retained by the per-build ledger, so resolving a defect reduces
+the open severity numerator but not the denominator. Group membership and individual severity
+references are independent views: a defect may contribute to both `defects.major` and
+`defects.Unspecified`, but it is not duplicated within either metric.
 
 ## Terminal, Timeout, And Build Result Behavior
 
@@ -790,6 +805,8 @@ containing API secrets are not logged.
 | `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
 | `repositories.OctaneClient` | Low-level authenticated Octane REST client. |
 | `models.GateMetrics` | Regression or scoped computed run metrics. |
+| `models.DefectCriteriaMetrics` | Case-insensitive grouped/individual open-defect rates and counts. |
+| `models.OctaneDefectGroup` | Pipeline/Freestyle definition of a named defect severity group. |
 | `models.GateScopeResult` | Scoped suite/query source, matched run statuses, and scoped metrics. |
 | `models.MetricsContext` | Resolves regression and scoped metrics during criteria evaluation. |
 | `services.CriteriaExpression` | Safe criteria parser and evaluator. |
