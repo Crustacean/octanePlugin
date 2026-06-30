@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneExecutionStatusDistributionRenderer;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneRiskHeatMapRenderer;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneTestMetricsRenderer;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 public class OctaneGateReportSnapshot implements Serializable {
@@ -344,6 +346,15 @@ public class OctaneGateReportSnapshot implements Serializable {
     return new OctaneTestMetricsRenderer().render(testMetrics);
   }
 
+  public OctaneExecutionStatusDistribution getExecutionStatusDistribution() {
+    return OctaneExecutionStatusDistribution.fromStatusCounts(
+        projectProgressCounts().toStatusCounts());
+  }
+
+  public String getExecutionStatusDistributionHtml() {
+    return new OctaneExecutionStatusDistributionRenderer().render(getExecutionStatusDistribution());
+  }
+
   public List<OctaneGateReportSection> getReportSections() {
     return sections.stream().filter(section -> !section.isNoRuns()).toList();
   }
@@ -493,11 +504,17 @@ public class OctaneGateReportSnapshot implements Serializable {
     private int total;
     private int executed;
     private int passed;
+    private final Map<OctaneGateStatusBucket, Integer> statusCounts =
+        OctaneGateSuiteRunChart.emptyCounts();
 
     private void add(GateMetrics metrics) {
       total += metrics.getTotal();
       executed += metrics.getExecuted();
       passed += metrics.getPassed();
+      addStatusCount(OctaneGateStatusBucket.PASSED, metrics.getPassed());
+      addStatusCount(OctaneGateStatusBucket.FAILED, metrics.getFailed());
+      addStatusCount(OctaneGateStatusBucket.SKIPPED, metrics.getSkipped());
+      addStatusCount(OctaneGateStatusBucket.RUNNING, metrics.getRunning());
     }
 
     private void add(OctaneGateSuiteRunChart suiteRun) {
@@ -509,7 +526,16 @@ public class OctaneGateReportSnapshot implements Serializable {
         if (status.getBucket() == OctaneGateStatusBucket.PASSED) {
           passed += status.getCount();
         }
+        addStatusCount(status.getBucket(), status.getCount());
       }
+    }
+
+    private void addStatusCount(OctaneGateStatusBucket bucket, int count) {
+      statusCounts.put(bucket, statusCounts.get(bucket) + count);
+    }
+
+    private List<OctaneGateStatusCount> toStatusCounts() {
+      return OctaneGateSuiteRunChart.toStatusCounts(statusCounts, total);
     }
   }
 }

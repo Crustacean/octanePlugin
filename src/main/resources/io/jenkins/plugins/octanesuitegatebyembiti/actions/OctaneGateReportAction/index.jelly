@@ -350,11 +350,17 @@
         .octane-icon-timer {
           display: none;
         }
+        .octane-chart-card[data-active-view="breakdown"] .octane-icon-breakdown {
+          display: none;
+        }
         .octane-chart-card[data-active-view="heatmap"] .octane-icon-heatmap {
           display: none;
         }
         .octane-chart-card[data-active-view="metrics"] .octane-icon-metrics {
           display: none;
+        }
+        .octane-chart-card[data-active-view="breakdown"] .octane-icon-timer {
+          display: block;
         }
         .octane-chart-card[data-active-view="heatmap"] .octane-icon-timer {
           display: block;
@@ -363,7 +369,8 @@
           display: block;
         }
         .octane-chart-card[data-card-key="timer-timeout"],
-        .octane-chart-card[data-card-key="timer-poll"] {
+        .octane-chart-card[data-card-key="timer-poll"],
+        .octane-chart-card[data-card-key="progress-execution"] {
           display: flex;
           flex-direction: column;
           position: relative;
@@ -376,7 +383,8 @@
           min-height: 0;
         }
         .octane-chart-card[data-card-key="timer-timeout"] > .octane-card-actions,
-        .octane-chart-card[data-card-key="timer-poll"] > .octane-card-actions {
+        .octane-chart-card[data-card-key="timer-poll"] > .octane-card-actions,
+        .octane-chart-card[data-card-key="progress-execution"] > .octane-card-actions {
           position: absolute;
           right: 1rem;
           top: 1rem;
@@ -408,7 +416,8 @@
         }
         .octane-chart-card[data-active-view="timer"] .octane-flip-face-timer,
         .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap,
-        .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics {
+        .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics,
+        .octane-chart-card[data-active-view="breakdown"] .octane-flip-face-breakdown {
           opacity: 1;
           pointer-events: auto;
           transform: translateY(0);
@@ -442,6 +451,153 @@
           .octane-flip-face-body {
           align-items: stretch;
           justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-execution"][data-active-view="breakdown"]
+          .octane-flip-face-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .octane-execution-breakdown {
+          align-items: center;
+          box-sizing: border-box;
+          container-type: size;
+          display: flex;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          overflow: hidden;
+          padding: clamp(0.2rem, min(1cqh, 1cqw), 0.6rem);
+          width: 100%;
+        }
+        .octane-execution-breakdown-content {
+          --octane-execution-height-width: 132cqh;
+          align-items: center;
+          container-type: inline-size;
+          display: grid;
+          gap: clamp(0.35rem, min(1.4cqh, 1.2cqw), 0.9rem);
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: auto auto;
+          justify-items: center;
+          max-height: 100%;
+          max-width: 100%;
+          width: min(92cqw, var(--octane-execution-height-width), 80rem);
+        }
+        .octane-execution-breakdown-content[data-status-count="1"] {
+          --octane-execution-height-width: 172cqh;
+        }
+        .octane-execution-breakdown-content[data-status-count="2"] {
+          --octane-execution-height-width: 160cqh;
+        }
+        .octane-execution-breakdown-content[data-status-count="3"] {
+          --octane-execution-height-width: 150cqh;
+        }
+        .octane-execution-breakdown-content[data-status-count="4"] {
+          --octane-execution-height-width: 141cqh;
+        }
+        .octane-execution-half-pie-wrap {
+          align-items: center;
+          display: flex;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-execution-half-pie {
+          aspect-ratio: 2 / 1;
+          display: block;
+          height: auto;
+          max-height: 100%;
+          max-width: 100%;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: 100%;
+        }
+        .octane-chart-card[data-card-key="progress-execution"].octane-expanded
+          .octane-card-title,
+        .octane-timer-zone.octane-zone-focused
+          .octane-chart-card[data-card-key="progress-execution"]
+          .octane-card-title {
+          font-size: clamp(1rem, 2cqw, 1.5rem);
+        }
+        .octane-chart-card[data-card-key="progress-execution"].octane-expanded
+          .octane-muted,
+        .octane-timer-zone.octane-zone-focused
+          .octane-chart-card[data-card-key="progress-execution"]
+          .octane-muted {
+          font-size: clamp(0.76rem, 1.35cqw, 1.05rem);
+        }
+        .octane-execution-half-pie-segment {
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 24;
+        }
+        .octane-execution-half-pie-total {
+          fill: var(--text-color);
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 2.25rem;
+          font-weight: 700;
+          text-anchor: middle;
+        }
+        .octane-execution-half-pie-label {
+          fill: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 0.92rem;
+          font-weight: 500;
+          text-anchor: middle;
+        }
+        .octane-execution-breakdown-list {
+          box-sizing: border-box;
+          display: grid;
+          gap: clamp(0.18rem, 0.72cqw, 0.55rem);
+          max-width: 100%;
+          min-width: 0;
+          padding-inline: clamp(0.35rem, 4cqw, 3rem);
+          width: 100%;
+        }
+        .octane-execution-breakdown-row {
+          align-items: center;
+          color: var(--text-color);
+          display: grid;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.7rem, 1.8cqw, 1.3rem);
+          font-weight: 600;
+          gap: clamp(0.4rem, 1cqw, 0.75rem);
+          grid-template-columns: clamp(0.55rem, 1.15cqw, 0.9rem) minmax(0, 1fr) max-content;
+          line-height: 1.2;
+          min-width: 0;
+        }
+        .octane-execution-breakdown-swatch {
+          border-radius: 50%;
+          display: inline-block;
+          height: clamp(0.55rem, 1.15cqw, 0.9rem);
+          width: clamp(0.55rem, 1.15cqw, 0.9rem);
+        }
+        .octane-execution-breakdown-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-execution-breakdown-metric {
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+        .octane-execution-breakdown-pipe {
+          color: var(--text-color-secondary);
+          padding: 0 0.16rem;
+        }
+        .octane-execution-breakdown-empty {
+          align-items: center;
+          border: 1px dashed var(--input-border);
+          border-radius: 8px;
+          color: var(--text-color-secondary);
+          display: flex;
+          height: 100%;
+          justify-content: center;
+          padding: 1rem;
+          text-align: center;
+          width: 100%;
         }
         .octane-heatmap-subtitle-row {
           align-items: center;
@@ -1628,78 +1784,162 @@
             <section class="octane-chart-card octane-timer-card" draggable="true"
                 data-card-key="progress-execution"
                 data-octane-progress="execution"
-                data-progress-value="${snapshot.executionProgress}">
-              <div class="octane-card-header">
-                <div>
-                  <h2 class="octane-card-title">Execution Progress</h2>
-                  <div class="octane-muted">All Testcase execution</div>
-                </div>
-                <div class="octane-card-actions">
-                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
-                      aria-expanded="false" title="Expand widget">
-                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M8 4H4v4" />
-                      <path d="M16 4h4v4" />
-                      <path d="M20 16v4h-4" />
-                      <path d="M8 20H4v-4" />
-                    </svg>
-                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M9 3v6H3" />
-                      <path d="M3 9l6-6" />
-                      <path d="M15 21v-6h6" />
-                      <path d="M21 15l-6 6" />
-                    </svg>
-                  </button>
-                  <button class="octane-card-tools" type="button"
-                      aria-label="Move widget"
-                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
-                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
-                        focusable="false">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </button>
-                </div>
+                data-progress-value="${snapshot.executionProgress}"
+                data-active-view="timer">
+              <div class="octane-card-actions">
+                <button class="octane-view-toggle" type="button"
+                    data-target-view="breakdown" data-target-view-label="status breakdown"
+                    aria-label="Show status breakdown" title="Show status breakdown">
+                  <svg class="octane-action-icon octane-icon-breakdown" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M5 17a7 7 0 0 1 14 0" />
+                    <path d="M8 17a4 4 0 0 1 8 0" />
+                    <path d="M12 17v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l3 2" />
+                    <path d="M9 2h6" />
+                  </svg>
+                </button>
+                <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                    aria-expanded="false" title="Expand widget">
+                  <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M8 4H4v4" />
+                    <path d="M16 4h4v4" />
+                    <path d="M20 16v4h-4" />
+                    <path d="M8 20H4v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M9 3v6H3" />
+                    <path d="M3 9l6-6" />
+                    <path d="M15 21v-6h6" />
+                    <path d="M21 15l-6 6" />
+                  </svg>
+                </button>
+                <button class="octane-card-tools" type="button"
+                    aria-label="Move widget"
+                    title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                  <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                      focusable="false">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
+                </button>
               </div>
-              <div class="octane-timer-wrap">
-                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                    aria-label="Execution Progress">
-                  <defs>
-                    <linearGradient id="octane-execution-progress-gradient" x1="32" y1="208"
-                        x2="208" y2="32" gradientUnits="userSpaceOnUse">
-                      <stop data-execution-gradient-stop="true" offset="0%"
-                          stop-color="#fb4b4b" />
-                      <stop data-execution-gradient-stop="true" offset="50%"
-                          stop-color="#e14343" />
-                      <stop data-execution-gradient-stop="true" offset="100%"
-                          stop-color="#e14343" />
-                    </linearGradient>
-                  </defs>
-                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                  <circle class="octane-timer-progress-halo" data-execution-progress-halo="true"
-                      data-progress-halo="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-execution-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-progress" data-execution-progress-circle="true"
-                      data-progress-circle="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-execution-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-head" data-execution-progress-head="true"
-                      data-progress-head="true"
-                      cx="120" cy="36" r="9.6" fill="#e14343" />
-                  <text class="octane-timer-value" data-execution-progress-value="true"
-                      data-progress-value-text="true" x="120" y="118">
-                    ${snapshot.executionProgressText}
-                  </text>
-                  <text class="octane-timer-unit" x="120" y="132.4">
-                    execution
-                  </text>
-                </svg>
+              <div class="octane-flip-viewport">
+                <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Execution Progress</h2>
+                      <div class="octane-muted">All Testcase execution</div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-timer-wrap">
+                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                          aria-label="Execution Progress">
+                        <defs>
+                          <linearGradient id="octane-execution-progress-gradient" x1="32" y1="208"
+                              x2="208" y2="32" gradientUnits="userSpaceOnUse">
+                            <stop data-execution-gradient-stop="true" offset="0%"
+                                stop-color="#fb4b4b" />
+                            <stop data-execution-gradient-stop="true" offset="50%"
+                                stop-color="#e14343" />
+                            <stop data-execution-gradient-stop="true" offset="100%"
+                                stop-color="#e14343" />
+                          </linearGradient>
+                        </defs>
+                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                        <circle class="octane-timer-progress-halo"
+                            data-execution-progress-halo="true" data-progress-halo="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-execution-progress-gradient)"
+                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-progress"
+                            data-execution-progress-circle="true" data-progress-circle="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-execution-progress-gradient)"
+                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
+                        <circle class="octane-timer-head" data-execution-progress-head="true"
+                            data-progress-head="true" cx="120" cy="36" r="9.6"
+                            fill="#e14343" />
+                        <text class="octane-timer-value" data-execution-progress-value="true"
+                            data-progress-value-text="true" x="120" y="118">
+                          ${snapshot.executionProgressText}
+                        </text>
+                        <text class="octane-timer-unit" x="120" y="132.4">
+                          execution
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="octane-flip-face octane-flip-face-breakdown"
+                    data-card-view="breakdown">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Execution Progress</h2>
+                      <div class="octane-muted">All Testcase Status</div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body" data-execution-breakdown-panel="true">
+                    <div class="octane-execution-breakdown">
+                      <j:choose>
+                        <j:when test="${snapshot.executionStatusDistribution.total == 0}">
+                          <div class="octane-execution-breakdown-empty">
+                            Execution status distribution will appear after Octane returns test runs.
+                          </div>
+                        </j:when>
+                        <j:otherwise>
+                          <div class="octane-execution-breakdown-content"
+                              data-status-count="${snapshot.executionStatusDistribution.statusCount}">
+                            <div class="octane-execution-half-pie-wrap">
+                              <svg class="octane-execution-half-pie" viewBox="0 36 320 160"
+                                  preserveAspectRatio="xMidYMid meet" role="img"
+                                  aria-label="Execution status distribution">
+                              <j:forEach var="segment"
+                                  items="${snapshot.executionStatusDistribution.segments}">
+                                <path class="octane-execution-half-pie-segment"
+                                    d="${segment.path}" stroke="${segment.color}">
+                                  <title>${segment.title}</title>
+                                </path>
+                              </j:forEach>
+                              <text class="octane-execution-half-pie-total" x="160" y="146">
+                                ${snapshot.executionStatusDistribution.total}
+                              </text>
+                              <text class="octane-execution-half-pie-label" x="160" y="172">
+                                Testcases
+                              </text>
+                              </svg>
+                            </div>
+                            <div class="octane-execution-breakdown-list">
+                              <j:forEach var="segment"
+                                  items="${snapshot.executionStatusDistribution.segments}">
+                                <div class="octane-execution-breakdown-row">
+                                  <span class="octane-execution-breakdown-swatch"
+                                      style="background:${segment.color};"></span>
+                                  <span class="octane-execution-breakdown-label">
+                                    ${segment.label}
+                                  </span>
+                                  <span class="octane-execution-breakdown-metric">
+                                    ${segment.count}
+                                    <span class="octane-execution-breakdown-pipe">|</span>
+                                    ${segment.percentageLabel}
+                                  </span>
+                                </div>
+                              </j:forEach>
+                            </div>
+                          </div>
+                        </j:otherwise>
+                      </j:choose>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -2307,6 +2547,15 @@
               panel.innerHTML = payload.testMetricsHtml;
             }
           }
+          function updateExecutionStatusDistribution(payload) {
+            if (!payload || typeof payload.executionStatusDistributionHtml !== "string") {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-execution-breakdown-panel]");
+            if (panel) {
+              panel.innerHTML = payload.executionStatusDistributionHtml;
+            }
+          }
           function currentReportPayload() {
             var executionProgressCard =
                 dashboard.querySelector('[data-octane-progress="execution"]');
@@ -2364,6 +2613,19 @@
             if ((payload && payload.building !== true)
                 || completionReached(payload)) {
               setCardView(card, "metrics");
+            }
+          }
+          function autoShowExecutionBreakdownOnCompletion(payload) {
+            var card = dashboard.querySelector('[data-card-key="progress-execution"]');
+            if (!card || !card.querySelector(".octane-view-toggle")) {
+              return;
+            }
+            if (activeCardView(card) === "breakdown") {
+              return;
+            }
+            if ((payload && payload.building !== true)
+                || completionReached(payload)) {
+              setCardView(card, "breakdown");
             }
           }
           function zoneKeyFor(zone) {
@@ -2440,6 +2702,7 @@
           initializeCardViews(dashboard);
           autoShowHeatMapOnCompletion(currentReportPayload());
           autoShowTestMetricsOnCompletion(currentReportPayload());
+          autoShowExecutionBreakdownOnCompletion(currentReportPayload());
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
@@ -2710,8 +2973,10 @@
             }
             updateRiskHeatMap(payload);
             updateTestMetrics(payload);
+            updateExecutionStatusDistribution(payload);
             autoShowHeatMapOnCompletion(payload);
             autoShowTestMetricsOnCompletion(payload);
+            autoShowExecutionBreakdownOnCompletion(payload);
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
@@ -2827,8 +3092,10 @@
             }).then(function (payload) {
               updateRiskHeatMap(payload);
               updateTestMetrics(payload);
+              updateExecutionStatusDistribution(payload);
               autoShowHeatMapOnCompletion(payload);
               autoShowTestMetricsOnCompletion(payload);
+              autoShowExecutionBreakdownOnCompletion(payload);
             }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
             });

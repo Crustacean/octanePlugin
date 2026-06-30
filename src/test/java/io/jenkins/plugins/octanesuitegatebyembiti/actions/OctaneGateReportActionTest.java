@@ -70,6 +70,8 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Testing Session Timer"));
     assertTrue(text.contains("Execution Progress"));
     assertTrue(text.contains("All Testcase execution"));
+    assertTrue(text.contains("All Testcase Status"));
+    assertTrue(text.contains("Testcases"));
     assertTrue(text.contains("Execution Pass Rate"));
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
     assertTrue(text.contains("Total: 2"));
@@ -164,6 +166,28 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-target-view=\"metrics\""));
     assertTrue(xml.contains("data-target-view-label=\"test metrics\""));
     assertTrue(xml.contains("octane-icon-metrics"));
+    assertTrue(xml.contains("data-target-view=\"breakdown\""));
+    assertTrue(xml.contains("data-target-view-label=\"status breakdown\""));
+    assertTrue(xml.contains("octane-icon-breakdown"));
+    assertTrue(xml.contains("octane-flip-face-breakdown"));
+    assertTrue(xml.contains("data-execution-breakdown-panel=\"true\""));
+    assertTrue(xml.contains("octane-execution-breakdown-content"));
+    assertTrue(xml.contains("data-status-count=\"2\""));
+    assertTrue(xml.contains("octane-execution-half-pie"));
+    assertTrue(xml.contains("octane-execution-half-pie-segment"));
+    assertTrue(
+        xml.contains("viewBox=\"0 36 320 160\"") || xml.contains("viewbox=\"0 36 320 160\""));
+    assertTrue(
+        xml.contains("preserveAspectRatio=\"xMidYMid meet\"")
+            || xml.contains("preserveaspectratio=\"xMidYMid meet\""));
+    assertTrue(xml.contains("octane-execution-half-pie-total\" x=\"160\" y=\"146\""));
+    assertTrue(xml.contains("octane-execution-half-pie-label\" x=\"160\" y=\"172\""));
+    assertTrue(xml.contains("stroke-width: 24"));
+    assertTrue(xml.contains("width: min(92cqw, var(--octane-execution-height-width), 80rem)"));
+    assertTrue(xml.contains("--octane-execution-height-width: 172cqh"));
+    assertTrue(xml.contains("--octane-execution-height-width: 132cqh"));
+    assertTrue(xml.contains("font-size: clamp(0.7rem, 1.8cqw, 1.3rem)"));
+    assertTrue(xml.contains("font-size: clamp(1rem, 2cqw, 1.5rem)"));
     assertTrue(xml.contains("octane-flip-face-metrics"));
     assertTrue(xml.contains("data-test-metrics-panel=\"true\""));
     assertTrue(xml.contains("octane-test-metrics-grid"));
@@ -409,15 +433,21 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("findCardByKey"));
     assertTrue(xml.contains("function autoShowHeatMapOnCompletion"));
     assertTrue(xml.contains("function autoShowTestMetricsOnCompletion"));
+    assertTrue(xml.contains("function autoShowExecutionBreakdownOnCompletion"));
     assertTrue(xml.contains("function completionReached"));
     assertTrue(xml.contains("function manualExitRequested"));
     assertTrue(xml.contains("payload.manualExitRequested === true"));
     assertTrue(xml.contains("data-manual-exit-requested"));
     assertTrue(xml.contains("function updateTestMetrics"));
     assertTrue(xml.contains("payload.testMetricsHtml"));
+    assertTrue(xml.contains("function updateExecutionStatusDistribution"));
+    assertTrue(xml.contains("payload.executionStatusDistributionHtml"));
     assertTrue(xml.contains("setCardView(card, \"metrics\")"));
     assertTrue(xml.contains("autoShowTestMetricsOnCompletion(currentReportPayload())"));
     assertTrue(xml.contains("autoShowTestMetricsOnCompletion(payload)"));
+    assertTrue(xml.contains("setCardView(card, \"breakdown\")"));
+    assertTrue(xml.contains("autoShowExecutionBreakdownOnCompletion(currentReportPayload())"));
+    assertTrue(xml.contains("autoShowExecutionBreakdownOnCompletion(payload)"));
     assertTrue(xml.contains("button.getAttribute(\"data-target-view\")"));
     assertTrue(xml.contains("button.getAttribute(\"data-target-view-label\")"));
     assertTrue(xml.contains("card.querySelector(\".octane-view-toggle\")"));
@@ -521,6 +551,12 @@ public class OctaneGateReportActionTest {
     assertEquals("50%", payload.getString("passRateProgressText"));
     assertEquals("All Testcase Pass Rate (1 / 2)", payload.getString("passRateLabel"));
     assertTrue(payload.getString("testMetricsHtml").contains("octane-test-metrics-grid"));
+    assertTrue(
+        payload.getString("executionStatusDistributionHtml").contains("octane-execution-half-pie"));
+    assertTrue(
+        payload.getString("executionStatusDistributionHtml").contains("x=\"160\" y=\"146\""));
+    assertTrue(
+        payload.getString("executionStatusDistributionHtml").contains("x=\"160\" y=\"172\""));
     assertEquals(4, payload.getJSONObject("testMetrics").getJSONArray("cards").size());
     assertTrue(payload.getString("reportZoneHtml").contains("id=\"octane-report-zone\""));
     assertFalse(payload.getString("reportZoneHtml").contains("id=\"octane-timer-zone\""));
