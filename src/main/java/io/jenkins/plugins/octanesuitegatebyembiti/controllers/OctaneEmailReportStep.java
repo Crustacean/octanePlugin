@@ -166,7 +166,11 @@ public class OctaneEmailReportStep extends Step {
         Util.trimToEmpty(body).isEmpty()
             ? "Attached is the Octane report-zone screenshot."
             : Util.trimToEmpty(body);
-    return base + "\n\nOctane Gate Report: " + Util.trimToEmpty(reportUrl);
+    String normalizedReportUrl = Util.trimToEmpty(reportUrl);
+    if (!normalizedReportUrl.isEmpty() && base.contains(normalizedReportUrl)) {
+      return base;
+    }
+    return base + "\n\nOctane Gate Report: " + normalizedReportUrl;
   }
 
   private static void addRecipients(List<String> recipients, String prefix, String value) {

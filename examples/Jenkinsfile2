@@ -76,6 +76,23 @@ pipeline {
       }
     }
 
+    stage('Email Octane Report') {
+      steps {
+        octaneEmailReport(
+            to: 'qa-team@example.com,dev-team@example.com',
+            cc: 'qa-leads@example.com',
+            bcc: 'qa-audit@example.com',
+            subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body:
+                "Attached is the Octane report-zone screenshot.\n\n"
+                    + "Open the build-specific Octane Gate Report:\n"
+                    + "${env.BUILD_URL}octaneSuiteGateReport/",
+            onFailure: 'UNSTABLE',
+            viewportWidth: 1400,
+            archiveScreenshot: true)
+      }
+    }
+
     stage('Deploy') {
       steps {
         echo 'Continue with the next stage once the Octane gate passes.'

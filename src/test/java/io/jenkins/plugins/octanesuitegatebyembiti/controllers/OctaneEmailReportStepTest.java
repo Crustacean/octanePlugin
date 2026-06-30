@@ -30,6 +30,15 @@ public class OctaneEmailReportStepTest {
   }
 
   @Test
+  public void doesNotAppendReportUrlWhenBodyAlreadyContainsIt() {
+    assertEquals(
+        "Open the Octane report: https://jenkins.example/job/example/1/octaneSuiteGateReport/",
+        OctaneEmailReportStep.appendReportUrl(
+            "Open the Octane report: https://jenkins.example/job/example/1/octaneSuiteGateReport/",
+            "https://jenkins.example/job/example/1/octaneSuiteGateReport/"));
+  }
+
+  @Test
   public void missingReportActionCanWarnAndContinue() throws Exception {
     WorkflowJob job = jenkins.createProject(WorkflowJob.class);
     job.setDefinition(
