@@ -15,6 +15,12 @@
   <f:entry title="Body" field="body">
     <f:textarea />
   </f:entry>
+  <f:entry title="From" field="from">
+    <f:textbox placeholder="authenticated-smtp-account@example.com" />
+  </f:entry>
+  <f:entry title="Reply-To" field="replyTo">
+    <f:textbox />
+  </f:entry>
   <f:entry title="On notification failure" field="onFailure">
     <f:select />
   </f:entry>

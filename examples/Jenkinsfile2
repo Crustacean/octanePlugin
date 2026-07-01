@@ -90,6 +90,9 @@ pipeline {
             to: 'qa-team@example.com,dev-team@example.com',
             cc: 'qa-leads@example.com',
             bcc: 'qa-audit@example.com',
+            // For Gmail SMTP, use the same authenticated account or an authorized alias.
+            from: 'jenkins-notifications@example.com',
+            replyTo: 'qa-team@example.com',
             subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
             body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
             onFailure: 'UNSTABLE',

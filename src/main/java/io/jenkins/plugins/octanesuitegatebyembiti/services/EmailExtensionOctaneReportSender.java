@@ -5,7 +5,10 @@ import hudson.AbortException;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.plugins.emailext.EmailExtStep;
+import hudson.plugins.emailext.ExtendedEmailPublisher;
+import hudson.plugins.emailext.ExtendedEmailPublisherDescriptor;
 import hudson.util.StreamTaskListener;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -33,18 +36,53 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
   public void send(
       StepContext context,
       String recipients,
+      String from,
+      String replyTo,
       String subject,
       String body,
       String attachmentsPattern)
       throws Exception {
     EmailExtStep emailStep = new EmailExtStep(subject, body);
     emailStep.setTo(recipients);
+    if (!Util.trimToEmpty(from).isEmpty()) {
+      emailStep.setFrom(from);
+    }
+    if (!Util.trimToEmpty(replyTo).isEmpty()) {
+      emailStep.setReplyTo(replyTo);
+    }
     emailStep.setAttachmentsPattern(attachmentsPattern);
     emailStep.setMimeType("text/html");
     EmailOutputCapture outputCapture = EmailOutputCapture.create(context);
+    logConfiguration(outputCapture.getContext(), from);
     StepExecution execution = emailStep.start(outputCapture.getContext());
     invokeRun(execution);
     verifySendOutput(outputCapture.getOutput());
+  }
+
+  private void logConfiguration(StepContext context, String from)
+      throws IOException, InterruptedException {
+    ExtendedEmailPublisherDescriptor descriptor = ExtendedEmailPublisher.descriptor();
+    TaskListener listener = context.get(TaskListener.class);
+    String host = defaultValue(descriptor.getSmtpServer(), "localhost/default");
+    String port = defaultValue(descriptor.getSmtpPort(), descriptor.getUseSsl() ? "465" : "25");
+    String sender = defaultValue(from, descriptor.getAdminAddress());
+    listener
+        .getLogger()
+        .println(
+            "Email Extension SMTP configuration: host="
+                + host
+                + ", port="
+                + port
+                + ", SSL="
+                + descriptor.getUseSsl()
+                + ", from="
+                + defaultValue(sender, "not configured")
+                + ".");
+  }
+
+  private String defaultValue(String value, String fallback) {
+    String normalized = Util.trimToEmpty(value);
+    return normalized.isEmpty() ? fallback : normalized;
   }
 
   static void verifySendOutput(String output) throws AbortException {

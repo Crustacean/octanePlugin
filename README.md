@@ -119,6 +119,8 @@ octaneEmailReport(
   to: 'qa-team@example.com,dev-team@example.com',
   cc: 'qa-leads@example.com',
   bcc: 'qa-audit@example.com',
+  from: 'jenkins-notifications@example.com',
+  replyTo: 'qa-team@example.com',
   subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
   body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
   onFailure: 'UNSTABLE',
@@ -142,8 +144,10 @@ and allow deployment only when that flag is `true`, as shown in both example Jen
 - `FAILURE`: fail the stage/build.
 - `WARN`: print a warning and continue.
 
-Optional parameters are `cc`, `bcc`, `browserPath`, `theme`, `viewportWidth`, and
-`archiveScreenshot`. `theme` accepts `LIGHT`, `DARK`, or `SYSTEM` and defaults to `LIGHT`.
+Optional parameters are `cc`, `bcc`, `from`, `replyTo`, `browserPath`, `theme`, `viewportWidth`,
+and `archiveScreenshot`. For Gmail SMTP, `from` should be the authenticated Gmail/Workspace
+account or an alias that account is authorized to send as. `theme` accepts `LIGHT`, `DARK`, or
+`SYSTEM` and defaults to `LIGHT`.
 `SYSTEM` follows the operating-system preference of the Jenkins agent service account.
 Chrome or Chromium must be available on the Jenkins agent, or `browserPath` must point to it.
 On Windows, use a Groovy-escaped agent-local path such as
@@ -152,6 +156,14 @@ account, not the interactive desktop user, must be able to start that browser. B
 and screenshot capture are time-bounded so a stuck Chrome process fails according to `onFailure`
 instead of holding the Pipeline indefinitely. Console messages identify whether the step is
 validating Chrome, capturing, archiving, or sending through Email Extension.
+
+The report step uses **Extended E-mail Notification**, which is separate from Jenkins' standard
+**E-mail Notification** configuration. Test the SMTP settings in the Extended E-mail Notification
+section. For Gmail, use `smtp.gmail.com` with TLS on port `587`, or SSL on port `465`, the complete
+Google account address, and an app password. A connection or authentication failure happens before
+Gmail evaluates the HTML body, so changing the report to plain text will not repair that class of
+failure. After a successful SMTP handoff, check Gmail's Sent, All Mail, Spam, and delivery-status
+messages if the report is not in the recipient's inbox.
 
 Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API
 query fragments applied to the regression suite runs' child runs:

@@ -52,6 +52,8 @@ public class OctaneEmailReportStep extends Step {
   private String bcc = "";
   private String subject = "";
   private String body = "";
+  private String from = "";
+  private String replyTo = "";
   private String onFailure = OctaneEmailFailureMode.UNSTABLE.name();
   private String browserPath = "";
   private String theme = OctaneReportTheme.LIGHT.name();
@@ -101,6 +103,24 @@ public class OctaneEmailReportStep extends Step {
   @DataBoundSetter
   public void setBody(String body) {
     this.body = Util.trimToEmpty(body);
+  }
+
+  public String getFrom() {
+    return from;
+  }
+
+  @DataBoundSetter
+  public void setFrom(String from) {
+    this.from = Util.trimToEmpty(from);
+  }
+
+  public String getReplyTo() {
+    return replyTo;
+  }
+
+  @DataBoundSetter
+  public void setReplyTo(String replyTo) {
+    this.replyTo = Util.trimToEmpty(replyTo);
   }
 
   public String getOnFailure() {
@@ -194,6 +214,8 @@ public class OctaneEmailReportStep extends Step {
         bcc,
         subject,
         body,
+        from,
+        replyTo,
         onFailure,
         browserPath,
         theme,
@@ -209,6 +231,8 @@ public class OctaneEmailReportStep extends Step {
     private final String bcc;
     private final String subject;
     private final String body;
+    private final String from;
+    private final String replyTo;
     private final String onFailure;
     private final String browserPath;
     private final String theme;
@@ -221,6 +245,8 @@ public class OctaneEmailReportStep extends Step {
         String bcc,
         String subject,
         String body,
+        String from,
+        String replyTo,
         String onFailure,
         String browserPath,
         String theme,
@@ -231,6 +257,8 @@ public class OctaneEmailReportStep extends Step {
       this.bcc = bcc;
       this.subject = subject;
       this.body = body;
+      this.from = from;
+      this.replyTo = replyTo;
       this.onFailure = onFailure;
       this.browserPath = browserPath;
       this.theme = theme;
@@ -300,10 +328,20 @@ public class OctaneEmailReportStep extends Step {
           new OctaneEmailBodyRenderer()
               .render(request.body, action.getSnapshot(), action.getReportUrl());
       listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
-      emailSender.send(getContext(), recipients, subject, body, screenshot.getAttachmentPattern());
+      emailSender.send(
+          getContext(),
+          recipients,
+          request.from,
+          request.replyTo,
+          subject,
+          body,
+          screenshot.getAttachmentPattern());
       listener
           .getLogger()
-          .println("Octane report-zone screenshot emailed to " + visibleRecipients(recipients));
+          .println(
+              "Jenkins Email Extension completed the SMTP handoff for "
+                  + visibleRecipients(recipients)
+                  + ". Inbox placement is controlled by the receiving mail service.");
     }
 
     private EnvVars envVars() throws InterruptedException {
@@ -414,6 +452,14 @@ public class OctaneEmailReportStep extends Step {
 
     public FormValidation doCheckBcc(@QueryParameter String value) {
       return checkOptionalRecipients("Bcc", value);
+    }
+
+    public FormValidation doCheckFrom(@QueryParameter String value) {
+      return checkOptionalRecipients("From", value);
+    }
+
+    public FormValidation doCheckReplyTo(@QueryParameter String value) {
+      return checkOptionalRecipients("Reply-To", value);
     }
 
     public FormValidation doCheckOnFailure(@QueryParameter String value) {
