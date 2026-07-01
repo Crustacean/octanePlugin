@@ -2,9 +2,9 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 public class OctaneExecutionStatusDistribution implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -32,19 +32,31 @@ public class OctaneExecutionStatusDistribution implements Serializable {
 
   public static OctaneExecutionStatusDistribution fromStatusCounts(
       List<OctaneGateStatusCount> statusCounts) {
-    int total = statusCounts.stream().mapToInt(OctaneGateStatusCount::getCount).sum();
+    int total = 0;
+    List<OctaneGateStatusCount> visibleStatuses = new ArrayList<>();
+    for (OctaneGateStatusCount status : statusCounts) {
+      OctaneGateStatusCount nonNullStatus = Objects.requireNonNull(status);
+      total += nonNullStatus.getCount();
+      if (nonNullStatus.getCount() > 0) {
+        visibleStatuses.add(nonNullStatus);
+      }
+    }
     if (total <= 0) {
       return new OctaneExecutionStatusDistribution(0, List.of());
     }
 
-    List<OctaneGateStatusCount> visibleStatuses =
-        statusCounts.stream()
-            .filter(status -> status.getCount() > 0)
-            .sorted(
-                Comparator.comparingInt(OctaneGateStatusCount::getCount)
-                    .reversed()
-                    .thenComparingInt(status -> DISPLAY_ORDER.indexOf(status.getBucket())))
-            .toList();
+    visibleStatuses.sort(
+        (left, right) -> {
+          OctaneGateStatusCount nonNullLeft = Objects.requireNonNull(left);
+          OctaneGateStatusCount nonNullRight = Objects.requireNonNull(right);
+          int countComparison = Integer.compare(nonNullRight.getCount(), nonNullLeft.getCount());
+          if (countComparison != 0) {
+            return countComparison;
+          }
+          return Integer.compare(
+              DISPLAY_ORDER.indexOf(nonNullLeft.getBucket()),
+              DISPLAY_ORDER.indexOf(nonNullRight.getBucket()));
+        });
 
     List<Segment> segments = new ArrayList<>();
     double drawableSweep =

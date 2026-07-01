@@ -39,6 +39,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import jenkins.model.Jenkins;
 
@@ -291,7 +292,7 @@ public class OctaneGateRunner {
         fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, suiteRunIds);
     List<RunRecord> childRuns = flattenAndDedupeRuns(suiteRuns);
     GateMetrics regressionMetrics = GateMetrics.fromRuns(childRuns, classifier);
-    List<String> childRunIds = childRuns.stream().map(RunRecord::getId).toList();
+    List<String> childRunIds = runIds(childRuns);
 
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
     Map<String, GateScopeResult> scopedResults = new LinkedHashMap<>();
@@ -320,9 +321,13 @@ public class OctaneGateRunner {
         new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
     CriteriaEvaluation criteriaEvaluation = criteria.evaluateDetailed(metricsContext);
     boolean passed = criteriaEvaluation.isPassed();
-    boolean terminal =
-        regressionMetrics.isTerminal()
-            && scopedMetrics.values().stream().allMatch(GateMetrics::isTerminal);
+    boolean terminal = regressionMetrics.isTerminal();
+    for (GateMetrics scopedMetric : scopedMetrics.values()) {
+      if (!Objects.requireNonNull(scopedMetric).isTerminal()) {
+        terminal = false;
+        break;
+      }
+    }
     return new GateResult(
         String.join(",", suiteRunIds),
         request.getCriteria(),
@@ -533,8 +538,7 @@ public class OctaneGateRunner {
 
   private Map<String, List<RunRecord>> groupScopedRunsBySuiteRun(
       Map<String, List<RunRecord>> suiteRuns, List<RunRecord> scopedRuns) {
-    Set<String> scopedRunIds =
-        new LinkedHashSet<>(scopedRuns.stream().map(RunRecord::getId).toList());
+    Set<String> scopedRunIds = new LinkedHashSet<>(runIds(scopedRuns));
     Map<String, List<RunRecord>> groupedRuns = new LinkedHashMap<>();
     for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
       List<RunRecord> matchingRuns =
@@ -544,6 +548,14 @@ public class OctaneGateRunner {
       }
     }
     return groupedRuns;
+  }
+
+  private List<String> runIds(List<RunRecord> runs) {
+    List<String> ids = new ArrayList<>(runs.size());
+    for (RunRecord run : runs) {
+      ids.add(Objects.requireNonNull(run).getId());
+    }
+    return List.copyOf(ids);
   }
 
   private String scopeQueryHint(OctaneGateScope scope) {

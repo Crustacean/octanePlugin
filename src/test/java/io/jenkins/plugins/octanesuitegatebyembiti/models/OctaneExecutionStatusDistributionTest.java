@@ -4,7 +4,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.junit.Test;
 
 public class OctaneExecutionStatusDistributionTest {
@@ -24,14 +26,10 @@ public class OctaneExecutionStatusDistributionTest {
     assertFalse(distribution.isEmpty());
     assertEquals(
         List.of("Planned", "Passed", "Failed", "Blocked", "Skipped"),
-        distribution.getSegments().stream()
-            .map(OctaneExecutionStatusDistribution.Segment::getLabel)
-            .toList());
+        labels(distribution.getSegments()));
     assertEquals(
         List.of("#808080", "#009900", "#990000", "#631919", "#ffb74d"),
-        distribution.getSegments().stream()
-            .map(OctaneExecutionStatusDistribution.Segment::getColor)
-            .toList());
+        colors(distribution.getSegments()));
     assertEquals("40.0%", distribution.getSegments().get(0).getPercentageLabel());
     assertTrue(
         distribution.getSegments().stream()
@@ -58,5 +56,21 @@ public class OctaneExecutionStatusDistributionTest {
 
   private static OctaneGateStatusCount status(OctaneGateStatusBucket bucket, int count, int total) {
     return new OctaneGateStatusCount(bucket, count, total);
+  }
+
+  private static List<String> labels(List<OctaneExecutionStatusDistribution.Segment> segments) {
+    List<String> labels = new ArrayList<>(segments.size());
+    for (OctaneExecutionStatusDistribution.Segment segment : segments) {
+      labels.add(Objects.requireNonNull(segment).getLabel());
+    }
+    return labels;
+  }
+
+  private static List<String> colors(List<OctaneExecutionStatusDistribution.Segment> segments) {
+    List<String> colors = new ArrayList<>(segments.size());
+    for (OctaneExecutionStatusDistribution.Segment segment : segments) {
+      colors.add(Objects.requireNonNull(segment).getColor());
+    }
+    return colors;
   }
 }

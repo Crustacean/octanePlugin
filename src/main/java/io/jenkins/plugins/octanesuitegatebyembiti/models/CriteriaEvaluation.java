@@ -1,9 +1,11 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public final class CriteriaEvaluation implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -44,8 +46,11 @@ public final class CriteriaEvaluation implements Serializable {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("available", available);
     value.put("passed", passed);
-    value.put(
-        "comparisons", comparisons.stream().map(CriteriaComparisonEvaluation::toMap).toList());
+    List<Map<String, Object>> comparisonValues = new ArrayList<>(comparisons.size());
+    for (CriteriaComparisonEvaluation comparison : comparisons) {
+      comparisonValues.add(Objects.requireNonNull(comparison).toMap());
+    }
+    value.put("comparisons", comparisonValues);
     return value;
   }
 }
