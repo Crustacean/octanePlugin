@@ -143,6 +143,12 @@ and allow deployment only when that flag is `true`, as shown in both example Jen
 
 Optional parameters are `cc`, `bcc`, `browserPath`, `viewportWidth`, and `archiveScreenshot`.
 Chrome or Chromium must be available on the Jenkins agent, or `browserPath` must point to it.
+On Windows, use a Groovy-escaped agent-local path such as
+`browserPath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'`. The Jenkins service
+account, not the interactive desktop user, must be able to start that browser. Browser validation
+and screenshot capture are time-bounded so a stuck Chrome process fails according to `onFailure`
+instead of holding the Pipeline indefinitely. Console messages identify whether the step is
+validating Chrome, capturing, archiving, or sending through Email Extension.
 
 Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API
 query fragments applied to the regression suite runs' child runs:

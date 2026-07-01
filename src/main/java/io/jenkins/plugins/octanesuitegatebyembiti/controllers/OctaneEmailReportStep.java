@@ -266,13 +266,16 @@ public class OctaneEmailReportStep extends Step {
               request.browserPath,
               request.viewportWidth);
       if (request.archiveScreenshot) {
+        listener.getLogger().println("Archiving Octane report-zone screenshot.");
         archiveScreenshot(run, workspace, envVars, launcher, listener, screenshot);
+        listener.getLogger().println("Octane report-zone screenshot archived successfully.");
       }
 
       String subject = effectiveSubject(run, request.subject);
       String body =
           new OctaneEmailBodyRenderer()
               .render(request.body, action.getSnapshot(), action.getReportUrl());
+      listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
       emailSender.send(getContext(), recipients, subject, body, screenshot.getAttachmentPattern());
       listener
           .getLogger()

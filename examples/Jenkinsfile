@@ -6,7 +6,6 @@ pipeline {
     OCTANE_WORKSPACE_ID = '4001'
     OCTANE_REGRESSION_SUITE_RUN_ID = '1196,1200,1204'
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
-    OCTANE_GATE_PASSED = 'false'
   }
 
   stages {
@@ -37,9 +36,10 @@ pipeline {
       steps {
         catchError(
             buildResult: 'FAILURE',
-            catchInterruptions: false,
-            stageResult: 'FAILURE') {
+          catchInterruptions: false,
+          stageResult: 'FAILURE') {
           script {
+          env.OCTANE_GATE_PASSED = 'false'
           def suiteRunIds =
               env.OCTANE_REGRESSION_SUITE_RUN_ID
                   .split(/[,\s]+/)
@@ -97,7 +97,7 @@ pipeline {
                   riskHeatMapDefectQuery: '',
                   riskHeatMapMaxDefects: 1000)
 
-          env.OCTANE_GATE_PASSED = gateResult.passed ? 'true' : 'false'
+          env.OCTANE_GATE_PASSED = gateResult.passed == true ? 'true' : 'false'
           echo "Octane criteria verdict: ${gateResult.passed ? 'PASS' : 'FAIL'}"
           echo "Octane suite run IDs: ${gateResult.suiteRunIds.join(', ')}"
           echo "Regression execution rate: ${gateResult.regressions.executionRate}"
