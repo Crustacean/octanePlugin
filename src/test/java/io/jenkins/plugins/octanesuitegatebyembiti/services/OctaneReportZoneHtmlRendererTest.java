@@ -45,7 +45,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("ben tester"));
     assertTrue(html.contains("suite runs: 4501"));
     assertFalse(html.contains("Total Testcases"));
-    assertTrue(html.contains("border: 1px solid #f5f7fb"));
+    assertTrue(html.contains("--octane-page-background: #f5f7fb"));
+    assertTrue(html.contains("border: 1px solid var(--octane-page-background)"));
     assertTrue(html.contains("aria-label=\"Move widget\""));
     assertTrue(html.contains("octane-grabber-icon"));
     assertTrue(html.contains("Use arrow keys to reorder"));
@@ -144,6 +145,35 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("<html>"));
     assertFalse(html.contains("<body>"));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
+  }
+
+  @Test
+  public void rendersExplicitDarkScreenshotThemeWithoutChangingStatusColors() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result(), classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().render(snapshot, "dark");
+
+    assertTrue(html.contains("<html data-octane-theme=\"dark\">"));
+    assertTrue(html.contains("<meta name=\"color-scheme\" content=\"dark\""));
+    assertTrue(html.contains("color-scheme: dark"));
+    assertTrue(html.contains("oklch(0.17 0.01 265 / 1)"));
+    assertTrue(html.contains("--octane-card-background: #1b1e24"));
+    assertTrue(html.contains("--octane-text: #f3f6fb"));
+    assertTrue(html.contains("#009900"));
+    assertTrue(html.contains("#990000"));
+    assertTrue(html.contains("#808080"));
+  }
+
+  @Test
+  public void rendersSystemScreenshotThemeWithPreferenceMediaQuery() {
+    String html =
+        new OctaneReportZoneHtmlRenderer().render(OctaneGateReportSnapshot.empty(), "SYSTEM");
+
+    assertTrue(html.contains("<html data-octane-theme=\"system\">"));
+    assertTrue(html.contains("<meta name=\"color-scheme\" content=\"light dark\""));
+    assertTrue(html.contains("@media (prefers-color-scheme: dark)"));
   }
 
   @Test

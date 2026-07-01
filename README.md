@@ -121,7 +121,8 @@ octaneEmailReport(
   bcc: 'qa-audit@example.com',
   subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
   body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
-  onFailure: 'UNSTABLE'
+  onFailure: 'UNSTABLE',
+  theme: 'DARK'
 )
 ```
 
@@ -141,7 +142,9 @@ and allow deployment only when that flag is `true`, as shown in both example Jen
 - `FAILURE`: fail the stage/build.
 - `WARN`: print a warning and continue.
 
-Optional parameters are `cc`, `bcc`, `browserPath`, `viewportWidth`, and `archiveScreenshot`.
+Optional parameters are `cc`, `bcc`, `browserPath`, `theme`, `viewportWidth`, and
+`archiveScreenshot`. `theme` accepts `LIGHT`, `DARK`, or `SYSTEM` and defaults to `LIGHT`.
+`SYSTEM` follows the operating-system preference of the Jenkins agent service account.
 Chrome or Chromium must be available on the Jenkins agent, or `browserPath` must point to it.
 On Windows, use a Groovy-escaped agent-local path such as
 `browserPath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'`. The Jenkins service

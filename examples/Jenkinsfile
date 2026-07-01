@@ -121,6 +121,7 @@ pipeline {
             subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
             body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
             onFailure: 'UNSTABLE',
+            theme: 'DARK',
             viewportWidth: 1400,
             archiveScreenshot: true)
       }

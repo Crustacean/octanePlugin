@@ -22,6 +22,9 @@
     <f:entry title="Browser path" field="browserPath">
       <f:textbox placeholder="/usr/bin/chromium" />
     </f:entry>
+    <f:entry title="Screenshot theme" field="theme">
+      <f:select />
+    </f:entry>
     <f:entry title="Viewport width" field="viewportWidth">
       <f:number default="1400" />
     </f:entry>

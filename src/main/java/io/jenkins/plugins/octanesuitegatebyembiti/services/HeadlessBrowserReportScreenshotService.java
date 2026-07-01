@@ -47,7 +47,8 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
       Launcher launcher,
       TaskListener listener,
       String browserPath,
-      int viewportWidth)
+      int viewportWidth,
+      String theme)
       throws IOException, InterruptedException {
     FilePath outputDirectory = workspace.child(REPORT_EMAIL_DIR);
     outputDirectory.mkdirs();
@@ -55,7 +56,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     FilePath screenshotFile = outputDirectory.child(SCREENSHOT_FILE_NAME);
 
     OctaneGateReportSnapshot snapshot = action.getSnapshot();
-    htmlFile.write(renderer.render(snapshot), StandardCharsets.UTF_8.name());
+    htmlFile.write(renderer.render(snapshot, theme), StandardCharsets.UTF_8.name());
 
     FilePath browserProfileDirectory = outputDirectory.child("chrome-profile");
     if (browserProfileDirectory.exists()) {

@@ -5,16 +5,27 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSection
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateStatusCount;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateSuiteRunChart;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 
 public class OctaneReportZoneHtmlRenderer {
   public String render(OctaneGateReportSnapshot snapshot) {
+    return render(snapshot, OctaneReportTheme.LIGHT.name());
+  }
+
+  public String render(OctaneGateReportSnapshot snapshot, String theme) {
     OctaneGateReportSnapshot safeSnapshot =
         snapshot == null ? OctaneGateReportSnapshot.empty() : snapshot;
+    OctaneReportTheme reportTheme = OctaneReportTheme.from(theme);
     StringBuilder html = new StringBuilder();
     html.append("<!doctype html>\n");
-    html.append("<html>\n");
+    html.append("<html data-octane-theme=\"");
+    html.append(reportTheme.getHtmlValue());
+    html.append("\">\n");
     html.append("<head>\n");
     html.append("<meta charset=\"UTF-8\" />\n");
+    html.append("<meta name=\"color-scheme\" content=\"");
+    html.append(reportTheme.getColorSchemeContent());
+    html.append("\" />\n");
     html.append("<title>Octane Gate Report</title>\n");
     appendStyle(html);
     html.append("</head>\n");
@@ -39,20 +50,79 @@ public class OctaneReportZoneHtmlRenderer {
         """
         :root {
           color-scheme: light;
+          --octane-axis-line: #30363D;
+          --octane-axis-text: #827C7B;
+          --octane-bar-track: #e6ebf2;
+          --octane-border: #d7dde6;
+          --octane-card-background: #ffffff;
+          --octane-card-shadow: rgba(0, 0, 0, 0.14);
+          --octane-grid-dot: rgba(33, 38, 45, 0.92);
+          --octane-muted-text: #5f6b7a;
+          --octane-page-background: #f5f7fb;
+          --octane-popup-background: #ffffff;
+          --octane-popup-shadow: rgba(0, 0, 0, 0.18);
+          --octane-text: #1f2937;
+          --octane-tool-color: #8a94a6;
+        }
+        :root[data-octane-theme="dark"] {
+          color-scheme: dark;
+          --octane-axis-line: #576779;
+          --octane-axis-text: #a8b2c3;
+          --octane-bar-track: #30363d;
+          --octane-border: #30363d;
+          --octane-card-background: #1b1e24;
+          --octane-card-shadow: rgba(0, 0, 0, 0.34);
+          --octane-grid-dot: rgba(87, 103, 121, 0.7);
+          --octane-muted-text: #9aa7bd;
+          --octane-page-background: #181a20;
+          --octane-popup-background: #22262e;
+          --octane-popup-shadow: rgba(0, 0, 0, 0.42);
+          --octane-text: #f3f6fb;
+          --octane-tool-color: #9aa7bd;
+        }
+        :root[data-octane-theme="system"] {
+          color-scheme: light dark;
+        }
+        @media (prefers-color-scheme: dark) {
+          :root[data-octane-theme="system"] {
+            --octane-axis-line: #576779;
+            --octane-axis-text: #a8b2c3;
+            --octane-bar-track: #30363d;
+            --octane-border: #30363d;
+            --octane-card-background: #1b1e24;
+            --octane-card-shadow: rgba(0, 0, 0, 0.34);
+            --octane-grid-dot: rgba(87, 103, 121, 0.7);
+            --octane-muted-text: #9aa7bd;
+            --octane-page-background: #181a20;
+            --octane-popup-background: #22262e;
+            --octane-popup-shadow: rgba(0, 0, 0, 0.42);
+            --octane-text: #f3f6fb;
+            --octane-tool-color: #9aa7bd;
+          }
+        }
+        @supports (background: oklch(0.17 0.01 265 / 1)) {
+          :root[data-octane-theme="dark"] {
+            --octane-page-background: oklch(0.17 0.01 265 / 1);
+          }
+          @media (prefers-color-scheme: dark) {
+            :root[data-octane-theme="system"] {
+              --octane-page-background: oklch(0.17 0.01 265 / 1);
+            }
+          }
         }
         * {
           box-sizing: border-box;
         }
         body {
-          background: #f5f7fb;
-          color: #1f2937;
+          background: var(--octane-page-background);
+          color: var(--octane-text);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           margin: 0;
           padding: 16px;
         }
         .octane-report-zone {
           align-items: stretch;
-          border: 1px solid #f5f7fb;
+          border: 1px solid var(--octane-page-background);
           border-radius: 8px;
           display: flex;
           flex-wrap: wrap;
@@ -61,10 +131,10 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-chart-card {
-          background: #ffffff;
-          border: 1px solid #d7dde6;
+          background: var(--octane-card-background);
+          border: 1px solid var(--octane-border);
           border-radius: 14px;
-          box-shadow: 0 1px 7px rgba(0, 0, 0, 0.14);
+          box-shadow: 0 1px 7px var(--octane-card-shadow);
           flex: 0 1 calc(50% - 8px);
           min-height: 310px;
           min-width: 360px;
@@ -86,7 +156,7 @@ public class OctaneReportZoneHtmlRenderer {
           margin: 0;
         }
         .octane-muted {
-          color: #5f6b7a;
+          color: var(--octane-muted-text);
         }
         .octane-visually-hidden:where(:not(:focus-within, :active)) {
           border: 0 !important;
@@ -105,7 +175,7 @@ public class OctaneReportZoneHtmlRenderer {
           background: transparent;
           border: 0;
           border-radius: 4px;
-          color: #8a94a6;
+          color: var(--octane-tool-color);
           cursor: grab;
           display: inline-flex;
           height: 18px;
@@ -136,14 +206,14 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-donut-label {
-          fill: #1f2937;
+          fill: var(--octane-text);
           font-size: 4.5px;
           font-weight: 700;
           pointer-events: none;
           text-anchor: middle;
         }
         .octane-donut-hole {
-          fill: #ffffff;
+          fill: var(--octane-card-background);
         }
         .octane-distribution-meta {
           align-items: center;
@@ -153,7 +223,7 @@ public class OctaneReportZoneHtmlRenderer {
           margin-top: 4px;
         }
         .octane-total-label {
-          color: #5f6b7a;
+          color: var(--octane-muted-text);
         }
         .octane-suite-chart-meta {
           align-items: center;
@@ -163,7 +233,7 @@ public class OctaneReportZoneHtmlRenderer {
           margin-top: 4px;
         }
         .octane-axis-value {
-          color: #827C7B;
+          color: var(--octane-axis-text);
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
           font-weight: 400;
@@ -181,7 +251,7 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-y-axis-label {
           align-self: center;
-          color: #827C7B;
+          color: var(--octane-axis-text);
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
           font-weight: 400;
@@ -213,7 +283,7 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-bar-plot::before {
           background-image: radial-gradient(
             circle,
-            rgba(33, 38, 45, 0.92) 0 1px,
+            var(--octane-grid-dot) 0 1px,
             transparent 1.2px
           );
           background-size: 9px calc(100% / var(--octane-grid-line-count, 4));
@@ -227,7 +297,7 @@ public class OctaneReportZoneHtmlRenderer {
           z-index: 0;
         }
         .octane-bar-plot::after {
-          background: #30363D;
+          background: var(--octane-axis-line);
           bottom: var(--octane-axis-label-row);
           content: "";
           height: 1px;
@@ -297,7 +367,7 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-vertical-bar {
           align-items: stretch;
           align-self: end;
-          background: #e6ebf2;
+          background: var(--octane-bar-track);
           border-radius: 0;
           display: flex;
           flex-direction: column-reverse;
@@ -306,11 +376,11 @@ public class OctaneReportZoneHtmlRenderer {
           width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px));
         }
         .octane-bar-popup {
-          background: #ffffff;
-          border: 1px solid #d7dde6;
+          background: var(--octane-popup-background);
+          border: 1px solid var(--octane-border);
           border-radius: 8px;
-          box-shadow: 0 7px 22px rgba(0, 0, 0, 0.18);
-          color: #1f2937;
+          box-shadow: 0 7px 22px var(--octane-popup-shadow);
+          color: var(--octane-text);
           display: grid;
           font-size: 10.35px;
           gap: 5px;
@@ -332,7 +402,7 @@ public class OctaneReportZoneHtmlRenderer {
           visibility: visible;
         }
         .octane-bar-popup-name {
-          border-bottom: 1px solid #d7dde6;
+          border-bottom: 1px solid var(--octane-border);
           font-weight: 700;
           line-height: 1.25;
           overflow-wrap: anywhere;
@@ -360,7 +430,7 @@ public class OctaneReportZoneHtmlRenderer {
           text-align: right;
         }
         .octane-bar-popup-total {
-          border-top: 1px solid #d7dde6;
+          border-top: 1px solid var(--octane-border);
           display: flex;
           justify-content: space-between;
           padding-top: 5px;
@@ -373,7 +443,7 @@ public class OctaneReportZoneHtmlRenderer {
           align-self: start;
           box-sizing: border-box;
           display: block;
-          color: #827C7B;
+          color: var(--octane-axis-text);
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
           font-weight: 400;
@@ -391,9 +461,9 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-empty {
-          border: 1px dashed #d7dde6;
+          border: 1px dashed var(--octane-border);
           border-radius: 8px;
-          color: #5f6b7a;
+          color: var(--octane-muted-text);
           padding: 16px;
         }
         @media (max-width: 840px) {

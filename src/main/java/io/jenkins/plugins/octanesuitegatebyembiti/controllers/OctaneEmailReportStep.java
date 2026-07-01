@@ -15,6 +15,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.EmailExtensionOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.HeadlessBrowserReportScreenshotService;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailBodyRenderer;
@@ -53,6 +54,7 @@ public class OctaneEmailReportStep extends Step {
   private String body = "";
   private String onFailure = OctaneEmailFailureMode.UNSTABLE.name();
   private String browserPath = "";
+  private String theme = OctaneReportTheme.LIGHT.name();
   private int viewportWidth = DEFAULT_VIEWPORT_WIDTH;
   private boolean archiveScreenshot = true;
 
@@ -119,6 +121,15 @@ public class OctaneEmailReportStep extends Step {
     this.browserPath = Util.trimToEmpty(browserPath);
   }
 
+  public String getTheme() {
+    return theme;
+  }
+
+  @DataBoundSetter
+  public void setTheme(String theme) {
+    this.theme = OctaneReportTheme.normalize(theme);
+  }
+
   public int getViewportWidth() {
     return viewportWidth;
   }
@@ -178,7 +189,16 @@ public class OctaneEmailReportStep extends Step {
 
   private EmailRequest toRequest() {
     return new EmailRequest(
-        to, cc, bcc, subject, body, onFailure, browserPath, viewportWidth, archiveScreenshot);
+        to,
+        cc,
+        bcc,
+        subject,
+        body,
+        onFailure,
+        browserPath,
+        theme,
+        viewportWidth,
+        archiveScreenshot);
   }
 
   private static class EmailRequest implements Serializable {
@@ -191,6 +211,7 @@ public class OctaneEmailReportStep extends Step {
     private final String body;
     private final String onFailure;
     private final String browserPath;
+    private final String theme;
     private final int viewportWidth;
     private final boolean archiveScreenshot;
 
@@ -202,6 +223,7 @@ public class OctaneEmailReportStep extends Step {
         String body,
         String onFailure,
         String browserPath,
+        String theme,
         int viewportWidth,
         boolean archiveScreenshot) {
       this.to = to;
@@ -211,6 +233,7 @@ public class OctaneEmailReportStep extends Step {
       this.body = body;
       this.onFailure = onFailure;
       this.browserPath = browserPath;
+      this.theme = theme;
       this.viewportWidth = viewportWidth;
       this.archiveScreenshot = archiveScreenshot;
     }
@@ -264,7 +287,8 @@ public class OctaneEmailReportStep extends Step {
               launcher,
               listener,
               request.browserPath,
-              request.viewportWidth);
+              request.viewportWidth,
+              request.theme);
       if (request.archiveScreenshot) {
         listener.getLogger().println("Archiving Octane report-zone screenshot.");
         archiveScreenshot(run, workspace, envVars, launcher, listener, screenshot);
@@ -372,6 +396,14 @@ public class OctaneEmailReportStep extends Step {
       return model;
     }
 
+    public ListBoxModel doFillThemeItems() {
+      ListBoxModel model = new ListBoxModel();
+      model.add("Light", OctaneReportTheme.LIGHT.name());
+      model.add("Dark", OctaneReportTheme.DARK.name());
+      model.add("Agent system preference", OctaneReportTheme.SYSTEM.name());
+      return model;
+    }
+
     public FormValidation doCheckTo(@QueryParameter String value) {
       return checkOptionalRecipients("To", value);
     }
@@ -387,6 +419,15 @@ public class OctaneEmailReportStep extends Step {
     public FormValidation doCheckOnFailure(@QueryParameter String value) {
       try {
         OctaneEmailFailureMode.from(value);
+        return FormValidation.ok();
+      } catch (IllegalArgumentException e) {
+        return FormValidation.error(e.getMessage());
+      }
+    }
+
+    public FormValidation doCheckTheme(@QueryParameter String value) {
+      try {
+        OctaneReportTheme.from(value);
         return FormValidation.ok();
       } catch (IllegalArgumentException e) {
         return FormValidation.error(e.getMessage());
