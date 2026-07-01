@@ -8,7 +8,7 @@ flow, Octane API calls, metrics model, and criteria evaluation behavior.
 
 ## Requirements
 
-- Jenkins `2.555.2` or newer
+- Jenkins `2.555.3` or newer
 - Java 21 or newer for the Jenkins controller, agents, and plugin development
 
 ## Pipeline
