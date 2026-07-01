@@ -47,6 +47,40 @@ public class GateResultTest {
 
   @Test
   @SuppressWarnings("unchecked")
+  public void exposesDetailedCriteriaEvaluationInPipelineMap() {
+    CriteriaEvaluation evaluation =
+        CriteriaEvaluation.available(
+            false,
+            List.of(
+                new CriteriaComparisonEvaluation(
+                    "regressions.passRate", ">=", 95, 92.5, true, false)));
+    GateResult result =
+        new GateResult(
+            "1196",
+            "regressions.passRate >= 95",
+            false,
+            true,
+            new GateMetrics(10, 10, 9, 1, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
+            evaluation,
+            Instant.parse("2026-05-13T00:00:00Z"));
+
+    Map<String, Object> criteriaEvaluation =
+        (Map<String, Object>) result.toPipelineMap().get("criteriaEvaluation");
+    List<Map<String, Object>> comparisons =
+        (List<Map<String, Object>>) criteriaEvaluation.get("comparisons");
+    assertEquals(false, criteriaEvaluation.get("passed"));
+    assertEquals("regressions.passRate >= 95%", comparisons.get(0).get("criterion"));
+    assertEquals("92.5%", comparisons.get(0).get("actualLabel"));
+    assertEquals("NOT OK", comparisons.get(0).get("result"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
   public void keepsScopedMetricsCompatibleAndAddsScopeDetails() {
     GateResult result =
         new GateResult(

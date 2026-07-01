@@ -6,6 +6,7 @@ pipeline {
     OCTANE_WORKSPACE_ID = '4001'
     OCTANE_REGRESSION_SUITE_RUN_ID = '1196,1200,1204'
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
+    OCTANE_GATE_PASSED = 'false'
   }
 
   stages {
@@ -34,7 +35,11 @@ pipeline {
 
     stage('Wait For Octane Suite') {
       steps {
-        script {
+        catchError(
+            buildResult: 'FAILURE',
+            catchInterruptions: false,
+            stageResult: 'FAILURE') {
+          script {
           def suiteRunIds =
               env.OCTANE_REGRESSION_SUITE_RUN_ID
                   .split(/[,\s]+/)
@@ -92,7 +97,9 @@ pipeline {
                   riskHeatMapDefectQuery: '',
                   riskHeatMapMaxDefects: 1000)
 
-          echo "Octane gate passed for suite run(s) ${gateResult.suiteRunIds.join(', ')}"
+          env.OCTANE_GATE_PASSED = gateResult.passed ? 'true' : 'false'
+          echo "Octane criteria verdict: ${gateResult.passed ? 'PASS' : 'FAIL'}"
+          echo "Octane suite run IDs: ${gateResult.suiteRunIds.join(', ')}"
           echo "Regression execution rate: ${gateResult.regressions.executionRate}"
           echo "Regression pass rate: ${gateResult.regressions.passRate}"
           echo "Critical scope execution rate: ${gateResult.scopes.critical.executionRate}"
@@ -100,6 +107,7 @@ pipeline {
           echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"
           def criticalChildRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
           echo "Critical scope child run IDs: ${criticalChildRunIds}"
+          }
         }
       }
     }
@@ -111,10 +119,7 @@ pipeline {
             cc: 'qa-leads@example.com',
             bcc: 'qa-audit@example.com',
             subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            body:
-                "Attached is the Octane report-zone screenshot.\n\n"
-                    + "Open the build-specific Octane Gate Report:\n"
-                    + "${env.BUILD_URL}octaneSuiteGateReport/",
+            body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
             onFailure: 'UNSTABLE',
             viewportWidth: 1400,
             archiveScreenshot: true)
@@ -122,6 +127,9 @@ pipeline {
     }
 
     stage('Deploy') {
+      when {
+        expression { env.OCTANE_GATE_PASSED == 'true' }
+      }
       steps {
         echo 'Continue with the next stage once the Octane gate passes.'
       }

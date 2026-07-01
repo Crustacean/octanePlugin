@@ -18,7 +18,7 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
     EmailExtStep emailStep = new EmailExtStep(subject, body);
     emailStep.setTo(recipients);
     emailStep.setAttachmentsPattern(attachmentsPattern);
-    emailStep.setMimeType("text/plain");
+    emailStep.setMimeType("text/html");
     StepExecution execution = emailStep.start(context);
     invokeRun(execution);
   }

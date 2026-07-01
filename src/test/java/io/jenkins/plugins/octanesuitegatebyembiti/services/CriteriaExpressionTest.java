@@ -1,10 +1,12 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
@@ -24,6 +26,88 @@ public class CriteriaExpressionTest {
           StatusClassifier.DEFAULT_FAILED_STATUSES,
           StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
           StatusClassifier.DEFAULT_RUNNING_STATUSES);
+
+  @Test
+  public void detailsPreserveComparisonOrderAndFormatActualRates() {
+    MetricsContext context = new MetricsContext(new GateMetrics(4, 4, 2, 1, 1, 0), Map.of());
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("regressions.executionRate == 100 AND regressions.passRate >= 95")
+            .evaluateDetailed(context);
+
+    assertFalse(evaluation.isPassed());
+    assertEquals(2, evaluation.getComparisons().size());
+    assertEquals(
+        "regressions.executionRate == 100%",
+        evaluation.getComparisons().get(0).getCriterionLabel());
+    assertEquals("100%", evaluation.getComparisons().get(0).getActualLabel());
+    assertEquals("OK", evaluation.getComparisons().get(0).getResultLabel());
+    assertEquals(
+        "regressions.passRate >= 95%", evaluation.getComparisons().get(1).getCriterionLabel());
+    assertEquals("50%", evaluation.getComparisons().get(1).getActualLabel());
+    assertEquals("NOT OK", evaluation.getComparisons().get(1).getResultLabel());
+  }
+
+  @Test
+  public void detailsEvaluateEveryOrBranchWhileKeepingOverallResult() {
+    MetricsContext context = new MetricsContext(new GateMetrics(2, 2, 1, 1, 0, 0), Map.of());
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("regressions.passRate == 100 OR regressions.failRate == 50")
+            .evaluateDetailed(context);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals(2, evaluation.getComparisons().size());
+    assertFalse(evaluation.getComparisons().get(0).isPassed());
+    assertTrue(evaluation.getComparisons().get(1).isPassed());
+  }
+
+  @Test
+  public void detailsDistinguishDefectPercentageAndCountMetrics() {
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, High");
+    DefectCriteriaMetrics defects =
+        new DefectCriteriaMetrics(
+            OctaneDefectSeveritySummary.fromDefects(
+                List.of(
+                    new DefectRecord(
+                        "1", "Critical", "Critical", "", "opened", "run", "test", "", ""),
+                    new DefectRecord("2", "Closed", "Low", "", "closed", "run", "test", "", ""))),
+            List.of(major));
+    MetricsContext context =
+        new MetricsContext(new GateMetrics(1, 1, 1, 0, 0, 0), Map.of(), defects);
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("defects.major < 20% OR defects.majorCount == 1")
+            .evaluateDetailed(context);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals("defects.major < 20%", evaluation.getComparisons().get(0).getCriterionLabel());
+    assertEquals("50%", evaluation.getComparisons().get(0).getActualLabel());
+    assertEquals("defects.majorCount == 1", evaluation.getComparisons().get(1).getCriterionLabel());
+    assertEquals("1", evaluation.getComparisons().get(1).getActualLabel());
+  }
+
+  @Test
+  public void detailsSupportShorthandParenthesesScopedAliasesAndCaseInsensitiveReferences() {
+    Map<String, GateMetrics> scopes = new LinkedHashMap<>();
+    scopes.put("critical", new GateMetrics(2, 2, 2, 0, 0, 0));
+    MetricsContext context = new MetricsContext(new GateMetrics(4, 4, 3, 1, 0, 0), scopes);
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse(
+                "(100% execution AND regression.pass >= 95%) OR CRITICAL.passRate == 100%")
+            .evaluateDetailed(context);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals(3, evaluation.getComparisons().size());
+    assertEquals("execution >= 100%", evaluation.getComparisons().get(0).getCriterionLabel());
+    assertEquals("regression.pass >= 95%", evaluation.getComparisons().get(1).getCriterionLabel());
+    assertEquals(
+        "CRITICAL.passRate == 100%", evaluation.getComparisons().get(2).getCriterionLabel());
+    assertFalse(evaluation.getComparisons().get(1).isPassed());
+    assertTrue(evaluation.getComparisons().get(2).isPassed());
+  }
 
   @Test
   public void evaluatesShorthandExecutionAndPassThresholds() {

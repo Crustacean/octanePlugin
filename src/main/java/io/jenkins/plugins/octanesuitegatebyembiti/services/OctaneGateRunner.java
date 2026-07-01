@@ -12,6 +12,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPublisher;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
@@ -317,7 +318,8 @@ public class OctaneGateRunner {
         new DefectCriteriaMetrics(defectPollResult.severitySummary, request.getDefectGroups());
     MetricsContext metricsContext =
         new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
-    boolean passed = criteria.evaluate(metricsContext);
+    CriteriaEvaluation criteriaEvaluation = criteria.evaluateDetailed(metricsContext);
+    boolean passed = criteriaEvaluation.isPassed();
     boolean terminal =
         regressionMetrics.isTerminal()
             && scopedMetrics.values().stream().allMatch(GateMetrics::isTerminal);
@@ -332,6 +334,7 @@ public class OctaneGateRunner {
         scopedResults,
         defectPollResult.reportHeatMap,
         defectMetrics,
+        criteriaEvaluation,
         clock.instant());
   }
 

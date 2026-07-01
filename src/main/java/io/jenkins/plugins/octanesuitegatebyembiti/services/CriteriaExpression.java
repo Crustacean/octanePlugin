@@ -1,5 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaComparisonEvaluation;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
@@ -30,7 +32,13 @@ public class CriteriaExpression implements Serializable {
   }
 
   public boolean evaluate(MetricsContext context) {
-    return root.evaluate(context);
+    return evaluateDetailed(context).isPassed();
+  }
+
+  public CriteriaEvaluation evaluateDetailed(MetricsContext context) {
+    List<CriteriaComparisonEvaluation> comparisons = new ArrayList<>();
+    boolean passed = root.evaluate(context, comparisons);
+    return CriteriaEvaluation.available(passed, comparisons);
   }
 
   public boolean usesMetricNamespace(String namespace) {
@@ -140,7 +148,8 @@ public class CriteriaExpression implements Serializable {
   }
 
   private interface Node extends Serializable {
-    boolean evaluate(MetricsContext context);
+    boolean evaluate(
+        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations);
   }
 
   private static class LogicalNode implements Node {
@@ -157,11 +166,11 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public boolean evaluate(MetricsContext context) {
-      if (operator == TokenType.AND) {
-        return left.evaluate(context) && right.evaluate(context);
-      }
-      return left.evaluate(context) || right.evaluate(context);
+    public boolean evaluate(
+        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations) {
+      boolean leftPassed = left.evaluate(context, comparisonEvaluations);
+      boolean rightPassed = right.evaluate(context, comparisonEvaluations);
+      return operator == TokenType.AND ? leftPassed && rightPassed : leftPassed || rightPassed;
     }
   }
 
@@ -179,8 +188,22 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public boolean evaluate(MetricsContext context) {
+    public boolean evaluate(
+        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations) {
       double actualValue = context.value(metricName);
+      boolean passed = compare(actualValue);
+      comparisonEvaluations.add(
+          new CriteriaComparisonEvaluation(
+              metricName,
+              operator,
+              expectedValue,
+              actualValue,
+              context.isPercentageMetric(metricName),
+              passed));
+      return passed;
+    }
+
+    private boolean compare(double actualValue) {
       switch (operator) {
         case "==":
           return nearlyEqual(actualValue, expectedValue);

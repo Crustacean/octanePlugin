@@ -52,6 +52,21 @@ public class MetricsContext implements Serializable {
     return scopedMetrics.value(metric);
   }
 
+  public boolean isPercentageMetric(String metricReference) {
+    String trimmed = Util.trimToEmpty(metricReference);
+    int dot = trimmed.indexOf('.');
+    if (dot < 0) {
+      return GateMetrics.isPercentageMetric(trimmed);
+    }
+
+    String scope = trimmed.substring(0, dot);
+    String metric = trimmed.substring(dot + 1);
+    if ("defects".equalsIgnoreCase(scope)) {
+      return DefectCriteriaMetrics.isPercentageMetric(metric);
+    }
+    return GateMetrics.isPercentageMetric(metric);
+  }
+
   private GateMetrics findScope(String requestedScope) {
     for (Map.Entry<String, GateMetrics> entry : scopes.entrySet()) {
       if (entry.getKey().equalsIgnoreCase(requestedScope)) {

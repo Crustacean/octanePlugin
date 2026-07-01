@@ -236,16 +236,19 @@ Pipeline jobs may add a later notification stage:
 ```groovy
 octaneEmailReport(
   to: 'qa-team@example.com',
+  cc: 'qa-leads@example.com',
+  bcc: 'qa-audit@example.com',
   subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-  body: 'Attached is the Octane report-zone screenshot.',
+  body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
   onFailure: 'UNSTABLE'
 )
 ```
 
 This step reads the current build's `Octane Gate Report`, captures only
-`octane-report-zone`, and sends it through Jenkins Email Extension. It is
-Pipeline-only and does not change gate criteria or build result unless the email
-step itself fails according to `onFailure`.
+`octane-report-zone`, renders the persisted criteria evaluation as HTML, and sends both through
+Jenkins Email Extension. The comparison table preserves AST leaf order and reports the expected
+threshold, actual value, and `OK` or `NOT OK` result. It is Pipeline-only and does not change gate
+criteria or build result unless the email step itself fails according to `onFailure`.
 
 ## Runtime Flow
 
@@ -423,13 +426,16 @@ This keeps the popup focused on the most important status when a bar is mixed.
 flowchart LR
   Build["Completed or running Jenkins build"]
   Action["Octane Gate Report action"]
+  Evaluation["Persisted criteria evaluation\nverdict + ordered comparisons"]
   Html["Temporary static HTML\ncontaining octane-report-zone"]
   Chrome["Headless Chrome / Chromium"]
   Png["octane-report-zone.png"]
   Archive["Optional Jenkins archive"]
   Mail["Jenkins Email Extension"]
 
-  Build --> Action --> Html --> Chrome --> Png
+  Build --> Action --> Evaluation
+  Action --> Html --> Chrome --> Png
+  Evaluation --> Mail
   Png --> Archive
   Png --> Mail
 ```

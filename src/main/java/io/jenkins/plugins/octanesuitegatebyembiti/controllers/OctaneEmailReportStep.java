@@ -17,6 +17,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.EmailExtensionOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.HeadlessBrowserReportScreenshotService;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailBodyRenderer;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshotService;
@@ -161,18 +162,6 @@ public class OctaneEmailReportStep extends Step {
     return String.join(",", recipients);
   }
 
-  static String appendReportUrl(String body, String reportUrl) {
-    String base =
-        Util.trimToEmpty(body).isEmpty()
-            ? "Attached is the Octane report-zone screenshot."
-            : Util.trimToEmpty(body);
-    String normalizedReportUrl = Util.trimToEmpty(reportUrl);
-    if (!normalizedReportUrl.isEmpty() && base.contains(normalizedReportUrl)) {
-      return base;
-    }
-    return base + "\n\nOctane Gate Report: " + normalizedReportUrl;
-  }
-
   private static void addRecipients(List<String> recipients, String prefix, String value) {
     String trimmed = Util.trimToEmpty(value);
     if (trimmed.isEmpty()) {
@@ -281,7 +270,9 @@ public class OctaneEmailReportStep extends Step {
       }
 
       String subject = effectiveSubject(run, request.subject);
-      String body = appendReportUrl(request.body, action.getReportUrl());
+      String body =
+          new OctaneEmailBodyRenderer()
+              .render(request.body, action.getSnapshot(), action.getReportUrl());
       emailSender.send(getContext(), recipients, subject, body, screenshot.getAttachmentPattern());
       listener
           .getLogger()

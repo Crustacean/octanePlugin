@@ -34,6 +34,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final OctaneRiskHeatMap riskHeatMap;
   private final OctaneTestMetrics testMetrics;
   private final OctaneDefectTrend defectTrend;
+  private final CriteriaEvaluation criteriaEvaluation;
 
   private OctaneGateReportSnapshot(
       OctaneGateReportState state,
@@ -48,7 +49,8 @@ public class OctaneGateReportSnapshot implements Serializable {
       List<OctaneGateReportSection> sections,
       OctaneRiskHeatMap riskHeatMap,
       OctaneTestMetrics testMetrics,
-      OctaneDefectTrend defectTrend) {
+      OctaneDefectTrend defectTrend,
+      CriteriaEvaluation criteriaEvaluation) {
     this.state = state;
     this.message = message;
     this.criteria = criteria;
@@ -66,6 +68,8 @@ public class OctaneGateReportSnapshot implements Serializable {
             ? OctaneDefectTrend.start(
                 startedAt, (this.timeoutSeconds + this.timeoutExtendedSeconds) * 1000L)
             : defectTrend;
+    this.criteriaEvaluation =
+        criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
   }
 
   private static int toSeconds(int minutes) {
@@ -96,7 +100,8 @@ public class OctaneGateReportSnapshot implements Serializable {
                 now,
                 (toSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES)
                         + toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED))
-                    * 1000L));
+                    * 1000L),
+            CriteriaEvaluation.unavailable());
     return snapshot.withCalculatedTestMetrics(null);
   }
 
@@ -124,7 +129,8 @@ public class OctaneGateReportSnapshot implements Serializable {
                 startedAt,
                 (toSeconds(request.getTimeoutMinutes())
                         + toExtendedSeconds(request.getTimeoutMinutesExtended()))
-                    * 1000L));
+                    * 1000L),
+            CriteriaEvaluation.unavailable());
     return snapshot.withCalculatedTestMetrics(null);
   }
 
@@ -193,7 +199,8 @@ public class OctaneGateReportSnapshot implements Serializable {
             result.getRiskHeatMap(),
             OctaneTestMetrics.empty(),
             OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L)
-                .append(result.getPolledAt().toString(), result.getRiskHeatMap()));
+                .append(result.getPolledAt().toString(), result.getRiskHeatMap()),
+            result.getCriteriaEvaluation());
     return snapshot.withCalculatedTestMetrics(null);
   }
 
@@ -254,7 +261,8 @@ public class OctaneGateReportSnapshot implements Serializable {
                     "Risk heat map is unavailable because polling stopped.")
                 : OctaneRiskHeatMap.disabled(),
             OctaneTestMetrics.empty(),
-            OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L));
+            OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L),
+            CriteriaEvaluation.unavailable());
     return snapshot.withCalculatedTestMetrics(null);
   }
 
@@ -277,7 +285,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         sections,
         riskHeatMap,
         testMetrics,
-        getDefectTrend());
+        getDefectTrend(),
+        getCriteriaEvaluation());
   }
 
   public OctaneGateReportSnapshot withDefectTrend(OctaneDefectTrend defectTrend) {
@@ -294,7 +303,8 @@ public class OctaneGateReportSnapshot implements Serializable {
         sections,
         riskHeatMap,
         testMetrics,
-        defectTrend);
+        defectTrend,
+        getCriteriaEvaluation());
   }
 
   public OctaneGateReportState getState() {
@@ -385,6 +395,10 @@ public class OctaneGateReportSnapshot implements Serializable {
       return defectTrend;
     }
     return OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L);
+  }
+
+  public CriteriaEvaluation getCriteriaEvaluation() {
+    return criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
   }
 
   public String getTestMetricsHtml() {

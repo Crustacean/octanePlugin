@@ -42,6 +42,10 @@ public class DefectCriteriaMetrics implements Serializable {
     return rate(count);
   }
 
+  public static boolean isPercentageMetric(String metricName) {
+    return !Util.trimToEmpty(metricName).toLowerCase(Locale.ROOT).endsWith("count");
+  }
+
   public int getTotalDefectsRaised() {
     return totalDefectsRaised;
   }

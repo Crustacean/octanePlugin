@@ -117,15 +117,25 @@ To email the report image in a later Pipeline stage, use `octaneEmailReport` aft
 ```groovy
 octaneEmailReport(
   to: 'qa-team@example.com,dev-team@example.com',
+  cc: 'qa-leads@example.com',
+  bcc: 'qa-audit@example.com',
   subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-  body: 'Attached is the Octane report-zone screenshot.',
+  body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
   onFailure: 'UNSTABLE'
 )
 ```
 
 The step captures only the `octane-report-zone` chart area, saves it in the workspace as
 `.octane-suite-gate/report-email/octane-report-zone.png`, archives it by default, and sends it
-through Jenkins Email Extension. `onFailure` controls notification failures:
+through Jenkins Email Extension. The HTML email includes the overall criteria verdict, exact
+expression, terminal reason, a link to the build's Octane Gate Report, and an ordered table of
+each atomic comparison with its actual value and `OK` or `NOT OK` result. An `OR` expression can
+therefore contain a `NOT OK` row while the overall verdict is still `PASS`.
+
+To send failure and timeout reports from a separate email stage, wrap the gate stage in
+`catchError(catchInterruptions: false, ...)`, retain `gateResult.passed` in an environment flag,
+and allow deployment only when that flag is `true`, as shown in both example Jenkinsfiles.
+`onFailure` controls notification failures:
 
 - `UNSTABLE`: mark the build unstable and continue. This is the default.
 - `FAILURE`: fail the stage/build.
