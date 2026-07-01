@@ -9,6 +9,8 @@ import hudson.plugins.emailext.ExtendedEmailPublisher;
 import hudson.plugins.emailext.ExtendedEmailPublisherDescriptor;
 import hudson.util.StreamTaskListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -42,30 +44,30 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
       String body,
       String attachmentsPattern)
       throws Exception {
+    ExtendedEmailPublisherDescriptor descriptor = ExtendedEmailPublisher.descriptor();
+    String effectiveFrom =
+        resolveSender(from, descriptor.getSmtpUsername(), descriptor.getAdminAddress());
     EmailExtStep emailStep = new EmailExtStep(subject, body);
     emailStep.setTo(recipients);
-    if (!Util.trimToEmpty(from).isEmpty()) {
-      emailStep.setFrom(from);
-    }
+    emailStep.setFrom(effectiveFrom);
     if (!Util.trimToEmpty(replyTo).isEmpty()) {
       emailStep.setReplyTo(replyTo);
     }
     emailStep.setAttachmentsPattern(attachmentsPattern);
     emailStep.setMimeType("text/html");
     EmailOutputCapture outputCapture = EmailOutputCapture.create(context);
-    logConfiguration(outputCapture.getContext(), from);
+    logConfiguration(outputCapture.getContext(), descriptor, effectiveFrom);
     StepExecution execution = emailStep.start(outputCapture.getContext());
     invokeRun(execution);
     verifySendOutput(outputCapture.getOutput());
   }
 
-  private void logConfiguration(StepContext context, String from)
+  private void logConfiguration(
+      StepContext context, ExtendedEmailPublisherDescriptor descriptor, String effectiveFrom)
       throws IOException, InterruptedException {
-    ExtendedEmailPublisherDescriptor descriptor = ExtendedEmailPublisher.descriptor();
     TaskListener listener = context.get(TaskListener.class);
     String host = defaultValue(descriptor.getSmtpServer(), "localhost/default");
     String port = defaultValue(descriptor.getSmtpPort(), descriptor.getUseSsl() ? "465" : "25");
-    String sender = defaultValue(from, descriptor.getAdminAddress());
     listener
         .getLogger()
         .println(
@@ -76,8 +78,49 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
                 + ", SSL="
                 + descriptor.getUseSsl()
                 + ", from="
-                + defaultValue(sender, "not configured")
+                + effectiveFrom
                 + ".");
+  }
+
+  static String resolveSender(String configuredFrom, String smtpUsername, String defaultFrom)
+      throws AbortException {
+    String explicitSender = Util.trimToEmpty(configuredFrom);
+    if (!explicitSender.isEmpty()) {
+      if (!isUsableSender(explicitSender)) {
+        throw new AbortException(
+            "octaneEmailReport 'from' is not a valid sender address: " + explicitSender);
+      }
+      return explicitSender;
+    }
+
+    String authenticatedSender = Util.trimToEmpty(smtpUsername);
+    if (isUsableSender(authenticatedSender)) {
+      return authenticatedSender;
+    }
+
+    String jenkinsDefaultSender = Util.trimToEmpty(defaultFrom);
+    if (isUsableSender(jenkinsDefaultSender)) {
+      return jenkinsDefaultSender;
+    }
+
+    throw new AbortException(
+        "No valid email sender is configured. Set 'from' on octaneEmailReport or configure the "
+            + "SMTP username/default From address under Extended E-mail Notification. Jenkins' "
+            + "placeholder nobody@nowhere cannot be used for delivery.");
+  }
+
+  private static boolean isUsableSender(String candidate) {
+    if (Util.trimToEmpty(candidate).isEmpty()) {
+      return false;
+    }
+    try {
+      InternetAddress address = new InternetAddress(candidate, true);
+      address.validate();
+      String mailbox = Util.trimToEmpty(address.getAddress());
+      return mailbox.contains("@") && !mailbox.equalsIgnoreCase("nobody@nowhere");
+    } catch (AddressException e) {
+      return false;
+    }
   }
 
   private String defaultValue(String value, String fallback) {

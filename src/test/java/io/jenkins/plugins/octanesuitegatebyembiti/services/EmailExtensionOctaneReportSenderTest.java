@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -8,6 +9,36 @@ import hudson.AbortException;
 import org.junit.jupiter.api.Test;
 
 class EmailExtensionOctaneReportSenderTest {
+  @Test
+  void prefersExplicitSender() throws Exception {
+    assertEquals(
+        "Octane Reports <reports@example.com>",
+        EmailExtensionOctaneReportSender.resolveSender(
+            "Octane Reports <reports@example.com>",
+            "smtp@example.com",
+            "Jenkins <jenkins@example.com>"));
+  }
+
+  @Test
+  void fallsBackToAuthenticatedSmtpIdentityBeforeJenkinsDefault() throws Exception {
+    assertEquals(
+        "smtp@example.com",
+        EmailExtensionOctaneReportSender.resolveSender(
+            "", "smtp@example.com", "address not configured yet <nobody@nowhere>"));
+  }
+
+  @Test
+  void rejectsJenkinsPlaceholderSender() {
+    AbortException exception =
+        assertThrows(
+            AbortException.class,
+            () ->
+                EmailExtensionOctaneReportSender.resolveSender(
+                    "", "", "address not configured yet <nobody@nowhere>"));
+
+    assertTrue(exception.getMessage().contains("nobody@nowhere"));
+  }
+
   @Test
   void acceptsOutputWithoutAnEmailExtensionFailure() {
     assertDoesNotThrow(

@@ -146,8 +146,10 @@ and allow deployment only when that flag is `true`, as shown in both example Jen
 
 Optional parameters are `cc`, `bcc`, `from`, `replyTo`, `browserPath`, `theme`, `viewportWidth`,
 and `archiveScreenshot`. For Gmail SMTP, `from` should be the authenticated Gmail/Workspace
-account or an alias that account is authorized to send as. `theme` accepts `LIGHT`, `DARK`, or
-`SYSTEM` and defaults to `LIGHT`.
+account or an alias that account is authorized to send as. When `from` is omitted, the plugin uses
+the authenticated Extended E-mail Notification SMTP username before considering Jenkins' default
+sender. It rejects Jenkins' `nobody@nowhere` placeholder instead of reporting a misleading
+successful handoff. `theme` accepts `LIGHT`, `DARK`, or `SYSTEM` and defaults to `LIGHT`.
 `SYSTEM` follows the operating-system preference of the Jenkins agent service account.
 Chrome or Chromium must be available on the Jenkins agent, or `browserPath` must point to it.
 On Windows, use a Groovy-escaped agent-local path such as
