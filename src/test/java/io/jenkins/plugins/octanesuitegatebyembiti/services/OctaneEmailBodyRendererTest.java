@@ -4,11 +4,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaComparisonEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
@@ -139,7 +141,18 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("Test case execution"));
     assertTrue(html.contains("Total test cases"));
     assertTrue(html.contains("Execution rate"));
+    assertTrue(html.contains("Defect Distribution Matrix (Severity vs. Priority)"));
+    assertTrue(html.contains("Defect Status Table (by Severity)"));
+    assertTrue(html.contains(">Highest</th>"));
+    assertTrue(html.contains(">Medium</th>"));
+    assertTrue(html.contains(">Low</th>"));
+    assertTrue(html.contains("aria-label=\"All severities, Highest priority: 5\""));
+    assertTrue(html.contains("aria-label=\"Low severity, Low priority: 2\""));
+    assertTrue(html.contains("aria-label=\"High severity, Closed: 1\""));
+    assertTrue(html.contains("aria-label=\"Unspecified severity, Open: 1\""));
     assertTrue(html.contains("Criteria evaluation"));
+    assertTrue(html.indexOf("Project Details") < html.indexOf("Defect Distribution Matrix"));
+    assertTrue(html.indexOf("Defect Distribution Matrix") < html.indexOf("Criteria evaluation"));
     assertTrue(html.contains("border:2px solid #374151;padding:16px"));
     int reportStart = html.indexOf("data-octane-email-section=\"execution-report\"");
     int screenshotStart = html.indexOf("src=\"cid:octane-report-zone.png\"");
@@ -150,7 +163,7 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(screenshotStart < reportEnd);
     assertTrue(reportEnd < signOffStart);
     assertEquals(1, occurrences(html, "data-octane-email-section=\"execution-report\""));
-    assertEquals(4, occurrences(html, "font-size:16px;font-weight:700;line-height:1.25"));
+    assertEquals(6, occurrences(html, "font-size:16px;font-weight:700;line-height:1.25"));
     assertTrue(html.contains("Execution graph</td>"));
     assertTrue(html.contains("font-size:15px;font-weight:600;line-height:1.4"));
     assertTrue(html.contains("font-size:15px;font-weight:400;line-height:1.4"));
@@ -170,6 +183,19 @@ public class OctaneEmailBodyRendererTest {
                     "regressions.executionRate", "==", 100, 100, true, true),
                 new CriteriaComparisonEvaluation(
                     "regressions.passRate", ">=", 95, 92.5, true, false)));
+    OctaneDefectGroup major = defectGroup("major", "Critical, Very High, High, Unspecified");
+    OctaneDefectGroup minor = defectGroup("minor", "Medium");
+    OctaneDefectSeveritySummary defectSummary =
+        OctaneDefectSeveritySummary.fromDefects(
+            List.of(
+                defect("d1", "Critical", "opened"),
+                defect("d2", "Very High", "opened"),
+                defect("d3", "High", "opened"),
+                defect("d4", "Medium", "opened"),
+                defect("d5", "Low", "opened"),
+                defect("d6", "", "opened"),
+                defect("d7", "High", "closed"),
+                defect("d8", "Low", "closed")));
     GateResult result =
         new GateResult(
             "1",
@@ -181,10 +207,20 @@ public class OctaneEmailBodyRendererTest {
             Map.of(),
             Map.of(),
             OctaneRiskHeatMap.disabled(),
-            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
+            new DefectCriteriaMetrics(defectSummary, List.of(major, minor)),
             evaluation,
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(state, message, result, classifier, 30);
+  }
+
+  private OctaneDefectGroup defectGroup(String name, String types) {
+    OctaneDefectGroup group = new OctaneDefectGroup(name);
+    group.setTypes(types);
+    return group;
+  }
+
+  private DefectRecord defect(String id, String severity, String phase) {
+    return new DefectRecord(id, "Defect " + id, severity, "", phase, "run", "test", "", "");
   }
 
   private int occurrences(String value, String expected) {

@@ -2,6 +2,8 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaComparisonEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneExecutionStatusDistribution;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
@@ -24,6 +26,14 @@ public class OctaneEmailBodyRenderer {
       "font-family:Arial,sans-serif;font-size:15px;font-weight:400;line-height:1.4;";
   private static final String EXECUTION_DETAILS_TOKEN = "{{EXECUTION_DETAILS}}";
   private static final String REPORT_SCREENSHOT_TOKEN = "{{REPORT_SCREENSHOT}}";
+  private static final String[][] DEFECT_SEVERITIES = {
+    {"critical", "Critical"},
+    {"veryHigh", "Very High"},
+    {"high", "High"},
+    {"medium", "Medium"},
+    {"low", "Low"},
+    {"unspecified", "Unspecified"}
+  };
   private static final String DEFAULT_TEMPLATE =
       """
       Hello Team,
@@ -190,8 +200,154 @@ public class OctaneEmailBodyRenderer {
     appendExecutionTable(html, snapshot);
     html.append("</td></tr></table>");
     appendSpacer(html, 28);
+    appendDefectAnalysisTables(html, snapshot);
+    appendSpacer(html, 28);
     appendEvaluationTable(html, snapshot);
     return html.toString();
+  }
+
+  private void appendDefectAnalysisTables(StringBuilder html, OctaneGateReportSnapshot snapshot) {
+    DefectCriteriaMetrics metrics =
+        snapshot == null
+            ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), java.util.List.of())
+            : snapshot.getDefectMetrics();
+    html.append(
+        "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
+            + "style=\"border-collapse:collapse;width:100%;\"><tr>");
+    html.append("<td style=\"vertical-align:top;width:50%;\">");
+    appendDefectDistributionMatrix(html, metrics);
+    html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
+    html.append("<td style=\"vertical-align:top;width:50%;\">");
+    appendDefectStatusTable(html, metrics.getSeveritySummary());
+    html.append("</td></tr></table>");
+  }
+
+  private void appendDefectDistributionMatrix(StringBuilder html, DefectCriteriaMetrics metrics) {
+    OctaneDefectSeveritySummary summary = metrics.getSeveritySummary();
+    int[] priorityTotals = new int[3];
+    html.append(
+        defectTableStart(
+            "defect-distribution", "Defect Distribution Matrix (Severity vs. Priority)"));
+    html.append("<thead><tr>");
+    appendHeader(html, "Severity / Priority", "left");
+    appendHeader(html, "Highest", "right");
+    appendHeader(html, "Medium", "right");
+    appendHeader(html, "Low", "right");
+    html.append("</tr></thead><tbody>");
+    for (String[] severity : DEFECT_SEVERITIES) {
+      int count = summary.getTotalCount(severity[0]);
+      int priorityIndex = priorityIndex(metrics, severity[0]);
+      priorityTotals[priorityIndex] += count;
+      html.append("<tr>");
+      appendDefectRowHeader(html, severity[1]);
+      for (int index = 0; index < priorityTotals.length; index++) {
+        String priority = priorityLabel(index);
+        appendDefectCell(
+            html,
+            index == priorityIndex ? count : 0,
+            severity[1] + " severity, " + priority + " priority");
+      }
+      html.append("</tr>");
+    }
+    html.append("<tr>");
+    appendDefectRowHeader(html, "Total");
+    for (int index = 0; index < priorityTotals.length; index++) {
+      String priority = priorityLabel(index);
+      appendDefectCell(html, priorityTotals[index], "All severities, " + priority + " priority");
+    }
+    html.append("</tr></tbody></table>");
+  }
+
+  private void appendDefectStatusTable(StringBuilder html, OctaneDefectSeveritySummary summary) {
+    html.append(defectTableStart("defect-status", "Defect Status Table (by Severity)"));
+    html.append("<thead><tr>");
+    appendHeader(html, "Defect Status", "left");
+    for (String[] severity : DEFECT_SEVERITIES) {
+      appendHeader(html, severity[1], "right");
+    }
+    html.append("</tr></thead><tbody>");
+    appendDefectStatusRow(html, "Open", summary, DefectStatusCount.OPEN);
+    appendDefectStatusRow(html, "Closed", summary, DefectStatusCount.CLOSED);
+    appendDefectStatusRow(html, "Total Defects", summary, DefectStatusCount.TOTAL);
+    html.append("</tbody></table>");
+  }
+
+  private void appendDefectStatusRow(
+      StringBuilder html,
+      String rowLabel,
+      OctaneDefectSeveritySummary summary,
+      DefectStatusCount countType) {
+    html.append("<tr>");
+    appendDefectRowHeader(html, rowLabel);
+    for (String[] severity : DEFECT_SEVERITIES) {
+      int count;
+      if (countType == DefectStatusCount.OPEN) {
+        count = summary.getOpenCount(severity[0]);
+      } else if (countType == DefectStatusCount.CLOSED) {
+        count = summary.getClosedCount(severity[0]);
+      } else {
+        count = summary.getTotalCount(severity[0]);
+      }
+      appendDefectCell(html, count, severity[1] + " severity, " + rowLabel);
+    }
+    html.append("</tr>");
+  }
+
+  private String defectTableStart(String tableName, String caption) {
+    return "<table data-octane-email-table=\""
+        + tableName
+        + "\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;"
+        + "table-layout:fixed;width:100%;\"><caption style=\""
+        + SECTION_TITLE_STYLE
+        + "\">"
+        + escape(caption)
+        + "</caption>";
+  }
+
+  private void appendDefectRowHeader(StringBuilder html, String label) {
+    html.append("<th scope=\"row\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+        .append(TABLE_HEADER_STYLE)
+        .append("padding:0.5rem;text-align:left;\">")
+        .append(escape(label))
+        .append("</th>");
+  }
+
+  private void appendDefectCell(StringBuilder html, int count, String accessibleLabel) {
+    html.append("<td aria-label=\"")
+        .append(escape(accessibleLabel))
+        .append(": ")
+        .append(count)
+        .append("\" style=\"border:1px solid #d0d7de;")
+        .append(TABLE_VALUE_STYLE)
+        .append("padding:0.5rem;text-align:right;\">")
+        .append(count)
+        .append("</td>");
+  }
+
+  private int priorityIndex(DefectCriteriaMetrics metrics, String severity) {
+    if (metrics.isTypeInGroup("major", severity)) {
+      return 0;
+    }
+    if (metrics.isTypeInGroup("minor", severity)) {
+      return 1;
+    }
+    if ("low".equals(OctaneDefectSeveritySummary.normalizeOpenType(severity))) {
+      return 2;
+    }
+    if ("medium".equals(OctaneDefectSeveritySummary.normalizeOpenType(severity))) {
+      return 1;
+    }
+    return 0;
+  }
+
+  private String priorityLabel(int index) {
+    if (index == 0) {
+      return "Highest";
+    }
+    if (index == 1) {
+      return "Medium";
+    }
+    return "Low";
   }
 
   private void appendProjectDetailsTable(
@@ -420,6 +576,12 @@ public class OctaneEmailBodyRenderer {
       return new Verdict("FAIL", FAIL_COLOR);
     }
     return new Verdict("NOT EVALUATED", NEUTRAL_COLOR);
+  }
+
+  private enum DefectStatusCount {
+    OPEN,
+    CLOSED,
+    TOTAL
   }
 
   private String escape(String value) {

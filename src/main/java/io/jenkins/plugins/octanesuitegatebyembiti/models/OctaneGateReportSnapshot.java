@@ -34,6 +34,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final OctaneRiskHeatMap riskHeatMap;
   private final OctaneTestMetrics testMetrics;
   private final OctaneDefectTrend defectTrend;
+  private final DefectCriteriaMetrics defectMetrics;
   private final CriteriaEvaluation criteriaEvaluation;
 
   private OctaneGateReportSnapshot(
@@ -50,6 +51,7 @@ public class OctaneGateReportSnapshot implements Serializable {
       OctaneRiskHeatMap riskHeatMap,
       OctaneTestMetrics testMetrics,
       OctaneDefectTrend defectTrend,
+      DefectCriteriaMetrics defectMetrics,
       CriteriaEvaluation criteriaEvaluation) {
     this.state = state;
     this.message = message;
@@ -68,6 +70,10 @@ public class OctaneGateReportSnapshot implements Serializable {
             ? OctaneDefectTrend.start(
                 startedAt, (this.timeoutSeconds + this.timeoutExtendedSeconds) * 1000L)
             : defectTrend;
+    this.defectMetrics =
+        defectMetrics == null
+            ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
+            : defectMetrics;
     this.criteriaEvaluation =
         criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
   }
@@ -101,6 +107,7 @@ public class OctaneGateReportSnapshot implements Serializable {
                 (toSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES)
                         + toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED))
                     * 1000L),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable());
     return snapshot.withCalculatedTestMetrics(null);
   }
@@ -130,6 +137,7 @@ public class OctaneGateReportSnapshot implements Serializable {
                 (toSeconds(request.getTimeoutMinutes())
                         + toExtendedSeconds(request.getTimeoutMinutesExtended()))
                     * 1000L),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable());
     return snapshot.withCalculatedTestMetrics(null);
   }
@@ -200,6 +208,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             OctaneTestMetrics.empty(),
             OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L)
                 .append(result.getPolledAt().toString(), result.getRiskHeatMap()),
+            result.getDefectMetrics(),
             result.getCriteriaEvaluation());
     return snapshot.withCalculatedTestMetrics(null);
   }
@@ -262,6 +271,7 @@ public class OctaneGateReportSnapshot implements Serializable {
                 : OctaneRiskHeatMap.disabled(),
             OctaneTestMetrics.empty(),
             OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable());
     return snapshot.withCalculatedTestMetrics(null);
   }
@@ -286,6 +296,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         riskHeatMap,
         testMetrics,
         getDefectTrend(),
+        getDefectMetrics(),
         getCriteriaEvaluation());
   }
 
@@ -304,6 +315,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         riskHeatMap,
         testMetrics,
         defectTrend,
+        getDefectMetrics(),
         getCriteriaEvaluation());
   }
 
@@ -399,6 +411,12 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public CriteriaEvaluation getCriteriaEvaluation() {
     return criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
+  }
+
+  public DefectCriteriaMetrics getDefectMetrics() {
+    return defectMetrics == null
+        ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
+        : defectMetrics;
   }
 
   public String getTestMetricsHtml() {

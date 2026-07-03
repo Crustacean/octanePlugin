@@ -21,6 +21,9 @@ public class DefectCriteriaMetricsTest {
     assertEquals(10.0, metrics.value("Very_High"), 0.000001);
     assertEquals(20.0, metrics.value("minor"), 0.000001);
     assertEquals(60.0, metrics.value("open"), 0.000001);
+    assertEquals(true, metrics.isTypeInGroup("MAJOR", "Very_High"));
+    assertEquals(true, metrics.isTypeInGroup("minor", "LOW"));
+    assertEquals(false, metrics.isTypeInGroup("minor", "Critical"));
   }
 
   @Test

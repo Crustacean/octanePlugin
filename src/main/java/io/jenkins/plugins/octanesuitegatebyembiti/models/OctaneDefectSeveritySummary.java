@@ -28,9 +28,27 @@ public class OctaneDefectSeveritySummary implements Serializable {
   private final int low;
   private final int unspecified;
   private final int closed;
+  private final int closedCritical;
+  private final int closedVeryHigh;
+  private final int closedHigh;
+  private final int closedMedium;
+  private final int closedLow;
+  private final int closedUnspecified;
 
   private OctaneDefectSeveritySummary(
-      int critical, int veryHigh, int high, int medium, int low, int unspecified, int closed) {
+      int critical,
+      int veryHigh,
+      int high,
+      int medium,
+      int low,
+      int unspecified,
+      int closed,
+      int closedCritical,
+      int closedVeryHigh,
+      int closedHigh,
+      int closedMedium,
+      int closedLow,
+      int closedUnspecified) {
     this.critical = Math.max(0, critical);
     this.veryHigh = Math.max(0, veryHigh);
     this.high = Math.max(0, high);
@@ -38,10 +56,16 @@ public class OctaneDefectSeveritySummary implements Serializable {
     this.low = Math.max(0, low);
     this.unspecified = Math.max(0, unspecified);
     this.closed = Math.max(0, closed);
+    this.closedCritical = Math.max(0, closedCritical);
+    this.closedVeryHigh = Math.max(0, closedVeryHigh);
+    this.closedHigh = Math.max(0, closedHigh);
+    this.closedMedium = Math.max(0, closedMedium);
+    this.closedLow = Math.max(0, closedLow);
+    this.closedUnspecified = Math.max(0, closedUnspecified);
   }
 
   public static OctaneDefectSeveritySummary empty() {
-    return new OctaneDefectSeveritySummary(0, 0, 0, 0, 0, 0, 0);
+    return new OctaneDefectSeveritySummary(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   }
 
   public static OctaneDefectSeveritySummary fromDefects(List<DefectRecord> defects) {
@@ -56,18 +80,37 @@ public class OctaneDefectSeveritySummary implements Serializable {
     int low = 0;
     int unspecified = 0;
     int closed = 0;
+    int closedCritical = 0;
+    int closedVeryHigh = 0;
+    int closedHigh = 0;
+    int closedMedium = 0;
+    int closedLow = 0;
+    int closedUnspecified = 0;
     Set<String> seenDefectIds = new LinkedHashSet<>();
     for (DefectRecord defect : defects) {
       String key = defectKey(defect);
       if (!seenDefectIds.add(key)) {
         continue;
       }
+      Severity severity = Severity.from(defect);
       if (!defect.isOpen()) {
         closed++;
+        if (severity == Severity.CRITICAL) {
+          closedCritical++;
+        } else if (severity == Severity.VERY_HIGH) {
+          closedVeryHigh++;
+        } else if (severity == Severity.HIGH) {
+          closedHigh++;
+        } else if (severity == Severity.MEDIUM) {
+          closedMedium++;
+        } else if (severity == Severity.LOW) {
+          closedLow++;
+        } else {
+          closedUnspecified++;
+        }
         continue;
       }
 
-      Severity severity = Severity.from(defect);
       if (severity == Severity.CRITICAL) {
         critical++;
       } else if (severity == Severity.VERY_HIGH) {
@@ -83,7 +126,19 @@ public class OctaneDefectSeveritySummary implements Serializable {
       }
     }
     return new OctaneDefectSeveritySummary(
-        critical, veryHigh, high, medium, low, unspecified, closed);
+        critical,
+        veryHigh,
+        high,
+        medium,
+        low,
+        unspecified,
+        closed,
+        closedCritical,
+        closedVeryHigh,
+        closedHigh,
+        closedMedium,
+        closedLow,
+        closedUnspecified);
   }
 
   public int getCritical() {
@@ -112,6 +167,29 @@ public class OctaneDefectSeveritySummary implements Serializable {
 
   public int getClosed() {
     return closed;
+  }
+
+  public int getClosedCount(String defectType) {
+    switch (normalizeOpenType(defectType)) {
+      case "critical":
+        return closedCritical;
+      case "veryhigh":
+        return closedVeryHigh;
+      case "high":
+        return closedHigh;
+      case "medium":
+        return closedMedium;
+      case "low":
+        return closedLow;
+      case "unspecified":
+        return closedUnspecified + getUnclassifiedClosedCount();
+      default:
+        throw new IllegalArgumentException("Unknown closed defect type: " + defectType);
+    }
+  }
+
+  public int getTotalCount(String defectType) {
+    return getOpenCount(defectType) + getClosedCount(defectType);
   }
 
   public int getOpenTotal() {
@@ -201,6 +279,11 @@ public class OctaneDefectSeveritySummary implements Serializable {
     values.put("openTotal", getOpenTotal());
     values.put("total", getTotal());
     values.put("allClosed", isAllClosed());
+    Map<String, Object> closedBySeverity = new LinkedHashMap<>();
+    for (String type : OPEN_TYPES) {
+      closedBySeverity.put(type, getClosedCount(type));
+    }
+    values.put("closedBySeverity", closedBySeverity);
     List<Map<String, Object>> bucketValues = new ArrayList<>();
     for (Bucket bucket : getBuckets()) {
       bucketValues.add(bucket.toMap());
@@ -233,6 +316,12 @@ public class OctaneDefectSeveritySummary implements Serializable {
       return EMPTY_COLOR;
     }
     return isAllClosed() ? ALL_CLOSED_COLOR : CLOSED_COLOR;
+  }
+
+  private int getUnclassifiedClosedCount() {
+    int classified =
+        closedCritical + closedVeryHigh + closedHigh + closedMedium + closedLow + closedUnspecified;
+    return Math.max(0, closed - classified);
   }
 
   public static final class Bucket implements Serializable {
