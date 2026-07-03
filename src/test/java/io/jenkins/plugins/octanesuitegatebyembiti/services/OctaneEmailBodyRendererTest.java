@@ -141,6 +141,15 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("Execution rate"));
     assertTrue(html.contains("Criteria evaluation"));
     assertTrue(html.contains("border:2px solid #374151;padding:16px"));
+    int reportStart = html.indexOf("data-octane-email-section=\"execution-report\"");
+    int screenshotStart = html.indexOf("src=\"cid:octane-report-zone.png\"");
+    int signOffStart = html.indexOf("Thanks.");
+    int reportEnd = html.lastIndexOf("</td></tr></table>", signOffStart);
+    assertTrue(reportStart >= 0);
+    assertTrue(reportStart < screenshotStart);
+    assertTrue(screenshotStart < reportEnd);
+    assertTrue(reportEnd < signOffStart);
+    assertEquals(1, occurrences(html, "data-octane-email-section=\"execution-report\""));
     assertEquals(4, occurrences(html, "font-size:16px;font-weight:700;line-height:1.25"));
     assertTrue(html.contains("Execution graph</td>"));
     assertTrue(html.contains("font-size:15px;font-weight:600;line-height:1.4"));

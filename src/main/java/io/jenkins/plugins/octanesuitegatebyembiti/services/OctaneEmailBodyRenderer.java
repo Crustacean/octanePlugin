@@ -22,6 +22,8 @@ public class OctaneEmailBodyRenderer {
       "font-family:Arial,sans-serif;font-size:15px;font-weight:600;line-height:1.4;";
   private static final String TABLE_VALUE_STYLE =
       "font-family:Arial,sans-serif;font-size:15px;font-weight:400;line-height:1.4;";
+  private static final String EXECUTION_DETAILS_TOKEN = "{{EXECUTION_DETAILS}}";
+  private static final String REPORT_SCREENSHOT_TOKEN = "{{REPORT_SCREENSHOT}}";
   private static final String DEFAULT_TEMPLATE =
       """
       Hello Team,
@@ -121,11 +123,7 @@ public class OctaneEmailBodyRenderer {
                 ? "view the report output (link unavailable)"
                 : reportLink(normalizedReportUrl, "view the report output"));
     rendered =
-        rendered.replace(
-            "{{EXECUTION_DETAILS}}", renderExecutionDetails(projectName, domainName, snapshot));
-    rendered =
-        rendered.replace(
-            "{{REPORT_SCREENSHOT}}", renderInlineScreenshot(screenshotContentId, projectName));
+        renderExecutionReport(rendered, projectName, domainName, snapshot, screenshotContentId);
     rendered = rendered.replace("\n", "<br>");
 
     return "<div style=\"color:#202124;font-family:Arial,sans-serif;font-size:15px;"
@@ -145,13 +143,43 @@ public class OctaneEmailBodyRenderer {
     return DEFAULT_TEMPLATE.replace("Hello Team,\n\n", "Hello Team,\n\n" + configured + "\n\n");
   }
 
+  private String renderExecutionReport(
+      String template,
+      String projectName,
+      String domainName,
+      OctaneGateReportSnapshot snapshot,
+      String screenshotContentId) {
+    String details = renderExecutionDetails(projectName, domainName, snapshot);
+    String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
+    int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
+    int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
+    if (detailsStart >= 0 && screenshotStart > detailsStart) {
+      int betweenStart = detailsStart + EXECUTION_DETAILS_TOKEN.length();
+      String contents = details + template.substring(betweenStart, screenshotStart) + screenshot;
+      return template.substring(0, detailsStart)
+          + wrapExecutionReport(contents)
+          + template.substring(screenshotStart + REPORT_SCREENSHOT_TOKEN.length());
+    }
+    return template
+        .replace(EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details))
+        .replace(REPORT_SCREENSHOT_TOKEN, screenshot);
+  }
+
+  private String wrapExecutionReport(String contents) {
+    StringBuilder html = new StringBuilder();
+    html.append(
+        "<table data-octane-email-section=\"execution-report\" role=\"presentation\" "
+            + "cellpadding=\"0\" cellspacing=\"0\" "
+            + "style=\"border-collapse:collapse;width:100%;\"><tr><td "
+            + "style=\"border:2px solid #374151;padding:16px;\">");
+    html.append(contents);
+    html.append("</td></tr></table>");
+    return html.toString();
+  }
+
   private String renderExecutionDetails(
       String projectName, String domainName, OctaneGateReportSnapshot snapshot) {
     StringBuilder html = new StringBuilder();
-    html.append(
-        "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
-            + "style=\"border-collapse:collapse;width:100%;\"><tr><td "
-            + "style=\"border:2px solid #374151;padding:16px;\">");
     html.append(
         "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
             + "style=\"border-collapse:collapse;width:100%;\"><tr>");
@@ -163,7 +191,6 @@ public class OctaneEmailBodyRenderer {
     html.append("</td></tr></table>");
     appendSpacer(html, 28);
     appendEvaluationTable(html, snapshot);
-    html.append("</td></tr></table>");
     return html.toString();
   }
 
