@@ -119,21 +119,46 @@ octaneEmailReport(
   to: 'qa-team@example.com,dev-team@example.com',
   cc: 'qa-leads@example.com',
   bcc: 'qa-audit@example.com',
+  projectName: 'Business Payments Secure Checkout',
+  domainName: 'FS_TRIBE_DOMAIN',
   from: 'jenkins-notifications@example.com',
   replyTo: 'qa-team@example.com',
   subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-  body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
+  body: '''Hello Team,
+
+The automated job for {{PROJECT_NAME}} tests has run and is {{GATE_RESULT}}.
+
+Set criteria: {{CRITERIA}}
+
+Click here to {{REPORT_LINK}}.
+
+See below the execution details:
+
+{{EXECUTION_DETAILS}}
+
+{{REPORT_SCREENSHOT}}
+
+Thanks.
+QA Automation Team''',
   onFailure: 'UNSTABLE',
   theme: 'DARK'
 )
 ```
 
 The step captures only the `octane-report-zone` chart area, saves it in the workspace as
-`.octane-suite-gate/report-email/octane-report-zone.png`, archives it by default, and sends it
-through Jenkins Email Extension. The HTML email includes the overall criteria verdict, exact
-expression, terminal reason, a link to the build's Octane Gate Report, and an ordered table of
-each atomic comparison with its actual value and `OK` or `NOT OK` result. An `OR` expression can
-therefore contain a `NOT OK` row while the overall verdict is still `PASS`.
+`.octane-suite-gate/report-email/octane-report-zone.png`, archives it by default, and embeds it in
+the HTML email through the Content-ID assigned by Jenkins Email Extension. The email includes the
+project/domain details, execution totals, overall criteria verdict, exact expression, a link to
+the build's Octane Gate Report, and an ordered table of each atomic comparison with its actual
+value and `OK` or `NOT OK` result. An `OR` expression can therefore contain a `NOT OK` row while
+the overall verdict is still `PASS`.
+
+The body supports the tokens `{{PROJECT_NAME}}`, `{{DOMAIN_NAME}}`, `{{GATE_RESULT}}`,
+`{{CRITERIA}}`, `{{REPORT_LINK}}`, `{{EXECUTION_DETAILS}}`, and `{{REPORT_SCREENSHOT}}`. The
+generated data tables use stable column proportions and natural row heights, so criteria can grow
+from one row to many without overlapping or distorting the screenshot. If the body contains no
+tokens, it is retained as introductory text and the standard report template is generated after
+it.
 
 To send failure and timeout reports from a separate email stage, wrap the gate stage in
 `catchError(catchInterruptions: false, ...)`, retain `gateResult.passed` in an environment flag,
@@ -144,10 +169,11 @@ and allow deployment only when that flag is `true`, as shown in both example Jen
 - `FAILURE`: fail the stage/build.
 - `WARN`: print a warning and continue.
 
-Optional parameters are `cc`, `bcc`, `from`, `replyTo`, `browserPath`, `theme`, `viewportWidth`,
-and `archiveScreenshot`. For Gmail SMTP, `from` should be the authenticated Gmail/Workspace
-account or an alias that account is authorized to send as. When `from` is omitted, the plugin uses
-the authenticated Extended E-mail Notification SMTP username before considering Jenkins' default
+Optional parameters are `cc`, `bcc`, `projectName`, `domainName`, `from`, `replyTo`, `browserPath`,
+`theme`, `viewportWidth`, and `archiveScreenshot`. If `projectName` is omitted, the Jenkins job
+display name is used. For Gmail SMTP, `from` should be the authenticated Gmail/Workspace account
+or an alias that account is authorized to send as. When `from` is omitted, the plugin uses the
+authenticated Extended E-mail Notification SMTP username before considering Jenkins' default
 sender. It rejects Jenkins' `nobody@nowhere` placeholder instead of reporting a misleading
 successful handoff. `theme` accepts `LIGHT`, `DARK`, or `SYSTEM` and defaults to `LIGHT`.
 `SYSTEM` follows the operating-system preference of the Jenkins agent service account.

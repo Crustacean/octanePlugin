@@ -52,6 +52,8 @@ public class OctaneEmailReportStep extends Step {
   private String bcc = "";
   private String subject = "";
   private String body = "";
+  private String projectName = "";
+  private String domainName = "";
   private String from = "";
   private String replyTo = "";
   private String onFailure = OctaneEmailFailureMode.UNSTABLE.name();
@@ -103,6 +105,24 @@ public class OctaneEmailReportStep extends Step {
   @DataBoundSetter
   public void setBody(String body) {
     this.body = Util.trimToEmpty(body);
+  }
+
+  public String getProjectName() {
+    return projectName;
+  }
+
+  @DataBoundSetter
+  public void setProjectName(String projectName) {
+    this.projectName = Util.trimToEmpty(projectName);
+  }
+
+  public String getDomainName() {
+    return domainName;
+  }
+
+  @DataBoundSetter
+  public void setDomainName(String domainName) {
+    this.domainName = Util.trimToEmpty(domainName);
   }
 
   public String getFrom() {
@@ -214,6 +234,8 @@ public class OctaneEmailReportStep extends Step {
         bcc,
         subject,
         body,
+        projectName,
+        domainName,
         from,
         replyTo,
         onFailure,
@@ -231,6 +253,8 @@ public class OctaneEmailReportStep extends Step {
     private final String bcc;
     private final String subject;
     private final String body;
+    private final String projectName;
+    private final String domainName;
     private final String from;
     private final String replyTo;
     private final String onFailure;
@@ -245,6 +269,8 @@ public class OctaneEmailReportStep extends Step {
         String bcc,
         String subject,
         String body,
+        String projectName,
+        String domainName,
         String from,
         String replyTo,
         String onFailure,
@@ -257,6 +283,8 @@ public class OctaneEmailReportStep extends Step {
       this.bcc = bcc;
       this.subject = subject;
       this.body = body;
+      this.projectName = projectName;
+      this.domainName = domainName;
       this.from = from;
       this.replyTo = replyTo;
       this.onFailure = onFailure;
@@ -326,7 +354,13 @@ public class OctaneEmailReportStep extends Step {
       String subject = effectiveSubject(run, request.subject);
       String body =
           new OctaneEmailBodyRenderer()
-              .render(request.body, action.getSnapshot(), action.getReportUrl());
+              .render(
+                  request.body,
+                  effectiveProjectName(run, request.projectName),
+                  request.domainName,
+                  action.getSnapshot(),
+                  action.getReportUrl(),
+                  screenshot.getScreenshotFile().getName());
       listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
       emailSender.send(
           getContext(),
@@ -371,6 +405,11 @@ public class OctaneEmailReportStep extends Step {
         return trimmed;
       }
       return "Octane Gate Report - " + run.getParent().getFullName() + " #" + run.getNumber();
+    }
+
+    private String effectiveProjectName(Run<?, ?> run, String configuredProjectName) {
+      String trimmed = Util.trimToEmpty(configuredProjectName);
+      return trimmed.isEmpty() ? run.getParent().getDisplayName() : trimmed;
     }
 
     private String visibleRecipients(String recipients) {

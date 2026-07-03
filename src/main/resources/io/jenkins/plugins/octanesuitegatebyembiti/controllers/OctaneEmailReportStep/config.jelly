@@ -12,6 +12,12 @@
   <f:entry title="Subject" field="subject">
     <f:textbox />
   </f:entry>
+  <f:entry title="Project name" field="projectName">
+    <f:textbox placeholder="Business Payments Secure Checkout" />
+  </f:entry>
+  <f:entry title="Domain name" field="domainName">
+    <f:textbox placeholder="FS_TRIBE_DOMAIN" />
+  </f:entry>
   <f:entry title="Body" field="body">
     <f:textarea />
   </f:entry>

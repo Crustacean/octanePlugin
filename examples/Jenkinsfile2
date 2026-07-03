@@ -5,6 +5,8 @@ pipeline {
     OCTANE_SHARED_SPACE_ID = '9016'
     OCTANE_WORKSPACE_ID = '4001'
     OCTANE_REGRESSION_SUITE_RUN_ID = '1196'
+    OCTANE_PROJECT_NAME = 'Single Suite Run Project'
+    OCTANE_DOMAIN_NAME = 'QUALITY_ENGINEERING'
   }
 
   stages {
@@ -90,11 +92,28 @@ pipeline {
             to: 'qa-team@example.com,dev-team@example.com',
             cc: 'qa-leads@example.com',
             bcc: 'qa-audit@example.com',
+            projectName: env.OCTANE_PROJECT_NAME,
+            domainName: env.OCTANE_DOMAIN_NAME,
             // For Gmail SMTP, use the same authenticated account or an authorized alias.
             from: 'jenkins-notifications@example.com',
             replyTo: 'qa-team@example.com',
             subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
+            body: '''Hello Team,
+
+The automated job for {{PROJECT_NAME}} tests has run and is {{GATE_RESULT}}.
+
+Set criteria: {{CRITERIA}}
+
+Click here to {{REPORT_LINK}}.
+
+See below the execution details:
+
+{{EXECUTION_DETAILS}}
+
+{{REPORT_SCREENSHOT}}
+
+Thanks.
+QA Automation Team''',
             onFailure: 'UNSTABLE',
             theme: 'DARK',
             viewportWidth: 1400,

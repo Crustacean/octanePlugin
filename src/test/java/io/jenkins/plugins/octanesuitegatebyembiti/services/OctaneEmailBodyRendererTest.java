@@ -100,6 +100,58 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("Detailed evaluation unavailable for this build."));
   }
 
+  @Test
+  public void rendersProjectExecutionTablesAndCidScreenshotFromTemplate() {
+    String template =
+        """
+        Hello Team,
+
+        The automated job for {{PROJECT_NAME}} tests has run and is {{GATE_RESULT}}.
+
+        Set criteria: {{CRITERIA}}
+
+        Click here to {{REPORT_LINK}}.
+
+        See below the execution details:
+
+        {{EXECUTION_DETAILS}}
+
+        {{REPORT_SCREENSHOT}}
+
+        Thanks.
+        QA Automation Team
+        """;
+
+    String html =
+        renderer.render(
+            template,
+            "Business Payments Secure Checkout",
+            "FS_TRIBE_DOMAIN",
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            REPORT_URL,
+            "octane-report-zone.png");
+
+    assertTrue(html.contains("Business Payments Secure Checkout"));
+    assertTrue(html.contains("FS_TRIBE_DOMAIN"));
+    assertTrue(html.contains("color:#009900;font-weight:700;\">SUCCESS"));
+    assertTrue(html.contains(">view the report output</a>"));
+    assertTrue(html.contains("Project Details"));
+    assertTrue(html.contains("Test case execution"));
+    assertTrue(html.contains("Total test cases"));
+    assertTrue(html.contains("Execution rate"));
+    assertTrue(html.contains("Criteria evaluation"));
+    assertTrue(html.contains("border:2px solid #374151;padding:16px"));
+    assertEquals(4, occurrences(html, "font-size:16px;font-weight:700;line-height:1.25"));
+    assertTrue(html.contains("Execution graph</td>"));
+    assertTrue(html.contains("font-size:15px;font-weight:600;line-height:1.4"));
+    assertTrue(html.contains("font-size:15px;font-weight:400;line-height:1.4"));
+    assertTrue(html.contains("table-layout:fixed"));
+    assertTrue(html.contains("<colgroup>"));
+    assertTrue(html.contains("src=\"cid:octane-report-zone.png\""));
+    assertTrue(html.contains("gate execution report charts"));
+    assertFalse(html.contains("position:absolute"));
+  }
+
   private OctaneGateReportSnapshot snapshot(OctaneGateReportState state, String message) {
     CriteriaEvaluation evaluation =
         CriteriaEvaluation.available(
