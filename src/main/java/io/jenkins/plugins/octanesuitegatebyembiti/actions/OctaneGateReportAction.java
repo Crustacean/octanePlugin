@@ -273,7 +273,11 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private OctaneGateReportSnapshot withLiveReportData(OctaneGateReportSnapshot current) {
     OctaneDefectTrend trend = current.getDefectTrend();
     if (snapshot != null) {
-      trend = snapshot.getDefectTrend().append(current.getUpdatedAt(), current.getRiskHeatMap());
+      trend =
+          snapshot
+              .getDefectTrend()
+              .append(
+                  current.getUpdatedAt(), current.getRiskHeatMap(), current.getExecutedTestCount());
     }
     return withPreviousCycleMetrics(current.withDefectTrend(trend));
   }

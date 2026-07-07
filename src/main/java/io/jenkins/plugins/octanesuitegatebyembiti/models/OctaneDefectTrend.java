@@ -26,10 +26,14 @@ public final class OctaneDefectTrend implements Serializable {
   }
 
   public static OctaneDefectTrend start(String startedAt, long durationMillis) {
-    return new OctaneDefectTrend(startedAt, durationMillis, List.of(new Point(0L, 0, 0)));
+    return new OctaneDefectTrend(startedAt, durationMillis, List.of(new Point(0L, 0, 0, 0)));
   }
 
   public OctaneDefectTrend append(String updatedAt, OctaneRiskHeatMap heatMap) {
+    return append(updatedAt, heatMap, latestPoint().getExecuted());
+  }
+
+  public OctaneDefectTrend append(String updatedAt, OctaneRiskHeatMap heatMap, int executed) {
     Point latest = latestPoint();
     int opened = latest.getOpened();
     int closed = latest.getClosed();
@@ -38,12 +42,16 @@ public final class OctaneDefectTrend implements Serializable {
       opened = summary.getTotal();
       closed = summary.getClosed();
     }
-    return append(elapsedMillis(updatedAt), opened, closed);
+    return append(elapsedMillis(updatedAt), opened, closed, executed);
   }
 
   public OctaneDefectTrend append(long elapsedMillis, int opened, int closed) {
+    return append(elapsedMillis, opened, closed, latestPoint().getExecuted());
+  }
+
+  public OctaneDefectTrend append(long elapsedMillis, int opened, int closed, int executed) {
     long safeElapsed = Math.max(0L, Math.min(durationMillis, elapsedMillis));
-    Point point = new Point(safeElapsed, opened, closed);
+    Point point = new Point(safeElapsed, opened, closed, executed);
     List<Point> updatedPoints = new ArrayList<>(points);
     if (!updatedPoints.isEmpty()
         && updatedPoints.get(updatedPoints.size() - 1).getElapsedMillis() == safeElapsed) {
@@ -85,6 +93,39 @@ public final class OctaneDefectTrend implements Serializable {
     return maximum;
   }
 
+  public List<DensityBucket> getDensityBuckets() {
+    return densityBuckets(durationMillis);
+  }
+
+  List<DensityBucket> densityBuckets(long totalDurationMillis) {
+    long safeDuration = Math.max(1L, totalDurationMillis);
+    long bucketMillis = densityBucketMillis(safeDuration);
+    List<DensityBucket> buckets = new ArrayList<>();
+    for (long start = 0L; start < safeDuration; start += bucketMillis) {
+      long end = Math.min(safeDuration, start + bucketMillis);
+      Point startPoint = pointAt(start);
+      Point endPoint = pointAt(end);
+      int newDefects = Math.max(0, endPoint.getOpened() - startPoint.getOpened());
+      int executedTests = Math.max(0, endPoint.getExecuted() - startPoint.getExecuted());
+      double density =
+          executedTests == 0 ? newDefects : ((double) newDefects) / (double) executedTests;
+      buckets.add(new DensityBucket(start, end, newDefects, executedTests, density));
+    }
+    return buckets;
+  }
+
+  private static long densityBucketMillis(long durationMillis) {
+    long target = Math.max(1L, Math.round(durationMillis / 10.0));
+    long[] friendly =
+        new long[] {15_000L, 30_000L, 60_000L, 120_000L, 300_000L, 600_000L, 900_000L};
+    for (long candidate : friendly) {
+      if (target <= candidate) {
+        return candidate;
+      }
+    }
+    return 900_000L;
+  }
+
   public Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("startedAt", startedAt);
@@ -98,11 +139,27 @@ public final class OctaneDefectTrend implements Serializable {
       pointValues.add(point.toMap());
     }
     values.put("points", pointValues);
+    List<Map<String, Object>> bucketValues = new ArrayList<>();
+    for (DensityBucket bucket : getDensityBuckets()) {
+      bucketValues.add(bucket.toMap());
+    }
+    values.put("densityBuckets", bucketValues);
     return values;
   }
 
   private Point latestPoint() {
-    return points.isEmpty() ? new Point(0L, 0, 0) : points.get(points.size() - 1);
+    return points.isEmpty() ? new Point(0L, 0, 0, 0) : points.get(points.size() - 1);
+  }
+
+  private Point pointAt(long elapsedMillis) {
+    Point selected = points.isEmpty() ? new Point(0L, 0, 0, 0) : points.get(0);
+    for (Point point : points) {
+      if (point.getElapsedMillis() > elapsedMillis) {
+        return selected;
+      }
+      selected = point;
+    }
+    return selected;
   }
 
   private long elapsedMillis(String updatedAt) {
@@ -119,11 +176,13 @@ public final class OctaneDefectTrend implements Serializable {
     private final long elapsedMillis;
     private final int opened;
     private final int closed;
+    private final int executed;
 
-    private Point(long elapsedMillis, int opened, int closed) {
+    private Point(long elapsedMillis, int opened, int closed, int executed) {
       this.elapsedMillis = Math.max(0L, elapsedMillis);
       this.opened = Math.max(0, opened);
       this.closed = Math.max(0, closed);
+      this.executed = Math.max(0, executed);
     }
 
     public long getElapsedMillis() {
@@ -138,11 +197,70 @@ public final class OctaneDefectTrend implements Serializable {
       return closed;
     }
 
+    public int getExecuted() {
+      return executed;
+    }
+
     private Map<String, Object> toMap() {
       Map<String, Object> values = new LinkedHashMap<>();
       values.put("elapsedMillis", elapsedMillis);
       values.put("opened", opened);
       values.put("closed", closed);
+      values.put("executed", executed);
+      return values;
+    }
+  }
+
+  public static final class DensityBucket implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private final long startMillis;
+    private final long endMillis;
+    private final int newDefects;
+    private final int executedTests;
+    private final double density;
+
+    private DensityBucket(
+        long startMillis, long endMillis, int newDefects, int executedTests, double density) {
+      this.startMillis = Math.max(0L, startMillis);
+      this.endMillis = Math.max(this.startMillis, endMillis);
+      this.newDefects = Math.max(0, newDefects);
+      this.executedTests = Math.max(0, executedTests);
+      this.density = Math.max(0.0, density);
+    }
+
+    public long getStartMillis() {
+      return startMillis;
+    }
+
+    public long getEndMillis() {
+      return endMillis;
+    }
+
+    public int getNewDefects() {
+      return newDefects;
+    }
+
+    public int getExecutedTests() {
+      return executedTests;
+    }
+
+    public double getDensity() {
+      return density;
+    }
+
+    public boolean isZeroTestSpike() {
+      return newDefects > 0 && executedTests == 0;
+    }
+
+    private Map<String, Object> toMap() {
+      Map<String, Object> values = new LinkedHashMap<>();
+      values.put("startMillis", startMillis);
+      values.put("endMillis", endMillis);
+      values.put("newDefects", newDefects);
+      values.put("executedTests", executedTests);
+      values.put("density", density);
+      values.put("zeroTestSpike", isZeroTestSpike());
       return values;
     }
   }

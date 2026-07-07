@@ -206,11 +206,17 @@ public class OctaneGateReportSnapshot implements Serializable {
             sections,
             result.getRiskHeatMap(),
             OctaneTestMetrics.empty(),
-            OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L)
-                .append(result.getPolledAt().toString(), result.getRiskHeatMap()),
+            OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L),
             result.getDefectMetrics(),
             result.getCriteriaEvaluation());
-    return snapshot.withCalculatedTestMetrics(null);
+    OctaneDefectTrend trend =
+        snapshot
+            .getDefectTrend()
+            .append(
+                result.getPolledAt().toString(),
+                result.getRiskHeatMap(),
+                snapshot.getExecutedTestCount());
+    return snapshot.withDefectTrend(trend).withCalculatedTestMetrics(null);
   }
 
   public static OctaneGateReportSnapshot error(

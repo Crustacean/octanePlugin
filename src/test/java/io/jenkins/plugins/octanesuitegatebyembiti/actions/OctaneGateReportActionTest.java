@@ -75,7 +75,21 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Execution Pass Rate"));
     assertTrue(text.contains("Execution Defect Rate"));
     assertTrue(text.contains("Defect Arrival vs. Resolution Trend Analysis"));
+    assertFalse(text.contains("Defect Volumes"));
+    assertTrue(text.contains("Volume"));
+    assertTrue(text.contains("Density"));
+    assertTrue(xml.contains("data-defect-target-view=\"volumes\""));
+    assertTrue(xml.contains("data-defect-target-view=\"density\""));
+    assertTrue(xml.contains("data-defect-title=\"Defect Density\""));
+    assertTrue(xml.contains("data-defect-subtitle=\"Execution Defect Density\""));
+    assertTrue(xml.contains("octane-defect-pane-label-full"));
+    assertTrue(xml.contains("octane-defect-pane-label-short"));
+    assertTrue(xml.contains(">V</span>"));
+    assertTrue(xml.contains(">D</span>"));
+    assertTrue(text.contains("Defects Raised"));
     assertTrue(text.contains("Defects"));
+    assertTrue(xml.contains("octane-defect-density-axis-title"));
+    assertTrue(xml.contains(">Defect Density</div>"));
     assertTrue(text.contains("Opened Defects"));
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
     assertTrue(text.contains("Total: 2"));
@@ -177,10 +191,129 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-target-view-label=\"execution defect rate\""));
     assertTrue(xml.contains("octane-icon-defects"));
     assertTrue(xml.contains("octane-flip-face-defects"));
+    assertTrue(xml.contains("octane-defect-face-header"));
+    assertTrue(xml.contains("data-defect-view-title=\"true\""));
+    assertTrue(xml.contains("data-defect-view-subtitle=\"true\""));
+    assertTrue(xml.contains("octane-defect-main-view-toggle"));
+    assertTrue(xml.contains("data-defect-analytics=\"true\""));
+    assertTrue(xml.contains("data-active-defect-view=\"volumes\""));
+    assertTrue(xml.contains("octane-defect-pane-switcher"));
+    assertTrue(xml.contains("octane-defect-face-actions"));
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-header ')]"
+                    + "/*[1][contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-heading ')]")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-header ')]"
+                    + "/*[2][contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-pane-switcher ')]")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-header ')]"
+                    + "/*[3][contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-actions ')]")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-actions ')]"
+                    + "/button[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-view-toggle ')]")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-actions ')]"
+                    + "/button[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-expand-toggle ')]")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-face-actions ')]"
+                    + "/button[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-card-tools ')]")
+            .size());
+    assertEquals(
+        0,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "/div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-card-actions ')]"
+                    + "/div[contains(concat(' ', normalize-space(@class), ' '),"
+                    + " ' octane-defect-pane-switcher ')]")
+            .size());
+    assertTrue(xml.contains("--octane-control-size: 1.15rem"));
+    assertTrue(xml.contains("height: var(--octane-control-size, 1.15rem)"));
+    assertTrue(
+        xml.contains(
+            ".octane-defect-face-header {\n          align-items: flex-start;\n"
+                + "          display: flex;"));
+    assertTrue(xml.contains("flex-wrap: nowrap"));
+    assertTrue(xml.contains("border-radius: 9999px"));
+    assertTrue(xml.contains("padding: 2px"));
+    assertTrue(xml.contains("display: inline-flex"));
+    assertTrue(xml.contains("justify-content: center"));
+    assertTrue(xml.contains(".octane-defect-pane {\n          box-sizing: border-box;"));
+    assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr);\n          height: 100%;"));
+    assertTrue(
+        xml.contains(
+            ".octane-defect-analytics {\n            grid-template-rows: minmax(0, 1fr);"));
+    assertTrue(
+        xml.contains(
+            ".octane-chart-card[data-card-key=\"progress-pass-rate\"][data-active-view=\"defects\"]"));
+    assertTrue(xml.contains("data-defect-target-view=\"volumes\""));
+    assertTrue(xml.contains("data-defect-target-view=\"density\""));
+    assertTrue(xml.contains("data-defect-pane=\"volumes\""));
+    assertTrue(xml.contains("data-defect-pane=\"density\""));
     assertTrue(xml.contains("data-defect-trend-panel=\"true\""));
+    assertTrue(xml.contains("octane-defect-trend-summary-card"));
+    assertTrue(
+        xml.contains(
+            ".octane-defect-trend-summary-card {\n          align-content: start;\n"
+                + "          background: transparent;\n          border: 0;"));
+    assertTrue(xml.contains("padding: 2px 0"));
+    assertTrue(xml.contains(".octane-defect-trend-value,\n        .octane-defect-density-value"));
+    assertTrue(
+        xml.contains(".octane-defect-trend-total-label,\n        .octane-defect-density-label"));
     assertTrue(xml.contains("octane-defect-trend-line-opened"));
     assertTrue(xml.contains("octane-defect-trend-line-closed"));
     assertTrue(xml.contains("octane-defect-trend-axis-title"));
+    assertTrue(xml.contains("data-executed=\""));
+    assertTrue(xml.contains("data-defect-density-panel=\"true\""));
+    assertTrue(xml.contains("data-defect-density-raised-total=\"true\""));
+    assertTrue(xml.contains("grid-template-columns: max-content max-content minmax(0, 1fr)"));
+    assertTrue(xml.contains("octane-defect-density-svg"));
+    assertTrue(xml.contains("octane-defect-density-area"));
+    assertTrue(xml.contains("octane-defect-density-line"));
+    assertTrue(xml.contains("fill: #3B82F6"));
+    assertTrue(xml.contains("fill-opacity: 0.76"));
+    assertTrue(xml.contains("stroke: #3B82F6"));
+    assertTrue(xml.contains("stroke-width: 1px"));
+    assertTrue(xml.contains("stroke-width=\"1\""));
+    assertTrue(xml.contains("shape-rendering: geometricPrecision"));
+    assertTrue(xml.contains("shape-rendering=\"geometricPrecision\""));
+    assertTrue(xml.contains("octane-defect-density-axis-line-dotted"));
+    assertTrue(xml.contains("data-defect-density-bucket=\"true\""));
     assertEquals(
         1,
         page.getByXPath(
@@ -206,6 +339,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("scheduleTimerFrame(animateDefectTrend)"));
     assertTrue(xml.contains("function updateDefectTrend"));
     assertTrue(xml.contains("updateDefectTrend(payload)"));
+    assertTrue(xml.contains("function setDefectAnalyticsView"));
+    assertTrue(xml.contains("data-defect-view-title"));
+    assertTrue(xml.contains("selectedButton.getAttribute(\"data-defect-title\")"));
+    assertTrue(xml.contains("function buildDefectDensityBuckets"));
+    assertTrue(xml.contains("function renderDefectDensity"));
+    assertTrue(xml.contains("event.target.closest(\".octane-defect-pane-toggle\")"));
     assertTrue(xml.contains("octane-flip-face-breakdown"));
     assertTrue(xml.contains("data-execution-breakdown-panel=\"true\""));
     assertTrue(xml.contains("octane-execution-breakdown-content"));
@@ -603,6 +742,13 @@ public class OctaneGateReportActionTest {
     assertEquals(0, payload.getJSONObject("defectTrend").getInt("openedTotal"));
     assertEquals("#ff6361", payload.getJSONObject("defectTrend").getString("openedColor"));
     assertEquals("#7BE5B3", payload.getJSONObject("defectTrend").getString("closedColor"));
+    assertTrue(payload.getJSONObject("defectTrend").getJSONArray("densityBuckets").size() >= 1);
+    assertTrue(
+        payload
+            .getJSONObject("defectTrend")
+            .getJSONArray("points")
+            .getJSONObject(0)
+            .containsKey("executed"));
     assertTrue(payload.getString("reportZoneHtml").contains("id=\"octane-report-zone\""));
     assertFalse(payload.getString("reportZoneHtml").contains("id=\"octane-timer-zone\""));
     assertFalse(json.toLowerCase(Locale.ROOT).contains("client_id"));
