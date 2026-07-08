@@ -3029,6 +3029,7 @@
             waiting: false,
             waitingSince: 0
           };
+          var completionAutoFlipState = {};
           var TIMER_CENTER = 120;
           var TIMER_RADIUS = 84;
           var PROGRESS_COLOR_PHASES = {
@@ -3817,14 +3818,32 @@
                 executionProgressCard
                     ? parseFloat(executionProgressCard.getAttribute("data-progress-value") || "0")
                     : 0;
+            var timeoutCard = dashboard.querySelector('[data-octane-timer="timeout"]');
+            var timeoutSeconds = timeoutCard
+                ? parseInt(timeoutCard.getAttribute("data-total-seconds") || "0", 10)
+                : 0;
             return {
               building: dashboard.getAttribute("data-report-building") === "true",
               extendedTime: dashboard.getAttribute("data-extended-time") === "true",
               manualExitRequested:
                   dashboard.getAttribute("data-manual-exit-requested") === "true",
               executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
-              stateLabel: stateLabel ? stateLabel.textContent : ""
+              sampleTimeMillis: currentWallTime(),
+              startedAt: timeoutCard ? timeoutCard.getAttribute("data-started-at") || "" : "",
+              stateLabel: stateLabel ? stateLabel.textContent : "",
+              timeoutSeconds: isNaN(timeoutSeconds) ? 0 : timeoutSeconds,
+              updatedAt: currentUpdatedAt
             };
+          }
+          function payloadTimeMillis(payload, key) {
+            if (
+                key === "sampleTimeMillis"
+                && payload
+                && typeof payload.sampleTimeMillis === "number") {
+              return payload.sampleTimeMillis;
+            }
+            var parsed = Date.parse(payload && payload[key] ? payload[key] : "");
+            return isNaN(parsed) ? currentWallTime() : parsed;
           }
           function snapshotProgress(payload) {
             var progress =
@@ -3837,62 +3856,71 @@
           function manualExitRequested(payload) {
             return payload && payload.manualExitRequested === true;
           }
+          function primaryTimeoutReached(payload) {
+            var timeoutSeconds =
+                Number(payload && payload.timeoutSeconds ? payload.timeoutSeconds : 0);
+            if (!payload || !isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+              return false;
+            }
+            var startedAt = payloadTimeMillis(payload, "startedAt");
+            var sampleTime = payloadTimeMillis(payload, "sampleTimeMillis");
+            return sampleTime - startedAt >= timeoutSeconds * 1000;
+          }
+          function initialAutoFlipBoundaryReached(payload) {
+            return primaryTimeoutReached(payload) || snapshotProgress(payload) >= 100;
+          }
           function completionReached(payload) {
             var timedOut =
                 payload && payload.building !== true && payload.stateLabel === "Timed out";
             return timedOut
                 || manualExitRequested(payload)
-                || (payload && payload.extendedTime !== true && snapshotProgress(payload) >= 100);
+                || initialAutoFlipBoundaryReached(payload);
+          }
+          function autoFlipKey(cardKey, targetView) {
+            return cardKey + ":" + targetView;
+          }
+          function hasAutoFlipped(cardKey, targetView) {
+            return completionAutoFlipState[autoFlipKey(cardKey, targetView)] === true;
+          }
+          function markAutoFlipped(card, cardKey, targetView) {
+            completionAutoFlipState[autoFlipKey(cardKey, targetView)] = true;
+            dashboard.setAttribute("data-has-auto-flipped", "true");
+            if (card) {
+              card.setAttribute("data-has-auto-flipped", "true");
+            }
+          }
+          function autoShowCardViewOnce(payload, cardKey, targetView) {
+            var card = dashboard.querySelector('[data-card-key="' + cardKey + '"]');
+            if (!card || !card.querySelector(".octane-view-toggle")) {
+              return null;
+            }
+            if (!completionReached(payload) || hasAutoFlipped(cardKey, targetView)) {
+              return null;
+            }
+            markAutoFlipped(card, cardKey, targetView);
+            if (activeCardView(card) !== targetView) {
+              setCardView(card, targetView);
+            }
+            return card;
+          }
+          function runCompletionAutoFlips(payload) {
+            autoShowHeatMapOnCompletion(payload);
+            autoShowTestMetricsOnCompletion(payload);
+            autoShowExecutionBreakdownOnCompletion(payload);
+            autoShowDefectTrendOnCompletion(payload);
           }
           function autoShowHeatMapOnCompletion(payload) {
-            var card = dashboard.querySelector('[data-card-key="timer-poll"]');
-            if (!card || !card.querySelector(".octane-view-toggle")) {
-              return;
-            }
-            if (activeCardView(card) === "heatmap") {
-              return;
-            }
-            if (completionReached(payload)) {
-              setCardView(card, "heatmap");
-            }
+            autoShowCardViewOnce(payload, "timer-poll", "heatmap");
           }
           function autoShowTestMetricsOnCompletion(payload) {
-            var card = dashboard.querySelector('[data-card-key="timer-timeout"]');
-            if (!card || !card.querySelector(".octane-view-toggle")) {
-              return;
-            }
-            if (activeCardView(card) === "metrics") {
-              return;
-            }
-            if ((payload && payload.building !== true)
-                || completionReached(payload)) {
-              setCardView(card, "metrics");
-            }
+            autoShowCardViewOnce(payload, "timer-timeout", "metrics");
           }
           function autoShowExecutionBreakdownOnCompletion(payload) {
-            var card = dashboard.querySelector('[data-card-key="progress-execution"]');
-            if (!card || !card.querySelector(".octane-view-toggle")) {
-              return;
-            }
-            if (activeCardView(card) === "breakdown") {
-              return;
-            }
-            if ((payload && payload.building !== true)
-                || completionReached(payload)) {
-              setCardView(card, "breakdown");
-            }
+            autoShowCardViewOnce(payload, "progress-execution", "breakdown");
           }
           function autoShowDefectTrendOnCompletion(payload) {
-            var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
-            if (!card || !card.querySelector(".octane-view-toggle")) {
-              return;
-            }
-            if (activeCardView(card) === "defects") {
-              return;
-            }
-            if ((payload && payload.building !== true)
-                || completionReached(payload)) {
-              setCardView(card, "defects");
+            var card = autoShowCardViewOnce(payload, "progress-pass-rate", "defects");
+            if (card) {
               scheduleDefectTrendAnimation();
             }
           }
@@ -3971,10 +3999,7 @@
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
           scheduleDefectTrendAnimation();
-          autoShowHeatMapOnCompletion(currentReportPayload());
-          autoShowTestMetricsOnCompletion(currentReportPayload());
-          autoShowExecutionBreakdownOnCompletion(currentReportPayload());
-          autoShowDefectTrendOnCompletion(currentReportPayload());
+          runCompletionAutoFlips(currentReportPayload());
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
@@ -4214,6 +4239,9 @@
               } else if (state.mode === "timeout") {
                 state.totalMillis = Math.max(1, timeoutSeconds) * 1000;
                 state.extendedTotalMillis = Math.max(0, timeoutExtendedSeconds) * 1000;
+                if (payload.startedAt) {
+                  state.card.setAttribute("data-started-at", payload.startedAt);
+                }
                 state.endAt = parseTimestamp(state.card.getAttribute("data-started-at"))
                     + state.totalMillis;
                 state.card.setAttribute("data-total-seconds", String(timeoutSeconds));
@@ -4247,10 +4275,7 @@
             updateTestMetrics(payload);
             updateExecutionStatusDistribution(payload);
             updateDefectTrend(payload);
-            autoShowHeatMapOnCompletion(payload);
-            autoShowTestMetricsOnCompletion(payload);
-            autoShowExecutionBreakdownOnCompletion(payload);
-            autoShowDefectTrendOnCompletion(payload);
+            runCompletionAutoFlips(payload);
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
@@ -4368,10 +4393,7 @@
               updateTestMetrics(payload);
               updateExecutionStatusDistribution(payload);
               updateDefectTrend(payload);
-              autoShowHeatMapOnCompletion(payload);
-              autoShowTestMetricsOnCompletion(payload);
-              autoShowExecutionBreakdownOnCompletion(payload);
-              autoShowDefectTrendOnCompletion(payload);
+              runCompletionAutoFlips(payload);
             }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
             });
@@ -4384,6 +4406,9 @@
               updateTimer(timers[index], now);
               if (timers[index].mode === "poll" && timers[index].active && remaining <= 0) {
                 beginSnapshotRefresh(now);
+              }
+              if (timers[index].mode === "timeout" && timers[index].active && remaining <= 0) {
+                runCompletionAutoFlips(currentReportPayload());
               }
               activeTimerStillRunning =
                   activeTimerStillRunning || remaining > 0 || liveRefresh.waiting;

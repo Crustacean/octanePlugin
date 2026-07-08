@@ -180,6 +180,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     JSONObject payload = new JSONObject();
     payload.put("updatedAt", safeSnapshot.getUpdatedAt());
     payload.put("updatedAtText", safeSnapshot.getUpdatedAtText());
+    payload.put("startedAt", safeSnapshot.getStartedAt());
     payload.put("building", safeSnapshot.isBuilding());
     payload.put("stateLabel", safeSnapshot.getStateLabel());
     payload.put("message", safeSnapshot.getMessage());
