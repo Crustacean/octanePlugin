@@ -147,9 +147,24 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains(">Medium</th>"));
     assertTrue(html.contains(">Low</th>"));
     assertTrue(html.contains("aria-label=\"All severities, Highest priority: 5\""));
-    assertTrue(html.contains("aria-label=\"Low severity, Low priority: 2\""));
-    assertTrue(html.contains("aria-label=\"High severity, Closed: 1\""));
-    assertTrue(html.contains("aria-label=\"Unspecified severity, Open: 1\""));
+    assertTrue(html.contains("aria-label=\"Low severity, Medium priority: 2\""));
+    String statusTable = emailTable(html, "defect-status");
+    assertTrue(statusTable.contains(">major</th>"));
+    assertTrue(statusTable.contains(">minor</th>"));
+    assertFalse(statusTable.contains(">Low</th>"));
+    assertFalse(statusTable.contains(">Critical</th>"));
+    assertFalse(statusTable.contains(">Very High</th>"));
+    assertFalse(statusTable.contains(">High</th>"));
+    assertFalse(statusTable.contains(">Medium</th>"));
+    assertFalse(statusTable.contains(">Unspecified</th>"));
+    assertTrue(statusTable.contains("aria-label=\"major, Open: 4\""));
+    assertTrue(statusTable.contains("aria-label=\"major, Closed: 1\""));
+    assertTrue(statusTable.contains("aria-label=\"major, Total: 5\""));
+    assertTrue(statusTable.contains("aria-label=\"minor, Open: 2\""));
+    assertTrue(statusTable.contains("aria-label=\"minor, Closed: 1\""));
+    assertTrue(statusTable.contains("aria-label=\"minor, Total: 3\""));
+    assertTrue(statusTable.contains(">Total</th>"));
+    assertFalse(statusTable.contains("Total Defects"));
     assertTrue(html.contains("Criteria evaluation"));
     assertTrue(html.indexOf("Project Details") < html.indexOf("Defect Distribution Matrix"));
     assertTrue(html.indexOf("Defect Distribution Matrix") < html.indexOf("Criteria evaluation"));
@@ -163,10 +178,12 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(screenshotStart < reportEnd);
     assertTrue(reportEnd < signOffStart);
     assertEquals(1, occurrences(html, "data-octane-email-section=\"execution-report\""));
-    assertEquals(6, occurrences(html, "font-size:16px;font-weight:700;line-height:1.25"));
+    assertEquals(6, occurrences(html, "font-size:16px;font-weight:600;line-height:1.25"));
     assertTrue(html.contains("Execution graph</td>"));
     assertTrue(html.contains("font-size:15px;font-weight:600;line-height:1.4"));
     assertTrue(html.contains("font-size:15px;font-weight:400;line-height:1.4"));
+    assertTrue(html.contains("padding:4px 8px"));
+    assertTrue(html.contains("height:28px;line-height:1px;"));
     assertTrue(html.contains("table-layout:fixed"));
     assertTrue(html.contains("<colgroup>"));
     assertTrue(html.contains("src=\"cid:octane-report-zone.png\""));
@@ -174,7 +191,36 @@ public class OctaneEmailBodyRendererTest {
     assertFalse(html.contains("position:absolute"));
   }
 
+  @Test
+  public void defectStatusTableRendersUngroupedSeveritiesAsStandaloneColumns() {
+    String html =
+        renderer.render(
+            """
+            {{EXECUTION_DETAILS}}
+            {{REPORT_SCREENSHOT}}
+            """,
+            "Business Payments Secure Checkout",
+            "FS_TRIBE_DOMAIN",
+            snapshot(OctaneGateReportState.PASSED, "Gate passed.", "Medium"),
+            REPORT_URL,
+            "octane-report-zone.png");
+
+    String statusTable = emailTable(html, "defect-status");
+
+    assertTrue(statusTable.contains(">major</th>"));
+    assertTrue(statusTable.contains(">minor</th>"));
+    assertTrue(statusTable.contains(">Low</th>"));
+    assertTrue(statusTable.contains("aria-label=\"Low, Open: 1\""));
+    assertTrue(statusTable.contains("aria-label=\"Low, Closed: 1\""));
+    assertTrue(statusTable.contains("aria-label=\"Low, Total: 2\""));
+  }
+
   private OctaneGateReportSnapshot snapshot(OctaneGateReportState state, String message) {
+    return snapshot(state, message, "Low, Medium");
+  }
+
+  private OctaneGateReportSnapshot snapshot(
+      OctaneGateReportState state, String message, String minorTypes) {
     CriteriaEvaluation evaluation =
         CriteriaEvaluation.available(
             state == OctaneGateReportState.PASSED,
@@ -184,7 +230,7 @@ public class OctaneEmailBodyRendererTest {
                 new CriteriaComparisonEvaluation(
                     "regressions.passRate", ">=", 95, 92.5, true, false)));
     OctaneDefectGroup major = defectGroup("major", "Critical, Very High, High, Unspecified");
-    OctaneDefectGroup minor = defectGroup("minor", "Medium");
+    OctaneDefectGroup minor = defectGroup("minor", minorTypes);
     OctaneDefectSeveritySummary defectSummary =
         OctaneDefectSeveritySummary.fromDefects(
             List.of(
@@ -231,5 +277,15 @@ public class OctaneEmailBodyRendererTest {
       index = value.indexOf(expected, index + expected.length());
     }
     return count;
+  }
+
+  private String emailTable(String html, String tableName) {
+    String marker = "data-octane-email-table=\"" + tableName + "\"";
+    int start = html.indexOf(marker);
+    assertTrue("Missing email table " + tableName, start >= 0);
+    int tableStart = html.lastIndexOf("<table", start);
+    int tableEnd = html.indexOf("</table>", start);
+    assertTrue("Missing email table close for " + tableName, tableStart >= 0 && tableEnd > start);
+    return html.substring(tableStart, tableEnd + "</table>".length());
   }
 }

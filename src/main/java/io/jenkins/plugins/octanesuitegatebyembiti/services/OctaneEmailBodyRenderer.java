@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaComparisonEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneExecutionStatusDistribution;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
@@ -11,19 +12,24 @@ import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class OctaneEmailBodyRenderer {
   private static final String PASS_COLOR = "#009900";
   private static final String FAIL_COLOR = "#990000";
   private static final String NEUTRAL_COLOR = "#737373";
   private static final String SECTION_TITLE_STYLE =
-      "font-family:Arial,sans-serif;font-size:16px;font-weight:700;line-height:1.25;"
+      "font-family:Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.25;"
           + "padding:0 0 8px;text-align:left;";
   private static final String TABLE_HEADER_STYLE =
       "font-family:Arial,sans-serif;font-size:15px;font-weight:600;line-height:1.4;";
   private static final String TABLE_VALUE_STYLE =
       "font-family:Arial,sans-serif;font-size:15px;font-weight:400;line-height:1.4;";
+  private static final String TABLE_CELL_PADDING = "padding:4px 8px;";
   private static final String EXECUTION_DETAILS_TOKEN = "{{EXECUTION_DETAILS}}";
   private static final String REPORT_SCREENSHOT_TOKEN = "{{REPORT_SCREENSHOT}}";
   private static final String[][] DEFECT_SEVERITIES = {
@@ -164,8 +170,7 @@ public class OctaneEmailBodyRenderer {
     int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
     int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
     if (detailsStart >= 0 && screenshotStart > detailsStart) {
-      int betweenStart = detailsStart + EXECUTION_DETAILS_TOKEN.length();
-      String contents = details + template.substring(betweenStart, screenshotStart) + screenshot;
+      String contents = details + screenshot;
       return template.substring(0, detailsStart)
           + wrapExecutionReport(contents)
           + template.substring(screenshotStart + REPORT_SCREENSHOT_TOKEN.length());
@@ -218,7 +223,7 @@ public class OctaneEmailBodyRenderer {
     appendDefectDistributionMatrix(html, metrics);
     html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
     html.append("<td style=\"vertical-align:top;width:50%;\">");
-    appendDefectStatusTable(html, metrics.getSeveritySummary());
+    appendDefectStatusTable(html, metrics);
     html.append("</td></tr></table>");
   }
 
@@ -258,17 +263,19 @@ public class OctaneEmailBodyRenderer {
     html.append("</tr></tbody></table>");
   }
 
-  private void appendDefectStatusTable(StringBuilder html, OctaneDefectSeveritySummary summary) {
+  private void appendDefectStatusTable(StringBuilder html, DefectCriteriaMetrics metrics) {
+    OctaneDefectSeveritySummary summary = metrics.getSeveritySummary();
+    List<DefectStatusColumn> columns = defectStatusColumns(metrics);
     html.append(defectTableStart("defect-status", "Defect Status Table (by Severity)"));
     html.append("<thead><tr>");
     appendHeader(html, "Defect Status", "left");
-    for (String[] severity : DEFECT_SEVERITIES) {
-      appendHeader(html, severity[1], "right");
+    for (DefectStatusColumn column : columns) {
+      appendHeader(html, column.label, "right");
     }
     html.append("</tr></thead><tbody>");
-    appendDefectStatusRow(html, "Open", summary, DefectStatusCount.OPEN);
-    appendDefectStatusRow(html, "Closed", summary, DefectStatusCount.CLOSED);
-    appendDefectStatusRow(html, "Total Defects", summary, DefectStatusCount.TOTAL);
+    appendDefectStatusRow(html, "Open", summary, columns, DefectStatusCount.OPEN);
+    appendDefectStatusRow(html, "Closed", summary, columns, DefectStatusCount.CLOSED);
+    appendDefectStatusRow(html, "Total", summary, columns, DefectStatusCount.TOTAL);
     html.append("</tbody></table>");
   }
 
@@ -276,21 +283,56 @@ public class OctaneEmailBodyRenderer {
       StringBuilder html,
       String rowLabel,
       OctaneDefectSeveritySummary summary,
+      List<DefectStatusColumn> columns,
       DefectStatusCount countType) {
     html.append("<tr>");
     appendDefectRowHeader(html, rowLabel);
-    for (String[] severity : DEFECT_SEVERITIES) {
-      int count;
-      if (countType == DefectStatusCount.OPEN) {
-        count = summary.getOpenCount(severity[0]);
-      } else if (countType == DefectStatusCount.CLOSED) {
-        count = summary.getClosedCount(severity[0]);
-      } else {
-        count = summary.getTotalCount(severity[0]);
-      }
-      appendDefectCell(html, count, severity[1] + " severity, " + rowLabel);
+    for (DefectStatusColumn column : columns) {
+      int count = defectStatusCount(summary, column.types, countType);
+      appendDefectCell(html, count, column.label + ", " + rowLabel);
     }
     html.append("</tr>");
+  }
+
+  private List<DefectStatusColumn> defectStatusColumns(DefectCriteriaMetrics metrics) {
+    OctaneDefectSeveritySummary summary = metrics.getSeveritySummary();
+    List<DefectStatusColumn> columns = new ArrayList<>();
+    Set<String> groupedTypes = new LinkedHashSet<>();
+    for (OctaneDefectGroup group : metrics.getConfiguredGroups()) {
+      List<String> types = group.getNormalizedTypes();
+      if (types.isEmpty()) {
+        continue;
+      }
+      columns.add(new DefectStatusColumn(group.getName(), types));
+      groupedTypes.addAll(types);
+    }
+
+    boolean includeAllStandaloneSeverities = columns.isEmpty();
+    for (String[] severity : DEFECT_SEVERITIES) {
+      String type = OctaneDefectSeveritySummary.normalizeOpenType(severity[0]);
+      if (groupedTypes.contains(type)) {
+        continue;
+      }
+      if (includeAllStandaloneSeverities || summary.getTotalCount(type) > 0) {
+        columns.add(new DefectStatusColumn(severity[1], List.of(type)));
+      }
+    }
+    return columns;
+  }
+
+  private int defectStatusCount(
+      OctaneDefectSeveritySummary summary, List<String> types, DefectStatusCount countType) {
+    int count = 0;
+    for (String type : types) {
+      if (countType == DefectStatusCount.OPEN) {
+        count += summary.getOpenCount(type);
+      } else if (countType == DefectStatusCount.CLOSED) {
+        count += summary.getClosedCount(type);
+      } else {
+        count += summary.getTotalCount(type);
+      }
+    }
+    return count;
   }
 
   private String defectTableStart(String tableName, String caption) {
@@ -307,7 +349,8 @@ public class OctaneEmailBodyRenderer {
   private void appendDefectRowHeader(StringBuilder html, String label) {
     html.append("<th scope=\"row\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
         .append(TABLE_HEADER_STYLE)
-        .append("padding:0.5rem;text-align:left;\">")
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:left;\">")
         .append(escape(label))
         .append("</th>");
   }
@@ -319,7 +362,8 @@ public class OctaneEmailBodyRenderer {
         .append(count)
         .append("\" style=\"border:1px solid #d0d7de;")
         .append(TABLE_VALUE_STYLE)
-        .append("padding:0.5rem;text-align:right;\">")
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:right;\">")
         .append(count)
         .append("</td>");
   }
@@ -396,12 +440,14 @@ public class OctaneEmailBodyRenderer {
     html.append(
             "<tr><th scope=\"row\" style=\"background:#e5e7eb;border:1px solid #374151;"
                 + TABLE_HEADER_STYLE
-                + "padding:7px 9px;text-align:right;width:44%;\">")
+                + TABLE_CELL_PADDING
+                + "text-align:right;width:44%;\">")
         .append(escape(label))
         .append(
             "</th><td style=\"border:1px solid #374151;"
                 + TABLE_VALUE_STYLE
-                + "padding:7px 9px;text-align:left;word-break:break-word;\">")
+                + TABLE_CELL_PADDING
+                + "text-align:left;word-break:break-word;\">")
         .append(escape(String.valueOf(value)))
         .append("</td></tr>");
   }
@@ -425,7 +471,7 @@ public class OctaneEmailBodyRenderer {
       return "<p><strong>Execution report screenshot unavailable.</strong></p>";
     }
     StringBuilder html = new StringBuilder();
-    appendSpacer(html, 32);
+    appendSpacer(html, 28);
     html.append(
             "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
                 + "style=\"border-collapse:collapse;width:100%;\"><tr><td style=\""
@@ -499,20 +545,24 @@ public class OctaneEmailBodyRenderer {
       html.append("<tr>");
       html.append("<td style=\"border:1px solid #d0d7de;")
           .append(TABLE_VALUE_STYLE)
-          .append("padding:0.5rem;text-align:left;\"><code>")
+          .append(TABLE_CELL_PADDING)
+          .append("text-align:left;\"><code>")
           .append(escape(comparison.getCriterionLabel()))
           .append("</code></td>");
       html.append(
               "<td style=\"border:1px solid #d0d7de;"
                   + TABLE_VALUE_STYLE
-                  + "padding:0.5rem;text-align:right;white-space:nowrap;\">")
+                  + TABLE_CELL_PADDING
+                  + "text-align:right;white-space:nowrap;\">")
           .append(escape(comparison.getActualLabel()))
           .append("</td>");
       html.append("<td style=\"border:1px solid #d0d7de;color:")
           .append(color)
           .append(";")
           .append(TABLE_VALUE_STYLE)
-          .append("font-weight:700;padding:0.5rem;text-align:left;white-space:nowrap;\">")
+          .append("font-weight:600;")
+          .append(TABLE_CELL_PADDING)
+          .append("text-align:left;white-space:nowrap;\">")
           .append(comparison.getResultLabel())
           .append("</td>");
       html.append("</tr>");
@@ -523,7 +573,8 @@ public class OctaneEmailBodyRenderer {
   private void appendHeader(StringBuilder html, String label, String alignment) {
     html.append("<th scope=\"col\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
         .append(TABLE_HEADER_STYLE)
-        .append("padding:0.5rem;text-align:")
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:")
         .append(alignment)
         .append(";\">")
         .append(label)
@@ -582,6 +633,16 @@ public class OctaneEmailBodyRenderer {
     OPEN,
     CLOSED,
     TOTAL
+  }
+
+  private static class DefectStatusColumn {
+    private final String label;
+    private final List<String> types;
+
+    DefectStatusColumn(String label, List<String> types) {
+      this.label = Util.trimToEmpty(label);
+      this.types = List.copyOf(types);
+    }
   }
 
   private String escape(String value) {

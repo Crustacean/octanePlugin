@@ -58,6 +58,10 @@ public class DefectCriteriaMetrics implements Serializable {
     return severitySummary;
   }
 
+  public List<OctaneDefectGroup> getConfiguredGroups() {
+    return List.copyOf(groups.values());
+  }
+
   public boolean isTypeInGroup(String groupName, String defectType) {
     OctaneDefectGroup group = groups.get(OctaneDefectGroup.normalizeName(groupName));
     String normalizedType = OctaneDefectSeveritySummary.normalizeOpenType(defectType);
