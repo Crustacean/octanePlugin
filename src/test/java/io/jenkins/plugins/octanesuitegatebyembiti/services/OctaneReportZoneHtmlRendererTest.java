@@ -3,12 +3,17 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -169,6 +174,48 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("<html>"));
     assertFalse(html.contains("<body>"));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
+  }
+
+  @Test
+  public void rendersOpenIssuesAndAwaitingRetestRowsInBarPopup() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    suiteRuns.put(
+        "4501",
+        List.of(
+            new RunRecord("1", "one", "passed", "Ada Tester", "101", "One", "", ""),
+            new RunRecord("2", "two", "failed", "Ada Tester", "102", "Two", "", ""),
+            new RunRecord("3", "three", "blocked", "Ada Tester", "103", "Three", "", "")));
+    List<DefectRecord> defects =
+        List.of(
+            new DefectRecord("d1", "Open", "High", "", "opened", "2", "", "", ""),
+            new DefectRecord("d2", "Closed", "High", "", "closed", "", "103", "", ""));
+    GateResult result =
+        new GateResult(
+            "4501",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(3, 3, 1, 2, 0, 0),
+            suiteRuns.get("4501"),
+            suiteRuns,
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.fromDefects(defects), List.of()),
+            defects,
+            CriteriaEvaluation.unavailable(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+
+    assertTrue(html.contains("octane-bar-popup-action-row"));
+    assertTrue(html.contains("Open Issues"));
+    assertTrue(html.contains("Awaiting Retest"));
+    assertTrue(html.contains("<span class=\"octane-bar-popup-value\">1</span>"));
+    assertTrue(html.indexOf("octane-bar-popup-total") < html.indexOf("Open Issues"));
+    assertTrue(html.indexOf("Open Issues") < html.indexOf("Awaiting Retest"));
   }
 
   @Test

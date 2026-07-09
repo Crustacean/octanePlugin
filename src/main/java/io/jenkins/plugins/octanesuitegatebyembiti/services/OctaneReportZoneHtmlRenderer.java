@@ -436,6 +436,12 @@ public class OctaneReportZoneHtmlRenderer {
           height: 9px;
           width: 9px;
         }
+        .octane-bar-popup-action-swatch {
+          visibility: hidden;
+        }
+        .octane-bar-popup-action-row .octane-bar-popup-value {
+          grid-column: 3 / 5;
+        }
         .octane-bar-popup-label {
           overflow-wrap: anywhere;
           white-space: normal;
@@ -808,6 +814,26 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(suiteRun.getTotal());
     html.append("</span>");
     html.append("</div>\n");
+    if (suiteRun.isShowOpenIssuesRow()) {
+      renderSuiteRunPopupActionRow(html, "Open Issues", suiteRun.getOpenIssues());
+    }
+    if (suiteRun.isShowAwaitingRetestRow()) {
+      renderSuiteRunPopupActionRow(html, "Awaiting Retest", suiteRun.getClosedIssues());
+    }
+    html.append("</div>\n");
+  }
+
+  private void renderSuiteRunPopupActionRow(StringBuilder html, String label, int value) {
+    html.append("<div class=\"octane-bar-popup-row octane-bar-popup-action-row\">");
+    html.append(
+        "<span class=\"octane-swatch octane-bar-popup-action-swatch\" "
+            + "aria-hidden=\"true\"></span>");
+    html.append("<span class=\"octane-bar-popup-label\">");
+    html.append(escapeHtml(label));
+    html.append("</span>");
+    html.append("<span class=\"octane-bar-popup-value\">");
+    html.append(value);
+    html.append("</span>");
     html.append("</div>\n");
   }
 

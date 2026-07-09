@@ -497,6 +497,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-popup-name"));
     assertTrue(xml.contains("octane-bar-popup-row"));
     assertTrue(xml.contains("octane-bar-popup-total"));
+    assertTrue(xml.contains("octane-bar-popup-action-row"));
+    assertTrue(xml.contains("octane-bar-popup-action-swatch"));
+    assertFalse(xml.contains("Open Issues"));
+    assertFalse(xml.contains("Awaiting Retest"));
+    assertFalse(xml.contains("showOpenIssuesRow"));
+    assertFalse(xml.contains("showAwaitingRetestRow"));
     assertTrue(xml.contains("octane-bar-popup-visible"));
     assertTrue(xml.contains("octane-bar-popup-restoring"));
     assertTrue(xml.contains("positionBarPopup"));

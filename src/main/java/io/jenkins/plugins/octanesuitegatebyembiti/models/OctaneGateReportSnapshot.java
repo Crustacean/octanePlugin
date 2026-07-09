@@ -190,7 +190,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     List<OctaneGateReportSection> sections = new ArrayList<>();
     sections.add(OctaneGateReportSection.regressions(result, classifier));
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
-      sections.add(OctaneGateReportSection.scoped(scopeResult, classifier));
+      sections.add(OctaneGateReportSection.scoped(scopeResult, classifier, result.getDefects()));
     }
     OctaneGateReportSnapshot snapshot =
         new OctaneGateReportSnapshot(

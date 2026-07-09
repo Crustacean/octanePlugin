@@ -1823,6 +1823,12 @@
           height: 0.55rem;
           width: 0.55rem;
         }
+        .octane-bar-popup-action-swatch {
+          visibility: hidden;
+        }
+        .octane-bar-popup-action-row .octane-bar-popup-value {
+          grid-column: 3 / 5;
+        }
         .octane-bar-popup-label {
           overflow-wrap: anywhere;
           white-space: normal;
@@ -2955,6 +2961,26 @@
                                   <span>Total</span>
                                   <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
                                 </div>
+                                <j:if test="${suiteRun.showOpenIssuesRow}">
+                                  <div class="octane-bar-popup-row octane-bar-popup-action-row">
+                                    <span class="octane-swatch octane-bar-popup-action-swatch"
+                                        aria-hidden="true"></span>
+                                    <span class="octane-bar-popup-label">Open Issues</span>
+                                    <span class="octane-bar-popup-value">
+                                      ${suiteRun.openIssues}
+                                    </span>
+                                  </div>
+                                </j:if>
+                                <j:if test="${suiteRun.showAwaitingRetestRow}">
+                                  <div class="octane-bar-popup-row octane-bar-popup-action-row">
+                                    <span class="octane-swatch octane-bar-popup-action-swatch"
+                                        aria-hidden="true"></span>
+                                    <span class="octane-bar-popup-label">Awaiting Retest</span>
+                                    <span class="octane-bar-popup-value">
+                                      ${suiteRun.closedIssues}
+                                    </span>
+                                  </div>
+                                </j:if>
                               </div>
                             </div>
                           </j:forEach>

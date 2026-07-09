@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
@@ -48,11 +49,17 @@ public class OctaneGateReportSection implements Serializable {
         result.getMetrics(),
         result.getSuiteRuns(),
         result.getRuns(),
+        result.getDefects(),
         classifier);
   }
 
   public static OctaneGateReportSection scoped(
       GateScopeResult scopeResult, StatusClassifier classifier) {
+    return scoped(scopeResult, classifier, List.of());
+  }
+
+  public static OctaneGateReportSection scoped(
+      GateScopeResult scopeResult, StatusClassifier classifier, List<DefectRecord> defects) {
     String label =
         displayScopeName(scopeResult.getName())
             + (scopeResult.isSuiteRunScope() ? " suite runs" : " query scope");
@@ -64,6 +71,7 @@ public class OctaneGateReportSection implements Serializable {
         scopeResult.getMetrics(),
         scopeResult.getSuiteRuns(),
         scopeResult.getRuns(),
+        defects,
         classifier);
   }
 
@@ -74,6 +82,7 @@ public class OctaneGateReportSection implements Serializable {
       GateMetrics metrics,
       Map<String, List<RunRecord>> suiteRuns,
       List<RunRecord> fallbackRuns,
+      List<DefectRecord> defects,
       StatusClassifier classifier) {
     Map<String, List<RunRecord>> chartSuiteRuns = new LinkedHashMap<>(suiteRuns);
     if (chartSuiteRuns.isEmpty() && !fallbackRuns.isEmpty()) {
@@ -82,7 +91,7 @@ public class OctaneGateReportSection implements Serializable {
 
     List<OctaneGateSuiteRunChart> suiteRunCharts =
         groupSuiteRunsByRunBy(chartSuiteRuns).stream()
-            .map(group -> group.toChart(classifier))
+            .map(group -> group.toChart(classifier, defects))
             .toList();
     int maxSuiteRunTotal = maxSuiteRunTotal(suiteRunCharts);
     List<OctaneGateSuiteRunChart> scaledSuiteRunCharts =
@@ -322,9 +331,10 @@ public class OctaneGateReportSection implements Serializable {
       runs.add(run);
     }
 
-    private OctaneGateSuiteRunChart toChart(StatusClassifier classifier) {
+    private OctaneGateSuiteRunChart toChart(
+        StatusClassifier classifier, List<DefectRecord> defects) {
       return OctaneGateSuiteRunChart.fromRunByGroup(
-          displayName, List.copyOf(suiteRunIds), runs, classifier);
+          displayName, List.copyOf(suiteRunIds), runs, defects, classifier);
     }
   }
 }

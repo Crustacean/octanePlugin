@@ -215,6 +215,44 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void suiteRunComputesOpenIssuesAndAwaitingRetestWorkload() {
+    OctaneGateSuiteRunChart chart =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Ada Tester",
+            List.of("4501"),
+            List.of(
+                new RunRecord("1", "one", "passed", "Ada Tester", "101", "One", "", ""),
+                new RunRecord("2", "two", "failed", "Ada Tester", "102", "Two", "", ""),
+                new RunRecord("3", "three", "blocked", "Ada Tester", "103", "Three", "", "")),
+            List.of(
+                new DefectRecord("d1", "Open", "High", "", "opened", "2", "", "", ""),
+                new DefectRecord("d2", "Closed", "High", "", "closed", "", "103", "", "")),
+            classifier);
+
+    assertEquals(2, chart.getIssueStatusesTotal());
+    assertEquals(1, chart.getOpenIssues());
+    assertEquals(1, chart.getClosedIssues());
+    assertTrue(chart.isShowOpenIssuesRow());
+    assertTrue(chart.isShowAwaitingRetestRow());
+
+    OctaneGateSuiteRunChart saturatedOpenIssues =
+        OctaneGateSuiteRunChart.fromRunByGroup(
+            "Ada Tester",
+            List.of("4501"),
+            List.of(
+                new RunRecord("1", "one", "failed", "Ada Tester"),
+                new RunRecord("2", "two", "blocked", "Ada Tester")),
+            List.of(
+                new DefectRecord("d1", "Open 1", "High", "", "opened", "1", "", "", ""),
+                new DefectRecord("d2", "Open 2", "High", "", "opened", "2", "", "", ""),
+                new DefectRecord("d3", "Closed", "High", "", "closed", "2", "", "", "")),
+            classifier);
+
+    assertTrue(saturatedOpenIssues.isShowOpenIssuesRow());
+    assertFalse(saturatedOpenIssues.isShowAwaitingRetestRow());
+  }
+
+  @Test
   public void reportsBlockedStatusesSeparatelyFromFailedChartBucket() {
     Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
     suiteRuns.put(
