@@ -483,6 +483,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-status-blocked-color=\"#FF9F0A\""));
     assertTrue(xml.contains("data-status-skipped-color=\"#BF5AF2\""));
     assertTrue(xml.contains("data-status-running-color=\"#8E8E93\""));
+    assertTrue(xml.contains("data-total-test-cases=\""));
+    assertTrue(xml.contains("data-open-defects-count=\""));
+    assertTrue(xml.contains("data-closed-defects-count=\""));
     assertTrue(
         xml.contains(
             "border: 1px solid var(--octane-popup-border-color, var(--panel-border-color))"));
@@ -499,8 +502,13 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-popup-total"));
     assertTrue(xml.contains("octane-bar-popup-action-row"));
     assertTrue(xml.contains("octane-bar-popup-action-swatch"));
-    assertFalse(xml.contains("Open Issues"));
-    assertFalse(xml.contains("Awaiting Retest"));
+    assertTrue(xml.contains("function appendBarPopupDefectRows"));
+    assertTrue(xml.contains("function issueWorkloadForColumn"));
+    assertTrue(xml.contains("Open Issues"));
+    assertTrue(xml.contains("Awaiting Retest"));
+    assertTrue(xml.contains("showOpenIssues"));
+    assertTrue(xml.contains("showAwaitingRetest"));
+    assertTrue(xml.contains("appendBarPopupDefectRows(column)"));
     assertFalse(xml.contains("showOpenIssuesRow"));
     assertFalse(xml.contains("showAwaitingRetestRow"));
     assertTrue(xml.contains("octane-bar-popup-visible"));

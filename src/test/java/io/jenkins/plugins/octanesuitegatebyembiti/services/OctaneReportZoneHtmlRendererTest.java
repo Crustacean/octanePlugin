@@ -140,6 +140,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("data-status-blocked-color=\"#FF9F0A\""));
     assertTrue(html.contains("data-status-skipped-color=\"#BF5AF2\""));
     assertTrue(html.contains("data-status-running-color=\"#8E8E93\""));
+    assertTrue(html.contains("data-total-test-cases=\""));
+    assertTrue(html.contains("data-open-defects-count=\""));
+    assertTrue(html.contains("data-closed-defects-count=\""));
     assertTrue(html.contains("style=\"background: #30D158;\""));
     assertTrue(html.contains("style=\"background: #FF453A;\""));
     assertTrue(html.contains("min-width: 175px"));
@@ -177,7 +180,7 @@ public class OctaneReportZoneHtmlRendererTest {
   }
 
   @Test
-  public void rendersOpenIssuesAndAwaitingRetestRowsInBarPopup() {
+  public void rendersIssueWorkloadDataForDynamicBarPopupRows() {
     Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
     suiteRuns.put(
         "4501",
@@ -210,12 +213,11 @@ public class OctaneReportZoneHtmlRendererTest {
 
     String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
 
-    assertTrue(html.contains("octane-bar-popup-action-row"));
-    assertTrue(html.contains("Open Issues"));
-    assertTrue(html.contains("Awaiting Retest"));
-    assertTrue(html.contains("<span class=\"octane-bar-popup-value\">1</span>"));
-    assertTrue(html.indexOf("octane-bar-popup-total") < html.indexOf("Open Issues"));
-    assertTrue(html.indexOf("Open Issues") < html.indexOf("Awaiting Retest"));
+    assertTrue(html.contains("data-total-test-cases=\"3\""));
+    assertTrue(html.contains("data-open-defects-count=\"1\""));
+    assertTrue(html.contains("data-closed-defects-count=\"1\""));
+    assertFalse(html.contains(">Open Issues<"));
+    assertFalse(html.contains(">Awaiting Retest<"));
   }
 
   @Test

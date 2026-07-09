@@ -2927,6 +2927,9 @@
                                 data-status-skipped-color="${suiteRun.skippedTooltipColor}"
                                 data-status-running-count="${suiteRun.runningCount}"
                                 data-status-running-color="${suiteRun.runningTooltipColor}"
+                                data-total-test-cases="${suiteRun.total}"
+                                data-open-defects-count="${suiteRun.openIssues}"
+                                data-closed-defects-count="${suiteRun.closedIssues}"
                                 aria-label="${suiteRun.title}">
                               <div class="octane-vertical-bar-wrap">
                                 <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
@@ -2961,26 +2964,6 @@
                                   <span>Total</span>
                                   <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
                                 </div>
-                                <j:if test="${suiteRun.showOpenIssuesRow}">
-                                  <div class="octane-bar-popup-row octane-bar-popup-action-row">
-                                    <span class="octane-swatch octane-bar-popup-action-swatch"
-                                        aria-hidden="true"></span>
-                                    <span class="octane-bar-popup-label">Open Issues</span>
-                                    <span class="octane-bar-popup-value">
-                                      ${suiteRun.openIssues}
-                                    </span>
-                                  </div>
-                                </j:if>
-                                <j:if test="${suiteRun.showAwaitingRetestRow}">
-                                  <div class="octane-bar-popup-row octane-bar-popup-action-row">
-                                    <span class="octane-swatch octane-bar-popup-action-swatch"
-                                        aria-hidden="true"></span>
-                                    <span class="octane-bar-popup-label">Awaiting Retest</span>
-                                    <span class="octane-bar-popup-value">
-                                      ${suiteRun.closedIssues}
-                                    </span>
-                                  </div>
-                                </j:if>
                               </div>
                             </div>
                           </j:forEach>
@@ -4578,35 +4561,96 @@
 	          function barKeyForColumn(column) {
 	            return column ? column.getAttribute("data-bar-key") || "" : "";
 	          }
-	          function statusMetricForColumn(column, key, label) {
-	            var rawCount = column ? column.getAttribute("data-status-" + key + "-count") : "";
-	            var color = column ? column.getAttribute("data-status-" + key + "-color") || "" : "";
-	            var count = Number(rawCount || 0);
-	            return {
-	              color: color,
-	              count: Number.isFinite(count) ? count : 0,
-	              label: label
-	            };
-	          }
-	          function dominantStatusForColumn(column) {
-	            if (!column) {
-	              return null;
-	            }
-	            var metrics = [
-	              statusMetricForColumn(column, "failed", "Failed"),
-	              statusMetricForColumn(column, "blocked", "Blocked"),
-	              statusMetricForColumn(column, "passed", "Passed"),
-	              statusMetricForColumn(column, "skipped", "Skipped"),
-	              statusMetricForColumn(column, "running", "Running")
-	            ];
-	            var dominant = metrics[0];
-	            for (var index = 1; index < metrics.length; index += 1) {
-	              if (metrics[index].count > dominant.count) {
-	                dominant = metrics[index];
-	              }
-	            }
-	            return dominant && dominant.count > 0 ? dominant : null;
-	          }
+		          function statusMetricForColumn(column, key, label) {
+		            var rawCount = column ? column.getAttribute("data-status-" + key + "-count") : "";
+		            var color = column ? column.getAttribute("data-status-" + key + "-color") || "" : "";
+		            var count = Number(rawCount || 0);
+		            return {
+		              color: color,
+		              count: Number.isFinite(count) ? count : 0,
+		              label: label
+		            };
+		          }
+		          function integerAttributeForColumn(column, attributeName) {
+		            var rawValue = column ? column.getAttribute(attributeName) : "";
+		            var value = Number(rawValue || 0);
+		            return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+		          }
+		          function issueWorkloadForColumn(column) {
+		            var passed = integerAttributeForColumn(column, "data-status-passed-count");
+		            var failed = integerAttributeForColumn(column, "data-status-failed-count");
+		            var blocked = integerAttributeForColumn(column, "data-status-blocked-count");
+		            var skipped = integerAttributeForColumn(column, "data-status-skipped-count");
+		            var running = integerAttributeForColumn(column, "data-status-running-count");
+		            var totalTestCases = integerAttributeForColumn(column, "data-total-test-cases");
+		            if (totalTestCases <= 0) {
+		              totalTestCases = passed + failed + blocked + skipped + running;
+		            }
+		            var noRun = 0;
+		            var issueStatusesTotal = Math.max(0, totalTestCases - (passed + noRun + running));
+		            var openDefects =
+		                integerAttributeForColumn(column, "data-open-defects-count");
+		            var closedDefects =
+		                integerAttributeForColumn(column, "data-closed-defects-count");
+		            var totalDefects = openDefects + closedDefects;
+		            return {
+		              closedDefects: closedDefects,
+		              issueStatusesTotal: issueStatusesTotal,
+		              openDefects: openDefects,
+		              showAwaitingRetest:
+		                  closedDefects > 0 && openDefects < issueStatusesTotal,
+		              showOpenIssues: totalDefects > 0,
+		              totalDefects: totalDefects
+		            };
+		          }
+		          function appendBarPopupActionRow(label, value) {
+		            if (!barPopupOverlay) {
+		              return;
+		            }
+		            var row = document.createElement("div");
+		            row.className = "octane-bar-popup-row octane-bar-popup-action-row";
+		            var swatch = document.createElement("span");
+		            swatch.className = "octane-swatch octane-bar-popup-action-swatch";
+		            swatch.setAttribute("aria-hidden", "true");
+		            var labelElement = document.createElement("span");
+		            labelElement.className = "octane-bar-popup-label";
+		            labelElement.textContent = label;
+		            var valueElement = document.createElement("span");
+		            valueElement.className = "octane-bar-popup-value";
+		            valueElement.textContent = String(value);
+		            row.appendChild(swatch);
+		            row.appendChild(labelElement);
+		            row.appendChild(valueElement);
+		            barPopupOverlay.appendChild(row);
+		          }
+		          function appendBarPopupDefectRows(column) {
+		            var workload = issueWorkloadForColumn(column);
+		            if (workload.showOpenIssues) {
+		              appendBarPopupActionRow("Open Issues", workload.openDefects);
+		            }
+		            if (workload.showAwaitingRetest) {
+		              appendBarPopupActionRow("Awaiting Retest", workload.closedDefects);
+		            }
+		          }
+		          function dominantStatusForColumn(column) {
+		            if (!column) {
+		              return null;
+		            }
+		            var metrics = [
+		              statusMetricForColumn(column, "failed", "Failed"),
+		              statusMetricForColumn(column, "blocked", "Blocked"),
+		              statusMetricForColumn(column, "passed", "Passed"),
+		              statusMetricForColumn(column, "skipped", "Skipped"),
+		              statusMetricForColumn(column, "running", "Running")
+		            ];
+		            var dominant = metrics[0];
+		            for (var index = 1; index < metrics.length; index += 1) {
+		              if (metrics[index].count > dominant.count) {
+		                dominant = metrics[index];
+		              }
+		            }
+		            return dominant && dominant.count > 0 ? dominant : null;
+		          }
 	          function applyBarPopupDominantColor(column) {
 	            if (!barPopupOverlay) {
 	              return;
@@ -4685,13 +4729,14 @@
 	              return;
 	            }
 	            var cardKey = cardKeyForColumn(column);
-	            var barKey = barKeyForColumn(column);
-	            if (!cardKey || !barKey) {
-	              return;
-	            }
-	            barPopupOverlay.innerHTML = source.innerHTML;
-	            applyBarPopupDominantColor(column);
-	            if (restoring) {
+		            var barKey = barKeyForColumn(column);
+		            if (!cardKey || !barKey) {
+		              return;
+		            }
+		            barPopupOverlay.innerHTML = source.innerHTML;
+		            appendBarPopupDefectRows(column);
+		            applyBarPopupDominantColor(column);
+		            if (restoring) {
 	              barPopupOverlay.classList.add("octane-bar-popup-restoring");
 	            } else {
 	              barPopupOverlay.classList.remove("octane-bar-popup-restoring");

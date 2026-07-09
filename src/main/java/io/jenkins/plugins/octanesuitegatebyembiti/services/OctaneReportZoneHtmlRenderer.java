@@ -756,6 +756,12 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(suiteRun.getRunningCount());
     html.append("\" data-status-running-color=\"");
     html.append(escapeAttribute(suiteRun.getRunningTooltipColor()));
+    html.append("\" data-total-test-cases=\"");
+    html.append(suiteRun.getTotal());
+    html.append("\" data-open-defects-count=\"");
+    html.append(suiteRun.getOpenIssues());
+    html.append("\" data-closed-defects-count=\"");
+    html.append(suiteRun.getClosedIssues());
     html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
@@ -814,26 +820,6 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(suiteRun.getTotal());
     html.append("</span>");
     html.append("</div>\n");
-    if (suiteRun.isShowOpenIssuesRow()) {
-      renderSuiteRunPopupActionRow(html, "Open Issues", suiteRun.getOpenIssues());
-    }
-    if (suiteRun.isShowAwaitingRetestRow()) {
-      renderSuiteRunPopupActionRow(html, "Awaiting Retest", suiteRun.getClosedIssues());
-    }
-    html.append("</div>\n");
-  }
-
-  private void renderSuiteRunPopupActionRow(StringBuilder html, String label, int value) {
-    html.append("<div class=\"octane-bar-popup-row octane-bar-popup-action-row\">");
-    html.append(
-        "<span class=\"octane-swatch octane-bar-popup-action-swatch\" "
-            + "aria-hidden=\"true\"></span>");
-    html.append("<span class=\"octane-bar-popup-label\">");
-    html.append(escapeHtml(label));
-    html.append("</span>");
-    html.append("<span class=\"octane-bar-popup-value\">");
-    html.append(value);
-    html.append("</span>");
     html.append("</div>\n");
   }
 
