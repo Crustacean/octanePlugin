@@ -7,8 +7,11 @@ import hudson.model.TaskListener;
 import hudson.plugins.emailext.EmailExtStep;
 import hudson.plugins.emailext.ExtendedEmailPublisher;
 import hudson.plugins.emailext.ExtendedEmailPublisherDescriptor;
+import hudson.tasks.Mailer;
+import hudson.tasks.SMTPAuthentication;
 import hudson.util.StreamTaskListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
+import jakarta.mail.Session;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import java.io.ByteArrayOutputStream;
@@ -18,6 +21,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Properties;
 import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
@@ -45,8 +49,9 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
       String attachmentsPattern)
       throws Exception {
     ExtendedEmailPublisherDescriptor descriptor = ExtendedEmailPublisher.descriptor();
+    Mailer.DescriptorImpl mailerDescriptor = Mailer.descriptor();
     String effectiveFrom =
-        resolveSender(from, descriptor.getSmtpUsername(), descriptor.getAdminAddress());
+        resolveSender(from, smtpUsername(mailerDescriptor), descriptor.getAdminAddress());
     EmailExtStep emailStep = new EmailExtStep(subject, body);
     emailStep.setTo(recipients);
     emailStep.setFrom(effectiveFrom);
@@ -56,18 +61,37 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
     emailStep.setAttachmentsPattern(attachmentsPattern);
     emailStep.setMimeType("text/html");
     EmailOutputCapture outputCapture = EmailOutputCapture.create(context);
-    logConfiguration(outputCapture.getContext(), descriptor, effectiveFrom);
+    logConfiguration(outputCapture.getContext(), mailerDescriptor, effectiveFrom);
     StepExecution execution = emailStep.start(outputCapture.getContext());
     invokeRun(execution);
     verifySendOutput(outputCapture.getOutput());
   }
 
   private void logConfiguration(
-      StepContext context, ExtendedEmailPublisherDescriptor descriptor, String effectiveFrom)
+      StepContext context, Mailer.DescriptorImpl descriptor, String effectiveFrom)
       throws IOException, InterruptedException {
     TaskListener listener = context.get(TaskListener.class);
-    String host = defaultValue(descriptor.getSmtpServer(), "localhost/default");
-    String port = defaultValue(descriptor.getSmtpPort(), descriptor.getUseSsl() ? "465" : "25");
+    Session session = descriptor.createSession();
+    Properties properties = session.getProperties();
+    boolean sslEnabled =
+        Boolean.parseBoolean(
+            defaultValue(
+                firstNonBlank(
+                    properties.getProperty("mail.smtp.ssl.enable"),
+                    properties.getProperty("mail.smtps.ssl.enable")),
+                "false"));
+    String host =
+        defaultValue(
+            firstNonBlank(
+                properties.getProperty("mail.smtp.host"),
+                properties.getProperty("mail.smtps.host")),
+            defaultValue(descriptor.getSmtpHost(), "localhost/default"));
+    String port =
+        defaultValue(
+            firstNonBlank(
+                properties.getProperty("mail.smtp.port"),
+                properties.getProperty("mail.smtps.port")),
+            sslEnabled ? "465" : "25");
     listener
         .getLogger()
         .println(
@@ -76,10 +100,15 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
                 + ", port="
                 + port
                 + ", SSL="
-                + descriptor.getUseSsl()
+                + sslEnabled
                 + ", from="
                 + effectiveFrom
                 + ".");
+  }
+
+  private String smtpUsername(Mailer.DescriptorImpl descriptor) {
+    SMTPAuthentication authentication = descriptor.getAuthentication();
+    return authentication == null ? "" : authentication.getUsername();
   }
 
   static String resolveSender(String configuredFrom, String smtpUsername, String defaultFrom)
@@ -126,6 +155,16 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
   private String defaultValue(String value, String fallback) {
     String normalized = Util.trimToEmpty(value);
     return normalized.isEmpty() ? fallback : normalized;
+  }
+
+  private String firstNonBlank(String... values) {
+    for (String value : values) {
+      String normalized = Util.trimToEmpty(value);
+      if (!normalized.isEmpty()) {
+        return normalized;
+      }
+    }
+    return "";
   }
 
   static void verifySendOutput(String output) throws AbortException {
