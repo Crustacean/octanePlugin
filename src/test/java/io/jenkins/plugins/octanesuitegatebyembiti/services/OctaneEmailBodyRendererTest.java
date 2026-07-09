@@ -304,6 +304,43 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(statusTable.contains("aria-label=\"Low, Total: 2\""));
   }
 
+  @Test
+  public void defectStatusTableKeepsSchemaColumnsWhenTotalsAreZero() {
+    OctaneGateReportSnapshot snapshot =
+        snapshotWithDefectMetrics(
+            List.of(defectGroup("major", "Critical, High")),
+            OctaneDefectSeveritySummary.fromDefects(List.of(defect("d1", "Critical", "opened"))));
+
+    String html =
+        renderer.render(
+            """
+            {{EXECUTION_DETAILS}}
+            {{REPORT_SCREENSHOT}}
+            """,
+            "Business Payments Secure Checkout",
+            "FS_TRIBE_DOMAIN",
+            snapshot,
+            REPORT_URL,
+            "octane-report-zone.png");
+
+    String statusTable = emailTable(html, "defect-status");
+
+    assertTrue(statusTable.contains(">Major</th>"));
+    assertTrue(statusTable.contains(">Very High</th>"));
+    assertTrue(statusTable.contains(">Medium</th>"));
+    assertTrue(statusTable.contains(">Low</th>"));
+    assertTrue(statusTable.contains(">Unspecified</th>"));
+    assertFalse(statusTable.contains(">Critical</th>"));
+    assertFalse(statusTable.contains(">High</th>"));
+    assertTrue(statusTable.contains("aria-label=\"Major, Open: 1\""));
+    assertTrue(statusTable.contains("aria-label=\"Very High, Open: 0\""));
+    assertTrue(statusTable.contains("aria-label=\"Very High, Closed: 0\""));
+    assertTrue(statusTable.contains("aria-label=\"Very High, Total: 0\""));
+    assertTrue(statusTable.contains("aria-label=\"Medium, Open: 0\""));
+    assertTrue(statusTable.contains("aria-label=\"Low, Open: 0\""));
+    assertTrue(statusTable.contains("aria-label=\"Unspecified, Open: 0\""));
+  }
+
   private String renderExecutionDetails(
       OctaneGateReportSnapshot snapshot, OctaneReportTheme theme) {
     return renderer.render(
@@ -384,6 +421,32 @@ public class OctaneEmailBodyRendererTest {
             evaluation,
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(state, message, result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot snapshotWithDefectMetrics(
+      List<OctaneDefectGroup> groups, OctaneDefectSeveritySummary defectSummary) {
+    CriteriaEvaluation evaluation =
+        CriteriaEvaluation.available(
+            true,
+            List.of(
+                new CriteriaComparisonEvaluation(
+                    "regressions.executionRate", "==", 100, 100, true, true)));
+    GateResult result =
+        new GateResult(
+            "1",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            new GateMetrics(10, 10, 9, 1, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            new DefectCriteriaMetrics(defectSummary, groups),
+            evaluation,
+            Instant.parse("2026-06-30T12:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Gate passed.", result, classifier, 30);
   }
 
   private OctaneDefectGroup defectGroup(String name, String types) {
