@@ -61,6 +61,7 @@ public class OctaneEmailReportStep extends Step {
   private String theme = OctaneReportTheme.LIGHT.name();
   private int viewportWidth = DEFAULT_VIEWPORT_WIDTH;
   private boolean archiveScreenshot = true;
+  private boolean printDefectGroups;
 
   @DataBoundConstructor
   public OctaneEmailReportStep(String to) {
@@ -188,6 +189,15 @@ public class OctaneEmailReportStep extends Step {
     this.archiveScreenshot = archiveScreenshot;
   }
 
+  public boolean isPrintDefectGroups() {
+    return printDefectGroups;
+  }
+
+  @DataBoundSetter
+  public void setPrintDefectGroups(boolean printDefectGroups) {
+    this.printDefectGroups = printDefectGroups;
+  }
+
   @Override
   public StepExecution start(StepContext context) {
     return new Execution(toRequest(), context);
@@ -242,7 +252,8 @@ public class OctaneEmailReportStep extends Step {
         browserPath,
         theme,
         viewportWidth,
-        archiveScreenshot);
+        archiveScreenshot,
+        printDefectGroups);
   }
 
   private static class EmailRequest implements Serializable {
@@ -262,6 +273,7 @@ public class OctaneEmailReportStep extends Step {
     private final String theme;
     private final int viewportWidth;
     private final boolean archiveScreenshot;
+    private final boolean printDefectGroups;
 
     EmailRequest(
         String to,
@@ -277,7 +289,8 @@ public class OctaneEmailReportStep extends Step {
         String browserPath,
         String theme,
         int viewportWidth,
-        boolean archiveScreenshot) {
+        boolean archiveScreenshot,
+        boolean printDefectGroups) {
       this.to = to;
       this.cc = cc;
       this.bcc = bcc;
@@ -292,6 +305,7 @@ public class OctaneEmailReportStep extends Step {
       this.theme = theme;
       this.viewportWidth = viewportWidth;
       this.archiveScreenshot = archiveScreenshot;
+      this.printDefectGroups = printDefectGroups;
     }
   }
 
@@ -361,7 +375,8 @@ public class OctaneEmailReportStep extends Step {
                   action.getSnapshot(),
                   action.getReportUrl(),
                   screenshot.getScreenshotFile().getName(),
-                  request.theme);
+                  request.theme,
+                  request.printDefectGroups);
       listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
       emailSender.send(
           getContext(),

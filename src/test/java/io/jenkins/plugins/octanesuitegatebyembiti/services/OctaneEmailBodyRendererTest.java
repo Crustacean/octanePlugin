@@ -153,20 +153,20 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("aria-label=\"All severities, Highest priority: 5\""));
     assertTrue(html.contains("aria-label=\"Low severity, Medium priority: 2\""));
     String statusTable = emailTable(html, "defect-status");
-    assertTrue(statusTable.contains(">major</th>"));
-    assertTrue(statusTable.contains(">minor</th>"));
+    assertTrue(statusTable.contains(">Major</th>"));
+    assertTrue(statusTable.contains(">Minor</th>"));
     assertFalse(statusTable.contains(">Low</th>"));
     assertFalse(statusTable.contains(">Critical</th>"));
     assertFalse(statusTable.contains(">Very High</th>"));
     assertFalse(statusTable.contains(">High</th>"));
     assertFalse(statusTable.contains(">Medium</th>"));
     assertFalse(statusTable.contains(">Unspecified</th>"));
-    assertTrue(statusTable.contains("aria-label=\"major, Open: 4\""));
-    assertTrue(statusTable.contains("aria-label=\"major, Closed: 1\""));
-    assertTrue(statusTable.contains("aria-label=\"major, Total: 5\""));
-    assertTrue(statusTable.contains("aria-label=\"minor, Open: 2\""));
-    assertTrue(statusTable.contains("aria-label=\"minor, Closed: 1\""));
-    assertTrue(statusTable.contains("aria-label=\"minor, Total: 3\""));
+    assertTrue(statusTable.contains("aria-label=\"Major, Open: 4\""));
+    assertTrue(statusTable.contains("aria-label=\"Major, Closed: 1\""));
+    assertTrue(statusTable.contains("aria-label=\"Major, Total: 5\""));
+    assertTrue(statusTable.contains("aria-label=\"Minor, Open: 2\""));
+    assertTrue(statusTable.contains("aria-label=\"Minor, Closed: 1\""));
+    assertTrue(statusTable.contains("aria-label=\"Minor, Total: 3\""));
     assertTrue(statusTable.contains(">Total</th>"));
     assertFalse(statusTable.contains("Total Defects"));
     assertTrue(html.contains("Criteria evaluation"));
@@ -221,6 +221,66 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void conditionallyRendersDefectGroupsBelowCriteria() {
+    String template =
+        """
+        Set criteria: {{CRITERIA}}
+
+        Click here to {{REPORT_LINK}}.
+        """;
+    OctaneGateReportSnapshot snapshot = snapshot(OctaneGateReportState.PASSED, "Gate passed.");
+
+    String enabled =
+        renderer.render(
+            template,
+            "Business Payments Secure Checkout",
+            "FS_TRIBE_DOMAIN",
+            snapshot,
+            REPORT_URL,
+            "octane-report-zone.png",
+            OctaneReportTheme.LIGHT.name(),
+            true);
+    String disabled =
+        renderer.render(
+            template,
+            "Business Payments Secure Checkout",
+            "FS_TRIBE_DOMAIN",
+            snapshot,
+            REPORT_URL,
+            "octane-report-zone.png",
+            OctaneReportTheme.LIGHT.name(),
+            false);
+
+    assertTrue(enabled.contains("Defect groups: ( "));
+    assertTrue(
+        enabled.contains(
+            "<strong>Major:</strong> Critical, Very High, High, Unspecified ; "
+                + "<strong>Minor:</strong> Low, Medium"));
+    assertTrue(enabled.indexOf("Set criteria:") < enabled.indexOf("Defect groups:"));
+    assertTrue(enabled.indexOf("Defect groups:") < enabled.indexOf("view the report output"));
+    assertFalse(disabled.contains("Defect groups:"));
+    assertFalse(disabled.contains("margin:8px 0 0;\">Defect groups"));
+  }
+
+  @Test
+  public void defectGroupsFallbackListsIndependentSeveritiesWhenNoGroupsAreConfigured() {
+    String html =
+        renderer.render(
+            "Set criteria: {{CRITERIA}}",
+            "Business Payments Secure Checkout",
+            "FS_TRIBE_DOMAIN",
+            OctaneGateReportSnapshot.error("Polling error", "100% execution", "1", 30),
+            REPORT_URL,
+            "octane-report-zone.png",
+            OctaneReportTheme.LIGHT.name(),
+            true);
+
+    assertTrue(
+        html.contains(
+            "Defect groups: ( Critical ; Very High ; High ; Medium ; Low ; Unspecified )"));
+  }
+
+  @Test
   public void defectStatusTableRendersUngroupedSeveritiesAsStandaloneColumns() {
     String html =
         renderer.render(
@@ -236,8 +296,8 @@ public class OctaneEmailBodyRendererTest {
 
     String statusTable = emailTable(html, "defect-status");
 
-    assertTrue(statusTable.contains(">major</th>"));
-    assertTrue(statusTable.contains(">minor</th>"));
+    assertTrue(statusTable.contains(">Major</th>"));
+    assertTrue(statusTable.contains(">Minor</th>"));
     assertTrue(statusTable.contains(">Low</th>"));
     assertTrue(statusTable.contains("aria-label=\"Low, Open: 1\""));
     assertTrue(statusTable.contains("aria-label=\"Low, Closed: 1\""));

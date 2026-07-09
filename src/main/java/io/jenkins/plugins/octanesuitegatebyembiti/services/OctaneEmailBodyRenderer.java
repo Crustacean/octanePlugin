@@ -134,9 +134,34 @@ public class OctaneEmailBodyRenderer {
       String reportUrl,
       String screenshotContentId,
       String theme) {
+    return render(
+        configuredBody,
+        projectName,
+        domainName,
+        snapshot,
+        reportUrl,
+        screenshotContentId,
+        theme,
+        false);
+  }
+
+  public String render(
+      String configuredBody,
+      String projectName,
+      String domainName,
+      OctaneGateReportSnapshot snapshot,
+      String reportUrl,
+      String screenshotContentId,
+      String theme,
+      boolean printDefectGroups) {
     String template = reportTemplate(configuredBody);
     String normalizedReportUrl = Util.trimToEmpty(reportUrl);
     Verdict verdict = emailVerdict(snapshot == null ? null : snapshot.getState());
+    String criteriaHtml =
+        "<code style=\"font-family:Consolas,monospace;white-space:normal;word-break:break-word;\">"
+            + escape(snapshot == null ? "Not available" : snapshot.getCriteria())
+            + "</code>"
+            + renderDefectGroupsParagraph(snapshot, printDefectGroups);
     String rendered = escape(template).replace("\r\n", "\n").replace('\r', '\n');
     rendered = rendered.replace("{{PROJECT_NAME}}", escape(defaultText(projectName, "Octane")));
     rendered =
@@ -149,12 +174,7 @@ public class OctaneEmailBodyRenderer {
                 + ";font-weight:700;\">"
                 + verdict.label
                 + "</strong>");
-    rendered =
-        rendered.replace(
-            "{{CRITERIA}}",
-            "<code style=\"font-family:Consolas,monospace;white-space:normal;word-break:break-word;\">"
-                + escape(snapshot == null ? "Not available" : snapshot.getCriteria())
-                + "</code>");
+    rendered = rendered.replace("{{CRITERIA}}", criteriaHtml);
     rendered =
         rendered.replace(
             "{{REPORT_LINK}}",
@@ -295,7 +315,7 @@ public class OctaneEmailBodyRenderer {
     html.append("<thead><tr>");
     appendHeader(html, "Defect Status", "left");
     for (DefectStatusColumn column : columns) {
-      appendHeader(html, column.label, "right");
+      appendHeader(html, titleCase(column.label), "right");
     }
     html.append("</tr></thead><tbody>");
     appendDefectStatusRow(html, "Open", summary, columns, DefectStatusCount.OPEN);
@@ -314,7 +334,7 @@ public class OctaneEmailBodyRenderer {
     appendDefectRowHeader(html, rowLabel);
     for (DefectStatusColumn column : columns) {
       int count = defectStatusCount(summary, column.types, countType);
-      appendDefectCell(html, count, column.label + ", " + rowLabel);
+      appendDefectCell(html, count, titleCase(column.label) + ", " + rowLabel);
     }
     html.append("</tr>");
   }
@@ -358,6 +378,61 @@ public class OctaneEmailBodyRenderer {
       }
     }
     return count;
+  }
+
+  private String renderDefectGroupsParagraph(
+      OctaneGateReportSnapshot snapshot, boolean printDefectGroups) {
+    if (!printDefectGroups) {
+      return "";
+    }
+    DefectCriteriaMetrics metrics =
+        snapshot == null
+            ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
+            : snapshot.getDefectMetrics();
+    String defectGroups = formatDefectGroups(metrics);
+    if (defectGroups.isEmpty()) {
+      return "";
+    }
+    return "\n<p style=\"margin:8px 0 0;\">Defect groups: ( " + defectGroups + " )</p>";
+  }
+
+  private String formatDefectGroups(DefectCriteriaMetrics metrics) {
+    List<String> entries = new ArrayList<>();
+    Set<String> groupedTypes = new LinkedHashSet<>();
+    for (OctaneDefectGroup group : metrics.getConfiguredGroups()) {
+      List<String> types = group.getNormalizedTypes();
+      if (types.isEmpty()) {
+        continue;
+      }
+      groupedTypes.addAll(types);
+      List<String> labels = new ArrayList<>();
+      for (String type : types) {
+        labels.add(escape(defectTypeLabel(type)));
+      }
+      entries.add(
+          "<strong>"
+              + escape(titleCase(group.getName()))
+              + ":</strong> "
+              + String.join(", ", labels));
+    }
+
+    for (String[] severity : DEFECT_SEVERITIES) {
+      String type = OctaneDefectSeveritySummary.normalizeOpenType(severity[0]);
+      if (!groupedTypes.contains(type)) {
+        entries.add(escape(severity[1]));
+      }
+    }
+    return String.join(" ; ", entries);
+  }
+
+  private String defectTypeLabel(String type) {
+    String normalized = OctaneDefectSeveritySummary.normalizeOpenType(type);
+    for (String[] severity : DEFECT_SEVERITIES) {
+      if (normalized.equals(OctaneDefectSeveritySummary.normalizeOpenType(severity[0]))) {
+        return severity[1];
+      }
+    }
+    return titleCase(type);
   }
 
   private String defectTableStart(String tableName, String caption) {
@@ -417,6 +492,27 @@ public class OctaneEmailBodyRenderer {
       return "Medium";
     }
     return "Low";
+  }
+
+  private String titleCase(String value) {
+    String normalized =
+        Util.trimToEmpty(value)
+            .replaceAll("([a-z])([A-Z])", "$1 $2")
+            .replace('-', ' ')
+            .replace('_', ' ');
+    if (normalized.isEmpty()) {
+      return "";
+    }
+    List<String> words = new ArrayList<>();
+    for (String word : normalized.split("\\s+")) {
+      if (word.isEmpty()) {
+        continue;
+      }
+      words.add(
+          word.substring(0, 1).toUpperCase(Locale.ROOT)
+              + word.substring(1).toLowerCase(Locale.ROOT));
+    }
+    return String.join(" ", words);
   }
 
   private void appendProjectDetailsTable(

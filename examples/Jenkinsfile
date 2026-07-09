@@ -143,6 +143,7 @@ See below the execution details:
 Thanks.
 QA Automation Team''',
             onFailure: 'UNSTABLE',
+            printDefectGroups: true,
             theme: 'DARK',
             viewportWidth: 1400,
             archiveScreenshot: true)
