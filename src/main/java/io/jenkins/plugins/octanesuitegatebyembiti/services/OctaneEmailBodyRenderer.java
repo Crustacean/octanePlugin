@@ -8,6 +8,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySum
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneExecutionStatusDistribution;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -22,6 +23,10 @@ public class OctaneEmailBodyRenderer {
   private static final String PASS_COLOR = "#009900";
   private static final String FAIL_COLOR = "#990000";
   private static final String NEUTRAL_COLOR = "#737373";
+  private static final String LIGHT_SYSTEM_GREEN = "#34C759";
+  private static final String LIGHT_SYSTEM_RED = "#FF3B30";
+  private static final String DARK_SYSTEM_GREEN = "#30D158";
+  private static final String DARK_SYSTEM_RED = "#FF453A";
   private static final String SECTION_TITLE_STYLE =
       "font-family:Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.25;"
           + "padding:0 0 8px;text-align:left;";
@@ -111,6 +116,24 @@ public class OctaneEmailBodyRenderer {
       OctaneGateReportSnapshot snapshot,
       String reportUrl,
       String screenshotContentId) {
+    return render(
+        configuredBody,
+        projectName,
+        domainName,
+        snapshot,
+        reportUrl,
+        screenshotContentId,
+        OctaneReportTheme.LIGHT.name());
+  }
+
+  public String render(
+      String configuredBody,
+      String projectName,
+      String domainName,
+      OctaneGateReportSnapshot snapshot,
+      String reportUrl,
+      String screenshotContentId,
+      String theme) {
     String template = reportTemplate(configuredBody);
     String normalizedReportUrl = Util.trimToEmpty(reportUrl);
     Verdict verdict = emailVerdict(snapshot == null ? null : snapshot.getState());
@@ -139,7 +162,8 @@ public class OctaneEmailBodyRenderer {
                 ? "view the report output (link unavailable)"
                 : reportLink(normalizedReportUrl, "view the report output"));
     rendered =
-        renderExecutionReport(rendered, projectName, domainName, snapshot, screenshotContentId);
+        renderExecutionReport(
+            rendered, projectName, domainName, snapshot, screenshotContentId, theme);
     rendered = rendered.replace("\n", "<br>");
 
     return "<div style=\"color:#202124;font-family:Arial,sans-serif;font-size:15px;"
@@ -164,8 +188,9 @@ public class OctaneEmailBodyRenderer {
       String projectName,
       String domainName,
       OctaneGateReportSnapshot snapshot,
-      String screenshotContentId) {
-    String details = renderExecutionDetails(projectName, domainName, snapshot);
+      String screenshotContentId,
+      String theme) {
+    String details = renderExecutionDetails(projectName, domainName, snapshot, theme);
     String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
     int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
     int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
@@ -193,7 +218,7 @@ public class OctaneEmailBodyRenderer {
   }
 
   private String renderExecutionDetails(
-      String projectName, String domainName, OctaneGateReportSnapshot snapshot) {
+      String projectName, String domainName, OctaneGateReportSnapshot snapshot, String theme) {
     StringBuilder html = new StringBuilder();
     html.append(
         "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
@@ -202,7 +227,7 @@ public class OctaneEmailBodyRenderer {
     appendProjectDetailsTable(html, projectName, domainName, snapshot);
     html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
     html.append("<td style=\"vertical-align:top;width:50%;\">");
-    appendExecutionTable(html, snapshot);
+    appendExecutionTable(html, snapshot, theme);
     html.append("</td></tr></table>");
     appendSpacer(html, 28);
     appendDefectAnalysisTables(html, snapshot);
@@ -409,13 +434,15 @@ public class OctaneEmailBodyRenderer {
     html.append("</tbody></table>");
   }
 
-  private void appendExecutionTable(StringBuilder html, OctaneGateReportSnapshot snapshot) {
+  private void appendExecutionTable(
+      StringBuilder html, OctaneGateReportSnapshot snapshot, String theme) {
     int total = snapshot == null ? 0 : snapshot.getProjectTestTotal();
     int executed = snapshot == null ? 0 : snapshot.getExecutedTestCount();
     int passed = snapshot == null ? 0 : snapshot.getPassedTestCount();
     String executionRate =
         snapshot == null ? "0%" : formatPercentage(snapshot.getExecutionProgress());
     String passRate = executed == 0 ? "0%" : formatPercentage(passed * 100.0 / executed);
+    EmailValueCellStyle passRateStyle = passRateCellStyle(snapshot, theme);
     html.append(dataTableStart("Test case execution"));
     appendDetailRow(html, "Total test cases", total);
     appendDetailRow(html, "Executed test cases", executed);
@@ -425,7 +452,7 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "No run test cases", Math.max(0, total - executed));
     appendDetailRow(html, "Skipped test cases", statusCount(snapshot, "Skipped"));
     appendDetailRow(html, "Execution rate", executionRate);
-    appendDetailRow(html, "Pass Rate", passRate);
+    appendDetailRow(html, "Pass Rate", passRate, passRateStyle);
     html.append("</tbody></table>");
   }
 
@@ -439,17 +466,26 @@ public class OctaneEmailBodyRenderer {
   }
 
   private void appendDetailRow(StringBuilder html, String label, Object value) {
+    appendDetailRow(html, label, value, EmailValueCellStyle.defaultStyle());
+  }
+
+  private void appendDetailRow(
+      StringBuilder html, String label, Object value, EmailValueCellStyle valueCellStyle) {
     html.append(
             "<tr><th scope=\"row\" style=\"background:#e5e7eb;border:1px solid #374151;"
                 + TABLE_HEADER_STYLE
                 + TABLE_CELL_PADDING
                 + "text-align:right;width:44%;\">")
         .append(escape(label))
-        .append(
-            "</th><td style=\"border:1px solid #374151;"
-                + TABLE_VALUE_STYLE
-                + TABLE_CELL_PADDING
-                + "text-align:left;word-break:break-word;\">")
+        .append("</th><td");
+    if (!valueCellStyle.bgcolor.isEmpty()) {
+      html.append(" bgcolor=\"").append(valueCellStyle.bgcolor).append("\"");
+    }
+    html.append(" style=\"border:1px solid #374151;")
+        .append(valueCellStyle.inlineCss)
+        .append(TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:left;word-break:break-word;\">")
         .append(escape(String.valueOf(value)))
         .append("</td></tr>");
   }
@@ -465,6 +501,42 @@ public class OctaneEmailBodyRenderer {
       }
     }
     return 0;
+  }
+
+  private EmailValueCellStyle passRateCellStyle(OctaneGateReportSnapshot snapshot, String theme) {
+    OctaneReportTheme emailTheme = emailTheme(theme);
+    OctaneGateReportState state = snapshot == null ? null : snapshot.getState();
+    if (emailTheme == OctaneReportTheme.LIGHT) {
+      if (state == OctaneGateReportState.PASSED) {
+        return EmailValueCellStyle.painted(LIGHT_SYSTEM_GREEN, "#FFFFFF");
+      }
+      if (isFailState(state)) {
+        return EmailValueCellStyle.painted(LIGHT_SYSTEM_RED, "#FFFFFF");
+      }
+    }
+    if (emailTheme == OctaneReportTheme.DARK) {
+      if (state == OctaneGateReportState.PASSED) {
+        return EmailValueCellStyle.painted(DARK_SYSTEM_GREEN, "#000000");
+      }
+      if (isFailState(state)) {
+        return EmailValueCellStyle.painted(DARK_SYSTEM_RED, "#FFFFFF");
+      }
+    }
+    return EmailValueCellStyle.fallbackStyle();
+  }
+
+  private OctaneReportTheme emailTheme(String theme) {
+    try {
+      return OctaneReportTheme.from(theme);
+    } catch (IllegalArgumentException e) {
+      return OctaneReportTheme.SYSTEM;
+    }
+  }
+
+  private boolean isFailState(OctaneGateReportState state) {
+    return state == OctaneGateReportState.FAILED
+        || state == OctaneGateReportState.UNSTABLE
+        || state == OctaneGateReportState.TIMED_OUT;
   }
 
   private String renderInlineScreenshot(String contentId, String projectName) {
@@ -654,6 +726,29 @@ public class OctaneEmailBodyRenderer {
         .replace(">", "&gt;")
         .replace("\"", "&quot;")
         .replace("'", "&#39;");
+  }
+
+  private static class EmailValueCellStyle {
+    private final String bgcolor;
+    private final String inlineCss;
+
+    private EmailValueCellStyle(String bgcolor, String inlineCss) {
+      this.bgcolor = Util.trimToEmpty(bgcolor);
+      this.inlineCss = inlineCss;
+    }
+
+    private static EmailValueCellStyle defaultStyle() {
+      return new EmailValueCellStyle("", "");
+    }
+
+    private static EmailValueCellStyle fallbackStyle() {
+      return new EmailValueCellStyle("", "background-color:transparent;color:inherit;");
+    }
+
+    private static EmailValueCellStyle painted(String backgroundColor, String fontColor) {
+      return new EmailValueCellStyle(
+          backgroundColor, "background-color:" + backgroundColor + ";color:" + fontColor + ";");
+    }
   }
 
   private static class Verdict {

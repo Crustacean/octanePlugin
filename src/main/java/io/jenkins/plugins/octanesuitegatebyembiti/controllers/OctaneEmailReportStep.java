@@ -360,7 +360,8 @@ public class OctaneEmailReportStep extends Step {
                   request.domainName,
                   action.getSnapshot(),
                   action.getReportUrl(),
-                  screenshot.getScreenshotFile().getName());
+                  screenshot.getScreenshotFile().getName(),
+                  request.theme);
       listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
       emailSender.send(
           getContext(),

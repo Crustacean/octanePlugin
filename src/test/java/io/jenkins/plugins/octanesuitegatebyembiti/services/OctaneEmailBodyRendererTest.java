@@ -14,6 +14,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Instant;
@@ -195,6 +196,31 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void paintsPassRateValueCellForThemeAndCriteriaStatus() {
+    String lightPass =
+        renderExecutionDetails(
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."), OctaneReportTheme.LIGHT);
+    String lightFail =
+        renderExecutionDetails(
+            snapshot(OctaneGateReportState.FAILED, "Gate failed."), OctaneReportTheme.LIGHT);
+    String darkPass =
+        renderExecutionDetails(
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."), OctaneReportTheme.DARK);
+    String darkFail =
+        renderExecutionDetails(
+            snapshot(OctaneGateReportState.FAILED, "Gate failed."), OctaneReportTheme.DARK);
+    String fallback =
+        renderExecutionDetails(
+            snapshot(OctaneGateReportState.ERROR, "Gate error."), OctaneReportTheme.LIGHT);
+
+    assertPassRateCell(lightPass, "#34C759", "#FFFFFF", true);
+    assertPassRateCell(lightFail, "#FF3B30", "#FFFFFF", true);
+    assertPassRateCell(darkPass, "#30D158", "#000000", true);
+    assertPassRateCell(darkFail, "#FF453A", "#FFFFFF", true);
+    assertPassRateCell(fallback, "transparent", "inherit", false);
+  }
+
+  @Test
   public void defectStatusTableRendersUngroupedSeveritiesAsStandaloneColumns() {
     String html =
         renderer.render(
@@ -216,6 +242,44 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(statusTable.contains("aria-label=\"Low, Open: 1\""));
     assertTrue(statusTable.contains("aria-label=\"Low, Closed: 1\""));
     assertTrue(statusTable.contains("aria-label=\"Low, Total: 2\""));
+  }
+
+  private String renderExecutionDetails(
+      OctaneGateReportSnapshot snapshot, OctaneReportTheme theme) {
+    return renderer.render(
+        """
+        {{EXECUTION_DETAILS}}
+        {{REPORT_SCREENSHOT}}
+        """,
+        "Business Payments Secure Checkout",
+        "FS_TRIBE_DOMAIN",
+        snapshot,
+        REPORT_URL,
+        "octane-report-zone.png",
+        theme.name());
+  }
+
+  private void assertPassRateCell(
+      String html, String backgroundColor, String fontColor, boolean expectsBgcolor) {
+    String row = passRateRow(html);
+    int valueCellStart = row.indexOf("</th><td");
+    assertTrue("Pass Rate value cell should follow label cell", valueCellStart >= 0);
+    assertEquals(expectsBgcolor, row.indexOf("bgcolor=", valueCellStart) >= 0);
+    if (expectsBgcolor) {
+      assertTrue(row.contains("bgcolor=\"" + backgroundColor + "\""));
+    }
+    assertTrue(row.contains("background-color:" + backgroundColor + ";"));
+    assertTrue(row.contains("color:" + fontColor + ";"));
+    assertTrue(row.contains(">90%</td>"));
+  }
+
+  private String passRateRow(String html) {
+    int label = html.indexOf("Pass Rate");
+    assertTrue("Missing Pass Rate row", label >= 0);
+    int start = html.lastIndexOf("<tr>", label);
+    int end = html.indexOf("</tr>", label);
+    assertTrue("Missing Pass Rate row bounds", start >= 0 && end > label);
+    return html.substring(start, end + "</tr>".length());
   }
 
   private OctaneGateReportSnapshot snapshot(OctaneGateReportState state, String message) {
