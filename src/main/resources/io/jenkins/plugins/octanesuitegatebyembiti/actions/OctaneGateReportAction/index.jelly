@@ -42,7 +42,7 @@
           --octane-status-failed: #FF3B30;
           --octane-status-no-run: #8E8E93;
           --octane-status-passed: #34C759;
-          --octane-status-skipped: #5AC8FA;
+          --octane-status-skipped: #AF52DE;
           align-items: stretch;
           display: flex;
           flex-wrap: wrap;
@@ -60,7 +60,7 @@
             --octane-status-failed: #FF453A;
             --octane-status-no-run: #8E8E93;
             --octane-status-passed: #30D158;
-            --octane-status-skipped: #64D2FF;
+            --octane-status-skipped: #BF5AF2;
           }
         }
         html[data-theme="dark"] .octane-dashboard,
@@ -77,7 +77,7 @@
           --octane-status-failed: #FF453A;
           --octane-status-no-run: #8E8E93;
           --octane-status-passed: #30D158;
-          --octane-status-skipped: #64D2FF;
+          --octane-status-skipped: #BF5AF2;
         }
         html[data-theme="light"] .octane-dashboard,
         body[data-theme="light"] .octane-dashboard,
@@ -93,7 +93,7 @@
           --octane-status-failed: #FF3B30;
           --octane-status-no-run: #8E8E93;
           --octane-status-passed: #34C759;
-          --octane-status-skipped: #5AC8FA;
+          --octane-status-skipped: #AF52DE;
         }
         .octane-exit-extended-form {
           align-items: center;

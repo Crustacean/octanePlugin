@@ -69,7 +69,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("--octane-status-passed: #34C759"));
     assertTrue(html.contains("--octane-status-failed: #FF3B30"));
     assertTrue(html.contains("--octane-status-blocked: #FF9500"));
-    assertTrue(html.contains("--octane-status-skipped: #5AC8FA"));
+    assertTrue(html.contains("--octane-status-skipped: #AF52DE"));
     assertTrue(html.contains("--octane-status-no-run: #8E8E93"));
     assertTrue(html.contains("var(--octane-status-passed)"));
     assertTrue(html.contains("var(--octane-status-failed)"));
@@ -133,7 +133,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("data-status-passed-color=\"#30D158\""));
     assertTrue(html.contains("data-status-failed-color=\"#FF453A\""));
     assertTrue(html.contains("data-status-blocked-color=\"#FF9F0A\""));
-    assertTrue(html.contains("data-status-skipped-color=\"#64D2FF\""));
+    assertTrue(html.contains("data-status-skipped-color=\"#BF5AF2\""));
     assertTrue(html.contains("data-status-running-color=\"#8E8E93\""));
     assertTrue(html.contains("style=\"background: #30D158;\""));
     assertTrue(html.contains("style=\"background: #FF453A;\""));
@@ -188,7 +188,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("--octane-status-passed: #30D158"));
     assertTrue(html.contains("--octane-status-failed: #FF453A"));
     assertTrue(html.contains("--octane-status-blocked: #FF9F0A"));
-    assertTrue(html.contains("--octane-status-skipped: #64D2FF"));
+    assertTrue(html.contains("--octane-status-skipped: #BF5AF2"));
     assertTrue(html.contains("--octane-status-no-run: #8E8E93"));
     assertTrue(html.contains("var(--octane-status-passed)"));
     assertTrue(html.contains("var(--octane-status-failed)"));

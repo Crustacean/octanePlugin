@@ -65,7 +65,7 @@ public class OctaneReportZoneHtmlRenderer {
           --octane-status-failed: #FF3B30;
           --octane-status-no-run: #8E8E93;
           --octane-status-passed: #34C759;
-          --octane-status-skipped: #5AC8FA;
+          --octane-status-skipped: #AF52DE;
           --octane-text: #1f2937;
           --octane-tool-color: #8a94a6;
         }
@@ -86,7 +86,7 @@ public class OctaneReportZoneHtmlRenderer {
           --octane-status-failed: #FF453A;
           --octane-status-no-run: #8E8E93;
           --octane-status-passed: #30D158;
-          --octane-status-skipped: #64D2FF;
+          --octane-status-skipped: #BF5AF2;
           --octane-text: #f3f6fb;
           --octane-tool-color: #9aa7bd;
         }
@@ -110,7 +110,7 @@ public class OctaneReportZoneHtmlRenderer {
             --octane-status-failed: #FF453A;
             --octane-status-no-run: #8E8E93;
             --octane-status-passed: #30D158;
-            --octane-status-skipped: #64D2FF;
+            --octane-status-skipped: #BF5AF2;
             --octane-text: #f3f6fb;
             --octane-tool-color: #9aa7bd;
           }

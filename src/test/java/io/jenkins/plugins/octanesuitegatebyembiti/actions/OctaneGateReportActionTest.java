@@ -106,8 +106,8 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("--octane-status-failed: #FF453A"));
     assertTrue(xml.contains("--octane-status-blocked: #FF9500"));
     assertTrue(xml.contains("--octane-status-blocked: #FF9F0A"));
-    assertTrue(xml.contains("--octane-status-skipped: #5AC8FA"));
-    assertTrue(xml.contains("--octane-status-skipped: #64D2FF"));
+    assertTrue(xml.contains("--octane-status-skipped: #AF52DE"));
+    assertTrue(xml.contains("--octane-status-skipped: #BF5AF2"));
     assertTrue(xml.contains("--octane-status-no-run: #8E8E93"));
     assertTrue(xml.contains("var(--octane-status-passed)"));
     assertTrue(xml.contains("var(--octane-status-failed)"));
@@ -481,7 +481,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-status-passed-color=\"#30D158\""));
     assertTrue(xml.contains("data-status-failed-color=\"#FF453A\""));
     assertTrue(xml.contains("data-status-blocked-color=\"#FF9F0A\""));
-    assertTrue(xml.contains("data-status-skipped-color=\"#64D2FF\""));
+    assertTrue(xml.contains("data-status-skipped-color=\"#BF5AF2\""));
     assertTrue(xml.contains("data-status-running-color=\"#8E8E93\""));
     assertTrue(
         xml.contains(

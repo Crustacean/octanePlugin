@@ -174,7 +174,7 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("#30D158", OctaneGateStatusBucket.PASSED.getTooltipColor());
     assertEquals("#FF453A", OctaneGateStatusBucket.FAILED.getTooltipColor());
     assertEquals("#FF9F0A", OctaneGateStatusBucket.BLOCKED.getTooltipColor());
-    assertEquals("#64D2FF", OctaneGateStatusBucket.SKIPPED.getTooltipColor());
+    assertEquals("#BF5AF2", OctaneGateStatusBucket.SKIPPED.getTooltipColor());
     assertEquals("#8E8E93", OctaneGateStatusBucket.RUNNING.getTooltipColor());
   }
 
@@ -199,7 +199,7 @@ public class OctaneGateReportSnapshotTest {
   public void suiteRunDominantStatusTieBreaksTowardRisk() {
     assertDominantStatusForTie("failed", "blocked", "Failed", "#FF453A");
     assertDominantStatusForTie("blocked", "planned", "Blocked", "#FF9F0A");
-    assertDominantStatusForTie("planned", "skipped", "Skipped", "#64D2FF");
+    assertDominantStatusForTie("planned", "skipped", "Skipped", "#BF5AF2");
     assertDominantStatusForTie("skipped", "passed", "Passed", "#30D158");
   }
 

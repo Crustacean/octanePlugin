@@ -4,7 +4,7 @@ public enum OctaneGateStatusBucket {
   PASSED("Passed", "passed", "var(--octane-status-passed)", "#30D158"),
   FAILED("Failed", "failed", "var(--octane-status-failed)", "#FF453A"),
   BLOCKED("Blocked", "blocked", "var(--octane-status-blocked)", "#FF9F0A"),
-  SKIPPED("Skipped", "skipped", "var(--octane-status-skipped)", "#64D2FF"),
+  SKIPPED("Skipped", "skipped", "var(--octane-status-skipped)", "#BF5AF2"),
   RUNNING("Running", "running", "var(--octane-status-no-run)", "#8E8E93");
 
   private final String label;
