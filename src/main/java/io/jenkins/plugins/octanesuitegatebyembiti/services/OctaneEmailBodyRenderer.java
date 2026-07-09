@@ -412,6 +412,10 @@ public class OctaneEmailBodyRenderer {
   private void appendExecutionTable(StringBuilder html, OctaneGateReportSnapshot snapshot) {
     int total = snapshot == null ? 0 : snapshot.getProjectTestTotal();
     int executed = snapshot == null ? 0 : snapshot.getExecutedTestCount();
+    int passed = snapshot == null ? 0 : snapshot.getPassedTestCount();
+    String executionRate =
+        snapshot == null ? "0%" : formatPercentage(snapshot.getExecutionProgress());
+    String passRate = executed == 0 ? "0%" : formatPercentage(passed * 100.0 / executed);
     html.append(dataTableStart("Test case execution"));
     appendDetailRow(html, "Total test cases", total);
     appendDetailRow(html, "Executed test cases", executed);
@@ -420,10 +424,8 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "Failed test cases", statusCount(snapshot, "Failed"));
     appendDetailRow(html, "No run test cases", Math.max(0, total - executed));
     appendDetailRow(html, "Skipped test cases", statusCount(snapshot, "Skipped"));
-    appendDetailRow(
-        html,
-        "Execution rate",
-        snapshot == null ? "0%" : formatPercentage(snapshot.getExecutionProgress()));
+    appendDetailRow(html, "Execution rate", executionRate);
+    appendDetailRow(html, "Pass Rate", passRate);
     html.append("</tbody></table>");
   }
 

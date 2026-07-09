@@ -141,6 +141,9 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("Test case execution"));
     assertTrue(html.contains("Total test cases"));
     assertTrue(html.contains("Execution rate"));
+    assertTrue(html.contains("Pass Rate"));
+    assertTrue(html.indexOf("Execution rate") < html.indexOf("Pass Rate"));
+    assertTrue(html.contains(">90%</td>"));
     assertTrue(html.contains("Defect Distribution Matrix (Severity vs. Priority)"));
     assertTrue(html.contains("Defect Status Table (by Severity)"));
     assertTrue(html.contains(">Highest</th>"));
