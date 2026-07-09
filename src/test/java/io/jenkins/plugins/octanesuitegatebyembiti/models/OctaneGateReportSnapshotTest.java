@@ -166,11 +166,16 @@ public class OctaneGateReportSnapshotTest {
 
   @Test
   public void usesRequiredStatusColors() {
-    assertEquals("#009900", OctaneGateStatusBucket.PASSED.getColor());
-    assertEquals("#990000", OctaneGateStatusBucket.FAILED.getColor());
-    assertEquals("#631919", OctaneGateStatusBucket.BLOCKED.getColor());
-    assertEquals("#ffb74d", OctaneGateStatusBucket.SKIPPED.getColor());
-    assertEquals("#808080", OctaneGateStatusBucket.RUNNING.getColor());
+    assertEquals("var(--octane-status-passed)", OctaneGateStatusBucket.PASSED.getColor());
+    assertEquals("var(--octane-status-failed)", OctaneGateStatusBucket.FAILED.getColor());
+    assertEquals("var(--octane-status-blocked)", OctaneGateStatusBucket.BLOCKED.getColor());
+    assertEquals("var(--octane-status-skipped)", OctaneGateStatusBucket.SKIPPED.getColor());
+    assertEquals("var(--octane-status-no-run)", OctaneGateStatusBucket.RUNNING.getColor());
+    assertEquals("#30D158", OctaneGateStatusBucket.PASSED.getTooltipColor());
+    assertEquals("#FF453A", OctaneGateStatusBucket.FAILED.getTooltipColor());
+    assertEquals("#FF9F0A", OctaneGateStatusBucket.BLOCKED.getTooltipColor());
+    assertEquals("#64D2FF", OctaneGateStatusBucket.SKIPPED.getTooltipColor());
+    assertEquals("#8E8E93", OctaneGateStatusBucket.RUNNING.getTooltipColor());
   }
 
   @Test
@@ -186,16 +191,16 @@ public class OctaneGateReportSnapshotTest {
             classifier);
 
     assertEquals("Failed", chart.getDominantStatusLabel());
-    assertEquals("#990000", chart.getDominantStatusColor());
+    assertEquals("#FF453A", chart.getDominantStatusColor());
     assertEquals(2, chart.getDominantStatusCount());
   }
 
   @Test
   public void suiteRunDominantStatusTieBreaksTowardRisk() {
-    assertDominantStatusForTie("failed", "blocked", "Failed", "#990000");
-    assertDominantStatusForTie("blocked", "planned", "Blocked", "#631919");
-    assertDominantStatusForTie("planned", "skipped", "Running", "#808080");
-    assertDominantStatusForTie("skipped", "passed", "Skipped", "#ffb74d");
+    assertDominantStatusForTie("failed", "blocked", "Failed", "#FF453A");
+    assertDominantStatusForTie("blocked", "planned", "Blocked", "#FF9F0A");
+    assertDominantStatusForTie("planned", "skipped", "Skipped", "#64D2FF");
+    assertDominantStatusForTie("skipped", "passed", "Passed", "#30D158");
   }
 
   @Test

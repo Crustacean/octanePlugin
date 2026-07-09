@@ -45,6 +45,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("ben tester"));
     assertTrue(html.contains("suite runs: 4501"));
     assertFalse(html.contains("Total Testcases"));
+    assertTrue(html.contains("<html data-octane-theme=\"light\">"));
+    assertTrue(html.contains("<meta name=\"color-scheme\" content=\"light\""));
+    assertTrue(html.contains("color-scheme: light"));
     assertTrue(html.contains("--octane-page-background: #f5f7fb"));
     assertTrue(html.contains("border: 1px solid var(--octane-page-background)"));
     assertTrue(html.contains("aria-label=\"Move widget\""));
@@ -63,10 +66,18 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("octane-icon-zone-collapse"));
     assertFalse(html.contains("octane-expanded"));
     assertFalse(html.contains("octane-zone-focused"));
-    assertTrue(html.contains("#009900"));
-    assertTrue(html.contains("#990000"));
-    assertTrue(html.contains("#808080"));
+    assertTrue(html.contains("--octane-status-passed: #34C759"));
+    assertTrue(html.contains("--octane-status-failed: #FF3B30"));
+    assertTrue(html.contains("--octane-status-blocked: #FF9500"));
+    assertTrue(html.contains("--octane-status-skipped: #5AC8FA"));
+    assertTrue(html.contains("--octane-status-no-run: #8E8E93"));
+    assertTrue(html.contains("var(--octane-status-passed)"));
+    assertTrue(html.contains("var(--octane-status-failed)"));
+    assertTrue(html.contains("var(--octane-status-no-run)"));
+    assertFalse(html.contains("#009900"));
     assertFalse(html.contains("#631919"));
+    assertFalse(html.contains("#ffb74d"));
+    assertFalse(html.contains("#808080"));
     assertTrue(html.contains("octane-donut"));
     assertTrue(html.contains("octane-distribution-meta"));
     assertTrue(html.contains("octane-total-label"));
@@ -113,6 +124,19 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("data-bar-key=\""));
     assertTrue(html.contains("data-dominant-status-color=\""));
     assertTrue(html.contains("data-dominant-status-label=\""));
+    assertTrue(
+        html.contains("border: 1px solid var(--octane-popup-border-color, var(--octane-border))"));
+    assertTrue(html.contains("0 0 0 1px var(--octane-popup-border-color, transparent)"));
+    assertTrue(html.contains("style=\"--octane-popup-border-color: #30D158;\""));
+    assertTrue(html.contains("style=\"--octane-popup-border-color: #FF453A;\""));
+    assertTrue(html.contains("data-status-passed-count=\""));
+    assertTrue(html.contains("data-status-passed-color=\"#30D158\""));
+    assertTrue(html.contains("data-status-failed-color=\"#FF453A\""));
+    assertTrue(html.contains("data-status-blocked-color=\"#FF9F0A\""));
+    assertTrue(html.contains("data-status-skipped-color=\"#64D2FF\""));
+    assertTrue(html.contains("data-status-running-color=\"#8E8E93\""));
+    assertTrue(html.contains("style=\"background: #30D158;\""));
+    assertTrue(html.contains("style=\"background: #FF453A;\""));
     assertTrue(html.contains("min-width: 175px"));
     assertTrue(html.contains("font-size: 10.35px"));
     assertTrue(html.contains("overflow-wrap: anywhere"));
@@ -148,7 +172,7 @@ public class OctaneReportZoneHtmlRendererTest {
   }
 
   @Test
-  public void rendersExplicitDarkScreenshotThemeWithoutChangingStatusColors() {
+  public void rendersExplicitDarkScreenshotThemeWithStatusTokens() {
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(
             OctaneGateReportState.PASSED, "Passed", result(), classifier, 30);
@@ -161,9 +185,14 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("oklch(0.17 0.01 265 / 1)"));
     assertTrue(html.contains("--octane-card-background: #1b1e24"));
     assertTrue(html.contains("--octane-text: #f3f6fb"));
-    assertTrue(html.contains("#009900"));
-    assertTrue(html.contains("#990000"));
-    assertTrue(html.contains("#808080"));
+    assertTrue(html.contains("--octane-status-passed: #30D158"));
+    assertTrue(html.contains("--octane-status-failed: #FF453A"));
+    assertTrue(html.contains("--octane-status-blocked: #FF9F0A"));
+    assertTrue(html.contains("--octane-status-skipped: #64D2FF"));
+    assertTrue(html.contains("--octane-status-no-run: #8E8E93"));
+    assertTrue(html.contains("var(--octane-status-passed)"));
+    assertTrue(html.contains("var(--octane-status-failed)"));
+    assertTrue(html.contains("var(--octane-status-no-run)"));
   }
 
   @Test

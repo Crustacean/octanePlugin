@@ -61,6 +61,11 @@ public class OctaneReportZoneHtmlRenderer {
           --octane-page-background: #f5f7fb;
           --octane-popup-background: #ffffff;
           --octane-popup-shadow: rgba(0, 0, 0, 0.18);
+          --octane-status-blocked: #FF9500;
+          --octane-status-failed: #FF3B30;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #34C759;
+          --octane-status-skipped: #5AC8FA;
           --octane-text: #1f2937;
           --octane-tool-color: #8a94a6;
         }
@@ -77,6 +82,11 @@ public class OctaneReportZoneHtmlRenderer {
           --octane-page-background: #181a20;
           --octane-popup-background: #22262e;
           --octane-popup-shadow: rgba(0, 0, 0, 0.42);
+          --octane-status-blocked: #FF9F0A;
+          --octane-status-failed: #FF453A;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #30D158;
+          --octane-status-skipped: #64D2FF;
           --octane-text: #f3f6fb;
           --octane-tool-color: #9aa7bd;
         }
@@ -96,6 +106,11 @@ public class OctaneReportZoneHtmlRenderer {
             --octane-page-background: #181a20;
             --octane-popup-background: #22262e;
             --octane-popup-shadow: rgba(0, 0, 0, 0.42);
+            --octane-status-blocked: #FF9F0A;
+            --octane-status-failed: #FF453A;
+            --octane-status-no-run: #8E8E93;
+            --octane-status-passed: #30D158;
+            --octane-status-skipped: #64D2FF;
             --octane-text: #f3f6fb;
             --octane-tool-color: #9aa7bd;
           }
@@ -377,9 +392,11 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-bar-popup {
           background: var(--octane-popup-background);
-          border: 1px solid var(--octane-border);
+          border: 1px solid var(--octane-popup-border-color, var(--octane-border));
           border-radius: 8px;
-          box-shadow: 0 7px 22px var(--octane-popup-shadow);
+          box-shadow:
+              0 0 0 1px var(--octane-popup-border-color, transparent),
+              0 7px 22px var(--octane-popup-shadow);
           color: var(--octane-text);
           display: grid;
           font-size: 10.35px;
@@ -713,6 +730,26 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(escapeAttribute(suiteRun.getDominantStatusColor()));
     html.append("\" data-dominant-status-label=\"");
     html.append(escapeAttribute(suiteRun.getDominantStatusLabel()));
+    html.append("\" data-status-passed-count=\"");
+    html.append(suiteRun.getPassedCount());
+    html.append("\" data-status-passed-color=\"");
+    html.append(escapeAttribute(suiteRun.getPassedTooltipColor()));
+    html.append("\" data-status-failed-count=\"");
+    html.append(suiteRun.getFailedCount());
+    html.append("\" data-status-failed-color=\"");
+    html.append(escapeAttribute(suiteRun.getFailedTooltipColor()));
+    html.append("\" data-status-blocked-count=\"");
+    html.append(suiteRun.getBlockedCount());
+    html.append("\" data-status-blocked-color=\"");
+    html.append(escapeAttribute(suiteRun.getBlockedTooltipColor()));
+    html.append("\" data-status-skipped-count=\"");
+    html.append(suiteRun.getSkippedCount());
+    html.append("\" data-status-skipped-color=\"");
+    html.append(escapeAttribute(suiteRun.getSkippedTooltipColor()));
+    html.append("\" data-status-running-count=\"");
+    html.append(suiteRun.getRunningCount());
+    html.append("\" data-status-running-color=\"");
+    html.append(escapeAttribute(suiteRun.getRunningTooltipColor()));
     html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
@@ -737,7 +774,13 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderSuiteRunPopup(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
-    html.append("<div class=\"octane-bar-popup\" role=\"tooltip\">\n");
+    html.append("<div class=\"octane-bar-popup\" role=\"tooltip\"");
+    if (!suiteRun.getDominantStatusColor().isEmpty()) {
+      html.append(" style=\"--octane-popup-border-color: ");
+      html.append(escapeAttribute(suiteRun.getDominantStatusColor()));
+      html.append(";\"");
+    }
+    html.append(">\n");
     html.append("<div class=\"octane-bar-popup-name\">");
     html.append(escapeHtml(suiteRun.getDisplayName()));
     html.append("</div>\n");
@@ -745,7 +788,7 @@ public class OctaneReportZoneHtmlRenderer {
       if (status.getCount() > 0) {
         html.append("<div class=\"octane-bar-popup-row\">");
         html.append("<span class=\"octane-swatch\" style=\"background: ");
-        html.append(escapeAttribute(status.getColor()));
+        html.append(escapeAttribute(status.getTooltipColor()));
         html.append(";\"></span>");
         html.append("<span class=\"octane-bar-popup-label\">");
         html.append(escapeHtml(status.getLabel()));

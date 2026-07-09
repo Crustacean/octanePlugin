@@ -28,6 +28,14 @@ public class OctaneGateStatusCount implements Serializable {
     return bucket.getColor();
   }
 
+  public String getDataKey() {
+    return bucket.getDataKey();
+  }
+
+  public String getTooltipColor() {
+    return bucket.getTooltipColor();
+  }
+
   public int getCount() {
     return count;
   }

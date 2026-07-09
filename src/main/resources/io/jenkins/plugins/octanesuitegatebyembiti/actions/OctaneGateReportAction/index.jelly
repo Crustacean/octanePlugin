@@ -32,11 +32,63 @@
           text-transform: uppercase;
         }
         .octane-dashboard {
+          --octane-color-bad: #FF3B30;
+          --octane-color-good: #34C759;
+          --octane-color-neutral: #007AFF;
+          --octane-color-warn: #FFCC00;
+          --octane-status-blocked: #FF9500;
+          --octane-status-failed: #FF3B30;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #34C759;
+          --octane-status-skipped: #5AC8FA;
           align-items: stretch;
           display: flex;
           flex-wrap: wrap;
           gap: 1rem;
           margin-top: 1rem;
+        }
+        @media (prefers-color-scheme: dark) {
+          .octane-dashboard {
+            --octane-color-bad: #FF453A;
+            --octane-color-good: #30D158;
+            --octane-color-neutral: #0A84FF;
+            --octane-color-warn: #FFD60A;
+            --octane-status-blocked: #FF9F0A;
+            --octane-status-failed: #FF453A;
+            --octane-status-no-run: #8E8E93;
+            --octane-status-passed: #30D158;
+            --octane-status-skipped: #64D2FF;
+          }
+        }
+        html[data-theme="dark"] .octane-dashboard,
+        body[data-theme="dark"] .octane-dashboard,
+        [data-color-mode="dark"] .octane-dashboard,
+        .jenkins-theme-dark .octane-dashboard,
+        .theme-dark .octane-dashboard {
+          --octane-color-bad: #FF453A;
+          --octane-color-good: #30D158;
+          --octane-color-neutral: #0A84FF;
+          --octane-color-warn: #FFD60A;
+          --octane-status-blocked: #FF9F0A;
+          --octane-status-failed: #FF453A;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #30D158;
+          --octane-status-skipped: #64D2FF;
+        }
+        html[data-theme="light"] .octane-dashboard,
+        body[data-theme="light"] .octane-dashboard,
+        [data-color-mode="light"] .octane-dashboard,
+        .jenkins-theme-light .octane-dashboard,
+        .theme-light .octane-dashboard {
+          --octane-color-bad: #FF3B30;
+          --octane-color-good: #34C759;
+          --octane-color-neutral: #007AFF;
+          --octane-color-warn: #FFCC00;
+          --octane-status-blocked: #FF9500;
+          --octane-status-failed: #FF3B30;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #34C759;
+          --octane-status-skipped: #5AC8FA;
         }
         .octane-exit-extended-form {
           align-items: center;
@@ -1493,17 +1545,12 @@
           fill: none;
           opacity: 0.5;
           stroke: var(--panel-border-color);
-          stroke-width: 4;
-        }
-        .octane-timer-progress-halo {
-          fill: none;
-          opacity: 0.22;
-          stroke-linecap: round;
-          stroke-width: 20;
+          stroke-width: 1;
         }
         .octane-timer-progress {
           fill: none;
           filter: drop-shadow(0 0 1px rgba(30, 167, 255, 0.35));
+          opacity: 1;
           stroke-linecap: round;
           stroke-width: 16;
         }
@@ -1511,11 +1558,14 @@
           fill: none;
           filter: drop-shadow(0 0 1px rgba(136, 17, 19, 0.35));
           opacity: 0;
-          stroke: #881113;
+          stroke: var(--octane-color-bad);
           stroke-linecap: round;
           stroke-width: 16;
         }
         .octane-timer-head {
+          fill-opacity: 1;
+          opacity: 0;
+          pointer-events: none;
           transition: fill 0.25s ease;
         }
         .octane-timer-value {
@@ -1718,9 +1768,11 @@
         }
         .octane-bar-popup {
           background: var(--background);
-          border: 1px solid var(--panel-border-color);
+          border: 1px solid var(--octane-popup-border-color, var(--panel-border-color));
           border-radius: 8px;
-          box-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
+          box-shadow:
+              0 0 0 1px var(--octane-popup-border-color, transparent),
+              0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
           color: var(--text-color);
           display: grid;
           font-size: 0.644rem;
@@ -1974,28 +2026,26 @@
                           <linearGradient id="octane-timeout-gradient" x1="32" y1="208" x2="208"
                               y2="32" gradientUnits="userSpaceOnUse">
                             <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                                offset="0%" stop-color="#4caf50" />
+                                offset="0%" stop-color="#34C759" />
                             <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                                offset="50%" stop-color="#449d48" />
+                                offset="50%" stop-color="#34C759" />
                             <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                                offset="100%" stop-color="#3c8c40" />
+                                offset="100%" stop-color="#34C759" />
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
                         <circle class="octane-timer-progress" data-timer-progress="true"
                             cx="120" cy="120" r="84" pathLength="100"
                             stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
+                            stroke-linecap="round" transform="rotate(-90 120 120)" />
                         <circle class="octane-timer-extended-progress"
                             data-timer-extended-progress="true" cx="120" cy="120" r="84"
-                            pathLength="100" stroke-dasharray="0 100"
+                            pathLength="100" stroke-dasharray="0 100" stroke-linecap="round"
                             transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-head" data-timer-head="true"
-                            cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                        <j:if test="${snapshot.timeoutExtendedSeconds > 0}">
+                          <circle class="octane-timer-head" data-timer-head="true"
+                              cx="120" cy="36" r="8" fill="#FF3B30" aria-hidden="true" />
+                        </j:if>
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           <j:choose>
                             <j:when test="${snapshot.building}">--</j:when>
@@ -2161,30 +2211,24 @@
                           <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208"
                               y2="32" gradientUnits="userSpaceOnUse">
                             <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                                offset="0%" stop-color="#757575" />
+                                offset="0%" stop-color="#007AFF" />
                             <stop data-timer-gradient-stop="true" offset="20%"
-                                stop-color="#696969" />
+                                stop-color="#007AFF" />
                             <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                                offset="40%" stop-color="#5d5d5d" />
+                                offset="40%" stop-color="#007AFF" />
                             <stop data-timer-gradient-stop="true" offset="60%"
-                                stop-color="#bbdefb" />
+                                stop-color="#007AFF" />
                             <stop data-timer-gradient-stop="true" offset="80%"
-                                stop-color="#a8c7e1" />
+                                stop-color="#007AFF" />
                             <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                                offset="100%" stop-color="#95b1c8" />
+                                offset="100%" stop-color="#007AFF" />
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
                         <circle class="octane-timer-progress" data-timer-progress="true"
                             cx="120" cy="120" r="84" pathLength="100"
                             stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-head" data-timer-head="true"
-                            cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                            stroke-linecap="round" transform="rotate(-90 120 120)" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           --
                         </text>
@@ -2299,27 +2343,20 @@
                           <linearGradient id="octane-execution-progress-gradient" x1="32" y1="208"
                               x2="208" y2="32" gradientUnits="userSpaceOnUse">
                             <stop data-execution-gradient-stop="true" offset="0%"
-                                stop-color="#fb4b4b" />
+                                stop-color="#FF3B30" />
                             <stop data-execution-gradient-stop="true" offset="50%"
-                                stop-color="#e14343" />
+                                stop-color="#FF3B30" />
                             <stop data-execution-gradient-stop="true" offset="100%"
-                                stop-color="#e14343" />
+                                stop-color="#FF3B30" />
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress-halo"
-                            data-execution-progress-halo="true" data-progress-halo="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-execution-progress-gradient)"
-                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
                         <circle class="octane-timer-progress"
                             data-execution-progress-circle="true" data-progress-circle="true"
                             cx="120" cy="120" r="84" pathLength="100"
                             stroke="url(#octane-execution-progress-gradient)"
-                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-head" data-execution-progress-head="true"
-                            data-progress-head="true" cx="120" cy="36" r="9.6"
-                            fill="#e14343" />
+                            stroke-dasharray="0 100" stroke-linecap="round"
+                            transform="rotate(-90 120 120)" />
                         <text class="octane-timer-value" data-execution-progress-value="true"
                             data-progress-value-text="true" x="120" y="118">
                           ${snapshot.executionProgressText}
@@ -2462,24 +2499,19 @@
                           <linearGradient id="octane-pass-rate-progress-gradient" x1="32" y1="208"
                               x2="208" y2="32" gradientUnits="userSpaceOnUse">
                             <stop data-progress-gradient-stop="true" offset="0%"
-                                stop-color="#fb4b4b" />
+                                stop-color="#FF3B30" />
                             <stop data-progress-gradient-stop="true" offset="50%"
-                                stop-color="#e14343" />
+                                stop-color="#FF3B30" />
                             <stop data-progress-gradient-stop="true" offset="100%"
-                                stop-color="#e14343" />
+                                stop-color="#FF3B30" />
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress-halo" data-progress-halo="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-pass-rate-progress-gradient)"
-                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
                         <circle class="octane-timer-progress" data-progress-circle="true"
                             cx="120" cy="120" r="84" pathLength="100"
                             stroke="url(#octane-pass-rate-progress-gradient)"
-                            stroke-dasharray="0 100" transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-head" data-progress-head="true"
-                            cx="120" cy="36" r="9.6" fill="#e14343" />
+                            stroke-dasharray="0 100" stroke-linecap="round"
+                            transform="rotate(-90 120 120)" />
                         <text class="octane-timer-value" data-progress-value-text="true"
                             x="120" y="118">
                           ${snapshot.passRateProgressText}
@@ -2871,6 +2903,16 @@
                                 data-bar-key="${suiteRun.suiteRunId}"
                                 data-dominant-status-color="${suiteRun.dominantStatusColor}"
                                 data-dominant-status-label="${suiteRun.dominantStatusLabel}"
+                                data-status-passed-count="${suiteRun.passedCount}"
+                                data-status-passed-color="${suiteRun.passedTooltipColor}"
+                                data-status-failed-count="${suiteRun.failedCount}"
+                                data-status-failed-color="${suiteRun.failedTooltipColor}"
+                                data-status-blocked-count="${suiteRun.blockedCount}"
+                                data-status-blocked-color="${suiteRun.blockedTooltipColor}"
+                                data-status-skipped-count="${suiteRun.skippedCount}"
+                                data-status-skipped-color="${suiteRun.skippedTooltipColor}"
+                                data-status-running-count="${suiteRun.runningCount}"
+                                data-status-running-color="${suiteRun.runningTooltipColor}"
                                 aria-label="${suiteRun.title}">
                               <div class="octane-vertical-bar-wrap">
                                 <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
@@ -2885,13 +2927,14 @@
                               <span class="octane-suite-label" title="${suiteRun.title}">
                                 ${suiteRun.axisLabel}
                               </span>
-                              <div class="octane-bar-popup" role="tooltip">
+                              <div class="octane-bar-popup" role="tooltip"
+                                  style="--octane-popup-border-color: ${suiteRun.dominantStatusColor};">
                                 <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
                                 <j:forEach var="status" items="${suiteRun.statuses}">
                                   <j:if test="${status.count > 0}">
                                     <div class="octane-bar-popup-row">
                                       <span class="octane-swatch"
-                                          style="background: ${status.color};"></span>
+                                          style="background: ${status.tooltipColor};"></span>
                                       <span class="octane-bar-popup-label">${status.label}</span>
                                       <span class="octane-bar-popup-value">${status.count}</span>
                                       <span class="octane-bar-popup-percent">
@@ -3032,37 +3075,36 @@
           var completionAutoFlipState = {};
           var TIMER_CENTER = 120;
           var TIMER_RADIUS = 84;
+          var TIMER_HEAD_RADIUS = 8;
+          var TIMER_ACTIVE_OPACITY = "1";
+          var COLOR_GOOD = "--octane-color-good";
+          var COLOR_WARN = "--octane-color-warn";
+          var COLOR_BAD = "--octane-color-bad";
+          var COLOR_NEUTRAL = "--octane-color-neutral";
+          var COLOR_TOKEN_FALLBACKS = {};
+          COLOR_TOKEN_FALLBACKS[COLOR_GOOD] = "#34C759";
+          COLOR_TOKEN_FALLBACKS[COLOR_WARN] = "#FFCC00";
+          COLOR_TOKEN_FALLBACKS[COLOR_BAD] = "#FF3B30";
+          COLOR_TOKEN_FALLBACKS[COLOR_NEUTRAL] = "#007AFF";
           var PROGRESS_COLOR_PHASES = {
             execution: [
-              {limit: 5, colors: ["#fb4b4b", "#e14343"]},
-              {limit: 30, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
-              {limit: 70, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 100, colors: ["#4bfb4b", "#43e143", "#3cc83c"]}
+              {limit: 20, token: COLOR_BAD},
+              {limit: 79, token: COLOR_WARN},
+              {limit: 100, token: COLOR_GOOD}
             ],
             passRate: [
-              {limit: 20, colors: ["#fb4b4b", "#e14343"]},
-              {limit: 60, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
-              {limit: 94, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 100, colors: ["#4bfb4b", "#43e143", "#3cc83c"]}
+              {limit: 49, token: COLOR_BAD},
+              {limit: 89, token: COLOR_WARN},
+              {limit: 100, token: COLOR_GOOD}
             ],
             poll: [
-              {
-                limit: 100,
-                colors: ["#757575", "#696969", "#5d5d5d", "#bbdefb", "#a8c7e1", "#95b1c8"]
-              }
+              {limit: 100, token: COLOR_NEUTRAL}
             ],
             timeout: [
-              {limit: 30, colors: ["#4caf50", "#449d48", "#3c8c40"]},
-              {limit: 70, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 95, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
-              {limit: 100, colors: ["#fb4b4b", "#e14343"]}
+              {limit: 50, token: COLOR_GOOD},
+              {limit: 79, token: COLOR_WARN},
+              {limit: 100, token: COLOR_BAD}
             ]
-          };
-          var COMPLETE_PROGRESS_COLORS = {
-            execution: "#3cc83c",
-            passRate: "#3cc83c",
-            poll: "#95b1c8",
-            timeout: "#e14343"
           };
           var wallClockAnchor = Date.now();
           var performanceClockAnchor = hasPerformanceClock ? window.performance.now() : 0;
@@ -3082,18 +3124,24 @@
           function trimNumber(value) {
             return value.toFixed(3).replace(/\.?0+$/, "");
           }
-          function colorsForProgress(kind, progress) {
-            var completeColor = COMPLETE_PROGRESS_COLORS[kind];
-            if (progress >= 100 && completeColor) {
-              return [completeColor, completeColor, completeColor];
+          function colorTokenValue(token) {
+            var fallback = COLOR_TOKEN_FALLBACKS[token] || "#4a4a4a";
+            if (!dashboard || !window.getComputedStyle) {
+              return fallback;
             }
+            var value = window.getComputedStyle(dashboard).getPropertyValue(token).trim();
+            return value || fallback;
+          }
+          function colorsForProgress(kind, progress) {
             var phases = PROGRESS_COLOR_PHASES[kind] || PROGRESS_COLOR_PHASES.timeout;
             for (var index = 0; index < phases.length; index += 1) {
               if (progress <= phases[index].limit) {
-                return phases[index].colors;
+                var phaseColor = colorTokenValue(phases[index].token);
+                return [phaseColor, phaseColor, phaseColor];
               }
             }
-            return phases[phases.length - 1].colors;
+            var finalColor = colorTokenValue(phases[phases.length - 1].token);
+            return [finalColor, finalColor, finalColor];
           }
           function stopColorAt(colors, index, stopCount) {
             if (colors.length === 0) {
@@ -4028,7 +4076,6 @@
               lastDisplayedValue: "",
               mode: mode,
               extendedProgressCircle: card.querySelector("[data-timer-extended-progress]"),
-              progressHalo: card.querySelector("[data-timer-progress-halo]"),
               progressCircle: card.querySelector("[data-timer-progress]"),
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
@@ -4139,29 +4186,32 @@
             var colors = colorsForProgress(state.mode, progress);
             if (state.progressCircle) {
               state.progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
-              state.progressCircle.style.opacity = progress <= 0 ? "0" : "1";
-            }
-            if (state.progressHalo) {
-              state.progressHalo.style.strokeDasharray = trimNumber(progress) + " 100";
-              state.progressHalo.style.opacity = progress <= 0 ? "0" : "0.22";
+              state.progressCircle.style.opacity = progress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
             if (state.extendedProgressCircle) {
               state.extendedProgressCircle.style.strokeDasharray =
                   trimNumber(extendedProgress) + " 100";
-              state.extendedProgressCircle.style.opacity = extendedProgress <= 0 ? "0" : "1";
+              state.extendedProgressCircle.style.opacity =
+                  extendedProgress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
             applyGradientStops(state.gradientStops, colors);
-            var headColor = colors[colors.length - 1];
             if (state.head) {
-              var headProgress =
-                  state.mode === "timeout" && state.extendedActive ? extendedProgress : progress;
-              var angle = (headProgress / 100) * Math.PI * 2 - Math.PI / 2;
-              state.head.setAttribute(
-                  "cx", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle)));
-              state.head.setAttribute(
-                  "cy", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle)));
-              state.head.setAttribute("fill", headColor);
-              state.head.style.display = progress <= 0 ? "none" : "block";
+              var shouldShowExtendedHead =
+                  state.mode === "timeout" && state.extendedActive && state.extendedTotalMillis > 0;
+              if (shouldShowExtendedHead) {
+                var angle = (extendedProgress / 100) * Math.PI * 2 - Math.PI / 2;
+                var headX = trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle));
+                var headY = trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle));
+                state.head.setAttribute("cx", headX);
+                state.head.setAttribute("cy", headY);
+                state.head.setAttribute("r", String(TIMER_HEAD_RADIUS));
+                state.head.setAttribute("fill", colorTokenValue(COLOR_BAD));
+                state.head.style.opacity = "1";
+                state.head.style.display = "block";
+              } else {
+                state.head.style.opacity = "0";
+                state.head.style.display = "none";
+              }
             }
             setTimerText(state, remaining);
           }
@@ -4433,42 +4483,23 @@
             var progressCircle =
                 card.querySelector("[data-progress-circle]")
                 || card.querySelector("[data-execution-progress-circle]");
-            var progressHalo =
-                card.querySelector("[data-progress-halo]")
-                || card.querySelector("[data-execution-progress-halo]");
             var gradientStops = card.querySelectorAll("[data-progress-gradient-stop]");
             if (!gradientStops.length) {
               gradientStops = card.querySelectorAll("[data-execution-gradient-stop]");
             }
-            var head =
-                card.querySelector("[data-progress-head]")
-                || card.querySelector("[data-execution-progress-head]");
             var value =
                 card.querySelector("[data-progress-value-text]")
                 || card.querySelector("[data-execution-progress-value]");
             var displayValue = String(Math.round(progress)) + "%";
             var colorKind = progressKind === "pass-rate" ? "passRate" : progressKind;
             var executionColors = colorsForProgress(colorKind, progress);
-            var executionColor = executionColors[executionColors.length - 1];
             if (value) {
               value.textContent = displayValue;
             }
             applyGradientStops(gradientStops, executionColors);
             if (progressCircle) {
               progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
-              progressCircle.style.opacity = progress <= 0 ? "0" : "1";
-            }
-            if (progressHalo) {
-              progressHalo.style.strokeDasharray = trimNumber(progress) + " 100";
-              progressHalo.style.opacity = progress <= 0 ? "0" : "0.22";
-            }
-            if (head) {
-              var angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
-              head.setAttribute(
-                  "cx", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle)));
-              head.setAttribute(
-                  "cy", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle)));
-              head.setAttribute("fill", executionColor);
+              progressCircle.style.opacity = progress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
           }
           for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
@@ -4493,8 +4524,7 @@
 	            barPopupOverlay.removeAttribute("data-placement");
 	            barPopupOverlay.removeAttribute("data-dominant-status-label");
 	            barPopupOverlay.setAttribute("aria-hidden", "true");
-	            barPopupOverlay.style.borderColor = "";
-	            barPopupOverlay.style.boxShadow = "";
+	            barPopupOverlay.style.removeProperty("--octane-popup-border-color");
 	            barPopupOverlay.style.left = "";
 	            barPopupOverlay.style.top = "";
 	            activeBarPopupState = {
@@ -4515,22 +4545,59 @@
 	          function barKeyForColumn(column) {
 	            return column ? column.getAttribute("data-bar-key") || "" : "";
 	          }
+	          function statusMetricForColumn(column, key, label) {
+	            var rawCount = column ? column.getAttribute("data-status-" + key + "-count") : "";
+	            var color = column ? column.getAttribute("data-status-" + key + "-color") || "" : "";
+	            var count = Number(rawCount || 0);
+	            return {
+	              color: color,
+	              count: Number.isFinite(count) ? count : 0,
+	              label: label
+	            };
+	          }
+	          function dominantStatusForColumn(column) {
+	            if (!column) {
+	              return null;
+	            }
+	            var metrics = [
+	              statusMetricForColumn(column, "failed", "Failed"),
+	              statusMetricForColumn(column, "blocked", "Blocked"),
+	              statusMetricForColumn(column, "passed", "Passed"),
+	              statusMetricForColumn(column, "skipped", "Skipped"),
+	              statusMetricForColumn(column, "running", "Running")
+	            ];
+	            var dominant = metrics[0];
+	            for (var index = 1; index < metrics.length; index += 1) {
+	              if (metrics[index].count > dominant.count) {
+	                dominant = metrics[index];
+	              }
+	            }
+	            return dominant && dominant.count > 0 ? dominant : null;
+	          }
 	          function applyBarPopupDominantColor(column) {
 	            if (!barPopupOverlay) {
 	              return;
 	            }
-	            var color = column ? column.getAttribute("data-dominant-status-color") || "" : "";
-	            var label = column ? column.getAttribute("data-dominant-status-label") || "" : "";
+	            var dominant = dominantStatusForColumn(column);
+	            var color =
+	                dominant && dominant.color
+	                    ? dominant.color
+	                    : column
+	                        ? column.getAttribute("data-dominant-status-color") || ""
+	                        : "";
+	            var label =
+	                dominant && dominant.label
+	                    ? dominant.label
+	                    : column
+	                        ? column.getAttribute("data-dominant-status-label") || ""
+	                        : "";
 	            if (!color) {
 	              barPopupOverlay.removeAttribute("data-dominant-status-label");
-	              barPopupOverlay.style.borderColor = "";
-	              barPopupOverlay.style.boxShadow = "";
+	              barPopupOverlay.style.removeProperty("--octane-popup-border-color");
 	              return;
 	            }
 	            barPopupOverlay.setAttribute("data-dominant-status-label", label);
-	            barPopupOverlay.style.borderColor = color;
-	            barPopupOverlay.style.boxShadow =
-	                "0 0 0 1px " + color + ", 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18)";
+	            barPopupOverlay.style.setProperty("--octane-popup-border-color", color);
 	          }
 	          function pointForColumn(column) {
 	            var bar = column ? column.querySelector(".octane-vertical-bar") : null;

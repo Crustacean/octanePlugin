@@ -28,7 +28,12 @@ public class OctaneExecutionStatusDistributionTest {
         List.of("Planned", "Passed", "Failed", "Blocked", "Skipped"),
         labels(distribution.getSegments()));
     assertEquals(
-        List.of("#808080", "#009900", "#990000", "#631919", "#ffb74d"),
+        List.of(
+            "var(--octane-status-no-run)",
+            "var(--octane-status-passed)",
+            "var(--octane-status-failed)",
+            "var(--octane-status-blocked)",
+            "var(--octane-status-skipped)"),
         colors(distribution.getSegments()));
     assertEquals("40.0%", distribution.getSegments().get(0).getPercentageLabel());
     assertTrue(
