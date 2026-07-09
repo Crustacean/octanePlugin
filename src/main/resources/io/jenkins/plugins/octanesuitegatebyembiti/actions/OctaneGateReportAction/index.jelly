@@ -36,6 +36,8 @@
           --octane-color-good: #34C759;
           --octane-color-neutral: #007AFF;
           --octane-color-warn: #FFCC00;
+          --octane-timer-head-fill: #000000;
+          --octane-timer-head-gap: var(--background);
           --octane-status-blocked: #FF9500;
           --octane-status-failed: #FF3B30;
           --octane-status-no-run: #8E8E93;
@@ -53,6 +55,7 @@
             --octane-color-good: #30D158;
             --octane-color-neutral: #0A84FF;
             --octane-color-warn: #FFD60A;
+            --octane-timer-head-fill: #ffffff;
             --octane-status-blocked: #FF9F0A;
             --octane-status-failed: #FF453A;
             --octane-status-no-run: #8E8E93;
@@ -69,6 +72,7 @@
           --octane-color-good: #30D158;
           --octane-color-neutral: #0A84FF;
           --octane-color-warn: #FFD60A;
+          --octane-timer-head-fill: #ffffff;
           --octane-status-blocked: #FF9F0A;
           --octane-status-failed: #FF453A;
           --octane-status-no-run: #8E8E93;
@@ -84,6 +88,7 @@
           --octane-color-good: #34C759;
           --octane-color-neutral: #007AFF;
           --octane-color-warn: #FFCC00;
+          --octane-timer-head-fill: #000000;
           --octane-status-blocked: #FF9500;
           --octane-status-failed: #FF3B30;
           --octane-status-no-run: #8E8E93;
@@ -1563,9 +1568,12 @@
           stroke-width: 16;
         }
         .octane-timer-head {
+          fill: var(--octane-timer-head-fill);
           fill-opacity: 1;
           opacity: 0;
           pointer-events: none;
+          stroke: var(--octane-timer-head-gap);
+          stroke-width: 1.5px;
           transition: fill 0.25s ease;
         }
         .octane-timer-value {
@@ -2044,7 +2052,7 @@
                             transform="rotate(-90 120 120)" />
                         <j:if test="${snapshot.timeoutExtendedSeconds > 0}">
                           <circle class="octane-timer-head" data-timer-head="true"
-                              cx="120" cy="36" r="8" fill="#FF3B30" aria-hidden="true" />
+                              cx="120" cy="36" r="8" aria-hidden="true" />
                         </j:if>
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           <j:choose>
@@ -4205,7 +4213,6 @@
                 state.head.setAttribute("cx", headX);
                 state.head.setAttribute("cy", headY);
                 state.head.setAttribute("r", String(TIMER_HEAD_RADIUS));
-                state.head.setAttribute("fill", colorTokenValue(COLOR_BAD));
                 state.head.style.opacity = "1";
                 state.head.style.display = "block";
               } else {
