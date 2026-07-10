@@ -339,7 +339,6 @@ public class OctaneGateRunner {
         scopedResults,
         defectPollResult.reportHeatMap,
         defectMetrics,
-        defectPollResult.defects,
         criteriaEvaluation,
         clock.instant());
   }
@@ -397,8 +396,7 @@ public class OctaneGateRunner {
       }
       return new DefectPollResult(
           request.isRiskHeatMap() ? heatMap : OctaneRiskHeatMap.disabled(),
-          heatMap.getDefectSeveritySummary(),
-          defectLedger.getDefects());
+          heatMap.getDefectSeveritySummary());
     } catch (IOException e) {
       if (defectCriteriaRequired) {
         listener
@@ -413,8 +411,7 @@ public class OctaneGateRunner {
           .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
       return new DefectPollResult(
           OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage()),
-          OctaneDefectSeveritySummary.empty(),
-          List.of());
+          OctaneDefectSeveritySummary.empty());
     }
   }
 
@@ -679,20 +676,16 @@ public class OctaneGateRunner {
   private static class DefectPollResult {
     private final OctaneRiskHeatMap reportHeatMap;
     private final OctaneDefectSeveritySummary severitySummary;
-    private final List<DefectRecord> defects;
 
     private DefectPollResult(
-        OctaneRiskHeatMap reportHeatMap,
-        OctaneDefectSeveritySummary severitySummary,
-        List<DefectRecord> defects) {
+        OctaneRiskHeatMap reportHeatMap, OctaneDefectSeveritySummary severitySummary) {
       this.reportHeatMap = reportHeatMap;
       this.severitySummary = severitySummary;
-      this.defects = defects == null ? List.of() : List.copyOf(defects);
     }
 
     private static DefectPollResult empty() {
       return new DefectPollResult(
-          OctaneRiskHeatMap.disabled(), OctaneDefectSeveritySummary.empty(), List.of());
+          OctaneRiskHeatMap.disabled(), OctaneDefectSeveritySummary.empty());
     }
   }
 }

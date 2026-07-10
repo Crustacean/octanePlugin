@@ -340,6 +340,7 @@ public class OctaneEmailBodyRenderer {
   }
 
   private List<DefectStatusColumn> defectStatusColumns(DefectCriteriaMetrics metrics) {
+    OctaneDefectSeveritySummary summary = metrics.getSeveritySummary();
     List<DefectStatusColumn> columns = new ArrayList<>();
     Set<String> groupedTypes = new LinkedHashSet<>();
     for (OctaneDefectGroup group : metrics.getConfiguredGroups()) {
@@ -351,12 +352,15 @@ public class OctaneEmailBodyRenderer {
       groupedTypes.addAll(types);
     }
 
+    boolean includeAllStandaloneSeverities = columns.isEmpty();
     for (String[] severity : DEFECT_SEVERITIES) {
       String type = OctaneDefectSeveritySummary.normalizeOpenType(severity[0]);
       if (groupedTypes.contains(type)) {
         continue;
       }
-      columns.add(new DefectStatusColumn(severity[1], List.of(type)));
+      if (includeAllStandaloneSeverities || summary.getTotalCount(type) > 0) {
+        columns.add(new DefectStatusColumn(severity[1], List.of(type)));
+      }
     }
     return columns;
   }

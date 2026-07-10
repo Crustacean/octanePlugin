@@ -436,12 +436,6 @@ public class OctaneReportZoneHtmlRenderer {
           height: 9px;
           width: 9px;
         }
-        .octane-bar-popup-action-swatch {
-          visibility: hidden;
-        }
-        .octane-bar-popup-action-row .octane-bar-popup-value {
-          grid-column: 3 / 5;
-        }
         .octane-bar-popup-label {
           overflow-wrap: anywhere;
           white-space: normal;
@@ -756,12 +750,6 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(suiteRun.getRunningCount());
     html.append("\" data-status-running-color=\"");
     html.append(escapeAttribute(suiteRun.getRunningTooltipColor()));
-    html.append("\" data-total-test-cases=\"");
-    html.append(suiteRun.getTotal());
-    html.append("\" data-open-defects-count=\"");
-    html.append(suiteRun.getOpenIssues());
-    html.append("\" data-closed-defects-count=\"");
-    html.append(suiteRun.getClosedIssues());
     html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
