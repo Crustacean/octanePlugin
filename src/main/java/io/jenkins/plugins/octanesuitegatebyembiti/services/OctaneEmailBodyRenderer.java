@@ -261,8 +261,118 @@ public class OctaneEmailBodyRenderer {
     appendSpacer(html, 28);
     appendDefectAnalysisTables(html, snapshot);
     appendSpacer(html, 28);
-    appendEvaluationTable(html, snapshot);
+    appendCriteriaAndReconciliationTables(html, snapshot, theme);
     return html.toString();
+  }
+
+  private void appendCriteriaAndReconciliationTables(
+      StringBuilder html, OctaneGateReportSnapshot snapshot, String theme) {
+    html.append(
+        "<table data-octane-email-section=\"criteria-reconciliation\" role=\"presentation\" "
+            + "cellpadding=\"0\" cellspacing=\"0\" "
+            + "style=\"border-collapse:collapse;width:100%;\"><tr>");
+    html.append("<td style=\"vertical-align:top;width:50%;\">");
+    appendEvaluationTable(html, snapshot);
+    html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
+    html.append("<td style=\"vertical-align:top;width:50%;\">");
+    appendDefectReconciliationTable(html, snapshot, theme);
+    html.append("</td></tr></table>");
+  }
+
+  private void appendDefectReconciliationTable(
+      StringBuilder html, OctaneGateReportSnapshot snapshot, String theme) {
+    DefectReconciliation reconciliation = defectReconciliation(snapshot);
+    ReconciliationStyle statusStyle = reconciliationStyle(reconciliation.status, theme);
+    html.append(
+        "<table data-octane-email-table=\"defect-reconciliation\" cellpadding=\"0\" "
+            + "cellspacing=\"0\" style=\"border-collapse:collapse;table-layout:fixed;"
+            + "width:100%;\">");
+    html.append("<caption style=\"")
+        .append(SECTION_TITLE_STYLE)
+        .append("\">Defect Logging Compliance</caption>");
+    html.append("<colgroup><col style=\"width:68%;\"><col style=\"width:32%;\"></colgroup>");
+    html.append("<tbody>");
+    appendReconciliationRow(html, "Blocked Tests", reconciliation.blockedCount, false, false);
+    appendReconciliationRow(html, "Failed Tests", reconciliation.failedCount, false, false);
+    appendReconciliationRow(
+        html, "Total Expected Defects", reconciliation.expectedDefects, true, false);
+    appendReconciliationRow(
+        html, "Actual Defects Raised", reconciliation.defectsRaised, true, true);
+    appendReconciliationStatusRow(html, reconciliation, statusStyle);
+    html.append("</tbody></table>");
+  }
+
+  private DefectReconciliation defectReconciliation(OctaneGateReportSnapshot snapshot) {
+    int blockedCount = statusCount(snapshot, "Blocked");
+    int failedCount = statusCount(snapshot, "Failed");
+    int defectsRaised = snapshot == null ? 0 : snapshot.getDefectMetrics().getTotalDefectsRaised();
+    return DefectReconciliation.from(blockedCount, failedCount, defectsRaised);
+  }
+
+  private void appendReconciliationRow(
+      StringBuilder html, String label, int value, boolean emphasized, boolean strongDivider) {
+    String fontWeight = emphasized ? "font-weight:600;" : "";
+    String borderBottom = strongDivider ? "border-bottom:2px solid #d0d7de;" : "";
+    html.append("<tr><th scope=\"row\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+        .append(borderBottom)
+        .append(TABLE_VALUE_STYLE)
+        .append(fontWeight)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:left;\">")
+        .append(escape(label))
+        .append("</th><td style=\"border:1px solid #d0d7de;")
+        .append(borderBottom)
+        .append(TABLE_VALUE_STYLE)
+        .append(fontWeight)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:right;\">")
+        .append(value)
+        .append("</td></tr>");
+  }
+
+  private void appendReconciliationStatusRow(
+      StringBuilder html, DefectReconciliation reconciliation, ReconciliationStyle statusStyle) {
+    String percentagePrefix = reconciliation.status == ReconciliationStatus.SURPLUS ? "+" : "";
+    String statusText =
+        percentagePrefix
+            + formatPercentage(reconciliation.discrepancyPercentage)
+            + " ("
+            + reconciliation.status.label
+            + ")";
+    html.append("<tr bgcolor=\"")
+        .append(statusStyle.backgroundColor)
+        .append("\"><th scope=\"row\" style=\"background-color:")
+        .append(statusStyle.backgroundColor)
+        .append(";border:1px solid #d0d7de;border-left:4px solid ")
+        .append(statusStyle.accentColor)
+        .append(";")
+        .append(TABLE_HEADER_STYLE)
+        .append("padding:10px;text-align:left;\">Reconciliation Discrepancy</th>")
+        .append("<td style=\"background-color:")
+        .append(statusStyle.backgroundColor)
+        .append(";border:1px solid #d0d7de;border-right:4px solid ")
+        .append(statusStyle.accentColor)
+        .append(";color:")
+        .append(statusStyle.textColor)
+        .append(";")
+        .append(TABLE_VALUE_STYLE)
+        .append("font-weight:700;padding:10px;text-align:right;white-space:nowrap;\">")
+        .append(statusText)
+        .append("</td></tr>");
+  }
+
+  private ReconciliationStyle reconciliationStyle(ReconciliationStatus status, String theme) {
+    boolean darkTheme = emailTheme(theme) == OctaneReportTheme.DARK;
+    if (status == ReconciliationStatus.TALLY) {
+      return new ReconciliationStyle(
+          darkTheme ? DARK_SYSTEM_GREEN : LIGHT_SYSTEM_GREEN, "#E8F8ED", "#166534");
+    }
+    if (status == ReconciliationStatus.UNDER_REPORTED) {
+      return new ReconciliationStyle(
+          darkTheme ? DARK_SYSTEM_RED : LIGHT_SYSTEM_RED, "#FDECEB", "#991B1B");
+    }
+    return new ReconciliationStyle(
+        darkTheme ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE, "#FFF3E0", "#92400E");
   }
 
   private void appendDefectAnalysisTables(StringBuilder html, OctaneGateReportSnapshot snapshot) {
@@ -712,8 +822,9 @@ public class OctaneEmailBodyRenderer {
     }
 
     html.append(
-        "<table cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;"
-            + "table-layout:fixed;width:100%;\">");
+        "<table data-octane-email-table=\"criteria-evaluation\" cellpadding=\"0\" "
+            + "cellspacing=\"0\" style=\"border-collapse:collapse;table-layout:fixed;"
+            + "width:100%;\">");
     html.append("<caption style=\"")
         .append(SECTION_TITLE_STYLE)
         .append("\">Criteria evaluation</caption>");
@@ -822,6 +933,86 @@ public class OctaneEmailBodyRenderer {
     OPEN,
     CLOSED,
     TOTAL
+  }
+
+  private enum ReconciliationStatus {
+    TALLY("TALLY"),
+    UNDER_REPORTED("UNDER-REPORTED"),
+    SURPLUS("SURPLUS");
+
+    private final String label;
+
+    ReconciliationStatus(String label) {
+      this.label = label;
+    }
+  }
+
+  private static class DefectReconciliation {
+    private final int blockedCount;
+    private final int failedCount;
+    private final int expectedDefects;
+    private final int defectsRaised;
+    private final double discrepancyPercentage;
+    private final ReconciliationStatus status;
+
+    private DefectReconciliation(
+        int blockedCount,
+        int failedCount,
+        int expectedDefects,
+        int defectsRaised,
+        double discrepancyPercentage,
+        ReconciliationStatus status) {
+      this.blockedCount = blockedCount;
+      this.failedCount = failedCount;
+      this.expectedDefects = expectedDefects;
+      this.defectsRaised = defectsRaised;
+      this.discrepancyPercentage = discrepancyPercentage;
+      this.status = status;
+    }
+
+    private static DefectReconciliation from(int blockedCount, int failedCount, int defectsRaised) {
+      int safeBlockedCount = Math.max(0, blockedCount);
+      int safeFailedCount = Math.max(0, failedCount);
+      int safeDefectsRaised = Math.max(0, defectsRaised);
+      int expectedDefects = safeBlockedCount + safeFailedCount;
+      if (safeDefectsRaised == expectedDefects) {
+        return new DefectReconciliation(
+            safeBlockedCount,
+            safeFailedCount,
+            expectedDefects,
+            safeDefectsRaised,
+            0.0,
+            ReconciliationStatus.TALLY);
+      }
+
+      double discrepancyPercentage =
+          expectedDefects == 0
+              ? 100.0
+              : Math.abs(expectedDefects - safeDefectsRaised) * 100.0 / expectedDefects;
+      ReconciliationStatus status =
+          safeDefectsRaised < expectedDefects
+              ? ReconciliationStatus.UNDER_REPORTED
+              : ReconciliationStatus.SURPLUS;
+      return new DefectReconciliation(
+          safeBlockedCount,
+          safeFailedCount,
+          expectedDefects,
+          safeDefectsRaised,
+          discrepancyPercentage,
+          status);
+    }
+  }
+
+  private static class ReconciliationStyle {
+    private final String accentColor;
+    private final String backgroundColor;
+    private final String textColor;
+
+    private ReconciliationStyle(String accentColor, String backgroundColor, String textColor) {
+      this.accentColor = accentColor;
+      this.backgroundColor = backgroundColor;
+      this.textColor = textColor;
+    }
   }
 
   private static class DefectStatusColumn {

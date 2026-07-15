@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaComparisonEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
@@ -18,6 +19,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
@@ -170,6 +172,9 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(statusTable.contains(">Total</th>"));
     assertFalse(statusTable.contains("Total Defects"));
     assertTrue(html.contains("Criteria evaluation"));
+    assertTrue(html.contains("Defect Logging Compliance"));
+    assertTrue(html.contains("data-octane-email-section=\"criteria-reconciliation\""));
+    assertTrue(html.contains("data-octane-email-table=\"defect-reconciliation\""));
     assertTrue(html.indexOf("Project Details") < html.indexOf("Defect Distribution Matrix"));
     assertTrue(html.indexOf("Defect Distribution Matrix") < html.indexOf("Criteria evaluation"));
     assertTrue(html.contains("border:2px solid #374151;padding:16px"));
@@ -182,7 +187,7 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(screenshotStart < reportEnd);
     assertTrue(reportEnd < signOffStart);
     assertEquals(1, occurrences(html, "data-octane-email-section=\"execution-report\""));
-    assertEquals(6, occurrences(html, "font-size:16px;font-weight:600;line-height:1.25"));
+    assertEquals(7, occurrences(html, "font-size:16px;font-weight:600;line-height:1.25"));
     assertTrue(html.contains("Execution graph</td>"));
     assertTrue(html.contains("font-size:15px;font-weight:600;line-height:1.4"));
     assertTrue(html.contains("font-size:15px;font-weight:400;line-height:1.4"));
@@ -220,6 +225,64 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("data-octane-email-section=\"execution-report\""));
     assertTrue(html.contains("src=\"cid:octane-progress.png\""));
     assertPassRateCell(html, "#FF9F0A", "#000000", true);
+    assertTrue(html.contains("Defect Logging Compliance"));
+  }
+
+  @Test
+  public void reconcilesDefectsForTallyUnderReportedAndSurplusStates() {
+    String zeroTally =
+        renderExecutionDetails(
+            reconciliationSnapshot(OctaneGateReportState.POLLING, List.of("passed"), 0),
+            OctaneReportTheme.LIGHT);
+    String tally =
+        renderExecutionDetails(
+            reconciliationSnapshot(
+                OctaneGateReportState.PASSED, List.of("passed", "blocked", "failed"), 2),
+            OctaneReportTheme.LIGHT);
+    String underReported =
+        renderExecutionDetails(
+            reconciliationSnapshot(
+                OctaneGateReportState.FAILED, List.of("blocked", "failed", "failed"), 1),
+            OctaneReportTheme.LIGHT);
+    String surplus =
+        renderExecutionDetails(
+            reconciliationSnapshot(OctaneGateReportState.POLLING, List.of("passed"), 2),
+            OctaneReportTheme.DARK);
+
+    String zeroTallyTable = emailTable(zeroTally, "defect-reconciliation");
+    assertReconciliationCounts(zeroTallyTable, 0, 0, 0, 0);
+    assertTrue(zeroTallyTable.contains("0% (TALLY)"));
+
+    String tallyTable = emailTable(tally, "defect-reconciliation");
+    assertReconciliationCounts(tallyTable, 1, 1, 2, 2);
+    assertTrue(tallyTable.contains("0% (TALLY)"));
+    assertTrue(tallyTable.contains("border-left:4px solid #34C759"));
+
+    String underReportedTable = emailTable(underReported, "defect-reconciliation");
+    assertReconciliationCounts(underReportedTable, 1, 2, 3, 1);
+    assertTrue(underReportedTable.contains("66.7% (UNDER-REPORTED)"));
+    assertTrue(underReportedTable.contains("border-left:4px solid #FF3B30"));
+
+    String surplusTable = emailTable(surplus, "defect-reconciliation");
+    assertReconciliationCounts(surplusTable, 0, 0, 0, 2);
+    assertTrue(surplusTable.contains("+100% (SURPLUS)"));
+    assertTrue(surplusTable.contains("border-left:4px solid #FF9F0A"));
+  }
+
+  @Test
+  public void placesCriteriaAndReconciliationTablesBesideEachOtherInFinalAndIntervalEmails() {
+    OctaneGateReportSnapshot finalSnapshot =
+        reconciliationSnapshot(
+            OctaneGateReportState.PASSED, List.of("passed", "blocked", "failed"), 2);
+    OctaneGateReportSnapshot intervalSnapshot =
+        reconciliationSnapshot(
+            OctaneGateReportState.POLLING, List.of("passed", "blocked", "failed"), 1);
+
+    String finalHtml = renderExecutionDetails(finalSnapshot, OctaneReportTheme.LIGHT);
+    String intervalHtml = renderExecutionDetails(intervalSnapshot, OctaneReportTheme.DARK);
+
+    assertPairedCriteriaAndReconciliationTables(finalHtml);
+    assertPairedCriteriaAndReconciliationTables(intervalHtml);
   }
 
   @Test
@@ -369,6 +432,33 @@ public class OctaneEmailBodyRendererTest {
     return html.substring(start, end + "</tr>".length());
   }
 
+  private void assertReconciliationCounts(
+      String table, int blocked, int failed, int expected, int actual) {
+    assertTrue(table.contains(">Blocked Tests</th><td"));
+    assertTrue(table.contains(">" + blocked + "</td></tr>"));
+    assertTrue(table.contains(">Failed Tests</th><td"));
+    assertTrue(table.contains(">" + failed + "</td></tr>"));
+    assertTrue(table.contains(">Total Expected Defects</th><td"));
+    assertTrue(table.contains(">" + expected + "</td></tr>"));
+    assertTrue(table.contains(">Actual Defects Raised</th><td"));
+    assertTrue(table.contains(">" + actual + "</td></tr>"));
+  }
+
+  private void assertPairedCriteriaAndReconciliationTables(String html) {
+    String marker = "data-octane-email-section=\"criteria-reconciliation\"";
+    int markerIndex = html.indexOf(marker);
+    assertTrue("Missing criteria/reconciliation row", markerIndex >= 0);
+    int rowStart = html.lastIndexOf("<table", markerIndex);
+    int rowEnd = html.indexOf("</table></td></tr></table>", markerIndex);
+    assertTrue("Missing criteria/reconciliation row bounds", rowStart >= 0 && rowEnd > rowStart);
+    String row = html.substring(rowStart, rowEnd);
+    assertTrue(row.contains("data-octane-email-table=\"criteria-evaluation\""));
+    assertTrue(row.contains("data-octane-email-table=\"defect-reconciliation\""));
+    assertTrue(
+        row.indexOf("data-octane-email-table=\"criteria-evaluation\"")
+            < row.indexOf("data-octane-email-table=\"defect-reconciliation\""));
+  }
+
   private OctaneGateReportSnapshot snapshot(OctaneGateReportState state, String message) {
     return snapshot(state, message, "Low, Medium");
   }
@@ -411,6 +501,40 @@ public class OctaneEmailBodyRendererTest {
             evaluation,
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(state, message, result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot reconciliationSnapshot(
+      OctaneGateReportState state, List<String> statuses, int defectsRaised) {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < statuses.size(); index++) {
+      runs.add(new RunRecord("run-" + index, "Run " + index, statuses.get(index), "Test Engineer"));
+    }
+    List<DefectRecord> defects = new ArrayList<>();
+    for (int index = 0; index < defectsRaised; index++) {
+      defects.add(defect("reconciliation-defect-" + index, "High", "opened"));
+    }
+    CriteriaEvaluation evaluation =
+        CriteriaEvaluation.available(
+            state == OctaneGateReportState.PASSED,
+            List.of(
+                new CriteriaComparisonEvaluation(
+                    "regressions.executionRate", "==", 100, 100, true, true)));
+    GateResult result =
+        new GateResult(
+            "suite-1",
+            "regressions.executionRate == 100",
+            evaluation.isPassed(),
+            true,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("suite-1", runs),
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.fromDefects(defects), List.of()),
+            evaluation,
+            Instant.parse("2026-06-30T12:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        state, "Reconciliation snapshot.", result, classifier, 30);
   }
 
   private OctaneDefectGroup defectGroup(String name, String types) {
