@@ -1,3 +1,62 @@
+String formatRemainingTime(long totalMinutes) {
+  long remainderMinutes = totalMinutes > 0L ? totalMinutes : 0L
+  long weeks = remainderMinutes / 10_080L
+  remainderMinutes %= 10_080L
+  long days = remainderMinutes / 1_440L
+  remainderMinutes %= 1_440L
+  long hours = remainderMinutes / 60L
+  long minutes = remainderMinutes % 60L
+
+  List<String> parts = []
+  if (weeks > 0L) {
+    parts.add("${weeks} ${weeks == 1L ? 'week' : 'weeks'}")
+  }
+  if (days > 0L) {
+    parts.add("${days} ${days == 1L ? 'day' : 'days'}")
+  }
+  if (hours > 0L) {
+    parts.add("${hours} ${hours == 1L ? 'hour' : 'hours'}")
+  }
+  if (minutes > 0L) {
+    parts.add("${minutes} ${minutes == 1L ? 'minute' : 'minutes'}")
+  }
+
+  return parts.isEmpty() ? 'no time remaining' : "${parts.join(' ')} remaining"
+}
+
+int parseMinuteOfDay(String configuredTime) {
+  String normalizedTime = configuredTime == null ? '' : configuredTime.trim()
+  String[] components = normalizedTime.split(':')
+  if (components.length != 2) {
+    return -1
+  }
+
+  try {
+    int hour = Integer.parseInt(components[0])
+    int minute = Integer.parseInt(components[1])
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      return -1
+    }
+    return (hour * 60) + minute
+  } catch (NumberFormatException ignored) {
+    return -1
+  }
+}
+
+boolean isMinuteWithinWindow(int currentMinute, int startMinute, int endMinute) {
+  if (startMinute == endMinute) {
+    return true
+  }
+  return startMinute < endMinute
+      ? currentMinute >= startMinute && currentMinute < endMinute
+      : currentMinute >= startMinute || currentMinute < endMinute
+}
+
+int currentControllerMinuteOfDay() {
+  Calendar clock = Calendar.getInstance()
+  return (clock.get(Calendar.HOUR_OF_DAY) * 60) + clock.get(Calendar.MINUTE)
+}
+
 pipeline {
   agent any
 
@@ -10,6 +69,18 @@ pipeline {
         name: 'PROGRESS_EMAIL_SEND_DELAY_SECONDS',
         defaultValue: '5',
         description: 'Seconds to wait immediately before each periodic progress email is sent.')
+    string(
+        name: 'PROGRESS_EMAIL_WINDOW_START_TIME',
+        defaultValue: '08:00',
+        description:
+            'Start of the periodic email window in Jenkins controller time (HH:mm). '
+                + 'Leave both window times blank to allow emails all day.')
+    string(
+        name: 'PROGRESS_EMAIL_WINDOW_END_TIME',
+        defaultValue: '17:00',
+        description:
+            'End of the periodic email window in Jenkins controller time (HH:mm). '
+                + 'Leave both window times blank, or set them equal, to allow emails all day.')
   }
 
   environment {
@@ -87,6 +158,40 @@ pipeline {
                 'OCTANE_TIMEOUT_MINUTES must be greater than zero and '
                     + 'OCTANE_TIMEOUT_MINUTES_EXTENDED must be zero or greater.')
           }
+          String progressEmailWindowStartTime =
+              params.PROGRESS_EMAIL_WINDOW_START_TIME == null
+                  ? ''
+                  : params.PROGRESS_EMAIL_WINDOW_START_TIME.trim()
+          String progressEmailWindowEndTime =
+              params.PROGRESS_EMAIL_WINDOW_END_TIME == null
+                  ? ''
+                  : params.PROGRESS_EMAIL_WINDOW_END_TIME.trim()
+          boolean progressEmailWindowUnbounded =
+              progressEmailWindowStartTime.isEmpty() && progressEmailWindowEndTime.isEmpty()
+          if (progressEmailWindowStartTime.isEmpty() != progressEmailWindowEndTime.isEmpty()) {
+            error(
+                'PROGRESS_EMAIL_WINDOW_START_TIME and PROGRESS_EMAIL_WINDOW_END_TIME '
+                    + 'must either both be blank or both contain a time.')
+          }
+          int progressEmailWindowStartMinute =
+              progressEmailWindowUnbounded ? 0 : parseMinuteOfDay(progressEmailWindowStartTime)
+          int progressEmailWindowEndMinute =
+              progressEmailWindowUnbounded ? 0 : parseMinuteOfDay(progressEmailWindowEndTime)
+          if (!progressEmailWindowUnbounded
+              && (progressEmailWindowStartMinute < 0 || progressEmailWindowEndMinute < 0)) {
+            error(
+                'Configured progress email window times must use 24-hour HH:mm format.')
+          }
+          boolean progressEmailWindowAllDay = progressEmailWindowUnbounded
+          if (!progressEmailWindowAllDay) {
+            progressEmailWindowAllDay =
+                progressEmailWindowStartMinute == progressEmailWindowEndMinute
+          }
+          String progressEmailWindowDescription =
+              progressEmailWindowAllDay
+                  ? 'all day in Jenkins controller time'
+                  : "between ${progressEmailWindowStartTime} and "
+                      + "${progressEmailWindowEndTime} in Jenkins controller time"
 
           int combinedTimeoutMinutes = timeoutMinutes + timeoutMinutesExtended
           long gateStartedAtMillis = System.currentTimeMillis()
@@ -185,7 +290,8 @@ pipeline {
             long nextEmailAtMillis = gateStartedAtMillis + progressEmailIntervalMillis
             echo(
                 "Periodic Octane progress emails will be sent every "
-                    + "${progressEmailIntervalMinutes} minute(s).")
+                    + "${progressEmailIntervalMinutes} minute(s), "
+                    + "${progressEmailWindowDescription}.")
 
             while (!fileExists(stopFile)) {
               long nowMillis = System.currentTimeMillis()
@@ -198,6 +304,13 @@ pipeline {
                 sleep time: 5, unit: 'SECONDS'
                 continue
               }
+              if (!isMinuteWithinWindow(
+                  currentControllerMinuteOfDay(),
+                  progressEmailWindowStartMinute,
+                  progressEmailWindowEndMinute)) {
+                sleep time: 60, unit: 'SECONDS'
+                continue
+              }
 
               try {
                 nowMillis = System.currentTimeMillis()
@@ -208,9 +321,6 @@ pipeline {
                           + 'finished or the combined timeout elapsed.')
                   break
                 }
-                long remainingSeconds = (remainingMillis + 999L) / 1000L
-                long remainingMinutes = (remainingSeconds + 59L) / 60L
-
                 if (progressEmailSendDelaySeconds > 0) {
                   sleep time: progressEmailSendDelaySeconds, unit: 'SECONDS'
                 }
@@ -223,8 +333,18 @@ pipeline {
                           + 'the gate finished or the combined timeout elapsed.')
                   break
                 }
-                remainingSeconds = (remainingMillis + 999L) / 1000L
-                remainingMinutes = (remainingSeconds + 59L) / 60L
+                if (!isMinuteWithinWindow(
+                    currentControllerMinuteOfDay(),
+                    progressEmailWindowStartMinute,
+                    progressEmailWindowEndMinute)) {
+                  echo(
+                      'Periodic Octane progress email deferred because the configured '
+                          + 'send window closed during the pre-send delay.')
+                  continue
+                }
+                long remainingSeconds = (remainingMillis + 999L) / 1000L
+                long remainingMinutes = (remainingSeconds + 59L) / 60L
+                String remainingTimeText = formatRemainingTime(remainingMinutes)
 
                 catchError(
                     buildResult: 'UNSTABLE',
@@ -240,10 +360,10 @@ pipeline {
                       replyTo: env.OCTANE_EMAIL_REPLY_TO,
                       subject:
                           "Octane Gate Progress - ${env.JOB_NAME} #${env.BUILD_NUMBER} "
-                              + "(${remainingMinutes}m remaining)",
+                              + "(${remainingTimeText})",
                       body: """Hello Team,
 
-The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}, with ${remainingMinutes} minute(s) remaining; the latest Octane update was {{UPDATED_AT_TEXT}}.
+The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}, with ${remainingTimeText}; the latest Octane update was {{UPDATED_AT_TEXT}}.
 
 Set criteria: {{CRITERIA}}
 
@@ -263,9 +383,7 @@ QA Automation Team""",
                       viewportWidth: 1400,
                       archiveScreenshot: false)
                 }
-                echo(
-                    "Sent periodic Octane progress email with ${remainingMinutes} "
-                        + 'minute(s) remaining.')
+                echo "Sent periodic Octane progress email with ${remainingTimeText}."
               } catch (Exception notificationError) {
                 if (notificationError.getClass().getName()
                     == 'org.jenkinsci.plugins.workflow.steps.FlowInterruptedException') {
