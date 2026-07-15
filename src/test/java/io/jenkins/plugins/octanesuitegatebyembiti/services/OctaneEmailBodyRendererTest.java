@@ -225,7 +225,19 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("data-octane-email-section=\"execution-report\""));
     assertTrue(html.contains("src=\"cid:octane-progress.png\""));
     assertPassRateCell(html, "#FF9F0A", "#000000", true);
+    assertTrue(detailRow(html, "End date").contains(">In Progress</td>"));
     assertTrue(html.contains("Defect Logging Compliance"));
+  }
+
+  @Test
+  public void rendersFinalTimestampInEndDateCellForCompletedReport() {
+    String html =
+        renderExecutionDetails(
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."), OctaneReportTheme.LIGHT);
+
+    String endDateRow = detailRow(html, "End date");
+    assertTrue(endDateRow.contains(">15:00:00 30/06/2026 EAT</td>"));
+    assertFalse(endDateRow.contains("In Progress"));
   }
 
   @Test
@@ -424,11 +436,15 @@ public class OctaneEmailBodyRendererTest {
   }
 
   private String passRateRow(String html) {
-    int label = html.indexOf("Pass Rate");
-    assertTrue("Missing Pass Rate row", label >= 0);
+    return detailRow(html, "Pass Rate");
+  }
+
+  private String detailRow(String html, String labelText) {
+    int label = html.indexOf(labelText);
+    assertTrue("Missing " + labelText + " row", label >= 0);
     int start = html.lastIndexOf("<tr>", label);
     int end = html.indexOf("</tr>", label);
-    assertTrue("Missing Pass Rate row bounds", start >= 0 && end > label);
+    assertTrue("Missing " + labelText + " row bounds", start >= 0 && end > label);
     return html.substring(start, end + "</tr>".length());
   }
 

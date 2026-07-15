@@ -644,8 +644,11 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "Project", defaultText(projectName, "Octane"));
     appendDetailRow(
         html, "Start date", formatTimestamp(snapshot == null ? "" : snapshot.getStartedAt()));
-    appendDetailRow(
-        html, "End date", formatTimestamp(snapshot == null ? "" : snapshot.getUpdatedAt()));
+    String endDate =
+        snapshot != null && snapshot.isBuilding()
+            ? "In Progress"
+            : formatTimestamp(snapshot == null ? "" : snapshot.getUpdatedAt());
+    appendDetailRow(html, "End date", endDate);
     html.append("</tbody></table>");
   }
 
