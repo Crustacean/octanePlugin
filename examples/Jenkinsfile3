@@ -60,29 +60,6 @@ int currentControllerMinuteOfDay() {
 pipeline {
   agent any
 
-  parameters {
-    string(
-        name: 'PROGRESS_EMAIL_INTERVAL_MINUTES',
-        defaultValue: '15',
-        description: 'Minutes between progress emails. Set to 0 to disable periodic emails.')
-    string(
-        name: 'PROGRESS_EMAIL_SEND_DELAY_SECONDS',
-        defaultValue: '5',
-        description: 'Seconds to wait immediately before each periodic progress email is sent.')
-    string(
-        name: 'PROGRESS_EMAIL_WINDOW_START_TIME',
-        defaultValue: '08:00',
-        description:
-            'Start of the periodic email window in Jenkins controller time (HH:mm). '
-                + 'Leave both window times blank to allow emails all day.')
-    string(
-        name: 'PROGRESS_EMAIL_WINDOW_END_TIME',
-        defaultValue: '17:00',
-        description:
-            'End of the periodic email window in Jenkins controller time (HH:mm). '
-                + 'Leave both window times blank, or set them equal, to allow emails all day.')
-  }
-
   environment {
     OCTANE_SHARED_SPACE_ID = '9016'
     OCTANE_WORKSPACE_ID = '4001'
@@ -93,6 +70,11 @@ pipeline {
 
     OCTANE_TIMEOUT_MINUTES = '120'
     OCTANE_TIMEOUT_MINUTES_EXTENDED = '30'
+
+    PROGRESS_EMAIL_INTERVAL_MINUTES = '15'
+    PROGRESS_EMAIL_SEND_DELAY_SECONDS = '5'
+    PROGRESS_EMAIL_WINDOW_START_TIME = '08:00'
+    PROGRESS_EMAIL_WINDOW_END_TIME = '17:00'
 
     OCTANE_EMAIL_TO = 'qa-team@example.com,dev-team@example.com'
     OCTANE_EMAIL_CC = 'qa-leads@example.com'
@@ -134,9 +116,9 @@ pipeline {
           int timeoutMinutesExtended
           try {
             progressEmailIntervalMinutes =
-                Integer.parseInt(params.PROGRESS_EMAIL_INTERVAL_MINUTES.trim())
+                Integer.parseInt(env.PROGRESS_EMAIL_INTERVAL_MINUTES.trim())
             progressEmailSendDelaySeconds =
-                Integer.parseInt(params.PROGRESS_EMAIL_SEND_DELAY_SECONDS.trim())
+                Integer.parseInt(env.PROGRESS_EMAIL_SEND_DELAY_SECONDS.trim())
             timeoutMinutes = Integer.parseInt(env.OCTANE_TIMEOUT_MINUTES.trim())
             timeoutMinutesExtended =
                 Integer.parseInt(env.OCTANE_TIMEOUT_MINUTES_EXTENDED.trim())
@@ -159,13 +141,13 @@ pipeline {
                     + 'OCTANE_TIMEOUT_MINUTES_EXTENDED must be zero or greater.')
           }
           String progressEmailWindowStartTime =
-              params.PROGRESS_EMAIL_WINDOW_START_TIME == null
+              env.PROGRESS_EMAIL_WINDOW_START_TIME == null
                   ? ''
-                  : params.PROGRESS_EMAIL_WINDOW_START_TIME.trim()
+                  : env.PROGRESS_EMAIL_WINDOW_START_TIME.trim()
           String progressEmailWindowEndTime =
-              params.PROGRESS_EMAIL_WINDOW_END_TIME == null
+              env.PROGRESS_EMAIL_WINDOW_END_TIME == null
                   ? ''
-                  : params.PROGRESS_EMAIL_WINDOW_END_TIME.trim()
+                  : env.PROGRESS_EMAIL_WINDOW_END_TIME.trim()
           boolean progressEmailWindowUnbounded =
               progressEmailWindowStartTime.isEmpty() && progressEmailWindowEndTime.isEmpty()
           if (progressEmailWindowStartTime.isEmpty() != progressEmailWindowEndTime.isEmpty()) {
@@ -187,11 +169,12 @@ pipeline {
             progressEmailWindowAllDay =
                 progressEmailWindowStartMinute == progressEmailWindowEndMinute
           }
+          String progressEmailWindowRange =
+              "${progressEmailWindowStartTime} and ${progressEmailWindowEndTime}"
           String progressEmailWindowDescription =
               progressEmailWindowAllDay
                   ? 'all day in Jenkins controller time'
-                  : "between ${progressEmailWindowStartTime} and "
-                      + "${progressEmailWindowEndTime} in Jenkins controller time"
+                  : "between ${progressEmailWindowRange} in Jenkins controller time"
 
           int combinedTimeoutMinutes = timeoutMinutes + timeoutMinutesExtended
           long gateStartedAtMillis = System.currentTimeMillis()

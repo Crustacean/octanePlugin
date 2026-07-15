@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import net.sf.json.JSONObject;
 import org.htmlunit.Page;
+import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlPage;
 import org.junit.Rule;
 import org.junit.Test;
@@ -490,7 +491,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("--octane-popup-border-color: #"));
     assertTrue(xml.contains("background: #30D158"));
     assertTrue(xml.contains("background: #FF453A"));
-    assertTrue(xml.contains("min-width: 10.92rem"));
+    assertTrue(xml.contains("min-width: min(10.92rem, calc(100vw - 1rem))"));
     assertTrue(xml.contains("position: fixed"));
     assertTrue(xml.contains("font-size: 0.644rem"));
     assertTrue(xml.contains("overflow-wrap: anywhere"));
@@ -500,7 +501,16 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-popup-visible"));
     assertTrue(xml.contains("octane-bar-popup-restoring"));
     assertTrue(xml.contains("positionBarPopup"));
-    assertTrue(xml.contains("point.clientX + gap + popupWidth"));
+    assertTrue(xml.contains("chooseBarPopupPlacement"));
+    assertTrue(xml.contains("chartViewportRectangle"));
+    assertTrue(xml.contains("pointerAnchorRectangle"));
+    assertTrue(xml.contains("barRectanglesForColumn"));
+    assertTrue(xml.contains("pointInsideBar"));
+    assertFalse(xml.contains("pointInsideColumn"));
+    assertTrue(xml.contains("document.body.appendChild(barPopupOverlay)"));
+    assertTrue(xml.contains("var bar = event.target.closest(\".octane-vertical-bar\")"));
+    assertTrue(xml.contains("event.relatedTarget && bar.contains(event.relatedTarget)"));
+    assertTrue(xml.contains("positionBarPopup(barPopupOverlay, column, point, input)"));
     assertTrue(xml.contains("popup.setAttribute(\"data-placement\""));
     assertTrue(xml.contains("window.addEventListener(\"resize\", refreshActiveBarPopup)"));
     assertFalse(xml.contains(".octane-suite-column:hover .octane-bar-popup"));
@@ -743,6 +753,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains(".octane-vertical-bars::before"));
     assertTrue(xml.contains("zoneForCard"));
     assertTrue(xml.contains("targetZone !== draggedZone"));
+    assertBarPopupInteractions(page);
   }
 
   @Test
@@ -867,6 +878,60 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Exit Octane and Continue"));
     assertFalse(xml.contains("Extended time is active"));
     assertFalse(xml.contains("The latest Octane data will still be checked before continuing"));
+  }
+
+  private void assertBarPopupInteractions(HtmlPage page) {
+    HtmlElement firstBar =
+        page.getFirstByXPath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                + " ' octane-vertical-bar ')]");
+    HtmlElement overlay = page.getHtmlElementById("octane-bar-popup-overlay");
+    HtmlElement reportZone = page.getHtmlElementById("octane-report-zone");
+    HtmlElement card =
+        firstBar.getFirstByXPath(
+            "ancestor::section[contains(concat(' ', normalize-space(@class), ' '),"
+                + " ' octane-chart-card ')][1]");
+
+    assertPopupHidesForEveryExitDirection(firstBar, overlay, "normal");
+
+    reportZone.setAttribute("class", reportZone.getAttribute("class") + " octane-zone-focused");
+    assertPopupHidesForEveryExitDirection(firstBar, overlay, "group-focused");
+    reportZone.setAttribute(
+        "class", reportZone.getAttribute("class").replace(" octane-zone-focused", ""));
+
+    card.setAttribute("class", card.getAttribute("class") + " octane-expanded");
+    assertPopupHidesForEveryExitDirection(firstBar, overlay, "individual-focused");
+    card.setAttribute("class", card.getAttribute("class").replace(" octane-expanded", ""));
+
+    page.executeJavaScript(
+        "var first = document.querySelector('.octane-suite-column');"
+            + " var adjacent = first.cloneNode(true);"
+            + " adjacent.setAttribute('data-bar-key', 'adjacent-bar');"
+            + " adjacent.querySelector('.octane-bar-popup-name').textContent = 'Adjacent Tester';"
+            + " first.parentNode.appendChild(adjacent);");
+    List<HtmlElement> bars =
+        page.getByXPath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '),"
+                + " ' octane-vertical-bar ')]");
+    bars.get(0).mouseMove();
+    String firstPopup = overlay.asNormalizedText();
+    bars.get(1).mouseMove();
+    assertTrue(overlay.asNormalizedText().contains("Adjacent Tester"));
+    assertFalse(overlay.asNormalizedText().equals(firstPopup));
+    bars.get(1).mouseOut();
+    assertEquals("true", overlay.getAttribute("aria-hidden"));
+  }
+
+  private void assertPopupHidesForEveryExitDirection(
+      HtmlElement bar, HtmlElement overlay, String mode) {
+    for (String direction : List.of("left", "right", "top", "bottom")) {
+      bar.mouseMove();
+      assertEquals(mode + " " + direction, "false", overlay.getAttribute("aria-hidden"));
+      assertTrue(overlay.getAttribute("class").contains("octane-bar-popup-visible"));
+      bar.mouseOut();
+      assertEquals(mode + " " + direction, "true", overlay.getAttribute("aria-hidden"));
+      assertFalse(overlay.getAttribute("class").contains("octane-bar-popup-visible"));
+    }
   }
 
   private GateResult result() {

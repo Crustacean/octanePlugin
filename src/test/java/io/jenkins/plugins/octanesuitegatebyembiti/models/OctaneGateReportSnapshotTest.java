@@ -36,11 +36,11 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(1, count(regressions, OctaneGateStatusBucket.SKIPPED));
     assertEquals(1, count(regressions, OctaneGateStatusBucket.RUNNING));
     assertEquals(2, regressions.getSuiteRuns().size());
-    assertEquals("Ada Tester", regressions.getSuiteRuns().get(0).getDisplayName());
+    assertEquals("Ben Tester", regressions.getSuiteRuns().get(0).getDisplayName());
     assertEquals(2, regressions.getSuiteRunCount());
-    assertEquals(3, regressions.getSuiteRuns().get(0).getTotal());
-    assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(0).getBarHeightStyle());
-    assertEquals("height: 66.67%;", regressions.getSuiteRuns().get(1).getBarHeightStyle());
+    assertEquals(2, regressions.getSuiteRuns().get(0).getTotal());
+    assertEquals("height: 66.67%;", regressions.getSuiteRuns().get(0).getBarHeightStyle());
+    assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(1).getBarHeightStyle());
     assertEquals(83.333, snapshot.getExecutionProgress(), 0.001);
     assertEquals("83%", snapshot.getExecutionProgressText());
     assertEquals(6, snapshot.getPassRateTotal());
@@ -86,6 +86,44 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(List.of("4501", "4502"), regressions.getSuiteRuns().get(0).getSuiteRunIds());
     assertEquals(3, regressions.getSuiteRuns().get(0).getTotal());
     assertTrue(regressions.getSuiteRuns().get(0).getTitle().contains("4501, 4502"));
+  }
+
+  @Test
+  public void sortsSuiteRunBarsByTotalThenSuiteRunId() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    suiteRuns.put(
+        "9002",
+        List.of(
+            new RunRecord("1", "one", "passed", "Beta Tester"),
+            new RunRecord("2", "two", "failed", "Beta Tester")));
+    suiteRuns.put(
+        "9001",
+        List.of(
+            new RunRecord("3", "three", "passed", "Alpha Tester"),
+            new RunRecord("4", "four", "passed", "Alpha Tester")));
+    suiteRuns.put("9003", List.of(new RunRecord("5", "five", "passed", "Gamma Tester")));
+    List<RunRecord> runs = suiteRuns.values().stream().flatMap(List::stream).toList();
+    GateResult result =
+        new GateResult(
+            "9002,9001,9003",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(5, 5, 4, 1, 0, 0),
+            runs,
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
+    assertEquals(
+        List.of("Gamma Tester", "Alpha Tester", "Beta Tester"),
+        charts.stream().map(OctaneGateSuiteRunChart::getDisplayName).toList());
+    assertEquals(List.of(1, 2, 2), charts.stream().map(OctaneGateSuiteRunChart::getTotal).toList());
   }
 
   @Test

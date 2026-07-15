@@ -1755,6 +1755,7 @@
           background: var(--background);
           border: 1px solid var(--octane-popup-border-color, var(--panel-border-color));
           border-radius: 8px;
+          box-sizing: border-box;
           box-shadow:
               0 0 0 1px var(--octane-popup-border-color, transparent),
               0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
@@ -1764,7 +1765,7 @@
           gap: 0.32rem;
           left: 0;
           max-width: min(18rem, calc(100vw - 1rem));
-          min-width: 10.92rem;
+          min-width: min(10.92rem, calc(100vw - 1rem));
           opacity: 0;
           padding: 0.5rem 0.6rem;
           pointer-events: none;
@@ -1773,7 +1774,7 @@
           transition: opacity 90ms ease;
           visibility: hidden;
           will-change: left, top;
-          z-index: 9999;
+          z-index: 10001;
         }
         .octane-bar-popup.octane-bar-popup-visible {
           opacity: 1;
@@ -4500,271 +4501,501 @@
           for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
             updateExecutionProgress(progressCards[progressIndex]);
           }
-	          var barPopupOverlay = document.getElementById("octane-bar-popup-overlay");
-	          var barPopupRefreshInProgress = false;
-	          var activeBarPopupState = {
-	            barKey: "",
-	            cardKey: "",
-	            clientX: 0,
-	            clientY: 0,
-	            input: "",
-	            visible: false
-	          };
-	          function hideBarPopup() {
-	            if (!activeBarPopupState.visible || !barPopupOverlay) {
-	              return;
-	            }
-	            barPopupOverlay.classList.remove(
-	                "octane-bar-popup-visible", "octane-bar-popup-restoring");
-	            barPopupOverlay.removeAttribute("data-placement");
-	            barPopupOverlay.removeAttribute("data-dominant-status-label");
-	            barPopupOverlay.setAttribute("aria-hidden", "true");
-	            barPopupOverlay.style.removeProperty("--octane-popup-border-color");
-	            barPopupOverlay.style.left = "";
-	            barPopupOverlay.style.top = "";
-	            activeBarPopupState = {
-	              barKey: "",
-	              cardKey: "",
-	              clientX: 0,
-	              clientY: 0,
-	              input: "",
-	              visible: false
-	            };
-	          }
-	          function popupForColumn(column) {
-	            return column ? column.querySelector(".octane-bar-popup") : null;
-	          }
-	          function cardKeyForColumn(column) {
-	            return column ? column.getAttribute("data-card-key") || "" : "";
-	          }
-	          function barKeyForColumn(column) {
-	            return column ? column.getAttribute("data-bar-key") || "" : "";
-	          }
-	          function statusMetricForColumn(column, key, label) {
-	            var rawCount = column ? column.getAttribute("data-status-" + key + "-count") : "";
-	            var color = column ? column.getAttribute("data-status-" + key + "-color") || "" : "";
-	            var count = Number(rawCount || 0);
-	            return {
-	              color: color,
-	              count: Number.isFinite(count) ? count : 0,
-	              label: label
-	            };
-	          }
-	          function dominantStatusForColumn(column) {
-	            if (!column) {
-	              return null;
-	            }
-	            var metrics = [
-	              statusMetricForColumn(column, "failed", "Failed"),
-	              statusMetricForColumn(column, "blocked", "Blocked"),
-	              statusMetricForColumn(column, "passed", "Passed"),
-	              statusMetricForColumn(column, "skipped", "Skipped"),
-	              statusMetricForColumn(column, "running", "Running")
-	            ];
-	            var dominant = metrics[0];
-	            for (var index = 1; index < metrics.length; index += 1) {
-	              if (metrics[index].count > dominant.count) {
-	                dominant = metrics[index];
-	              }
-	            }
-	            return dominant && dominant.count > 0 ? dominant : null;
-	          }
-	          function applyBarPopupDominantColor(column) {
-	            if (!barPopupOverlay) {
-	              return;
-	            }
-	            var dominant = dominantStatusForColumn(column);
-	            var color =
-	                dominant && dominant.color
-	                    ? dominant.color
-	                    : column
-	                        ? column.getAttribute("data-dominant-status-color") || ""
-	                        : "";
-	            var label =
-	                dominant && dominant.label
-	                    ? dominant.label
-	                    : column
-	                        ? column.getAttribute("data-dominant-status-label") || ""
-	                        : "";
-	            if (!color) {
-	              barPopupOverlay.removeAttribute("data-dominant-status-label");
-	              barPopupOverlay.style.removeProperty("--octane-popup-border-color");
-	              return;
-	            }
-	            barPopupOverlay.setAttribute("data-dominant-status-label", label);
-	            barPopupOverlay.style.setProperty("--octane-popup-border-color", color);
-	          }
-	          function pointForColumn(column) {
-	            var bar = column ? column.querySelector(".octane-vertical-bar") : null;
-	            var rect = (bar || column).getBoundingClientRect();
-	            return {
-	              clientX: rect.left + rect.width / 2,
-	              clientY: rect.top + rect.height / 2
-	            };
-	          }
-	          function pointInsideColumn(column, point) {
-	            if (!column || !point) {
-	              return false;
-	            }
-	            var rect = column.getBoundingClientRect();
-	            return point.clientX >= rect.left
-	                && point.clientX <= rect.right
-	                && point.clientY >= rect.top
-	                && point.clientY <= rect.bottom;
-	          }
-	          function findColumnByKeys(root, cardKey, barKey) {
-	            if (!root || !cardKey || !barKey) {
-	              return null;
-	            }
-	            var columns = root.querySelectorAll(".octane-suite-column[data-bar-key]");
-	            for (var index = 0; index < columns.length; index += 1) {
-	              if (cardKeyForColumn(columns[index]) === cardKey
-	                  && barKeyForColumn(columns[index]) === barKey) {
-	                return columns[index];
-	              }
-	            }
-	            return null;
-	          }
-	          function positionBarPopup(popup, point) {
-	            var margin = 8;
-	            var gap = 14;
-	            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-	            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-	            var popupWidth = popup.offsetWidth || 180;
-	            var popupHeight = popup.offsetHeight || 80;
-	            var fitsRight = point.clientX + gap + popupWidth <= viewportWidth - margin;
-	            var left = fitsRight ? point.clientX + gap : point.clientX - gap - popupWidth;
-	            var top = point.clientY - popupHeight / 2;
-	            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
-	            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
-	            popup.style.left = trimNumber(left) + "px";
-	            popup.style.top = trimNumber(top) + "px";
-	            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
-	          }
-	          function showBarPopup(column, point, input, restoring) {
-	            var source = popupForColumn(column);
-	            if (!source || !barPopupOverlay) {
-	              return;
-	            }
-	            var cardKey = cardKeyForColumn(column);
-	            var barKey = barKeyForColumn(column);
-	            if (!cardKey || !barKey) {
-	              return;
-	            }
-	            barPopupOverlay.innerHTML = source.innerHTML;
-	            applyBarPopupDominantColor(column);
-	            if (restoring) {
-	              barPopupOverlay.classList.add("octane-bar-popup-restoring");
-	            } else {
-	              barPopupOverlay.classList.remove("octane-bar-popup-restoring");
-	            }
-	            activeBarPopupState = {
-	              barKey: barKey,
-	              cardKey: cardKey,
-	              clientX: point.clientX,
-	              clientY: point.clientY,
-	              input: input,
-	              visible: true
-	            };
-	            barPopupOverlay.setAttribute("aria-hidden", "false");
-	            barPopupOverlay.classList.add("octane-bar-popup-visible");
-	            positionBarPopup(barPopupOverlay, point);
-	            if (restoring) {
-	              requestFrame(function () {
-	                barPopupOverlay.classList.remove("octane-bar-popup-restoring");
-	              });
-	            }
-	          }
-	          function captureBarPopupRestoreState() {
-	            if (!activeBarPopupState.visible) {
-	              return null;
-	            }
-	            return {
-	              barKey: activeBarPopupState.barKey,
-	              cardKey: activeBarPopupState.cardKey,
-	              clientX: activeBarPopupState.clientX,
-	              clientY: activeBarPopupState.clientY,
-	              input: activeBarPopupState.input,
-	              visible: activeBarPopupState.visible
-	            };
-	          }
-	          function restoreBarPopupAfterRefresh(root, restoreState) {
-	            if (!restoreState || !restoreState.visible) {
-	              return;
-	            }
-	            var column =
-	                findColumnByKeys(root || dashboard, restoreState.cardKey, restoreState.barKey);
-	            if (!column) {
-	              hideBarPopup();
-	              return;
-	            }
-	            var point = restoreState.input === "focus"
-	                ? pointForColumn(column)
-	                : {clientX: restoreState.clientX, clientY: restoreState.clientY};
-	            if (restoreState.input !== "focus" && !pointInsideColumn(column, point)) {
-	              hideBarPopup();
-	              return;
-	            }
-	            showBarPopup(column, point, restoreState.input, true);
-	          }
-	          function refreshActiveBarPopup() {
-	            if (!activeBarPopupState.visible) {
-	              return;
-	            }
-	            restoreBarPopupAfterRefresh(dashboard, captureBarPopupRestoreState());
-	          }
-	          dashboard.addEventListener("mousemove", function (event) {
-	            var bar = event.target.closest(".octane-vertical-bar");
-	            if (!bar || !dashboard.contains(bar)) {
-	              return;
-	            }
-	            var column = bar.closest(".octane-suite-column");
-	            if (!column) {
-	              return;
-	            }
-	            showBarPopup(
-	                column, {clientX: event.clientX, clientY: event.clientY}, "mouse", false);
-	          });
-	          dashboard.addEventListener("mouseout", function (event) {
-	            if (barPopupRefreshInProgress) {
-	              return;
-	            }
-	            var column = event.target.closest(".octane-suite-column");
-	            if (!column) {
-	              return;
-	            }
-	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
-	              return;
-	            }
-	            if (activeBarPopupState.input === "mouse"
-	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
-	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
-	              hideBarPopup();
-	            }
-	          });
-	          dashboard.addEventListener("focusin", function (event) {
-	            var column = event.target.closest(".octane-suite-column");
-	            if (!column || !dashboard.contains(column)) {
-	              return;
-	            }
-	            showBarPopup(column, pointForColumn(column), "focus", false);
-	          });
-	          dashboard.addEventListener("focusout", function (event) {
-	            var column = event.target.closest(".octane-suite-column");
-	            if (!column) {
-	              return;
-	            }
-	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
-	              return;
-	            }
-	            if (activeBarPopupState.input === "focus"
-	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
-	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
-	              hideBarPopup();
-	            }
-	          });
-	          window.addEventListener("scroll", refreshActiveBarPopup, true);
-	          window.addEventListener("resize", refreshActiveBarPopup);
+          var barPopupOverlay = document.getElementById("octane-bar-popup-overlay");
+          if (barPopupOverlay && barPopupOverlay.parentNode !== document.body) {
+            document.body.appendChild(barPopupOverlay);
+          }
+          var barPopupRefreshInProgress = false;
+          var activeBarPopupState = {
+            barKey: "",
+            cardKey: "",
+            clientX: 0,
+            clientY: 0,
+            input: "",
+            visible: false
+          };
+          function hideBarPopup() {
+            if (!activeBarPopupState.visible || !barPopupOverlay) {
+              return;
+            }
+            barPopupOverlay.classList.remove(
+                "octane-bar-popup-visible", "octane-bar-popup-restoring");
+            barPopupOverlay.removeAttribute("data-placement");
+            barPopupOverlay.removeAttribute("data-dominant-status-label");
+            barPopupOverlay.setAttribute("aria-hidden", "true");
+            barPopupOverlay.style.removeProperty("--octane-popup-border-color");
+            barPopupOverlay.style.left = "";
+            barPopupOverlay.style.maxWidth = "";
+            barPopupOverlay.style.minWidth = "";
+            barPopupOverlay.style.top = "";
+            activeBarPopupState = {
+              barKey: "",
+              cardKey: "",
+              clientX: 0,
+              clientY: 0,
+              input: "",
+              visible: false
+            };
+          }
+          function popupForColumn(column) {
+            return column ? column.querySelector(".octane-bar-popup") : null;
+          }
+          function cardKeyForColumn(column) {
+            return column ? column.getAttribute("data-card-key") || "" : "";
+          }
+          function barKeyForColumn(column) {
+            return column ? column.getAttribute("data-bar-key") || "" : "";
+          }
+          function barForColumn(column) {
+            return column ? column.querySelector(".octane-vertical-bar") : null;
+          }
+          function statusMetricForColumn(column, key, label) {
+            var rawCount = column ? column.getAttribute("data-status-" + key + "-count") : "";
+            var color = column ? column.getAttribute("data-status-" + key + "-color") || "" : "";
+            var count = Number(rawCount || 0);
+            return {
+              color: color,
+              count: Number.isFinite(count) ? count : 0,
+              label: label
+            };
+          }
+          function dominantStatusForColumn(column) {
+            if (!column) {
+              return null;
+            }
+            var metrics = [
+              statusMetricForColumn(column, "failed", "Failed"),
+              statusMetricForColumn(column, "blocked", "Blocked"),
+              statusMetricForColumn(column, "passed", "Passed"),
+              statusMetricForColumn(column, "skipped", "Skipped"),
+              statusMetricForColumn(column, "running", "Running")
+            ];
+            var dominant = metrics[0];
+            for (var index = 1; index < metrics.length; index += 1) {
+              if (metrics[index].count > dominant.count) {
+                dominant = metrics[index];
+              }
+            }
+            return dominant && dominant.count > 0 ? dominant : null;
+          }
+          function applyBarPopupDominantColor(column) {
+            if (!barPopupOverlay) {
+              return;
+            }
+            var dominant = dominantStatusForColumn(column);
+            var color =
+                dominant && dominant.color
+                    ? dominant.color
+                    : column
+                        ? column.getAttribute("data-dominant-status-color") || ""
+                        : "";
+            var label =
+                dominant && dominant.label
+                    ? dominant.label
+                    : column
+                        ? column.getAttribute("data-dominant-status-label") || ""
+                        : "";
+            if (!color) {
+              barPopupOverlay.removeAttribute("data-dominant-status-label");
+              barPopupOverlay.style.removeProperty("--octane-popup-border-color");
+              return;
+            }
+            barPopupOverlay.setAttribute("data-dominant-status-label", label);
+            barPopupOverlay.style.setProperty("--octane-popup-border-color", color);
+          }
+          function pointForColumn(column) {
+            var bar = barForColumn(column);
+            var rect = (bar || column).getBoundingClientRect();
+            return {
+              clientX: rect.left + rect.width / 2,
+              clientY: rect.top + rect.height / 2
+            };
+          }
+          function pointInsideBar(column, point) {
+            var bar = barForColumn(column);
+            if (!bar || !point) {
+              return false;
+            }
+            var rect = bar.getBoundingClientRect();
+            return point.clientX >= rect.left
+                && point.clientX <= rect.right
+                && point.clientY >= rect.top
+                && point.clientY <= rect.bottom;
+          }
+          function findColumnByKeys(root, cardKey, barKey) {
+            if (!root || !cardKey || !barKey) {
+              return null;
+            }
+            var columns = root.querySelectorAll(".octane-suite-column[data-bar-key]");
+            for (var index = 0; index < columns.length; index += 1) {
+              if (cardKeyForColumn(columns[index]) === cardKey
+                  && barKeyForColumn(columns[index]) === barKey) {
+                return columns[index];
+              }
+            }
+            return null;
+          }
+          /* OCTANE_BAR_POPUP_LAYOUT_START */
+          function rectangleWidth(rect) {
+            return Math.max(0, rect.right - rect.left);
+          }
+          function rectangleHeight(rect) {
+            return Math.max(0, rect.bottom - rect.top);
+          }
+          function intersectRectangles(first, second) {
+            return {
+              bottom: Math.min(first.bottom, second.bottom),
+              left: Math.max(first.left, second.left),
+              right: Math.max(
+                  Math.max(first.left, second.left), Math.min(first.right, second.right)),
+              top: Math.max(first.top, second.top)
+            };
+          }
+          function browserViewportRectangle() {
+            var visualViewport = window.visualViewport;
+            var left = visualViewport ? visualViewport.offsetLeft : 0;
+            var top = visualViewport ? visualViewport.offsetTop : 0;
+            var width = visualViewport
+                ? visualViewport.width
+                : window.innerWidth || document.documentElement.clientWidth;
+            var height = visualViewport
+                ? visualViewport.height
+                : window.innerHeight || document.documentElement.clientHeight;
+            return {bottom: top + height, left: left, right: left + width, top: top};
+          }
+          function chartViewportRectangle(column) {
+            var browserViewport = browserViewportRectangle();
+            var card = column ? column.closest(".octane-chart-card") : null;
+            if (!card) {
+              return browserViewport;
+            }
+            var cardRect = card.getBoundingClientRect();
+            if (cardRect.width <= 0 || cardRect.height <= 0) {
+              return browserViewport;
+            }
+            return intersectRectangles(cardRect, browserViewport);
+          }
+          function pointerAnchorRectangle(point) {
+            return {
+              bottom: point.clientY,
+              left: point.clientX,
+              right: point.clientX,
+              top: point.clientY
+            };
+          }
+          function popupCandidate(side, anchorRect, popupSize, gap) {
+            var horizontalCenter = anchorRect.left + rectangleWidth(anchorRect) / 2;
+            var verticalCenter = anchorRect.top + rectangleHeight(anchorRect) / 2;
+            if (side === "left") {
+              return {
+                left: anchorRect.left - gap - popupSize.width,
+                top: verticalCenter - popupSize.height / 2
+              };
+            }
+            if (side === "above") {
+              return {
+                left: horizontalCenter - popupSize.width / 2,
+                top: anchorRect.top - gap - popupSize.height
+              };
+            }
+            if (side === "below") {
+              return {
+                left: horizontalCenter - popupSize.width / 2,
+                top: anchorRect.bottom + gap
+              };
+            }
+            return {
+              left: anchorRect.right + gap,
+              top: verticalCenter - popupSize.height / 2
+            };
+          }
+          function popupCandidateFits(candidate, popupSize, bounds) {
+            return candidate.left >= bounds.left
+                && candidate.top >= bounds.top
+                && candidate.left + popupSize.width <= bounds.right
+                && candidate.top + popupSize.height <= bounds.bottom;
+          }
+          function popupCandidateOverflow(candidate, popupSize, bounds) {
+            return Math.max(0, bounds.left - candidate.left)
+                + Math.max(0, bounds.top - candidate.top)
+                + Math.max(0, candidate.left + popupSize.width - bounds.right)
+                + Math.max(0, candidate.top + popupSize.height - bounds.bottom);
+          }
+          function popupCandidateOverlap(candidate, popupSize, barRectangles) {
+            var right = candidate.left + popupSize.width;
+            var bottom = candidate.top + popupSize.height;
+            var overlap = 0;
+            for (var index = 0; index < barRectangles.length; index += 1) {
+              var barRect = barRectangles[index];
+              var overlapWidth = Math.max(
+                  0, Math.min(right, barRect.right) - Math.max(candidate.left, barRect.left));
+              var overlapHeight = Math.max(
+                  0, Math.min(bottom, barRect.bottom) - Math.max(candidate.top, barRect.top));
+              overlap += overlapWidth * overlapHeight;
+            }
+            return overlap;
+          }
+          function clampPopupCandidate(candidate, popupSize, bounds) {
+            var maxLeft = Math.max(bounds.left, bounds.right - popupSize.width);
+            var maxTop = Math.max(bounds.top, bounds.bottom - popupSize.height);
+            return {
+              left: Math.min(Math.max(candidate.left, bounds.left), maxLeft),
+              top: Math.min(Math.max(candidate.top, bounds.top), maxTop)
+            };
+          }
+          function chooseBarPopupPlacement(
+              anchorRect, popupSize, viewportRect, barRectangles, preferredSide) {
+            var gap = 14;
+            var margin = 8;
+            var bounds = {
+              bottom: Math.max(viewportRect.top + margin, viewportRect.bottom - margin),
+              left: viewportRect.left + margin,
+              right: Math.max(viewportRect.left + margin, viewportRect.right - margin),
+              top: viewportRect.top + margin
+            };
+            var sides = [];
+            function addSide(side) {
+              if (sides.indexOf(side) < 0) {
+                sides.push(side);
+              }
+            }
+            if (preferredSide === "left" || preferredSide === "right") {
+              addSide(preferredSide);
+            }
+            addSide("right");
+            addSide("left");
+            addSide("above");
+            addSide("below");
+
+            var candidates = [];
+            for (var index = 0; index < sides.length; index += 1) {
+              var side = sides[index];
+              var candidate = popupCandidate(side, anchorRect, popupSize, gap);
+              var evaluated = {
+                fits: popupCandidateFits(candidate, popupSize, bounds),
+                left: candidate.left,
+                overlap: popupCandidateOverlap(candidate, popupSize, barRectangles),
+                overflow: popupCandidateOverflow(candidate, popupSize, bounds),
+                side: side,
+                top: candidate.top
+              };
+              candidates.push(evaluated);
+              if (evaluated.fits && evaluated.overlap === 0) {
+                return evaluated;
+              }
+            }
+
+            var best = null;
+            for (var candidateIndex = 0;
+                candidateIndex < candidates.length;
+                candidateIndex += 1) {
+              var current = candidates[candidateIndex];
+              var isVertical = current.side === "above" || current.side === "below";
+              if (isVertical && current.fits
+                  && (!best || current.overlap < best.overlap)) {
+                best = current;
+              }
+            }
+            if (!best) {
+              for (var fallbackIndex = 0;
+                  fallbackIndex < candidates.length;
+                  fallbackIndex += 1) {
+                var fallback = candidates[fallbackIndex];
+                var fallbackScore = fallback.overflow * 100000 + fallback.overlap;
+                var bestScore = best ? best.overflow * 100000 + best.overlap : Infinity;
+                if (!best || fallbackScore < bestScore) {
+                  best = fallback;
+                }
+              }
+            }
+            var clamped = clampPopupCandidate(best, popupSize, bounds);
+            best.left = clamped.left;
+            best.top = clamped.top;
+            return best;
+          }
+          /* OCTANE_BAR_POPUP_LAYOUT_END */
+          function barRectanglesForColumn(column) {
+            var anchorBar = barForColumn(column);
+            var plot = column ? column.closest(".octane-bar-plot") : null;
+            var bars = plot ? plot.querySelectorAll(".octane-vertical-bar") : [];
+            var rectangles = [];
+            for (var index = 0; index < bars.length; index += 1) {
+              if (bars[index] === anchorBar) {
+                continue;
+              }
+              var rect = bars[index].getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                rectangles.push(rect);
+              }
+            }
+            return rectangles;
+          }
+          function positionBarPopup(popup, column, point, input) {
+            var bar = barForColumn(column);
+            if (!popup || !bar) {
+              return;
+            }
+            var viewportRect = chartViewportRectangle(column);
+            var availableWidth = Math.max(1, rectangleWidth(viewportRect) - 16);
+            popup.style.maxWidth = trimNumber(availableWidth) + "px";
+            popup.style.minWidth = trimNumber(Math.min(174.72, availableWidth)) + "px";
+            var popupSize = {
+              height: popup.offsetHeight || 80,
+              width: popup.offsetWidth || Math.min(180, availableWidth)
+            };
+            var anchorRect = input === "mouse" && point
+                ? pointerAnchorRectangle(point)
+                : bar.getBoundingClientRect();
+            var placement = chooseBarPopupPlacement(
+                anchorRect,
+                popupSize,
+                viewportRect,
+                barRectanglesForColumn(column),
+                popup.getAttribute("data-placement") || "right");
+            popup.style.left = trimNumber(placement.left) + "px";
+            popup.style.top = trimNumber(placement.top) + "px";
+            popup.setAttribute("data-placement", placement.side);
+          }
+          function showBarPopup(column, point, input, restoring) {
+            var source = popupForColumn(column);
+            if (!source || !barPopupOverlay) {
+              return;
+            }
+            var cardKey = cardKeyForColumn(column);
+            var barKey = barKeyForColumn(column);
+            if (!cardKey || !barKey) {
+              return;
+            }
+            var sameBar = activeBarPopupState.visible
+                && activeBarPopupState.cardKey === cardKey
+                && activeBarPopupState.barKey === barKey
+                && activeBarPopupState.input === input;
+            if (sameBar && !restoring) {
+              activeBarPopupState.clientX = point.clientX;
+              activeBarPopupState.clientY = point.clientY;
+              positionBarPopup(barPopupOverlay, column, point, input);
+              return;
+            }
+            barPopupOverlay.innerHTML = source.innerHTML;
+            applyBarPopupDominantColor(column);
+            if (restoring) {
+              barPopupOverlay.classList.add("octane-bar-popup-restoring");
+            } else {
+              barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+            }
+            activeBarPopupState = {
+              barKey: barKey,
+              cardKey: cardKey,
+              clientX: point.clientX,
+              clientY: point.clientY,
+              input: input,
+              visible: true
+            };
+            barPopupOverlay.setAttribute("aria-hidden", "false");
+            barPopupOverlay.classList.add("octane-bar-popup-visible");
+            positionBarPopup(barPopupOverlay, column, point, input);
+            if (restoring) {
+              requestFrame(function () {
+                barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+              });
+            }
+          }
+          function captureBarPopupRestoreState() {
+            if (!activeBarPopupState.visible) {
+              return null;
+            }
+            return {
+              barKey: activeBarPopupState.barKey,
+              cardKey: activeBarPopupState.cardKey,
+              clientX: activeBarPopupState.clientX,
+              clientY: activeBarPopupState.clientY,
+              input: activeBarPopupState.input,
+              visible: activeBarPopupState.visible
+            };
+          }
+          function restoreBarPopupAfterRefresh(root, restoreState) {
+            if (!restoreState || !restoreState.visible) {
+              return;
+            }
+            var column =
+                findColumnByKeys(root || dashboard, restoreState.cardKey, restoreState.barKey);
+            if (!column) {
+              hideBarPopup();
+              return;
+            }
+            var point = restoreState.input === "focus"
+                ? pointForColumn(column)
+                : {clientX: restoreState.clientX, clientY: restoreState.clientY};
+            if (restoreState.input !== "focus" && !pointInsideBar(column, point)) {
+              hideBarPopup();
+              return;
+            }
+            showBarPopup(column, point, restoreState.input, true);
+          }
+          function refreshActiveBarPopup() {
+            if (!activeBarPopupState.visible) {
+              return;
+            }
+            restoreBarPopupAfterRefresh(dashboard, captureBarPopupRestoreState());
+          }
+          dashboard.addEventListener("mousemove", function (event) {
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar || !dashboard.contains(bar)) {
+              return;
+            }
+            var column = bar.closest(".octane-suite-column");
+            if (!column) {
+              return;
+            }
+            showBarPopup(
+                column, {clientX: event.clientX, clientY: event.clientY}, "mouse", false);
+          });
+          dashboard.addEventListener("mouseout", function (event) {
+            if (barPopupRefreshInProgress) {
+              return;
+            }
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar) {
+              return;
+            }
+            if (event.relatedTarget && bar.contains(event.relatedTarget)) {
+              return;
+            }
+            var column = bar.closest(".octane-suite-column");
+            if (column
+                && activeBarPopupState.input === "mouse"
+                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+              hideBarPopup();
+            }
+          });
+          dashboard.addEventListener("focusin", function (event) {
+            var column = event.target.closest(".octane-suite-column");
+            if (!column || !dashboard.contains(column)) {
+              return;
+            }
+            showBarPopup(column, pointForColumn(column), "focus", false);
+          });
+          dashboard.addEventListener("focusout", function (event) {
+            var column = event.target.closest(".octane-suite-column");
+            if (!column) {
+              return;
+            }
+            if (event.relatedTarget && column.contains(event.relatedTarget)) {
+              return;
+            }
+            if (activeBarPopupState.input === "focus"
+                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+              hideBarPopup();
+            }
+          });
+          window.addEventListener("scroll", refreshActiveBarPopup, true);
+          window.addEventListener("resize", refreshActiveBarPopup);
+          if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", refreshActiveBarPopup);
+            window.visualViewport.addEventListener("scroll", refreshActiveBarPopup);
+          }
           var expandedCard = null;
           var focusedZone = null;
           var expandedBackdrop = document.createElement("div");

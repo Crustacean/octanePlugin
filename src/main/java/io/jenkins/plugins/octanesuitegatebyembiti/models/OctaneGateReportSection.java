@@ -4,6 +4,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -83,6 +84,9 @@ public class OctaneGateReportSection implements Serializable {
     List<OctaneGateSuiteRunChart> suiteRunCharts =
         groupSuiteRunsByRunBy(chartSuiteRuns).stream()
             .map(group -> group.toChart(classifier))
+            .sorted(
+                Comparator.comparingInt(OctaneGateSuiteRunChart::getTotal)
+                    .thenComparing(OctaneGateReportSection::suiteRunSortKey))
             .toList();
     int maxSuiteRunTotal = maxSuiteRunTotal(suiteRunCharts);
     List<OctaneGateSuiteRunChart> scaledSuiteRunCharts =
@@ -294,6 +298,10 @@ public class OctaneGateReportSection implements Serializable {
       max = Math.max(max, Objects.requireNonNull(chart).getTotal());
     }
     return max;
+  }
+
+  private static String suiteRunSortKey(OctaneGateSuiteRunChart chart) {
+    return String.join(",", chart.getSuiteRunIds()) + ":" + chart.getSuiteRunId();
   }
 
   private static String displayScopeName(String scopeName) {
