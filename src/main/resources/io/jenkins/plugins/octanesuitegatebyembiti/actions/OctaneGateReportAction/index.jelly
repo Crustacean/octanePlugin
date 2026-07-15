@@ -36,8 +36,6 @@
           --octane-color-good: #34C759;
           --octane-color-neutral: #007AFF;
           --octane-color-warn: #FFCC00;
-          --octane-timer-head-fill: #000000;
-          --octane-timer-head-gap: var(--background);
           --octane-status-blocked: #FF9500;
           --octane-status-failed: #FF3B30;
           --octane-status-no-run: #8E8E93;
@@ -55,7 +53,6 @@
             --octane-color-good: #30D158;
             --octane-color-neutral: #0A84FF;
             --octane-color-warn: #FFD60A;
-            --octane-timer-head-fill: #ffffff;
             --octane-status-blocked: #FF9F0A;
             --octane-status-failed: #FF453A;
             --octane-status-no-run: #8E8E93;
@@ -72,7 +69,6 @@
           --octane-color-good: #30D158;
           --octane-color-neutral: #0A84FF;
           --octane-color-warn: #FFD60A;
-          --octane-timer-head-fill: #ffffff;
           --octane-status-blocked: #FF9F0A;
           --octane-status-failed: #FF453A;
           --octane-status-no-run: #8E8E93;
@@ -88,7 +84,6 @@
           --octane-color-good: #34C759;
           --octane-color-neutral: #007AFF;
           --octane-color-warn: #FFCC00;
-          --octane-timer-head-fill: #000000;
           --octane-status-blocked: #FF9500;
           --octane-status-failed: #FF3B30;
           --octane-status-no-run: #8E8E93;
@@ -1554,27 +1549,9 @@
         }
         .octane-timer-progress {
           fill: none;
-          filter: drop-shadow(0 0 1px rgba(30, 167, 255, 0.35));
           opacity: 1;
           stroke-linecap: round;
           stroke-width: 16;
-        }
-        .octane-timer-extended-progress {
-          fill: none;
-          filter: drop-shadow(0 0 1px rgba(136, 17, 19, 0.35));
-          opacity: 0;
-          stroke: var(--octane-color-bad);
-          stroke-linecap: round;
-          stroke-width: 16;
-        }
-        .octane-timer-head {
-          fill: var(--octane-timer-head-fill);
-          fill-opacity: 1;
-          opacity: 0;
-          pointer-events: none;
-          stroke: var(--octane-timer-head-gap);
-          stroke-width: 1.5px;
-          transition: fill 0.25s ease;
         }
         .octane-timer-value {
           fill: var(--text-color);
@@ -2042,18 +2019,10 @@
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress" data-timer-progress="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
-                            stroke-linecap="round" transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-extended-progress"
-                            data-timer-extended-progress="true" cx="120" cy="120" r="84"
-                            pathLength="100" stroke-dasharray="0 100" stroke-linecap="round"
-                            transform="rotate(-90 120 120)" />
-                        <j:if test="${snapshot.timeoutExtendedSeconds > 0}">
-                          <circle class="octane-timer-head" data-timer-head="true"
-                              cx="120" cy="36" r="8" aria-hidden="true" />
-                        </j:if>
+                        <path class="octane-timer-progress" data-timer-progress="true"
+                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
+                            pathLength="100" stroke="url(#octane-timeout-gradient)"
+                            stroke-dasharray="100 100" stroke-linecap="round" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           <j:choose>
                             <j:when test="${snapshot.building}">--</j:when>
@@ -2233,10 +2202,10 @@
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress" data-timer-progress="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
-                            stroke-linecap="round" transform="rotate(-90 120 120)" />
+                        <path class="octane-timer-progress" data-timer-progress="true"
+                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
+                            pathLength="100" stroke="url(#octane-poll-gradient)"
+                            stroke-dasharray="100 100" stroke-linecap="round" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           --
                         </text>
@@ -3081,9 +3050,6 @@
             waitingSince: 0
           };
           var completionAutoFlipState = {};
-          var TIMER_CENTER = 120;
-          var TIMER_RADIUS = 84;
-          var TIMER_HEAD_RADIUS = 8;
           var TIMER_ACTIVE_OPACITY = "1";
           var COLOR_GOOD = "--octane-color-good";
           var COLOR_WARN = "--octane-color-warn";
@@ -3878,6 +3844,9 @@
             var timeoutSeconds = timeoutCard
                 ? parseInt(timeoutCard.getAttribute("data-total-seconds") || "0", 10)
                 : 0;
+            var timeoutExtendedSeconds = timeoutCard
+                ? parseInt(timeoutCard.getAttribute("data-extended-total-seconds") || "0", 10)
+                : 0;
             return {
               building: dashboard.getAttribute("data-report-building") === "true",
               extendedTime: dashboard.getAttribute("data-extended-time") === "true",
@@ -3888,6 +3857,8 @@
               startedAt: timeoutCard ? timeoutCard.getAttribute("data-started-at") || "" : "",
               stateLabel: stateLabel ? stateLabel.textContent : "",
               timeoutSeconds: isNaN(timeoutSeconds) ? 0 : timeoutSeconds,
+              timeoutExtendedSeconds:
+                  isNaN(timeoutExtendedSeconds) ? 0 : timeoutExtendedSeconds,
               updatedAt: currentUpdatedAt
             };
           }
@@ -3901,16 +3872,14 @@
             var parsed = Date.parse(payload && payload[key] ? payload[key] : "");
             return isNaN(parsed) ? currentWallTime() : parsed;
           }
-          function snapshotProgress(payload) {
-            var progress =
-                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
-            if (isNaN(progress)) {
-              progress = 0;
-            }
-            return progress;
-          }
           function manualExitRequested(payload) {
             return payload && payload.manualExitRequested === true;
+          }
+          function timeoutSampleTimeMillis(payload) {
+            if (payload && payload.building !== true) {
+              return payloadTimeMillis(payload, "updatedAt");
+            }
+            return payloadTimeMillis(payload, "sampleTimeMillis");
           }
           function primaryTimeoutReached(payload) {
             var timeoutSeconds =
@@ -3919,18 +3888,40 @@
               return false;
             }
             var startedAt = payloadTimeMillis(payload, "startedAt");
-            var sampleTime = payloadTimeMillis(payload, "sampleTimeMillis");
+            var sampleTime = timeoutSampleTimeMillis(payload);
             return sampleTime - startedAt >= timeoutSeconds * 1000;
           }
-          function initialAutoFlipBoundaryReached(payload) {
-            return primaryTimeoutReached(payload) || snapshotProgress(payload) >= 100;
+          function totalTimeoutReached(payload) {
+            var timeoutSeconds =
+                Number(payload && payload.timeoutSeconds ? payload.timeoutSeconds : 0);
+            var timeoutExtendedSeconds =
+                Number(
+                    payload && payload.timeoutExtendedSeconds
+                        ? payload.timeoutExtendedSeconds
+                        : 0);
+            if (
+                !payload
+                || !isFinite(timeoutSeconds)
+                || !isFinite(timeoutExtendedSeconds)
+                || timeoutSeconds <= 0) {
+              return false;
+            }
+            var startedAt = payloadTimeMillis(payload, "startedAt");
+            var sampleTime = timeoutSampleTimeMillis(payload);
+            return sampleTime - startedAt
+                >= (timeoutSeconds + Math.max(0, timeoutExtendedSeconds)) * 1000;
           }
           function completionReached(payload) {
             var timedOut =
                 payload && payload.building !== true && payload.stateLabel === "Timed out";
-            return timedOut
-                || manualExitRequested(payload)
-                || initialAutoFlipBoundaryReached(payload);
+            var extendedSeconds = Number(
+                payload && payload.timeoutExtendedSeconds
+                    ? payload.timeoutExtendedSeconds
+                    : 0);
+            if (extendedSeconds > 0) {
+              return timedOut || manualExitRequested(payload) || totalTimeoutReached(payload);
+            }
+            return timedOut || primaryTimeoutReached(payload);
           }
           function autoFlipKey(cardKey, targetView) {
             return cardKey + ":" + targetView;
@@ -4079,11 +4070,9 @@
               extendedActive: extendedActive,
               extendedTotalMillis: Math.max(0, extendedTotalSeconds) * 1000,
               gradientStops: card.querySelectorAll("[data-timer-gradient-stop]"),
-              head: card.querySelector("[data-timer-head]"),
               lastDisplayedUnit: "",
               lastDisplayedValue: "",
               mode: mode,
-              extendedProgressCircle: card.querySelector("[data-timer-extended-progress]"),
               progressCircle: card.querySelector("[data-timer-progress]"),
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
@@ -4108,16 +4097,30 @@
             var maximum = state.totalMillis + (state.extendedTotalMillis || 0);
             return clamp(elapsed, 0, maximum);
           }
-          function extendedProgressPercent(state, now) {
-            if (
-                !state.active
-                || state.mode !== "timeout"
-                || !state.extendedActive
-                || !state.extendedTotalMillis) {
+          function timerTrackTotalMillis(state) {
+            if (state.mode !== "timeout") {
+              return state.totalMillis;
+            }
+            return state.totalMillis + state.extendedTotalMillis;
+          }
+          function timerTrackRemainingMillis(state, now) {
+            if (!state.active && state.mode === "poll") {
               return 0;
             }
-            var extendedElapsed = testingTimeSpentMillis(state, now) - state.totalMillis;
-            return clamp((extendedElapsed / state.extendedTotalMillis) * 100, 0, 100);
+            var sampleTime = state.active ? now : state.updatedAt;
+            var startedAt = state.endAt - state.totalMillis;
+            var trackTotalMillis = timerTrackTotalMillis(state);
+            return clamp(startedAt + trackTotalMillis - sampleTime, 0, trackTotalMillis);
+          }
+          function timerColorProgress(state, now) {
+            if (state.mode === "timeout") {
+              return clamp(
+                  (testingTimeSpentMillis(state, now) / state.totalMillis) * 100,
+                  0,
+                  100);
+            }
+            var remaining = remainingMillis(state, now);
+            return clamp(((state.totalMillis - remaining) / state.totalMillis) * 100, 0, 100);
           }
           function setTimeoutTitle(state) {
             if (state.mode !== "timeout" || !state.title) {
@@ -4188,38 +4191,17 @@
           function updateTimer(state, now) {
             setTimeoutTitle(state);
             var remaining = remainingMillis(state, now);
-            var elapsed = state.totalMillis - remaining;
-            var progress = clamp((elapsed / state.totalMillis) * 100, 0, 100);
-            var extendedProgress = extendedProgressPercent(state, now);
-            var colors = colorsForProgress(state.mode, progress);
+            var trackTotalMillis = timerTrackTotalMillis(state);
+            var trackRemaining = timerTrackRemainingMillis(state, now);
+            var remainingProgress = clamp((trackRemaining / trackTotalMillis) * 100, 0, 100);
+            var colors = colorsForProgress(state.mode, timerColorProgress(state, now));
             if (state.progressCircle) {
-              state.progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
-              state.progressCircle.style.opacity = progress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
-            }
-            if (state.extendedProgressCircle) {
-              state.extendedProgressCircle.style.strokeDasharray =
-                  trimNumber(extendedProgress) + " 100";
-              state.extendedProgressCircle.style.opacity =
-                  extendedProgress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
+              state.progressCircle.style.strokeDasharray =
+                  trimNumber(remainingProgress) + " 100";
+              state.progressCircle.style.opacity =
+                  remainingProgress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
             applyGradientStops(state.gradientStops, colors);
-            if (state.head) {
-              var shouldShowExtendedHead =
-                  state.mode === "timeout" && state.extendedActive && state.extendedTotalMillis > 0;
-              if (shouldShowExtendedHead) {
-                var angle = (extendedProgress / 100) * Math.PI * 2 - Math.PI / 2;
-                var headX = trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle));
-                var headY = trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle));
-                state.head.setAttribute("cx", headX);
-                state.head.setAttribute("cy", headY);
-                state.head.setAttribute("r", String(TIMER_HEAD_RADIUS));
-                state.head.style.opacity = "1";
-                state.head.style.display = "block";
-              } else {
-                state.head.style.opacity = "0";
-                state.head.style.display = "none";
-              }
-            }
             setTimerText(state, remaining);
           }
           var timers = [];
@@ -4460,15 +4442,21 @@
             var activeTimerStillRunning = false;
             for (var index = 0; index < timers.length; index += 1) {
               var remaining = remainingMillis(timers[index], now);
+              var trackRemaining = timerTrackRemainingMillis(timers[index], now);
               updateTimer(timers[index], now);
               if (timers[index].mode === "poll" && timers[index].active && remaining <= 0) {
                 beginSnapshotRefresh(now);
               }
-              if (timers[index].mode === "timeout" && timers[index].active && remaining <= 0) {
+              if (
+                  timers[index].mode === "timeout"
+                  && timers[index].active
+                  && trackRemaining <= 0) {
                 runCompletionAutoFlips(currentReportPayload());
               }
               activeTimerStillRunning =
-                  activeTimerStillRunning || remaining > 0 || liveRefresh.waiting;
+                  activeTimerStillRunning
+                  || trackRemaining > 0
+                  || liveRefresh.waiting;
             }
             if (hasActiveTimer && activeTimerStillRunning) {
               scheduleTimerFrame(animateTimers);
