@@ -196,6 +196,33 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void rendersOngoingIntervalReportInSystemOrangeWithInlineScreenshot() {
+    String html =
+        renderer.render(
+            """
+            The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}.
+            The latest Octane update was {{UPDATED_AT_TEXT}}.
+
+            {{EXECUTION_DETAILS}}
+
+            {{REPORT_SCREENSHOT}}
+            """,
+            "Payments",
+            "Finance",
+            snapshot(OctaneGateReportState.POLLING, "Gate polling."),
+            REPORT_URL,
+            "octane-progress.png",
+            OctaneReportTheme.DARK.name());
+
+    assertTrue(html.contains("color:#FF9F0A;font-weight:700;\">ONGOING"));
+    assertTrue(html.contains("The latest Octane update was 15:00:00."));
+    assertFalse(html.contains("{{UPDATED_AT_TEXT}}"));
+    assertTrue(html.contains("data-octane-email-section=\"execution-report\""));
+    assertTrue(html.contains("src=\"cid:octane-progress.png\""));
+    assertPassRateCell(html, "#FF9F0A", "#000000", true);
+  }
+
+  @Test
   public void paintsPassRateValueCellForThemeAndCriteriaStatus() {
     String lightPass =
         renderExecutionDetails(

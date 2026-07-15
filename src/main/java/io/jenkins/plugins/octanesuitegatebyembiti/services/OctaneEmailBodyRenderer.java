@@ -24,8 +24,10 @@ public class OctaneEmailBodyRenderer {
   private static final String FAIL_COLOR = "#990000";
   private static final String NEUTRAL_COLOR = "#737373";
   private static final String LIGHT_SYSTEM_GREEN = "#34C759";
+  private static final String LIGHT_SYSTEM_ORANGE = "#FF9500";
   private static final String LIGHT_SYSTEM_RED = "#FF3B30";
   private static final String DARK_SYSTEM_GREEN = "#30D158";
+  private static final String DARK_SYSTEM_ORANGE = "#FF9F0A";
   private static final String DARK_SYSTEM_RED = "#FF453A";
   private static final String SECTION_TITLE_STYLE =
       "font-family:Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.25;"
@@ -156,7 +158,7 @@ public class OctaneEmailBodyRenderer {
       boolean printDefectGroups) {
     String template = reportTemplate(configuredBody);
     String normalizedReportUrl = Util.trimToEmpty(reportUrl);
-    Verdict verdict = emailVerdict(snapshot == null ? null : snapshot.getState());
+    Verdict verdict = emailVerdict(snapshot == null ? null : snapshot.getState(), theme);
     String criteriaHtml =
         "<code style=\"font-family:Consolas,monospace;white-space:normal;word-break:break-word;\">"
             + escape(snapshot == null ? "Not available" : snapshot.getCriteria())
@@ -166,6 +168,13 @@ public class OctaneEmailBodyRenderer {
     rendered = rendered.replace("{{PROJECT_NAME}}", escape(defaultText(projectName, "Octane")));
     rendered =
         rendered.replace("{{DOMAIN_NAME}}", escape(defaultText(domainName, "Not specified")));
+    rendered =
+        rendered.replace(
+            "{{UPDATED_AT_TEXT}}",
+            escape(
+                snapshot == null
+                    ? "Unknown"
+                    : defaultText(snapshot.getUpdatedAtText(), "Unknown")));
     rendered =
         rendered.replace(
             "{{GATE_RESULT}}",
@@ -602,6 +611,11 @@ public class OctaneEmailBodyRenderer {
   private EmailValueCellStyle passRateCellStyle(OctaneGateReportSnapshot snapshot, String theme) {
     OctaneReportTheme emailTheme = emailTheme(theme);
     OctaneGateReportState state = snapshot == null ? null : snapshot.getState();
+    if (state != null && state.isBuilding()) {
+      String ongoingColor =
+          emailTheme == OctaneReportTheme.DARK ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE;
+      return EmailValueCellStyle.painted(ongoingColor, "#000000");
+    }
     if (emailTheme == OctaneReportTheme.LIGHT) {
       if (state == OctaneGateReportState.PASSED) {
         return EmailValueCellStyle.painted(LIGHT_SYSTEM_GREEN, "#FFFFFF");
@@ -780,7 +794,12 @@ public class OctaneEmailBodyRenderer {
         + "</a>";
   }
 
-  private Verdict emailVerdict(OctaneGateReportState state) {
+  private Verdict emailVerdict(OctaneGateReportState state, String theme) {
+    if (state != null && state.isBuilding()) {
+      String ongoingColor =
+          emailTheme(theme) == OctaneReportTheme.DARK ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE;
+      return new Verdict("ONGOING", ongoingColor);
+    }
     Verdict gateVerdict = verdict(state);
     return "PASS".equals(gateVerdict.label)
         ? new Verdict("SUCCESS", gateVerdict.color)
