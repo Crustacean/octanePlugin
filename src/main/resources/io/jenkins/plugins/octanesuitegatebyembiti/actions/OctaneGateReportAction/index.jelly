@@ -3912,6 +3912,11 @@
             return sampleTime - startedAt
                 >= (timeoutSeconds + Math.max(0, timeoutExtendedSeconds)) * 1000;
           }
+          function executionProgressReached(payload) {
+            var executionProgress = Number(
+                payload && payload.executionProgress ? payload.executionProgress : 0);
+            return isFinite(executionProgress) && executionProgress >= 100;
+          }
           function completionReached(payload) {
             var timedOut =
                 payload && payload.building !== true && payload.stateLabel === "Timed out";
@@ -3922,7 +3927,7 @@
             if (extendedSeconds > 0) {
               return timedOut || manualExitRequested(payload) || totalTimeoutReached(payload);
             }
-            return timedOut || primaryTimeoutReached(payload);
+            return timedOut || primaryTimeoutReached(payload) || executionProgressReached(payload);
           }
           function autoFlipKey(cardKey, targetView) {
             return cardKey + ":" + targetView;

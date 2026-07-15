@@ -710,7 +710,16 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("card.querySelector(\".octane-view-toggle\")"));
     assertTrue(xml.contains("payload.stateLabel === \"Timed out\""));
     assertTrue(xml.contains("timeoutSeconds * 1000"));
-    assertFalse(xml.contains("snapshotProgress(payload) >= 100"));
+    assertTrue(xml.contains("function executionProgressReached"));
+    assertTrue(xml.contains("isFinite(executionProgress) && executionProgress >= 100"));
+    assertTrue(
+        xml.contains(
+            "return timedOut || primaryTimeoutReached(payload)"
+                + " || executionProgressReached(payload)"));
+    assertTrue(
+        xml.contains(
+            "return timedOut || manualExitRequested(payload)"
+                + " || totalTimeoutReached(payload)"));
     assertTrue(xml.contains("setCardView(card, targetView)"));
     assertTrue(xml.contains("autoShowCardViewOnce(payload, \"timer-poll\", \"heatmap\")"));
     assertTrue(xml.contains("expandedKey"));
