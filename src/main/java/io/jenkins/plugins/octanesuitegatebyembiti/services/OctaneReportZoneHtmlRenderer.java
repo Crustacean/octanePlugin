@@ -372,16 +372,18 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-fluid-bars-dense .octane-suite-column {
           flex: 0 0 8px;
-          margin-right: 2px;
+          flex-shrink: 0 !important;
+          margin-right: 2px !important;
           max-width: 8px;
-          min-width: 8px;
+          min-width: 8px !important;
           width: 8px;
         }
         .octane-fluid-bars-dense .octane-vertical-bar {
           display: flex;
+          flex-shrink: 0 !important;
           margin-right: 0;
           max-width: 8px;
-          min-width: 8px;
+          min-width: 8px !important;
           vertical-align: bottom;
           width: 8px;
         }
@@ -389,11 +391,14 @@ public class OctaneReportZoneHtmlRenderer {
           align-self: stretch;
           box-sizing: border-box;
           display: grid;
-          flex: 1 0 24px;
+          flex: 0 0 24px;
           grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
           height: 100%;
+          margin-inline-start: auto;
+          max-width: 24px;
           min-width: 24px;
           position: relative;
+          width: 24px;
           z-index: 2;
         }
         .octane-bar-overflow-line {

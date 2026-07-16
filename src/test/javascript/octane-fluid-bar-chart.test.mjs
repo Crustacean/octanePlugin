@@ -29,5 +29,20 @@ test("always leaves room for at least one bar", () => {
 test("renders a concise overflow count at the x-axis trail", () => {
   assert.match(jelly, /count\.textContent = "\+" \+ hiddenCount/);
   assert.doesNotMatch(jelly, /hiddenCount \+ " more\.\.\."/);
-  assert.match(jelly, /\.octane-fluid-bars-dense \.octane-suite-column \{[\s\S]*?margin-right: 2px/);
+  assert.match(
+      jelly,
+      /\.octane-fluid-bars-dense \.octane-suite-column \{[\s\S]*?flex-shrink: 0 !important;[\s\S]*?margin-right: 2px !important;/);
+});
+
+test("locks the overflow indicator to exactly 24 pixels", () => {
+  const indicatorRule = jelly
+      .split(".octane-bar-overflow-indicator {")[1]
+      .split("}")[0];
+
+  assert.match(indicatorRule, /flex: 0 0 24px;/);
+  assert.match(indicatorRule, /margin-inline-start: auto;/);
+  assert.match(indicatorRule, /max-width: 24px;/);
+  assert.match(indicatorRule, /min-width: 24px;/);
+  assert.match(indicatorRule, /width: 24px;/);
+  assert.doesNotMatch(indicatorRule, /flex:\s*1/);
 });

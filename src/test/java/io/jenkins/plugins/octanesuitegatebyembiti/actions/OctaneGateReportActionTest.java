@@ -462,9 +462,14 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-overflow-indicator"));
     assertTrue(xml.contains("octane-bar-overflow-line"));
     assertTrue(xml.contains("octane-bar-overflow-count"));
-    assertTrue(xml.contains("flex: 1 0 24px"));
+    assertTrue(xml.contains("flex: 0 0 24px"));
+    assertTrue(xml.contains("margin-inline-start: auto"));
+    assertTrue(xml.contains("max-width: 24px"));
+    assertTrue(xml.contains("width: 24px"));
     assertTrue(xml.contains("flex: 0 0 8px"));
-    assertTrue(xml.contains("margin-right: 2px"));
+    assertTrue(xml.contains("flex-shrink: 0 !important"));
+    assertTrue(xml.contains("min-width: 8px !important"));
+    assertTrue(xml.contains("margin-right: 2px !important"));
     assertTrue(xml.contains("padding: 0"));
     assertTrue(xml.contains("var FLUID_BAR_SLOT_WIDTH = 10"));
     assertTrue(xml.contains("var FLUID_BAR_OVERFLOW_WIDTH = 24"));
