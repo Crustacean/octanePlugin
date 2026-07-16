@@ -486,10 +486,13 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public List<OctaneTesterPerformance> getTesterPassRateDetails() {
     return getTesterPerformances().stream()
+        .filter(tester -> tester.getExecutionRate() > 0.0)
         .filter(tester -> tester.getPassRate() < basePassrateFigure)
         .sorted(
-            Comparator.comparingDouble(OctaneTesterPerformance::getPassRate)
-                .thenComparing(OctaneTesterPerformance::getEmail, String.CASE_INSENSITIVE_ORDER))
+            Comparator.comparingDouble((OctaneTesterPerformance tester) -> tester.getPassRate())
+                .thenComparing(
+                    (OctaneTesterPerformance tester) -> tester.getEmail(),
+                    String.CASE_INSENSITIVE_ORDER))
         .toList();
   }
 
@@ -497,17 +500,28 @@ public class OctaneGateReportSnapshot implements Serializable {
     return getTesterPassRateDetails().isEmpty();
   }
 
+  public int getTesterPassRateDetailsCount() {
+    return getTesterPassRateDetails().size();
+  }
+
   public List<OctaneTesterPerformance> getTesterExecutionDetails() {
     return getTesterPerformances().stream()
         .filter(tester -> tester.getExecutionRate() < baseExecutionFigure)
         .sorted(
-            Comparator.comparingDouble(OctaneTesterPerformance::getExecutionRate)
-                .thenComparing(OctaneTesterPerformance::getEmail, String.CASE_INSENSITIVE_ORDER))
+            Comparator.comparingDouble(
+                    (OctaneTesterPerformance tester) -> tester.getExecutionRate())
+                .thenComparing(
+                    (OctaneTesterPerformance tester) -> tester.getEmail(),
+                    String.CASE_INSENSITIVE_ORDER))
         .toList();
   }
 
   public boolean isTesterExecutionDetailsEmpty() {
     return getTesterExecutionDetails().isEmpty();
+  }
+
+  public int getTesterExecutionDetailsCount() {
+    return getTesterExecutionDetails().size();
   }
 
   public Map<String, Object> getTesterDetails() {
@@ -516,10 +530,10 @@ public class OctaneGateReportSnapshot implements Serializable {
     details.put("baseExecutionFigure", baseExecutionFigure);
     details.put(
         "passRateTesters",
-        getTesterPassRateDetails().stream().map(OctaneTesterPerformance::toMap).toList());
+        getTesterPassRateDetails().stream().map(tester -> tester.toMap()).toList());
     details.put(
         "executionTesters",
-        getTesterExecutionDetails().stream().map(OctaneTesterPerformance::toMap).toList());
+        getTesterExecutionDetails().stream().map(tester -> tester.toMap()).toList());
     return details;
   }
 

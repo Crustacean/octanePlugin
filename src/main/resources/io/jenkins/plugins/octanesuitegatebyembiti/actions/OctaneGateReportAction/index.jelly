@@ -292,13 +292,6 @@
         .octane-zone-focused .octane-axis-value {
           font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
         }
-        .octane-zone-focused .octane-suite-column {
-          flex-basis: clamp(1.6rem, 7vw, 4.65rem);
-          max-width: none;
-        }
-        .octane-zone-focused .octane-vertical-bar {
-          width: min(clamp(0.715rem, 70.2%, 3.12rem), calc(100% - 0.1rem));
-        }
         .octane-zone-focused .octane-suite-label {
           font-size: 12px;
           max-width: 100%;
@@ -1706,36 +1699,18 @@
           align-items: stretch;
           box-sizing: border-box;
           display: flex;
-          gap: clamp(0.15rem, 1vw, 1rem);
+          gap: clamp(2px, 1vw, 40px);
+          gap: var(--octane-bar-gap, clamp(2px, 1cqw, 40px));
           height: 100%;
           justify-content: center;
           min-height: 0;
           overflow-x: hidden;
           overflow-y: visible;
-          padding: 0 clamp(0.15rem, 0.7vw, 0.5rem);
+          padding: 0;
           width: 100%;
         }
         .octane-vertical-bars.octane-fluid-bars-dense {
-          gap: 0;
-          justify-content: flex-start;
-          padding: 0;
-        }
-        .octane-fluid-bars-dense .octane-suite-column {
-          flex: 0 0 8px;
-          flex-shrink: 0 !important;
-          margin-right: 2px !important;
-          max-width: 8px;
-          min-width: 8px !important;
-          width: 8px;
-        }
-        .octane-fluid-bars-dense .octane-vertical-bar {
-          display: flex;
-          flex-shrink: 0 !important;
-          margin-right: 0;
-          max-width: 8px;
-          min-width: 8px !important;
-          vertical-align: bottom;
-          width: 8px;
+          justify-content: center;
         }
         .octane-bar-overflow-indicator {
           align-self: stretch;
@@ -1744,7 +1719,6 @@
           flex: 0 0 24px;
           grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
           height: 100%;
-          margin-inline-start: auto;
           max-width: 24px;
           min-width: 24px;
           position: relative;
@@ -1778,13 +1752,15 @@
         .octane-suite-column {
           align-items: center;
           display: grid;
-          flex: 1 1 4.65rem;
+          flex: 1 1 auto;
+          flex-basis: var(--octane-bar-width, clamp(8px, 4cqw, 100px));
           grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
           height: 100%;
           justify-items: center;
-          max-width: 5.2rem;
-          min-width: 0;
+          max-width: 100px;
+          min-width: 8px !important;
           position: relative;
+          width: var(--octane-bar-width, auto);
         }
         .octane-vertical-bar-wrap {
           align-items: end;
@@ -1804,8 +1780,10 @@
           display: flex;
           flex-direction: column-reverse;
           height: 100%;
+          max-width: 100px;
+          min-width: 8px !important;
           overflow: hidden;
-          width: min(clamp(1.105rem, 80.6%, 3.38rem), calc(100% - 0.1rem));
+          width: 100%;
         }
         .octane-bar-popup {
           background: var(--background);
@@ -3284,38 +3262,11 @@
               </button>
             </header>
             <div class="octane-tester-details-body" id="octane-tester-details-body">
-              <section class="octane-tester-tracker" aria-labelledby="octane-pass-rate-tracker-title">
-                <h3 class="octane-tester-tracker-title" id="octane-pass-rate-tracker-title"
-                    data-tester-pass-rate-title="true">
-                  Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate
-                </h3>
-                <div class="octane-tester-column-content"
-                    data-tester-pass-rate-content="true"
-                    data-empty="${snapshot.testerPassRateDetailsEmpty}">
-                  <table class="octane-tester-table">
-                    <thead>
-                      <tr>
-                        <th class="octane-tester-email" scope="col">Email</th>
-                        <th class="octane-tester-rate" scope="col">Suiterun Passrate</th>
-                      </tr>
-                    </thead>
-                    <tbody data-tester-pass-rate-rows="true">
-                      <j:forEach var="tester" items="${snapshot.testerPassRateDetails}">
-                        <tr>
-                          <td class="octane-tester-email">${tester.email}</td>
-                          <td class="octane-tester-rate">${tester.passRateText}</td>
-                        </tr>
-                      </j:forEach>
-                    </tbody>
-                  </table>
-                  <div class="octane-tester-empty-state">Everything Good!</div>
-                </div>
-              </section>
               <section class="octane-tester-tracker"
                   aria-labelledby="octane-execution-tracker-title">
                 <h3 class="octane-tester-tracker-title" id="octane-execution-tracker-title"
                     data-tester-execution-title="true">
-                  Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution
+                  Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})
                 </h3>
                 <div class="octane-tester-column-content"
                     data-tester-execution-content="true"
@@ -3332,6 +3283,33 @@
                         <tr>
                           <td class="octane-tester-email">${tester.email}</td>
                           <td class="octane-tester-rate">${tester.executionRateText}</td>
+                        </tr>
+                      </j:forEach>
+                    </tbody>
+                  </table>
+                  <div class="octane-tester-empty-state">Everything Good!</div>
+                </div>
+              </section>
+              <section class="octane-tester-tracker" aria-labelledby="octane-pass-rate-tracker-title">
+                <h3 class="octane-tester-tracker-title" id="octane-pass-rate-tracker-title"
+                    data-tester-pass-rate-title="true">
+                  Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})
+                </h3>
+                <div class="octane-tester-column-content"
+                    data-tester-pass-rate-content="true"
+                    data-empty="${snapshot.testerPassRateDetailsEmpty}">
+                  <table class="octane-tester-table">
+                    <thead>
+                      <tr>
+                        <th class="octane-tester-email" scope="col">Email</th>
+                        <th class="octane-tester-rate" scope="col">Suiterun Passrate</th>
+                      </tr>
+                    </thead>
+                    <tbody data-tester-pass-rate-rows="true">
+                      <j:forEach var="tester" items="${snapshot.testerPassRateDetails}">
+                        <tr>
+                          <td class="octane-tester-email">${tester.email}</td>
+                          <td class="octane-tester-rate">${tester.passRateText}</td>
                         </tr>
                       </j:forEach>
                     </tbody>
@@ -3530,29 +3508,39 @@
             if (!details) {
               return;
             }
+            var passRateTesters = Array.isArray(details.passRateTesters)
+                ? details.passRateTesters
+                : [];
+            var executionTesters = Array.isArray(details.executionTesters)
+                ? details.executionTesters
+                : [];
             var passRateTitle = dashboard.querySelector("[data-tester-pass-rate-title]");
             var executionTitle = dashboard.querySelector("[data-tester-execution-title]");
             if (passRateTitle) {
               passRateTitle.textContent =
                   "Testers with LESS THAN "
                   + String(details.basePassrateFigure || 0)
-                  + "% Pass Rate";
+                  + "% Pass Rate ("
+                  + String(passRateTesters.length)
+                  + ")";
             }
             if (executionTitle) {
               executionTitle.textContent =
                   "Testers with LESS THAN "
                   + String(details.baseExecutionFigure || 0)
-                  + "% Execution";
+                  + "% Execution ("
+                  + String(executionTesters.length)
+                  + ")";
             }
             replaceTesterRows(
                 "[data-tester-pass-rate-content]",
                 "[data-tester-pass-rate-rows]",
-                details.passRateTesters,
+                passRateTesters,
                 "passRateText");
             replaceTesterRows(
                 "[data-tester-execution-content]",
                 "[data-tester-execution-rows]",
-                details.executionTesters,
+                executionTesters,
                 "executionRateText");
           }
           function setTesterDetailsExpanded(zone, expanded) {
@@ -4438,7 +4426,11 @@
             zone.insertBefore(createZoneFocusButton(), zone.firstChild);
           }
           /* OCTANE_FLUID_BAR_CHART_START */
-          var FLUID_BAR_SLOT_WIDTH = 10;
+          var FLUID_BAR_MIN_WIDTH = 8;
+          var FLUID_BAR_MAX_WIDTH = 100;
+          var FLUID_BAR_MIN_GAP = 2;
+          var FLUID_BAR_MAX_GAP = 40;
+          var FLUID_BAR_SLOT_WIDTH = FLUID_BAR_MIN_WIDTH + FLUID_BAR_MIN_GAP;
           var FLUID_BAR_OVERFLOW_WIDTH = 24;
           function maxVisibleBarsForWidth(width) {
             var safeWidth = isFinite(width) ? Math.max(0, width) : 0;
@@ -4446,6 +4438,56 @@
                 1,
                 Math.floor(
                     (safeWidth - FLUID_BAR_OVERFLOW_WIDTH) / FLUID_BAR_SLOT_WIDTH));
+          }
+          function fluidBarLayoutForWidth(width, visibleBarCount, hasOverflow) {
+            var safeWidth = isFinite(width) ? Math.max(0, width) : 0;
+            var safeBarCount = isFinite(visibleBarCount)
+                ? Math.max(0, Math.floor(visibleBarCount))
+                : 0;
+            var overflowVisible = hasOverflow === true;
+            var gapCount = Math.max(
+                0,
+                safeBarCount - 1 + (overflowVisible ? 1 : 0));
+            var availableWidth = Math.max(
+                0,
+                safeWidth - (overflowVisible ? FLUID_BAR_OVERFLOW_WIDTH : 0));
+            var minimumWidth =
+                safeBarCount * FLUID_BAR_MIN_WIDTH + gapCount * FLUID_BAR_MIN_GAP;
+            var extraWidth = Math.max(0, availableWidth - minimumWidth);
+            var adjustableSlots = safeBarCount + gapCount;
+            var sharedIncrease = 0;
+            if (adjustableSlots > 0) {
+              var sharedLimit = FLUID_BAR_MAX_WIDTH - FLUID_BAR_MIN_WIDTH;
+              if (gapCount > 0) {
+                sharedLimit = Math.min(
+                    sharedLimit,
+                    FLUID_BAR_MAX_GAP - FLUID_BAR_MIN_GAP);
+              }
+              sharedIncrease = Math.min(
+                  sharedLimit,
+                  extraWidth / adjustableSlots);
+            }
+            var barWidth = FLUID_BAR_MIN_WIDTH + sharedIncrease;
+            var gap = FLUID_BAR_MIN_GAP + sharedIncrease;
+            var remainingWidth = Math.max(
+                0,
+                extraWidth - sharedIncrease * adjustableSlots);
+            if (safeBarCount > 0 && remainingWidth > 0) {
+              var barIncrease = Math.min(
+                  FLUID_BAR_MAX_WIDTH - barWidth,
+                  remainingWidth / safeBarCount);
+              barWidth += barIncrease;
+              remainingWidth -= barIncrease * safeBarCount;
+            }
+            if (gapCount > 0 && remainingWidth > 0) {
+              gap += Math.min(
+                  FLUID_BAR_MAX_GAP - gap,
+                  remainingWidth / gapCount);
+            }
+            return {
+              barWidth: Math.round(barWidth * 1000) / 1000,
+              gap: Math.round(gap * 1000) / 1000
+            };
           }
           /* OCTANE_FLUID_BAR_CHART_END */
           var fluidBarContainers = [];
@@ -4491,6 +4533,9 @@
             var maxVisibleBars = maxVisibleBarsForWidth(width);
             var visibleCount = Math.min(allSuiteRuns.length, maxVisibleBars);
             var hiddenCount = Math.max(0, allSuiteRuns.length - visibleCount);
+            var layout = fluidBarLayoutForWidth(width, visibleCount, hiddenCount > 0);
+            container.style.setProperty("--octane-bar-width", layout.barWidth + "px");
+            container.style.setProperty("--octane-bar-gap", layout.gap + "px");
             var renderSignature = visibleCount + ":" + hiddenCount;
             if (container.octaneFluidRenderSignature === renderSignature) {
               return;
@@ -5628,6 +5673,7 @@
             card.classList.remove("octane-expanded");
             card.setAttribute("draggable", "true");
             setExpandButtonState(card, false);
+            scheduleFluidBarCharts();
           }
           function findCardByKey(key) {
             if (!key) {
@@ -5682,6 +5728,7 @@
             zone.classList.remove("octane-zone-focused");
             restoreZoneFocusButton(zone);
             setZoneButtonState(zone, false);
+            scheduleFluidBarCharts();
           }
           function findZoneByKey(key) {
             if (!key) {
@@ -5718,6 +5765,7 @@
             zone.classList.add("octane-zone-focused");
             removeZoneFocusButton(zone);
             activateOverlayAccessibility(zone);
+            scheduleFluidBarCharts();
           }
           function expandCard(card) {
             if (!card) {
@@ -5734,6 +5782,7 @@
             card.setAttribute("draggable", "false");
             setExpandButtonState(card, true);
             activateOverlayAccessibility(card);
+            scheduleFluidBarCharts();
           }
           expandedBackdrop.addEventListener("click", function () {
             collapseExpandedCard();

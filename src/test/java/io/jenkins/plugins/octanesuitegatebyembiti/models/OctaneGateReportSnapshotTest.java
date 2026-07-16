@@ -345,6 +345,35 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void excludesUnstartedTestersFromPassRateDetails() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord("10", "planned", "planned", "New Tester"),
+            new RunRecord("11", "failed", "failed", "Started Tester"));
+    GateResult result =
+        new GateResult(
+            "4501",
+            "regressions.passRate >= 90",
+            false,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("4501", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+                OctaneGateReportState.POLLING, "Polling", result, classifier, 30)
+            .withTesterThresholds(90, 90);
+
+    assertEquals(List.of("Started Tester"), emails(snapshot.getTesterPassRateDetails()));
+    assertEquals(List.of("New Tester"), emails(snapshot.getTesterExecutionDetails()));
+    assertEquals(1, snapshot.getTesterPassRateDetailsCount());
+    assertEquals(1, snapshot.getTesterExecutionDetailsCount());
+  }
+
+  @Test
   public void handlesZeroRunResults() {
     GateResult result =
         new GateResult(
@@ -503,7 +532,7 @@ public class OctaneGateReportSnapshotTest {
   }
 
   private List<String> emails(List<OctaneTesterPerformance> testers) {
-    return testers.stream().map(OctaneTesterPerformance::getEmail).toList();
+    return testers.stream().map(tester -> tester.getEmail()).toList();
   }
 
   private void assertDominantStatusForTie(

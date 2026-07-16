@@ -100,9 +100,14 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Tester Details"));
     assertTrue(text.contains("Testers with LESS THAN 70% Pass Rate"));
     assertTrue(text.contains("Testers with LESS THAN 90% Execution"));
+    assertTrue(text.contains("Testers with LESS THAN 70% Pass Rate (1)"));
+    assertTrue(text.contains("Testers with LESS THAN 90% Execution (0)"));
     assertTrue(text.contains("Suiterun Passrate"));
     assertTrue(text.contains("Suiterun Execution"));
     assertTrue(text.contains("Everything Good!"));
+    assertTrue(
+        xml.indexOf("id=\"octane-execution-tracker-title\"")
+            < xml.indexOf("id=\"octane-pass-rate-tracker-title\""));
     assertTrue(xml.contains("id=\"tester-details-zone\""));
     assertTrue(xml.contains("class=\"octane-tester-details-toggle\""));
     assertTrue(xml.contains("aria-expanded=\"true\""));
@@ -479,18 +484,27 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-overflow-line"));
     assertTrue(xml.contains("octane-bar-overflow-count"));
     assertTrue(xml.contains("flex: 0 0 24px"));
-    assertTrue(xml.contains("margin-inline-start: auto"));
+    assertFalse(xml.contains("margin-inline-start: auto"));
     assertTrue(xml.contains("max-width: 24px"));
     assertTrue(xml.contains("width: 24px"));
-    assertTrue(xml.contains("flex: 0 0 8px"));
-    assertTrue(xml.contains("flex-shrink: 0 !important"));
+    assertTrue(xml.contains("flex: 1 1 auto"));
     assertTrue(xml.contains("min-width: 8px !important"));
-    assertTrue(xml.contains("margin-right: 2px !important"));
+    assertTrue(xml.contains("max-width: 100px"));
+    assertFalse(xml.contains("margin-right: 2px !important"));
+    assertTrue(xml.contains("gap: var(--octane-bar-gap"));
+    assertTrue(xml.contains("justify-content: center"));
     assertTrue(xml.contains("padding: 0"));
-    assertTrue(xml.contains("var FLUID_BAR_SLOT_WIDTH = 10"));
+    assertTrue(xml.contains("var FLUID_BAR_MIN_WIDTH = 8"));
+    assertTrue(xml.contains("var FLUID_BAR_MAX_WIDTH = 100"));
+    assertTrue(xml.contains("var FLUID_BAR_MIN_GAP = 2"));
+    assertTrue(xml.contains("var FLUID_BAR_MAX_GAP = 40"));
     assertTrue(xml.contains("var FLUID_BAR_OVERFLOW_WIDTH = 24"));
     assertTrue(xml.contains("function maxVisibleBarsForWidth(width)"));
+    assertTrue(
+        xml.contains("function fluidBarLayoutForWidth(width, visibleBarCount, hasOverflow)"));
     assertTrue(xml.contains("container.getBoundingClientRect().width"));
+    assertTrue(xml.contains("--octane-bar-width"));
+    assertTrue(xml.contains("--octane-bar-gap"));
     assertTrue(xml.contains("var allSuiteRuns = container.octaneAllSuiteRuns"));
     assertTrue(xml.contains("allSuiteRuns.slice(0, maxVisibleBars)"));
     assertTrue(
@@ -503,8 +517,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("overflow-x: hidden"));
     assertFalse(xml.contains("overflow-x: auto"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
-    assertTrue(xml.contains("width: min(clamp(0.715rem, 70.2%, 3.12rem), calc(100% - 0.1rem))"));
-    assertTrue(xml.contains("width: min(clamp(1.105rem, 80.6%, 3.38rem), calc(100% - 0.1rem))"));
+    assertFalse(xml.contains(".octane-zone-focused .octane-suite-column"));
+    assertFalse(xml.contains(".octane-chart-card.octane-expanded .octane-suite-column"));
+    assertTrue(xml.contains("max-width: min(100%, 6.8rem)"));
+    assertTrue(xml.contains("width: 100%"));
     assertTrue(
         xml.contains("font-family: Inter, &quot;Segoe UI&quot;, Arial, sans-serif")
             || xml.contains("font-family: Inter, \"Segoe UI\", Arial, sans-serif"));

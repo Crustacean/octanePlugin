@@ -40,7 +40,8 @@ public class OctaneTesterPerformance implements Serializable {
       performance.add(tester.toPerformance());
     }
     performance.sort(
-        Comparator.comparing(OctaneTesterPerformance::getEmail, String.CASE_INSENSITIVE_ORDER));
+        Comparator.comparing(
+            (OctaneTesterPerformance tester) -> tester.getEmail(), String.CASE_INSENSITIVE_ORDER));
     return List.copyOf(performance);
   }
 

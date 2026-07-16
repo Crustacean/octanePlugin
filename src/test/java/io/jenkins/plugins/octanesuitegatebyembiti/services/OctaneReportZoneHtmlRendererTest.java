@@ -114,7 +114,10 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("octane-axis-label-column"));
     assertTrue(html.contains("overflow-x: hidden"));
     assertTrue(html.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
-    assertTrue(html.contains("width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px))"));
+    assertTrue(html.contains("flex-basis: var(--octane-bar-width"));
+    assertTrue(html.contains("max-width: 100px"));
+    assertTrue(html.contains("min-width: 8px !important"));
+    assertTrue(html.contains("width: 100%"));
     assertTrue(html.contains("font-family: Inter, \"Segoe UI\", Arial, sans-serif"));
     assertTrue(html.contains("font-size: 12px"));
     assertTrue(html.contains("font-weight: 400"));
@@ -171,15 +174,17 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(narrowEmailHtml.contains("more..."));
     assertTrue(narrowEmailHtml.contains("border-bottom: 2px dashed #666"));
     assertTrue(narrowEmailHtml.contains("flex: 0 0 24px"));
-    assertTrue(narrowEmailHtml.contains("margin-inline-start: auto"));
+    assertFalse(narrowEmailHtml.contains("margin-inline-start: auto"));
     assertTrue(narrowEmailHtml.contains("max-width: 24px"));
     assertTrue(narrowEmailHtml.contains("min-width: 24px"));
     assertTrue(narrowEmailHtml.contains("width: 24px"));
-    assertTrue(narrowEmailHtml.contains("flex: 0 0 8px"));
-    assertTrue(narrowEmailHtml.contains("flex-shrink: 0 !important"));
+    assertTrue(narrowEmailHtml.contains("flex: 1 1 auto"));
     assertTrue(narrowEmailHtml.contains("min-width: 8px !important"));
-    assertTrue(narrowEmailHtml.contains("max-width: 8px"));
-    assertTrue(narrowEmailHtml.contains("margin-right: 2px !important"));
+    assertTrue(narrowEmailHtml.contains("max-width: 100px"));
+    assertFalse(narrowEmailHtml.contains("margin-right: 2px !important"));
+    assertTrue(narrowEmailHtml.contains("gap: var(--octane-bar-gap"));
+    assertTrue(narrowEmailHtml.contains("--octane-bar-width: 8.024px"));
+    assertTrue(narrowEmailHtml.contains("--octane-bar-gap: 2.024px"));
     assertTrue(narrowEmailHtml.contains("padding: 0"));
     assertTrue(narrowEmailHtml.contains("class=\"octane-vertical-bars octane-fluid-bars-dense\""));
     assertTrue(narrowEmailHtml.contains("Total Suiteruns: 205"));
@@ -187,9 +192,12 @@ public class OctaneReportZoneHtmlRendererTest {
     assertEquals(53, occurrences(wideEmailHtml, "class=\"octane-suite-column\""));
     assertTrue(wideEmailHtml.contains("data-hidden-count=\"152\""));
     assertTrue(wideEmailHtml.contains("class=\"octane-bar-overflow-count\">+152"));
+    assertTrue(wideEmailHtml.contains("--octane-bar-width: 8.066px"));
+    assertTrue(wideEmailHtml.contains("--octane-bar-gap: 2.066px"));
 
     assertEquals(205, occurrences(liveHtml, "class=\"octane-suite-column\""));
     assertFalse(liveHtml.contains("octane-bar-overflow-indicator"));
+    assertFalse(liveHtml.contains("--octane-bar-width:"));
     assertTrue(liveHtml.contains("Tester 205"));
   }
 
@@ -200,6 +208,27 @@ public class OctaneReportZoneHtmlRendererTest {
     assertEquals(57, OctaneReportZoneHtmlRenderer.maxVisibleBars(600));
     assertEquals(77, OctaneReportZoneHtmlRenderer.maxVisibleBars(800));
     assertEquals(137, OctaneReportZoneHtmlRenderer.maxVisibleBars(1400));
+  }
+
+  @Test
+  public void calculatesCenteredBarWidthsAndGapsWithinBounds() {
+    OctaneReportZoneHtmlRenderer.BarLayout dense =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(600, 57, true);
+    OctaneReportZoneHtmlRenderer.BarLayout balanced =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(600, 10, false);
+    OctaneReportZoneHtmlRenderer.BarLayout spacious =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(600, 5, false);
+    OctaneReportZoneHtmlRenderer.BarLayout capped =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(660, 5, false);
+
+    assertEquals(8.053, dense.barWidth(), 0.001);
+    assertEquals(2.053, dense.gap(), 0.001);
+    assertEquals(34.421, balanced.barWidth(), 0.001);
+    assertEquals(28.421, balanced.gap(), 0.001);
+    assertEquals(88.0, spacious.barWidth(), 0.001);
+    assertEquals(40.0, spacious.gap(), 0.001);
+    assertEquals(100.0, capped.barWidth(), 0.001);
+    assertEquals(40.0, capped.gap(), 0.001);
   }
 
   @Test
