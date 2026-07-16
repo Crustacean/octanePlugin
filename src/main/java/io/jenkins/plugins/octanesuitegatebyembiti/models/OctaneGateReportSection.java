@@ -85,8 +85,8 @@ public class OctaneGateReportSection implements Serializable {
         groupSuiteRunsByRunBy(chartSuiteRuns).stream()
             .map(group -> group.toChart(classifier))
             .sorted(
-                Comparator.comparingInt(OctaneGateSuiteRunChart::getTotal)
-                    .thenComparing(OctaneGateReportSection::suiteRunSortKey))
+                Comparator.comparingInt((OctaneGateSuiteRunChart chart) -> chart.getTotal())
+                    .thenComparing(chart -> suiteRunSortKey(chart)))
             .toList();
     int maxSuiteRunTotal = maxSuiteRunTotal(suiteRunCharts);
     List<OctaneGateSuiteRunChart> scaledSuiteRunCharts =

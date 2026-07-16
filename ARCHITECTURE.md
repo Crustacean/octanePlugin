@@ -286,12 +286,13 @@ failure, unstable, timeout, or unexpected error.
 The report contains chart cards for regression suite runs and each scope. Cards are
 resizable and can be reordered by dragging. Two cards fit per row by default;
 when one card is resized wide enough, the neighboring card wraps below. The
-report also shows two centered countdown donut cards: Testing Time Remaining
-from `timeoutMinutes`, and Status Check from `pollIntervalSeconds`. Timer
-ring movement uses browser animation frames for smooth millisecond-based motion,
-while the center text remains rounded to minutes or seconds. Timer SVGs render at
-a higher internal resolution with geometric precision hints and a subtle progress
-halo to reduce jagged circular edges. Each section renders:
+report also shows four timer-style cards: Testing Time, Status Check,
+Execution Progress, and Execution Pass Rate. Each card has a primary timer or
+progress face and a secondary analytical face. Timer ring movement uses browser
+animation frames for smooth millisecond-based motion, while the center text
+remains rounded to minutes or seconds. Timer SVGs render at a higher internal
+resolution with geometric precision hints and a subtle progress halo to reduce
+jagged circular edges. Each report section renders:
 
 - a donut chart for total Passed, Failed, Blocked, Skipped, and Running counts.
 - a vertical bar chart for the same counts per suite run, with bar height
@@ -321,7 +322,8 @@ sequenceDiagram
   Runner->>Action: Store updated snapshot
   Browser->>Action: GET /octaneSuiteGateReport/snapshot
   Action-->>Browser: JSON + rendered report-zone HTML
-  Browser->>Browser: Replace report zone and keep timers smooth
+  Browser->>Browser: Update secondary panels and replace report zone
+  Browser->>Browser: Evaluate one-time completion auto-flips
 ```
 
 The Status Check timer counts down from `pollIntervalSeconds`. When it reaches
@@ -334,12 +336,56 @@ The report keeps user interaction state during refresh:
 
 - expanded chart cards remain expanded when possible.
 - focused timer/report sections remain focused until Escape or backdrop click.
-- the active Status Check face, timer or heat map, is preserved.
+- active timer-card faces are preserved.
+- the selected Volume or Density defect analytics pane is preserved.
 - vertical bar hover popups are restored from stable bar keys after the DOM is
   replaced.
 
-When execution reaches 100% or the gate times out, the report auto-flips the
-Status Check card to the heat-map face if `riskHeatMap` is enabled.
+## Timer Card Secondary View Lifecycle
+
+All four timer-style cards use the same `data-active-view` state and delegated
+view-toggle handler. The server initially renders the primary `timer` face. A
+user can switch either direction at any time while the corresponding view toggle
+is available.
+
+| Primary face | Secondary face |
+| --- | --- |
+| Testing Time | Test Metrics |
+| Status Check | Risk Heat Map |
+| Execution Progress | All Testcase Status breakdown |
+| Execution Pass Rate | Defect analytics |
+
+The Risk Heat Map toggle and automatic flip are available only when
+`riskHeatMap` is enabled. Defect analytics contains a second, independent pane
+switch between Volume and Density. Entering the defect analytics face does not
+change that inner selection; Volume is the default on a new page load.
+
+The browser evaluates the automatic flip after initial page setup, after every
+accepted snapshot, and when the local Testing Time animation reaches its
+configured boundary. Snapshot data updates the heat map, test metrics, execution
+status distribution, and defect trend before the automatic flip makes those
+faces visible.
+
+With `timeoutMinutesExtended: 0`, the completion boundary is reached when any of
+the following is true:
+
+- execution progress is `100%` or greater.
+- the primary `timeoutMinutes` window is exhausted.
+- the persisted report state is `Timed out`.
+
+With `timeoutMinutesExtended` greater than zero, execution reaching `100%` does
+not flip the cards or end the waiting period. The completion boundary is reached
+only when:
+
+- the combined primary and extended timeout is exhausted.
+- the operator selects **Exit Octane and Continue**.
+- the persisted report state is `Timed out`.
+
+At the boundary, all eligible cards switch to their secondary faces together.
+Each card is automatically switched at most once per browser page load. A user
+can therefore return to its primary face afterward without the next animation
+frame or snapshot forcing it back. A full browser reload starts from the primary
+faces and evaluates the completion rule again.
 
 ## Status Check And Risk Heat Map
 

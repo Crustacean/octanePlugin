@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.Test;
 
 public class OctaneGateReportSnapshotTest {
@@ -102,7 +103,12 @@ public class OctaneGateReportSnapshotTest {
             new RunRecord("3", "three", "passed", "Alpha Tester"),
             new RunRecord("4", "four", "passed", "Alpha Tester")));
     suiteRuns.put("9003", List.of(new RunRecord("5", "five", "passed", "Gamma Tester")));
-    List<RunRecord> runs = suiteRuns.values().stream().flatMap(List::stream).toList();
+    List<RunRecord> runs =
+        suiteRuns.values().stream()
+            .flatMap(
+                suiteRunRecords ->
+                    suiteRunRecords == null ? Stream.<RunRecord>empty() : suiteRunRecords.stream())
+            .toList();
     GateResult result =
         new GateResult(
             "9002,9001,9003",
@@ -122,8 +128,8 @@ public class OctaneGateReportSnapshotTest {
     List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
     assertEquals(
         List.of("Gamma Tester", "Alpha Tester", "Beta Tester"),
-        charts.stream().map(OctaneGateSuiteRunChart::getDisplayName).toList());
-    assertEquals(List.of(1, 2, 2), charts.stream().map(OctaneGateSuiteRunChart::getTotal).toList());
+        charts.stream().map(chart -> chart.getDisplayName()).toList());
+    assertEquals(List.of(1, 2, 2), charts.stream().map(chart -> chart.getTotal()).toList());
   }
 
   @Test
