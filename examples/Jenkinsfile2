@@ -71,6 +71,8 @@ pipeline {
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
                   timeoutMinutesExtended: 0,
+                  basePassrateFigure: 95,
+                  baseExecutionFigure: 100,
                   markUnstable: false,
                   riskHeatMap: true,
                   riskHeatMapDefectQuery: '',

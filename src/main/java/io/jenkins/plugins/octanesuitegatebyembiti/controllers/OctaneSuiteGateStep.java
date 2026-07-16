@@ -47,6 +47,8 @@ public class OctaneSuiteGateStep extends Step {
   private int pollIntervalSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = GateRequest.DEFAULT_TIMEOUT_MINUTES;
   private int timeoutMinutesExtended = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED;
+  private int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
+  private int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -143,6 +145,24 @@ public class OctaneSuiteGateStep extends Step {
     this.timeoutMinutesExtended = Math.max(0, timeoutMinutesExtended);
   }
 
+  public int getBasePassrateFigure() {
+    return basePassrateFigure;
+  }
+
+  @DataBoundSetter
+  public void setBasePassrateFigure(int basePassrateFigure) {
+    this.basePassrateFigure = percentageThreshold(basePassrateFigure);
+  }
+
+  public int getBaseExecutionFigure() {
+    return baseExecutionFigure;
+  }
+
+  @DataBoundSetter
+  public void setBaseExecutionFigure(int baseExecutionFigure) {
+    this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
+  }
+
   public boolean isMarkUnstable() {
     return markUnstable;
   }
@@ -232,6 +252,8 @@ public class OctaneSuiteGateStep extends Step {
     request.setPollIntervalSeconds(pollIntervalSeconds);
     request.setTimeoutMinutes(timeoutMinutes);
     request.setTimeoutMinutesExtended(timeoutMinutesExtended);
+    request.setBasePassrateFigure(basePassrateFigure);
+    request.setBaseExecutionFigure(baseExecutionFigure);
     request.setMarkUnstable(markUnstable);
     request.setRiskHeatMap(riskHeatMap);
     request.setRiskHeatMapDefectQuery(riskHeatMapDefectQuery);
@@ -246,6 +268,10 @@ public class OctaneSuiteGateStep extends Step {
   private String defaultIfBlank(String value, String defaultValue) {
     String trimmed = Util.trimToEmpty(value);
     return trimmed.isEmpty() ? defaultValue : trimmed;
+  }
+
+  private int percentageThreshold(int value) {
+    return Math.min(100, Math.max(0, value));
   }
 
   private static class Execution extends StepExecution {
@@ -386,6 +412,14 @@ public class OctaneSuiteGateStep extends Step {
       return checkNonNegativeInteger("Extended timeout", value);
     }
 
+    public FormValidation doCheckBasePassrateFigure(@QueryParameter String value) {
+      return checkPercentage("Base pass rate", value);
+    }
+
+    public FormValidation doCheckBaseExecutionFigure(@QueryParameter String value) {
+      return checkPercentage("Base execution", value);
+    }
+
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {
       return checkPositiveInteger("Risk heat map max defects", value);
     }
@@ -421,6 +455,18 @@ public class OctaneSuiteGateStep extends Step {
         return FormValidation.ok();
       } catch (NumberFormatException e) {
         return FormValidation.error(label + " must be a number.");
+      }
+    }
+
+    private FormValidation checkPercentage(String label, String value) {
+      try {
+        int percentage = Integer.parseInt(value);
+        if (percentage < 0 || percentage > 100) {
+          return FormValidation.error(label + " must be between 0 and 100.");
+        }
+        return FormValidation.ok();
+      } catch (NumberFormatException e) {
+        return FormValidation.error(label + " must be a whole number.");
       }
     }
   }

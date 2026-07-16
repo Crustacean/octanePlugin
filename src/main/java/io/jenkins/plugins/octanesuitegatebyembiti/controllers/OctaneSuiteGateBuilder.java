@@ -118,6 +118,24 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
     delegate.setTimeoutMinutesExtended(timeoutMinutesExtended);
   }
 
+  public int getBasePassrateFigure() {
+    return delegate.getBasePassrateFigure();
+  }
+
+  @DataBoundSetter
+  public void setBasePassrateFigure(int basePassrateFigure) {
+    delegate.setBasePassrateFigure(basePassrateFigure);
+  }
+
+  public int getBaseExecutionFigure() {
+    return delegate.getBaseExecutionFigure();
+  }
+
+  @DataBoundSetter
+  public void setBaseExecutionFigure(int baseExecutionFigure) {
+    delegate.setBaseExecutionFigure(baseExecutionFigure);
+  }
+
   public boolean isMarkUnstable() {
     return delegate.isMarkUnstable();
   }
@@ -268,6 +286,14 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
 
     public FormValidation doCheckTimeoutMinutesExtended(@QueryParameter String value) {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckTimeoutMinutesExtended(value);
+    }
+
+    public FormValidation doCheckBasePassrateFigure(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckBasePassrateFigure(value);
+    }
+
+    public FormValidation doCheckBaseExecutionFigure(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckBaseExecutionFigure(value);
     }
 
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {

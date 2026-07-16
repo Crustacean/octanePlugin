@@ -36,6 +36,8 @@ public class OctaneGateReportActionTest {
     GateRequest request = new GateRequest("octane-prod", "4501");
     request.setPollIntervalSeconds(15);
     request.setTimeoutMinutes(45);
+    request.setBasePassrateFigure(70);
+    request.setBaseExecutionFigure(90);
 
     OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
     action.onFinal(
@@ -95,6 +97,20 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
     assertTrue(text.contains("Total: 2"));
     assertTrue(text.contains("Total Suiteruns: 1"));
+    assertTrue(text.contains("Tester Details"));
+    assertTrue(text.contains("Testers with LESS THAN 70% Pass Rate"));
+    assertTrue(text.contains("Testers with LESS THAN 90% Execution"));
+    assertTrue(text.contains("Suiterun Passrate"));
+    assertTrue(text.contains("Suiterun Execution"));
+    assertTrue(text.contains("Everything Good!"));
+    assertTrue(xml.contains("id=\"tester-details-zone\""));
+    assertTrue(xml.contains("class=\"octane-tester-details-toggle\""));
+    assertTrue(xml.contains("aria-expanded=\"true\""));
+    assertTrue(xml.contains("max-height: calc(100vh - 2rem)"));
+    assertTrue(xml.contains("scrollbar-color: #666 transparent"));
+    assertTrue(xml.contains("function updateTesterDetails(payload)"));
+    assertTrue(xml.contains("updateTesterDetails(payload)"));
+    assertTrue(xml.contains("event.target.closest(\".octane-tester-details-toggle\")"));
     assertTrue(xml.contains("Ada Tester"));
     assertTrue(text.contains("ada tester"));
     assertFalse(text.contains("Total Testcases"));
@@ -852,6 +868,10 @@ public class OctaneGateReportActionTest {
     assertEquals(50.0, payload.getDouble("passRateProgress"), 0.001);
     assertEquals("50%", payload.getString("passRateProgressText"));
     assertEquals("All Testcase Pass Rate (1 / 2)", payload.getString("passRateLabel"));
+    assertTrue(payload.containsKey("testerDetails"));
+    assertEquals(95, payload.getJSONObject("testerDetails").getInt("basePassrateFigure"));
+    assertEquals(100, payload.getJSONObject("testerDetails").getInt("baseExecutionFigure"));
+    assertEquals(1, payload.getJSONObject("testerDetails").getJSONArray("passRateTesters").size());
     assertTrue(payload.getString("testMetricsHtml").contains("octane-test-metrics-grid"));
     assertTrue(
         payload.getString("executionStatusDistributionHtml").contains("octane-execution-half-pie"));

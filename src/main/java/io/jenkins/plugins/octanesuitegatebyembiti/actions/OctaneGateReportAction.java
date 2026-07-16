@@ -32,6 +32,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private int refreshSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES * 60;
   private int timeoutExtendedSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED * 60;
+  private int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
+  private int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
   private String startedAt = Instant.now().toString();
   private volatile boolean manualExitRequested;
   private transient Object manualExitLock = new Object();
@@ -202,6 +204,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("riskHeatMapEnabled", safeSnapshot.isRiskHeatMapEnabled());
     payload.put("riskHeatMapHtml", safeSnapshot.getRiskHeatMapHtml());
     payload.put("riskHeatMap", safeSnapshot.getRiskHeatMap().toMap());
+    payload.put("testerDetails", safeSnapshot.getTesterDetails());
     payload.put("reportZoneHtml", new OctaneReportZoneHtmlRenderer().renderZone(safeSnapshot));
 
     response.setContentType("application/json;charset=UTF-8");
@@ -256,6 +259,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     refreshSeconds = request.getPollIntervalSeconds();
     timeoutSeconds = Math.max(1, request.getTimeoutMinutes()) * 60;
     timeoutExtendedSeconds = Math.max(0, request.getTimeoutMinutesExtended()) * 60;
+    basePassrateFigure = request.getBasePassrateFigure();
+    baseExecutionFigure = request.getBaseExecutionFigure();
     startedAt = Instant.now().toString();
     manualExitRequested = false;
   }
@@ -268,7 +273,9 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
-    return current.withCalculatedTestMetrics(previousCompletedSnapshot());
+    return current
+        .withTesterThresholds(basePassrateFigure, baseExecutionFigure)
+        .withCalculatedTestMetrics(previousCompletedSnapshot());
   }
 
   private OctaneGateReportSnapshot withLiveReportData(OctaneGateReportSnapshot current) {

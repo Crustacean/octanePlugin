@@ -13,6 +13,8 @@ public class GateRequest implements Serializable {
   public static final int DEFAULT_TIMEOUT_MINUTES = 120;
   public static final int DEFAULT_TIMEOUT_MINUTES_EXTENDED = 0;
   public static final int DEFAULT_RISK_HEAT_MAP_MAX_DEFECTS = 1000;
+  public static final int DEFAULT_BASE_PASSRATE_FIGURE = 95;
+  public static final int DEFAULT_BASE_EXECUTION_FIGURE = 100;
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
 
   private final String serverId;
@@ -25,6 +27,8 @@ public class GateRequest implements Serializable {
   private int pollIntervalSeconds = DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = DEFAULT_TIMEOUT_MINUTES;
   private int timeoutMinutesExtended = DEFAULT_TIMEOUT_MINUTES_EXTENDED;
+  private int basePassrateFigure = DEFAULT_BASE_PASSRATE_FIGURE;
+  private int baseExecutionFigure = DEFAULT_BASE_EXECUTION_FIGURE;
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -116,6 +120,22 @@ public class GateRequest implements Serializable {
     this.timeoutMinutesExtended = Math.max(0, timeoutMinutesExtended);
   }
 
+  public int getBasePassrateFigure() {
+    return basePassrateFigure;
+  }
+
+  public void setBasePassrateFigure(int basePassrateFigure) {
+    this.basePassrateFigure = percentageThreshold(basePassrateFigure);
+  }
+
+  public int getBaseExecutionFigure() {
+    return baseExecutionFigure;
+  }
+
+  public void setBaseExecutionFigure(int baseExecutionFigure) {
+    this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
+  }
+
   public boolean isMarkUnstable() {
     return markUnstable;
   }
@@ -189,5 +209,9 @@ public class GateRequest implements Serializable {
   private String defaultIfBlank(String value, String defaultValue) {
     String trimmed = Util.trimToEmpty(value);
     return trimmed.isEmpty() ? defaultValue : trimmed;
+  }
+
+  private int percentageThreshold(int value) {
+    return Math.min(100, Math.max(0, value));
   }
 }

@@ -298,6 +298,8 @@ public class OctaneGateReportSnapshotTest {
     request.setPollIntervalSeconds(17);
     request.setTimeoutMinutes(45);
     request.setTimeoutMinutesExtended(12);
+    request.setBasePassrateFigure(80);
+    request.setBaseExecutionFigure(90);
 
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.waiting(request, 17, "2026-05-15T00:00:00Z");
@@ -306,6 +308,40 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(2700, snapshot.getTimeoutSeconds());
     assertEquals(720, snapshot.getTimeoutExtendedSeconds());
     assertEquals("2026-05-15T00:00:00Z", snapshot.getStartedAt());
+    assertEquals(80, snapshot.getBasePassrateFigure());
+    assertEquals(90, snapshot.getBaseExecutionFigure());
+  }
+
+  @Test
+  public void calculatesTesterDetailsAcrossOverlappingSuiteRunScopes() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+                OctaneGateReportState.POLLING, "Polling", result(), classifier, 30)
+            .withTesterThresholds(70, 90);
+
+    List<OctaneTesterPerformance> passRateDetails = snapshot.getTesterPassRateDetails();
+    List<OctaneTesterPerformance> executionDetails = snapshot.getTesterExecutionDetails();
+
+    assertEquals(List.of("Ada Tester", "Ben Tester"), emails(passRateDetails));
+    assertEquals(List.of("Ada Tester"), emails(executionDetails));
+    OctaneTesterPerformance ada =
+        snapshot.getTesterPerformances().stream()
+            .filter(tester -> "Ada Tester".equals(tester.getEmail()))
+            .findFirst()
+            .orElseThrow();
+    OctaneTesterPerformance ben =
+        snapshot.getTesterPerformances().stream()
+            .filter(tester -> "Ben Tester".equals(tester.getEmail()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(3, ada.getTotal());
+    assertEquals(2, ada.getExecuted());
+    assertEquals(66.667, ada.getExecutionRate(), 0.001);
+    assertEquals(50.0, ada.getPassRate(), 0.001);
+    assertEquals("66.7%", ada.getExecutionRateText());
+    assertEquals(2, ben.getTotal());
+    assertEquals(2, ben.getExecuted());
+    assertEquals(1, ben.getPassed());
   }
 
   @Test
@@ -464,6 +500,10 @@ public class OctaneGateReportSnapshotTest {
         .filter(card -> key.equals(card.getKey()))
         .findFirst()
         .orElseThrow();
+  }
+
+  private List<String> emails(List<OctaneTesterPerformance> testers) {
+    return testers.stream().map(OctaneTesterPerformance::getEmail).toList();
   }
 
   private void assertDominantStatusForTie(

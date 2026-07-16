@@ -244,6 +244,8 @@ pipeline {
                         pollIntervalSeconds: 30,
                         timeoutMinutes: timeoutMinutes,
                         timeoutMinutesExtended: timeoutMinutesExtended,
+                        basePassrateFigure: 95,
+                        baseExecutionFigure: 100,
                         markUnstable: false,
                         riskHeatMap: true,
                         riskHeatMapDefectQuery: '',

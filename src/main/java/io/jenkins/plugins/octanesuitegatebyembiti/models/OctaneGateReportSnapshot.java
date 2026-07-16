@@ -10,6 +10,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +38,9 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final OctaneDefectTrend defectTrend;
   private final DefectCriteriaMetrics defectMetrics;
   private final CriteriaEvaluation criteriaEvaluation;
+  private final List<OctaneTesterPerformance> testerPerformances;
+  private final int basePassrateFigure;
+  private final int baseExecutionFigure;
 
   private OctaneGateReportSnapshot(
       OctaneGateReportState state,
@@ -52,7 +57,10 @@ public class OctaneGateReportSnapshot implements Serializable {
       OctaneTestMetrics testMetrics,
       OctaneDefectTrend defectTrend,
       DefectCriteriaMetrics defectMetrics,
-      CriteriaEvaluation criteriaEvaluation) {
+      CriteriaEvaluation criteriaEvaluation,
+      List<OctaneTesterPerformance> testerPerformances,
+      int basePassrateFigure,
+      int baseExecutionFigure) {
     this.state = state;
     this.message = message;
     this.criteria = criteria;
@@ -76,6 +84,10 @@ public class OctaneGateReportSnapshot implements Serializable {
             : defectMetrics;
     this.criteriaEvaluation =
         criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
+    this.testerPerformances =
+        testerPerformances == null ? List.of() : List.copyOf(testerPerformances);
+    this.basePassrateFigure = percentageThreshold(basePassrateFigure);
+    this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
   }
 
   private static int toSeconds(int minutes) {
@@ -108,7 +120,10 @@ public class OctaneGateReportSnapshot implements Serializable {
                         + toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED))
                     * 1000L),
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
-            CriteriaEvaluation.unavailable());
+            CriteriaEvaluation.unavailable(),
+            List.of(),
+            GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
+            GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     return snapshot.withCalculatedTestMetrics(null);
   }
 
@@ -138,7 +153,10 @@ public class OctaneGateReportSnapshot implements Serializable {
                         + toExtendedSeconds(request.getTimeoutMinutesExtended()))
                     * 1000L),
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
-            CriteriaEvaluation.unavailable());
+            CriteriaEvaluation.unavailable(),
+            List.of(),
+            request.getBasePassrateFigure(),
+            request.getBaseExecutionFigure());
     return snapshot.withCalculatedTestMetrics(null);
   }
 
@@ -208,7 +226,10 @@ public class OctaneGateReportSnapshot implements Serializable {
             OctaneTestMetrics.empty(),
             OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L),
             result.getDefectMetrics(),
-            result.getCriteriaEvaluation());
+            result.getCriteriaEvaluation(),
+            OctaneTesterPerformance.fromResult(result, classifier),
+            GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
+            GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     OctaneDefectTrend trend =
         snapshot
             .getDefectTrend()
@@ -278,7 +299,10 @@ public class OctaneGateReportSnapshot implements Serializable {
             OctaneTestMetrics.empty(),
             OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L),
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
-            CriteriaEvaluation.unavailable());
+            CriteriaEvaluation.unavailable(),
+            List.of(),
+            GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
+            GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     return snapshot.withCalculatedTestMetrics(null);
   }
 
@@ -303,7 +327,10 @@ public class OctaneGateReportSnapshot implements Serializable {
         testMetrics,
         getDefectTrend(),
         getDefectMetrics(),
-        getCriteriaEvaluation());
+        getCriteriaEvaluation(),
+        testerPerformances,
+        basePassrateFigure,
+        baseExecutionFigure);
   }
 
   public OctaneGateReportSnapshot withDefectTrend(OctaneDefectTrend defectTrend) {
@@ -322,7 +349,33 @@ public class OctaneGateReportSnapshot implements Serializable {
         testMetrics,
         defectTrend,
         getDefectMetrics(),
-        getCriteriaEvaluation());
+        getCriteriaEvaluation(),
+        testerPerformances,
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
+  public OctaneGateReportSnapshot withTesterThresholds(
+      int basePassrateFigure, int baseExecutionFigure) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        basePassrateFigure,
+        baseExecutionFigure);
   }
 
   public OctaneGateReportState getState() {
@@ -417,6 +470,57 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public CriteriaEvaluation getCriteriaEvaluation() {
     return criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
+  }
+
+  public int getBasePassrateFigure() {
+    return basePassrateFigure;
+  }
+
+  public int getBaseExecutionFigure() {
+    return baseExecutionFigure;
+  }
+
+  public List<OctaneTesterPerformance> getTesterPerformances() {
+    return testerPerformances == null ? List.of() : testerPerformances;
+  }
+
+  public List<OctaneTesterPerformance> getTesterPassRateDetails() {
+    return getTesterPerformances().stream()
+        .filter(tester -> tester.getPassRate() < basePassrateFigure)
+        .sorted(
+            Comparator.comparingDouble(OctaneTesterPerformance::getPassRate)
+                .thenComparing(OctaneTesterPerformance::getEmail, String.CASE_INSENSITIVE_ORDER))
+        .toList();
+  }
+
+  public boolean isTesterPassRateDetailsEmpty() {
+    return getTesterPassRateDetails().isEmpty();
+  }
+
+  public List<OctaneTesterPerformance> getTesterExecutionDetails() {
+    return getTesterPerformances().stream()
+        .filter(tester -> tester.getExecutionRate() < baseExecutionFigure)
+        .sorted(
+            Comparator.comparingDouble(OctaneTesterPerformance::getExecutionRate)
+                .thenComparing(OctaneTesterPerformance::getEmail, String.CASE_INSENSITIVE_ORDER))
+        .toList();
+  }
+
+  public boolean isTesterExecutionDetailsEmpty() {
+    return getTesterExecutionDetails().isEmpty();
+  }
+
+  public Map<String, Object> getTesterDetails() {
+    Map<String, Object> details = new LinkedHashMap<>();
+    details.put("basePassrateFigure", basePassrateFigure);
+    details.put("baseExecutionFigure", baseExecutionFigure);
+    details.put(
+        "passRateTesters",
+        getTesterPassRateDetails().stream().map(OctaneTesterPerformance::toMap).toList());
+    details.put(
+        "executionTesters",
+        getTesterExecutionDetails().stream().map(OctaneTesterPerformance::toMap).toList());
+    return details;
   }
 
   public DefectCriteriaMetrics getDefectMetrics() {
@@ -581,6 +685,10 @@ public class OctaneGateReportSnapshot implements Serializable {
   private static boolean isRegressionSection(OctaneGateReportSection section) {
     String source = section.getSource();
     return "regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source);
+  }
+
+  private static int percentageThreshold(int value) {
+    return Math.min(100, Math.max(0, value));
   }
 
   private static class ProjectProgressCounts {

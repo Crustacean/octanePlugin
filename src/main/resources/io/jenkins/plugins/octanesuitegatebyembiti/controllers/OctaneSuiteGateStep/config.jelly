@@ -31,6 +31,12 @@
     <f:entry title="Extended timeout minutes" field="timeoutMinutesExtended">
       <f:number />
     </f:entry>
+    <f:entry title="Base tester pass rate percentage" field="basePassrateFigure">
+      <f:number min="0" max="100" />
+    </f:entry>
+    <f:entry title="Base tester execution percentage" field="baseExecutionFigure">
+      <f:number min="0" max="100" />
+    </f:entry>
     <f:entry title="Mark unstable instead of failed" field="markUnstable">
       <f:checkbox />
     </f:entry>

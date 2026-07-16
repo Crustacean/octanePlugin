@@ -145,6 +145,7 @@
         .octane-zone-focus-toggle:focus-visible,
         .octane-expand-toggle:focus-visible,
         .octane-view-toggle:focus-visible,
+        .octane-tester-details-toggle:focus-visible,
         .octane-exit-extended-button:focus-visible,
         .octane-card-tools:focus-visible,
         .octane-suite-column:focus-visible {
@@ -1933,6 +1934,210 @@
           color: var(--text-color-secondary);
           padding: 1rem;
         }
+        .octane-tester-details-zone {
+          background: var(--background);
+          border: 1px solid var(--background);
+          border-radius: 8px;
+          box-sizing: border-box;
+          container-name: tester-details;
+          container-type: inline-size;
+          display: flex;
+          flex-direction: column;
+          max-height: calc(100vh - 2rem);
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-tester-details-header {
+          align-items: center;
+          border-bottom: 1px solid var(--input-border);
+          display: flex;
+          flex: 0 0 auto;
+          gap: clamp(0.5rem, 1.5vw, 1rem);
+          justify-content: space-between;
+          min-height: clamp(2.75rem, 6vh, 4rem);
+          padding: clamp(0.65rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.25rem);
+        }
+        .octane-tester-details-title {
+          font-size: clamp(0.95rem, 1.5vw, 1.25rem);
+          font-weight: 600;
+          line-height: 1.25;
+          margin: 0;
+        }
+        .octane-tester-details-toggle {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 4px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: inline-flex;
+          flex: 0 0 auto;
+          height: 1.5rem;
+          justify-content: center;
+          padding: 0;
+          width: 1.5rem;
+        }
+        .octane-tester-details-toggle:hover {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-tester-details-toggle .octane-icon-tester-expand {
+          display: none;
+        }
+        .octane-tester-details-toggle[aria-expanded="false"] .octane-icon-tester-collapse {
+          display: none;
+        }
+        .octane-tester-details-toggle[aria-expanded="false"] .octane-icon-tester-expand {
+          display: block;
+        }
+        .octane-tester-details-body {
+          display: grid;
+          flex: 1 1 auto;
+          grid-template-columns: minmax(0, 1fr);
+          max-height: calc(100vh - 6rem);
+          min-height: 0;
+          overflow: hidden;
+        }
+        .octane-tester-details-body[hidden] {
+          display: none;
+        }
+        .octane-tester-tracker {
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          min-height: 0;
+          min-width: 0;
+        }
+        .octane-tester-tracker + .octane-tester-tracker {
+          border-top: 1px solid var(--input-border);
+        }
+        .octane-tester-tracker-title {
+          font-size: clamp(0.78rem, 1.2vw, 1rem);
+          font-weight: 600;
+          line-height: 1.35;
+          margin: 0;
+          overflow-wrap: anywhere;
+          padding: clamp(0.7rem, 1.6vw, 1.1rem) clamp(0.75rem, 2vw, 1.25rem);
+        }
+        .octane-tester-column-content {
+          max-height: min(58vh, 36rem);
+          min-height: clamp(12rem, 28vh, 22rem);
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          scrollbar-color: #666 transparent;
+          scrollbar-width: thin;
+        }
+        .octane-tester-column-content::-webkit-scrollbar {
+          width: 6px;
+        }
+        .octane-tester-column-content::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .octane-tester-column-content::-webkit-scrollbar-thumb {
+          background: #666;
+          border-radius: 4px;
+        }
+        .octane-tester-column-content::-webkit-scrollbar-thumb:hover {
+          background: #888;
+        }
+        .octane-tester-table {
+          border-collapse: collapse;
+          table-layout: fixed;
+          width: 100%;
+        }
+        .octane-tester-table[hidden] {
+          display: none;
+        }
+        .octane-tester-column-content[data-empty="true"] {
+          display: flex;
+          flex-direction: column;
+        }
+        .octane-tester-column-content[data-empty="true"] .octane-tester-table tbody,
+        .octane-tester-column-content[data-empty="false"] .octane-tester-empty-state {
+          display: none;
+        }
+        .octane-tester-table th,
+        .octane-tester-table td {
+          border-bottom: 1px solid var(--input-border);
+          box-sizing: border-box;
+          font-size: clamp(0.75rem, 1.2vw, 1rem);
+          line-height: 1.35;
+          min-height: clamp(2.4rem, 5vh, 3.4rem);
+          padding: clamp(0.55rem, 1.2vw, 0.85rem) clamp(0.75rem, 2vw, 1.25rem);
+          vertical-align: middle;
+        }
+        .octane-tester-table thead th {
+          background: var(--background);
+          color: var(--text-color-secondary);
+          font-weight: 500;
+          position: sticky;
+          top: 0;
+          z-index: 1;
+        }
+        .octane-tester-email {
+          overflow-wrap: anywhere;
+          text-align: left;
+          width: 68%;
+        }
+        .octane-tester-rate {
+          font-variant-numeric: tabular-nums;
+          text-align: right;
+          white-space: nowrap;
+          width: 32%;
+        }
+        .octane-tester-empty-state {
+          align-items: center;
+          box-sizing: border-box;
+          color: #000000;
+          display: flex;
+          font-size: clamp(1.35rem, 3vw, 2.5rem);
+          font-weight: 600;
+          flex: 1 1 auto;
+          justify-content: center;
+          min-height: 0;
+          padding: clamp(1rem, 4vw, 3rem);
+          text-align: center;
+        }
+        .octane-tester-empty-state[hidden] {
+          display: none;
+        }
+        @media (prefers-color-scheme: dark) {
+          .octane-tester-empty-state {
+            color: #ffffff;
+          }
+        }
+        html[data-theme="dark"] .octane-tester-empty-state,
+        body[data-theme="dark"] .octane-tester-empty-state,
+        [data-color-mode="dark"] .octane-tester-empty-state,
+        .jenkins-theme-dark .octane-tester-empty-state,
+        .theme-dark .octane-tester-empty-state {
+          color: #ffffff;
+        }
+        html[data-theme="light"] .octane-tester-empty-state,
+        body[data-theme="light"] .octane-tester-empty-state,
+        [data-color-mode="light"] .octane-tester-empty-state,
+        .jenkins-theme-light .octane-tester-empty-state,
+        .theme-light .octane-tester-empty-state {
+          color: #000000;
+        }
+        @media (min-width: 840px) {
+          .octane-tester-details-body {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .octane-tester-tracker + .octane-tester-tracker {
+            border-left: 1px solid var(--input-border);
+            border-top: 0;
+          }
+        }
+        @container tester-details (min-width: 52rem) {
+          .octane-tester-details-body {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .octane-tester-tracker + .octane-tester-tracker {
+            border-left: 1px solid var(--input-border);
+            border-top: 0;
+          }
+        }
         @media (max-width: 840px) {
           .octane-chart-card {
             flex-basis: 100%;
@@ -3059,6 +3264,83 @@
               </j:when>
             </j:choose>
           </div>
+          <section class="octane-tester-details-zone" id="tester-details-zone"
+              aria-labelledby="octane-tester-details-title">
+            <header class="octane-tester-details-header">
+              <h2 class="octane-tester-details-title" id="octane-tester-details-title">
+                Tester Details
+              </h2>
+              <button class="octane-tester-details-toggle" type="button"
+                  aria-controls="octane-tester-details-body" aria-expanded="true"
+                  aria-label="Collapse tester details" title="Collapse tester details">
+                <svg class="octane-action-icon octane-icon-tester-collapse" viewBox="0 0 24 24"
+                    aria-hidden="true" focusable="false">
+                  <path d="M6 15l6-6 6 6" />
+                </svg>
+                <svg class="octane-action-icon octane-icon-tester-expand" viewBox="0 0 24 24"
+                    aria-hidden="true" focusable="false">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            </header>
+            <div class="octane-tester-details-body" id="octane-tester-details-body">
+              <section class="octane-tester-tracker" aria-labelledby="octane-pass-rate-tracker-title">
+                <h3 class="octane-tester-tracker-title" id="octane-pass-rate-tracker-title"
+                    data-tester-pass-rate-title="true">
+                  Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate
+                </h3>
+                <div class="octane-tester-column-content"
+                    data-tester-pass-rate-content="true"
+                    data-empty="${snapshot.testerPassRateDetailsEmpty}">
+                  <table class="octane-tester-table">
+                    <thead>
+                      <tr>
+                        <th class="octane-tester-email" scope="col">Email</th>
+                        <th class="octane-tester-rate" scope="col">Suiterun Passrate</th>
+                      </tr>
+                    </thead>
+                    <tbody data-tester-pass-rate-rows="true">
+                      <j:forEach var="tester" items="${snapshot.testerPassRateDetails}">
+                        <tr>
+                          <td class="octane-tester-email">${tester.email}</td>
+                          <td class="octane-tester-rate">${tester.passRateText}</td>
+                        </tr>
+                      </j:forEach>
+                    </tbody>
+                  </table>
+                  <div class="octane-tester-empty-state">Everything Good!</div>
+                </div>
+              </section>
+              <section class="octane-tester-tracker"
+                  aria-labelledby="octane-execution-tracker-title">
+                <h3 class="octane-tester-tracker-title" id="octane-execution-tracker-title"
+                    data-tester-execution-title="true">
+                  Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution
+                </h3>
+                <div class="octane-tester-column-content"
+                    data-tester-execution-content="true"
+                    data-empty="${snapshot.testerExecutionDetailsEmpty}">
+                  <table class="octane-tester-table">
+                    <thead>
+                      <tr>
+                        <th class="octane-tester-email" scope="col">Email</th>
+                        <th class="octane-tester-rate" scope="col">Suiterun Execution</th>
+                      </tr>
+                    </thead>
+                    <tbody data-tester-execution-rows="true">
+                      <j:forEach var="tester" items="${snapshot.testerExecutionDetails}">
+                        <tr>
+                          <td class="octane-tester-email">${tester.email}</td>
+                          <td class="octane-tester-rate">${tester.executionRateText}</td>
+                        </tr>
+                      </j:forEach>
+                    </tbody>
+                  </table>
+                  <div class="octane-tester-empty-state">Everything Good!</div>
+                </div>
+              </section>
+            </div>
+          </section>
         </div>
         <div id="octane-bar-popup-overlay" class="octane-bar-popup" role="tooltip"
             aria-hidden="true"></div>
@@ -3217,6 +3499,77 @@
             var container = document.createElement("div");
             container.innerHTML = html || "";
             return container.querySelector("#octane-report-zone");
+          }
+          function replaceTesterRows(contentSelector, rowsSelector, testers, rateProperty) {
+            var content = dashboard.querySelector(contentSelector);
+            var tableRows = dashboard.querySelector(rowsSelector);
+            if (!content || !tableRows) {
+              return;
+            }
+            var rows = Array.isArray(testers) ? testers : [];
+            while (tableRows.firstChild) {
+              tableRows.removeChild(tableRows.firstChild);
+            }
+            for (var index = 0; index < rows.length; index += 1) {
+              var tester = rows[index] || {};
+              var row = document.createElement("tr");
+              var email = document.createElement("td");
+              email.className = "octane-tester-email";
+              email.textContent = tester.email || "Unassigned";
+              var rate = document.createElement("td");
+              rate.className = "octane-tester-rate";
+              rate.textContent = tester[rateProperty] || "0%";
+              row.appendChild(email);
+              row.appendChild(rate);
+              tableRows.appendChild(row);
+            }
+            content.setAttribute("data-empty", String(rows.length === 0));
+          }
+          function updateTesterDetails(payload) {
+            var details = payload && payload.testerDetails;
+            if (!details) {
+              return;
+            }
+            var passRateTitle = dashboard.querySelector("[data-tester-pass-rate-title]");
+            var executionTitle = dashboard.querySelector("[data-tester-execution-title]");
+            if (passRateTitle) {
+              passRateTitle.textContent =
+                  "Testers with LESS THAN "
+                  + String(details.basePassrateFigure || 0)
+                  + "% Pass Rate";
+            }
+            if (executionTitle) {
+              executionTitle.textContent =
+                  "Testers with LESS THAN "
+                  + String(details.baseExecutionFigure || 0)
+                  + "% Execution";
+            }
+            replaceTesterRows(
+                "[data-tester-pass-rate-content]",
+                "[data-tester-pass-rate-rows]",
+                details.passRateTesters,
+                "passRateText");
+            replaceTesterRows(
+                "[data-tester-execution-content]",
+                "[data-tester-execution-rows]",
+                details.executionTesters,
+                "executionRateText");
+          }
+          function setTesterDetailsExpanded(zone, expanded) {
+            if (!zone) {
+              return;
+            }
+            var body = zone.querySelector(".octane-tester-details-body");
+            var button = zone.querySelector(".octane-tester-details-toggle");
+            if (body) {
+              body.hidden = !expanded;
+            }
+            if (button) {
+              var action = expanded ? "Collapse" : "Expand";
+              button.setAttribute("aria-expanded", String(expanded));
+              button.setAttribute("aria-label", action + " tester details");
+              button.setAttribute("title", action + " tester details");
+            }
           }
           function createExpandButton() {
             var button = document.createElement("button");
@@ -4481,6 +4834,7 @@
             updateTestMetrics(payload);
             updateExecutionStatusDistribution(payload);
             updateDefectTrend(payload);
+            updateTesterDetails(payload);
             runCompletionAutoFlips(payload);
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
@@ -5391,6 +5745,17 @@
               return;
             }
             moveFocusInto(activeOverlay);
+          });
+          dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-tester-details-toggle");
+            if (!button) {
+              return;
+            }
+            var zone = button.closest(".octane-tester-details-zone");
+            event.preventDefault();
+            event.stopPropagation();
+            setTesterDetailsExpanded(
+                zone, button.getAttribute("aria-expanded") !== "true");
           });
           dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-zone-focus-toggle");

@@ -34,4 +34,26 @@ public class OctaneSuiteGateStepTest {
     assertEquals(1, builder.getDefectGroups().size());
     assertEquals("minor", builder.getDefectGroups().get(0).getName());
   }
+
+  @Test
+  public void bindsTesterDetailThresholdsIntoGateRequest() {
+    OctaneSuiteGateStep step = new OctaneSuiteGateStep("octane-prod", "1196");
+    step.setBasePassrateFigure(82);
+    step.setBaseExecutionFigure(91);
+
+    GateRequest request = step.toRequest();
+
+    assertEquals(82, request.getBasePassrateFigure());
+    assertEquals(91, request.getBaseExecutionFigure());
+  }
+
+  @Test
+  public void freestyleBuilderDelegatesTesterDetailThresholds() {
+    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("octane-prod", "1196");
+    builder.setBasePassrateFigure(84);
+    builder.setBaseExecutionFigure(93);
+
+    assertEquals(84, builder.getBasePassrateFigure());
+    assertEquals(93, builder.getBaseExecutionFigure());
+  }
 }
