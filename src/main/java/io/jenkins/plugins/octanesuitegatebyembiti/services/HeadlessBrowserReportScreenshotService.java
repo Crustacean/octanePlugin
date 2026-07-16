@@ -56,7 +56,8 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     FilePath screenshotFile = outputDirectory.child(SCREENSHOT_FILE_NAME);
 
     OctaneGateReportSnapshot snapshot = action.getSnapshot();
-    htmlFile.write(renderer.render(snapshot, theme), StandardCharsets.UTF_8.name());
+    int width = Math.max(320, viewportWidth);
+    htmlFile.write(renderer.render(snapshot, theme, width), StandardCharsets.UTF_8.name());
 
     FilePath browserProfileDirectory = outputDirectory.child("chrome-profile");
     if (browserProfileDirectory.exists()) {
@@ -68,8 +69,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
         resolveBrowser(
             browserPath, envVars, launcher, listener, browserProfileDirectory.getRemote());
 
-    int width = Math.max(320, viewportWidth);
-    int height = estimateViewportHeight(snapshot);
+    int height = estimateViewportHeight(snapshot, width);
     List<String> command =
         screenshotCommand(
             browser,
@@ -264,9 +264,15 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     return " Browser output: " + concise;
   }
 
-  private int estimateViewportHeight(OctaneGateReportSnapshot snapshot) {
+  private int estimateViewportHeight(OctaneGateReportSnapshot snapshot, int viewportWidth) {
     int cardCount = snapshot.hasReportSections() ? snapshot.getReportSections().size() * 2 : 1;
-    int rows = Math.max(1, (cardCount + 1) / 2);
+    return estimateViewportHeightForCards(cardCount, viewportWidth);
+  }
+
+  static int estimateViewportHeightForCards(int cardCount, int viewportWidth) {
+    int columns =
+        viewportWidth <= OctaneReportZoneHtmlRenderer.EMAIL_SINGLE_COLUMN_BREAKPOINT_PX ? 1 : 2;
+    int rows = Math.max(1, (cardCount + columns - 1) / columns);
     return Math.max(800, 120 + rows * 380);
   }
 

@@ -458,6 +458,25 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-bar-plot"));
     assertTrue(xml.contains("octane-vertical-bars"));
     assertTrue(xml.contains("octane-vertical-bar-wrap"));
+    assertTrue(xml.contains("octane-fluid-bars-dense"));
+    assertTrue(xml.contains("octane-bar-overflow-indicator"));
+    assertTrue(xml.contains("octane-bar-overflow-line"));
+    assertTrue(xml.contains("octane-bar-overflow-count"));
+    assertTrue(xml.contains("flex: 1 0 24px"));
+    assertTrue(xml.contains("flex: 0 0 8px"));
+    assertTrue(xml.contains("margin-right: 2px"));
+    assertTrue(xml.contains("padding: 0"));
+    assertTrue(xml.contains("var FLUID_BAR_SLOT_WIDTH = 10"));
+    assertTrue(xml.contains("var FLUID_BAR_OVERFLOW_WIDTH = 24"));
+    assertTrue(xml.contains("function maxVisibleBarsForWidth(width)"));
+    assertTrue(xml.contains("container.getBoundingClientRect().width"));
+    assertTrue(xml.contains("var allSuiteRuns = container.octaneAllSuiteRuns"));
+    assertTrue(xml.contains("allSuiteRuns.slice(0, maxVisibleBars)"));
+    assertTrue(
+        xml.contains("count.textContent = &quot;+&quot; + hiddenCount")
+            || xml.contains("count.textContent = \"+\" + hiddenCount"));
+    assertTrue(xml.contains("new window.ResizeObserver(scheduleFluidBarCharts)"));
+    assertTrue(xml.contains("initializeFluidBarCharts(updatedReportZone)"));
     assertFalse(xml.contains("octane-x-axis-labels"));
     assertFalse(xml.contains("octane-axis-label-column"));
     assertTrue(xml.contains("overflow-x: hidden"));

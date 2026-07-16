@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -11,6 +12,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapsho
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,12 +145,65 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-bar-popup-name"));
     assertTrue(html.contains("octane-bar-popup-row"));
     assertTrue(html.contains("octane-bar-popup-total"));
+    assertFalse(html.contains("class=\"octane-bar-overflow-indicator\""));
     assertFalse(html.contains("class=\"octane-total\""));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
     assertFalse(html.contains("Testing Time Remaining"));
     assertFalse(html.contains("Status Check"));
     assertFalse(html.contains("Time to next Poll"));
     assertFalse(html.contains("Execution Progress"));
+  }
+
+  @Test
+  public void truncatesDenseEmailChartsWithoutTruncatingLiveRefreshData() {
+    OctaneGateReportSnapshot snapshot = denseSnapshot(205);
+    OctaneReportZoneHtmlRenderer renderer = new OctaneReportZoneHtmlRenderer();
+
+    String narrowEmailHtml = renderer.render(snapshot, "LIGHT", 600);
+    String wideEmailHtml = renderer.render(snapshot, "LIGHT", 1400);
+    String liveHtml = renderer.renderZone(snapshot);
+
+    assertEquals(41, occurrences(narrowEmailHtml, "class=\"octane-suite-column\""));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-bar-overflow-indicator\""));
+    assertTrue(narrowEmailHtml.contains("data-hidden-count=\"164\""));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-bar-overflow-line\""));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-bar-overflow-count\">+164"));
+    assertFalse(narrowEmailHtml.contains("more..."));
+    assertTrue(narrowEmailHtml.contains("border-bottom: 2px dashed #666"));
+    assertTrue(narrowEmailHtml.contains("flex: 1 0 24px"));
+    assertTrue(narrowEmailHtml.contains("min-width: 24px"));
+    assertTrue(narrowEmailHtml.contains("flex: 0 0 8px"));
+    assertTrue(narrowEmailHtml.contains("min-width: 8px"));
+    assertTrue(narrowEmailHtml.contains("max-width: 8px"));
+    assertTrue(narrowEmailHtml.contains("margin-right: 2px"));
+    assertTrue(narrowEmailHtml.contains("padding: 0"));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-vertical-bars octane-fluid-bars-dense\""));
+    assertTrue(narrowEmailHtml.contains("Total Suiteruns: 205"));
+
+    assertEquals(53, occurrences(wideEmailHtml, "class=\"octane-suite-column\""));
+    assertTrue(wideEmailHtml.contains("data-hidden-count=\"152\""));
+    assertTrue(wideEmailHtml.contains("class=\"octane-bar-overflow-count\">+152"));
+
+    assertEquals(205, occurrences(liveHtml, "class=\"octane-suite-column\""));
+    assertFalse(liveHtml.contains("octane-bar-overflow-indicator"));
+    assertTrue(liveHtml.contains("Tester 205"));
+  }
+
+  @Test
+  public void calculatesVisibleBarsFromViewportWidth() {
+    assertEquals(1, OctaneReportZoneHtmlRenderer.maxVisibleBars(0));
+    assertEquals(1, OctaneReportZoneHtmlRenderer.maxVisibleBars(24));
+    assertEquals(57, OctaneReportZoneHtmlRenderer.maxVisibleBars(600));
+    assertEquals(77, OctaneReportZoneHtmlRenderer.maxVisibleBars(800));
+    assertEquals(137, OctaneReportZoneHtmlRenderer.maxVisibleBars(1400));
+  }
+
+  @Test
+  public void calculatesEmailBarCapacityFromTheRenderedChartWidth() {
+    assertEquals(436, OctaneReportZoneHtmlRenderer.emailBarChartWidth(600));
+    assertEquals(636, OctaneReportZoneHtmlRenderer.emailBarChartWidth(800));
+    assertEquals(461, OctaneReportZoneHtmlRenderer.emailBarChartWidth(1200));
+    assertEquals(561, OctaneReportZoneHtmlRenderer.emailBarChartWidth(1400));
   }
 
   @Test
@@ -339,5 +394,40 @@ public class OctaneReportZoneHtmlRendererTest {
                 List.of(new RunRecord("3", "three", "passed", "Ben Tester")),
                 criticalSuiteRuns)),
         Instant.parse("2026-05-15T00:00:00Z"));
+  }
+
+  private OctaneGateReportSnapshot denseSnapshot(int barCount) {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 1; index <= barCount; index++) {
+      String runId = Integer.toString(index);
+      String suiteRunId = Integer.toString(5000 + index);
+      RunRecord run = new RunRecord(runId, "run " + index, "passed", "Tester " + index);
+      runs.add(run);
+      suiteRuns.put(suiteRunId, List.of(run));
+    }
+    GateResult result =
+        new GateResult(
+            String.join(",", suiteRuns.keySet()),
+            "regressions.passRate == 100",
+            true,
+            true,
+            new GateMetrics(barCount, barCount, barCount, 0, 0, 0),
+            runs,
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private int occurrences(String value, String needle) {
+    int count = 0;
+    int offset = 0;
+    while ((offset = value.indexOf(needle, offset)) >= 0) {
+      count++;
+      offset += needle.length();
+    }
+    return count;
   }
 }

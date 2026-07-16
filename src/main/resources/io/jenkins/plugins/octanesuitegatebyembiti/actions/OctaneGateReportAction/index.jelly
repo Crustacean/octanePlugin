@@ -1714,6 +1714,56 @@
           padding: 0 clamp(0.15rem, 0.7vw, 0.5rem);
           width: 100%;
         }
+        .octane-vertical-bars.octane-fluid-bars-dense {
+          gap: 0;
+          justify-content: flex-start;
+          padding: 0;
+        }
+        .octane-fluid-bars-dense .octane-suite-column {
+          flex: 0 0 8px;
+          margin-right: 2px;
+          max-width: 8px;
+          min-width: 8px;
+          width: 8px;
+        }
+        .octane-fluid-bars-dense .octane-vertical-bar {
+          display: flex;
+          margin-right: 0;
+          max-width: 8px;
+          min-width: 8px;
+          vertical-align: bottom;
+          width: 8px;
+        }
+        .octane-bar-overflow-indicator {
+          align-self: stretch;
+          box-sizing: border-box;
+          display: grid;
+          flex: 1 0 24px;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+          height: 100%;
+          min-width: 24px;
+          position: relative;
+          z-index: 2;
+        }
+        .octane-bar-overflow-line {
+          align-self: end;
+          background: var(--background, var(--octane-card-background));
+          border-bottom: 2px dashed #666;
+          box-sizing: border-box;
+          grid-row: 1;
+          height: 3px;
+          width: 100%;
+        }
+        .octane-bar-overflow-count {
+          align-self: start;
+          color: #888;
+          font-size: 10px;
+          grid-row: 2;
+          justify-self: end;
+          line-height: 1.1;
+          padding-top: 3px;
+          white-space: nowrap;
+        }
         .octane-vertical-bars::before,
         .octane-vertical-bars::after {
           content: "";
@@ -4029,6 +4079,111 @@
             }
             zone.insertBefore(createZoneFocusButton(), zone.firstChild);
           }
+          /* OCTANE_FLUID_BAR_CHART_START */
+          var FLUID_BAR_SLOT_WIDTH = 10;
+          var FLUID_BAR_OVERFLOW_WIDTH = 24;
+          function maxVisibleBarsForWidth(width) {
+            var safeWidth = isFinite(width) ? Math.max(0, width) : 0;
+            return Math.max(
+                1,
+                Math.floor(
+                    (safeWidth - FLUID_BAR_OVERFLOW_WIDTH) / FLUID_BAR_SLOT_WIDTH));
+          }
+          /* OCTANE_FLUID_BAR_CHART_END */
+          var fluidBarContainers = [];
+          var fluidBarResizeObserver = null;
+          var fluidBarResizeScheduled = false;
+          var fluidBarFallbackBound = false;
+          function directSuiteRunColumns(container) {
+            var columns = [];
+            var children = container ? container.children : [];
+            for (var index = 0; index < children.length; index += 1) {
+              if (children[index].classList.contains("octane-suite-column")) {
+                columns.push(children[index]);
+              }
+            }
+            return columns;
+          }
+          function createBarOverflowIndicator(hiddenCount) {
+            var indicator = document.createElement("div");
+            var line = document.createElement("span");
+            var count = document.createElement("span");
+            indicator.className = "octane-bar-overflow-indicator";
+            indicator.setAttribute("role", "note");
+            indicator.setAttribute("aria-label", hiddenCount + " tester bars omitted");
+            indicator.setAttribute("data-hidden-count", String(hiddenCount));
+            line.className = "octane-bar-overflow-line";
+            line.setAttribute("aria-hidden", "true");
+            count.className = "octane-bar-overflow-count";
+            count.textContent = "+" + hiddenCount;
+            indicator.appendChild(line);
+            indicator.appendChild(count);
+            return indicator;
+          }
+          function renderFluidChart(container) {
+            if (!container) {
+              return;
+            }
+            var allSuiteRuns = container.octaneAllSuiteRuns;
+            if (!allSuiteRuns) {
+              allSuiteRuns = directSuiteRunColumns(container);
+              container.octaneAllSuiteRuns = allSuiteRuns;
+            }
+            var width = container.getBoundingClientRect().width;
+            var maxVisibleBars = maxVisibleBarsForWidth(width);
+            var visibleCount = Math.min(allSuiteRuns.length, maxVisibleBars);
+            var hiddenCount = Math.max(0, allSuiteRuns.length - visibleCount);
+            var renderSignature = visibleCount + ":" + hiddenCount;
+            if (container.octaneFluidRenderSignature === renderSignature) {
+              return;
+            }
+            container.octaneFluidRenderSignature = renderSignature;
+            container.classList.toggle("octane-fluid-bars-dense", hiddenCount > 0);
+            while (container.firstChild) {
+              container.removeChild(container.firstChild);
+            }
+            var fragment = document.createDocumentFragment();
+            var visibleSuiteRuns = allSuiteRuns.slice(0, maxVisibleBars);
+            for (var index = 0; index < visibleSuiteRuns.length; index += 1) {
+              fragment.appendChild(visibleSuiteRuns[index]);
+            }
+            if (hiddenCount > 0) {
+              fragment.appendChild(createBarOverflowIndicator(hiddenCount));
+            }
+            container.appendChild(fragment);
+          }
+          function renderAllFluidCharts() {
+            fluidBarResizeScheduled = false;
+            for (var index = 0; index < fluidBarContainers.length; index += 1) {
+              renderFluidChart(fluidBarContainers[index]);
+            }
+          }
+          function scheduleFluidBarCharts() {
+            if (fluidBarResizeScheduled) {
+              return;
+            }
+            fluidBarResizeScheduled = true;
+            requestFrame(renderAllFluidCharts);
+          }
+          function initializeFluidBarCharts(root) {
+            if (fluidBarResizeObserver) {
+              fluidBarResizeObserver.disconnect();
+              fluidBarResizeObserver = null;
+            }
+            fluidBarContainers = root && root.querySelectorAll
+                ? Array.prototype.slice.call(root.querySelectorAll(".octane-vertical-bars"))
+                : [];
+            renderAllFluidCharts();
+            if (typeof window.ResizeObserver === "function") {
+              fluidBarResizeObserver = new window.ResizeObserver(scheduleFluidBarCharts);
+              for (var index = 0; index < fluidBarContainers.length; index += 1) {
+                fluidBarResizeObserver.observe(fluidBarContainers[index]);
+              }
+            } else if (!fluidBarFallbackBound) {
+              fluidBarFallbackBound = true;
+              window.addEventListener("resize", scheduleFluidBarCharts);
+            }
+          }
           function decorateReportZone(zone) {
             if (!zone) {
               return;
@@ -4048,6 +4203,7 @@
             }
           }
           decorateCardZones(dashboard);
+          initializeFluidBarCharts(dashboard);
           initializeCardViews(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
@@ -4358,6 +4514,7 @@
                   collapseFocusedZone();
                 }
               }
+              initializeFluidBarCharts(updatedReportZone);
               requestFrame(function () {
                 barPopupRefreshInProgress = false;
                 restoreBarPopupAfterRefresh(updatedReportZone, popupRestoreState);

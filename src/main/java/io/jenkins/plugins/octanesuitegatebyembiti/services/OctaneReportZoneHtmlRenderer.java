@@ -6,13 +6,25 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapsho
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateStatusCount;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateSuiteRunChart;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
+import java.util.List;
 
 public class OctaneReportZoneHtmlRenderer {
+  static final int DEFAULT_VIEWPORT_WIDTH = 1400;
+  static final int BAR_SLOT_WIDTH_PX = 10;
+  static final int OVERFLOW_INDICATOR_WIDTH_PX = 24;
+  static final int EMAIL_SINGLE_COLUMN_BREAKPOINT_PX = 840;
+  static final int EMAIL_SINGLE_COLUMN_CHROME_PX = 164;
+  static final int EMAIL_TWO_COLUMN_CHROME_PX = 139;
+
   public String render(OctaneGateReportSnapshot snapshot) {
-    return render(snapshot, OctaneReportTheme.LIGHT.name());
+    return render(snapshot, OctaneReportTheme.LIGHT.name(), DEFAULT_VIEWPORT_WIDTH);
   }
 
   public String render(OctaneGateReportSnapshot snapshot, String theme) {
+    return render(snapshot, theme, DEFAULT_VIEWPORT_WIDTH);
+  }
+
+  public String render(OctaneGateReportSnapshot snapshot, String theme, int viewportWidth) {
     OctaneGateReportSnapshot safeSnapshot =
         snapshot == null ? OctaneGateReportSnapshot.empty() : snapshot;
     OctaneReportTheme reportTheme = OctaneReportTheme.from(theme);
@@ -30,7 +42,7 @@ public class OctaneReportZoneHtmlRenderer {
     appendStyle(html);
     html.append("</head>\n");
     html.append("<body>\n");
-    renderReportZone(html, safeSnapshot);
+    renderReportZone(html, safeSnapshot, maxVisibleBars(emailBarChartWidth(viewportWidth)));
     html.append("</body>\n");
     html.append("</html>\n");
     return html.toString();
@@ -40,7 +52,7 @@ public class OctaneReportZoneHtmlRenderer {
     OctaneGateReportSnapshot safeSnapshot =
         snapshot == null ? OctaneGateReportSnapshot.empty() : snapshot;
     StringBuilder html = new StringBuilder();
-    renderReportZone(html, safeSnapshot);
+    renderReportZone(html, safeSnapshot, null);
     return html.toString();
   }
 
@@ -353,6 +365,56 @@ public class OctaneReportZoneHtmlRenderer {
           padding: 0 clamp(2px, 0.7vw, 8px);
           width: 100%;
         }
+        .octane-vertical-bars.octane-fluid-bars-dense {
+          gap: 0;
+          justify-content: flex-start;
+          padding: 0;
+        }
+        .octane-fluid-bars-dense .octane-suite-column {
+          flex: 0 0 8px;
+          margin-right: 2px;
+          max-width: 8px;
+          min-width: 8px;
+          width: 8px;
+        }
+        .octane-fluid-bars-dense .octane-vertical-bar {
+          display: flex;
+          margin-right: 0;
+          max-width: 8px;
+          min-width: 8px;
+          vertical-align: bottom;
+          width: 8px;
+        }
+        .octane-bar-overflow-indicator {
+          align-self: stretch;
+          box-sizing: border-box;
+          display: grid;
+          flex: 1 0 24px;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+          height: 100%;
+          min-width: 24px;
+          position: relative;
+          z-index: 2;
+        }
+        .octane-bar-overflow-line {
+          align-self: end;
+          background: var(--background, var(--octane-card-background));
+          border-bottom: 2px dashed #666;
+          box-sizing: border-box;
+          grid-row: 1;
+          height: 3px;
+          width: 100%;
+        }
+        .octane-bar-overflow-count {
+          align-self: start;
+          color: #888;
+          font-size: 10px;
+          grid-row: 2;
+          justify-self: end;
+          line-height: 1.1;
+          padding-top: 3px;
+          white-space: nowrap;
+        }
         .octane-vertical-bars::before,
         .octane-vertical-bars::after {
           content: "";
@@ -494,12 +556,13 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</style>\n");
   }
 
-  private void renderReportZone(StringBuilder html, OctaneGateReportSnapshot snapshot) {
+  private void renderReportZone(
+      StringBuilder html, OctaneGateReportSnapshot snapshot, Integer maxVisibleBars) {
     html.append("<div class=\"octane-report-zone octane-card-zone\" id=\"octane-report-zone\">\n");
     if (snapshot.hasReportSections()) {
       for (OctaneGateReportSection section : snapshot.getReportSections()) {
         renderDistributionCard(html, section);
-        renderSuiteRunCard(html, section);
+        renderSuiteRunCard(html, section, maxVisibleBars);
       }
     } else if (!snapshot.hasSections()) {
       html.append("<section class=\"octane-chart-card\" draggable=\"true\" ");
@@ -604,7 +667,8 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</text>\n");
   }
 
-  private void renderSuiteRunCard(StringBuilder html, OctaneGateReportSection section) {
+  private void renderSuiteRunCard(
+      StringBuilder html, OctaneGateReportSection section, Integer maxVisibleBars) {
     html.append("<section class=\"octane-chart-card\" draggable=\"true\" data-card-key=\"bars-");
     html.append(escapeAttribute(section.getSource()));
     html.append("\">\n");
@@ -639,10 +703,25 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<div class=\"octane-bar-plot\" style=\"--octane-grid-line-count: ");
     html.append(section.getYAxisGridLineCount());
     html.append(";\">\n");
-    html.append("<div class=\"octane-vertical-bars\">\n");
     String cardKey = "bars-" + section.getSource();
-    for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
+    List<OctaneGateSuiteRunChart> suiteRuns = section.getSuiteRuns();
+    List<OctaneGateSuiteRunChart> visibleSuiteRuns = suiteRuns;
+    int hiddenCount = 0;
+    if (maxVisibleBars != null && suiteRuns.size() > maxVisibleBars) {
+      visibleSuiteRuns = suiteRuns.subList(0, maxVisibleBars);
+      hiddenCount = suiteRuns.size() - maxVisibleBars;
+    }
+    boolean hasOverflow = hiddenCount > 0;
+    html.append("<div class=\"octane-vertical-bars");
+    if (hasOverflow) {
+      html.append(" octane-fluid-bars-dense");
+    }
+    html.append("\">\n");
+    for (OctaneGateSuiteRunChart suiteRun : visibleSuiteRuns) {
       renderSuiteRunColumn(html, suiteRun, cardKey);
+    }
+    if (hasOverflow) {
+      renderBarOverflowIndicator(html, hiddenCount);
     }
     html.append("</div>\n");
     html.append("</div>\n");
@@ -771,6 +850,32 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</span>\n");
     renderSuiteRunPopup(html, suiteRun);
     html.append("</div>\n");
+  }
+
+  private void renderBarOverflowIndicator(StringBuilder html, int hiddenCount) {
+    html.append("<div class=\"octane-bar-overflow-indicator\" role=\"note\" aria-label=\"");
+    html.append(hiddenCount);
+    html.append(" tester bars omitted\" data-hidden-count=\"");
+    html.append(hiddenCount);
+    html.append("\">");
+    html.append("<span class=\"octane-bar-overflow-line\" aria-hidden=\"true\"></span>");
+    html.append("<span class=\"octane-bar-overflow-count\">+");
+    html.append(hiddenCount);
+    html.append("</span></div>\n");
+  }
+
+  static int maxVisibleBars(int viewportWidth) {
+    return Math.max(
+        1, (Math.max(0, viewportWidth) - OVERFLOW_INDICATOR_WIDTH_PX) / BAR_SLOT_WIDTH_PX);
+  }
+
+  static int emailBarChartWidth(int viewportWidth) {
+    int safeViewportWidth = Math.max(320, viewportWidth);
+    int availableWidth =
+        safeViewportWidth <= EMAIL_SINGLE_COLUMN_BREAKPOINT_PX
+            ? safeViewportWidth - EMAIL_SINGLE_COLUMN_CHROME_PX
+            : safeViewportWidth / 2 - EMAIL_TWO_COLUMN_CHROME_PX;
+    return Math.max(BAR_SLOT_WIDTH_PX + OVERFLOW_INDICATOR_WIDTH_PX, availableWidth);
   }
 
   private void renderSuiteRunPopup(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {

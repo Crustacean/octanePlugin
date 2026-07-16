@@ -63,4 +63,12 @@ public class HeadlessBrowserReportScreenshotServiceTest {
     assertTrue(command.contains("--screenshot=C:\\jenkins\\report.png"));
     assertTrue(HeadlessBrowserReportScreenshotService.SCREENSHOT_TIMEOUT_SECONDS > 0);
   }
+
+  @Test
+  public void expandsScreenshotHeightWhenCardsStackAtNarrowWidths() {
+    assertEquals(
+        1640, HeadlessBrowserReportScreenshotService.estimateViewportHeightForCards(4, 600));
+    assertEquals(
+        880, HeadlessBrowserReportScreenshotService.estimateViewportHeightForCards(4, 1400));
+  }
 }
