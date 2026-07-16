@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -11,6 +12,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapsho
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +47,11 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("ben tester"));
     assertTrue(html.contains("suite runs: 4501"));
     assertFalse(html.contains("Total Testcases"));
-    assertTrue(html.contains("border: 1px solid #f5f7fb"));
+    assertTrue(html.contains("<html data-octane-theme=\"light\">"));
+    assertTrue(html.contains("<meta name=\"color-scheme\" content=\"light\""));
+    assertTrue(html.contains("color-scheme: light"));
+    assertTrue(html.contains("--octane-page-background: #f5f7fb"));
+    assertTrue(html.contains("border: 1px solid var(--octane-page-background)"));
     assertTrue(html.contains("aria-label=\"Move widget\""));
     assertTrue(html.contains("octane-grabber-icon"));
     assertTrue(html.contains("Use arrow keys to reorder"));
@@ -62,10 +68,18 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("octane-icon-zone-collapse"));
     assertFalse(html.contains("octane-expanded"));
     assertFalse(html.contains("octane-zone-focused"));
-    assertTrue(html.contains("#009900"));
-    assertTrue(html.contains("#990000"));
-    assertTrue(html.contains("#808080"));
+    assertTrue(html.contains("--octane-status-passed: #34C759"));
+    assertTrue(html.contains("--octane-status-failed: #FF3B30"));
+    assertTrue(html.contains("--octane-status-blocked: #FF9500"));
+    assertTrue(html.contains("--octane-status-skipped: #AF52DE"));
+    assertTrue(html.contains("--octane-status-no-run: #8E8E93"));
+    assertTrue(html.contains("var(--octane-status-passed)"));
+    assertTrue(html.contains("var(--octane-status-failed)"));
+    assertTrue(html.contains("var(--octane-status-no-run)"));
+    assertFalse(html.contains("#009900"));
     assertFalse(html.contains("#631919"));
+    assertFalse(html.contains("#ffb74d"));
+    assertFalse(html.contains("#808080"));
     assertTrue(html.contains("octane-donut"));
     assertTrue(html.contains("octane-distribution-meta"));
     assertTrue(html.contains("octane-total-label"));
@@ -100,7 +114,10 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("octane-axis-label-column"));
     assertTrue(html.contains("overflow-x: hidden"));
     assertTrue(html.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
-    assertTrue(html.contains("width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px))"));
+    assertTrue(html.contains("flex-basis: var(--octane-bar-width"));
+    assertTrue(html.contains("max-width: 100px"));
+    assertTrue(html.contains("min-width: 8px !important"));
+    assertTrue(html.contains("width: 100%"));
     assertTrue(html.contains("font-family: Inter, \"Segoe UI\", Arial, sans-serif"));
     assertTrue(html.contains("font-size: 12px"));
     assertTrue(html.contains("font-weight: 400"));
@@ -112,18 +129,114 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("data-bar-key=\""));
     assertTrue(html.contains("data-dominant-status-color=\""));
     assertTrue(html.contains("data-dominant-status-label=\""));
+    assertTrue(
+        html.contains("border: 1px solid var(--octane-popup-border-color, var(--octane-border))"));
+    assertTrue(html.contains("0 0 0 1px var(--octane-popup-border-color, transparent)"));
+    assertTrue(html.contains("style=\"--octane-popup-border-color: #30D158;\""));
+    assertTrue(html.contains("style=\"--octane-popup-border-color: #FF453A;\""));
+    assertTrue(html.contains("data-status-passed-count=\""));
+    assertTrue(html.contains("data-status-passed-color=\"#30D158\""));
+    assertTrue(html.contains("data-status-failed-color=\"#FF453A\""));
+    assertTrue(html.contains("data-status-blocked-color=\"#FF9F0A\""));
+    assertTrue(html.contains("data-status-skipped-color=\"#BF5AF2\""));
+    assertTrue(html.contains("data-status-running-color=\"#8E8E93\""));
+    assertTrue(html.contains("style=\"background: #30D158;\""));
+    assertTrue(html.contains("style=\"background: #FF453A;\""));
     assertTrue(html.contains("min-width: 175px"));
     assertTrue(html.contains("font-size: 10.35px"));
     assertTrue(html.contains("overflow-wrap: anywhere"));
     assertTrue(html.contains("octane-bar-popup-name"));
     assertTrue(html.contains("octane-bar-popup-row"));
     assertTrue(html.contains("octane-bar-popup-total"));
+    assertFalse(html.contains("class=\"octane-bar-overflow-indicator\""));
     assertFalse(html.contains("class=\"octane-total\""));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
     assertFalse(html.contains("Testing Time Remaining"));
     assertFalse(html.contains("Status Check"));
     assertFalse(html.contains("Time to next Poll"));
     assertFalse(html.contains("Execution Progress"));
+  }
+
+  @Test
+  public void truncatesDenseEmailChartsWithoutTruncatingLiveRefreshData() {
+    OctaneGateReportSnapshot snapshot = denseSnapshot(205);
+    OctaneReportZoneHtmlRenderer renderer = new OctaneReportZoneHtmlRenderer();
+
+    String narrowEmailHtml = renderer.render(snapshot, "LIGHT", 600);
+    String wideEmailHtml = renderer.render(snapshot, "LIGHT", 1400);
+    String liveHtml = renderer.renderZone(snapshot);
+
+    assertEquals(41, occurrences(narrowEmailHtml, "class=\"octane-suite-column\""));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-bar-overflow-indicator\""));
+    assertTrue(narrowEmailHtml.contains("data-hidden-count=\"164\""));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-bar-overflow-line\""));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-bar-overflow-count\">+164"));
+    assertFalse(narrowEmailHtml.contains("more..."));
+    assertTrue(narrowEmailHtml.contains("border-bottom: 2px dashed #666"));
+    assertTrue(narrowEmailHtml.contains("flex: 0 0 24px"));
+    assertFalse(narrowEmailHtml.contains("margin-inline-start: auto"));
+    assertTrue(narrowEmailHtml.contains("max-width: 24px"));
+    assertTrue(narrowEmailHtml.contains("min-width: 24px"));
+    assertTrue(narrowEmailHtml.contains("width: 24px"));
+    assertTrue(narrowEmailHtml.contains("flex: 1 1 auto"));
+    assertTrue(narrowEmailHtml.contains("min-width: 8px !important"));
+    assertTrue(narrowEmailHtml.contains("max-width: 100px"));
+    assertFalse(narrowEmailHtml.contains("margin-right: 2px !important"));
+    assertTrue(narrowEmailHtml.contains("gap: var(--octane-bar-gap"));
+    assertTrue(narrowEmailHtml.contains("--octane-bar-width: 8.024px"));
+    assertTrue(narrowEmailHtml.contains("--octane-bar-gap: 2.024px"));
+    assertTrue(narrowEmailHtml.contains("padding: 0"));
+    assertTrue(narrowEmailHtml.contains("class=\"octane-vertical-bars octane-fluid-bars-dense\""));
+    assertTrue(narrowEmailHtml.contains("Total Suiteruns: 205"));
+
+    assertEquals(53, occurrences(wideEmailHtml, "class=\"octane-suite-column\""));
+    assertTrue(wideEmailHtml.contains("data-hidden-count=\"152\""));
+    assertTrue(wideEmailHtml.contains("class=\"octane-bar-overflow-count\">+152"));
+    assertTrue(wideEmailHtml.contains("--octane-bar-width: 8.066px"));
+    assertTrue(wideEmailHtml.contains("--octane-bar-gap: 2.066px"));
+
+    assertEquals(205, occurrences(liveHtml, "class=\"octane-suite-column\""));
+    assertFalse(liveHtml.contains("octane-bar-overflow-indicator"));
+    assertFalse(liveHtml.contains("--octane-bar-width:"));
+    assertTrue(liveHtml.contains("Tester 205"));
+  }
+
+  @Test
+  public void calculatesVisibleBarsFromViewportWidth() {
+    assertEquals(1, OctaneReportZoneHtmlRenderer.maxVisibleBars(0));
+    assertEquals(1, OctaneReportZoneHtmlRenderer.maxVisibleBars(24));
+    assertEquals(57, OctaneReportZoneHtmlRenderer.maxVisibleBars(600));
+    assertEquals(77, OctaneReportZoneHtmlRenderer.maxVisibleBars(800));
+    assertEquals(137, OctaneReportZoneHtmlRenderer.maxVisibleBars(1400));
+  }
+
+  @Test
+  public void calculatesCenteredBarWidthsAndGapsWithinBounds() {
+    OctaneReportZoneHtmlRenderer.BarLayout dense =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(600, 57, true);
+    OctaneReportZoneHtmlRenderer.BarLayout balanced =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(600, 10, false);
+    OctaneReportZoneHtmlRenderer.BarLayout spacious =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(600, 5, false);
+    OctaneReportZoneHtmlRenderer.BarLayout capped =
+        OctaneReportZoneHtmlRenderer.calculateBarLayout(660, 5, false);
+
+    assertEquals(8.053, dense.barWidth(), 0.001);
+    assertEquals(2.053, dense.gap(), 0.001);
+    assertEquals(34.421, balanced.barWidth(), 0.001);
+    assertEquals(28.421, balanced.gap(), 0.001);
+    assertEquals(88.0, spacious.barWidth(), 0.001);
+    assertEquals(40.0, spacious.gap(), 0.001);
+    assertEquals(100.0, capped.barWidth(), 0.001);
+    assertEquals(40.0, capped.gap(), 0.001);
+  }
+
+  @Test
+  public void calculatesEmailBarCapacityFromTheRenderedChartWidth() {
+    assertEquals(436, OctaneReportZoneHtmlRenderer.emailBarChartWidth(600));
+    assertEquals(636, OctaneReportZoneHtmlRenderer.emailBarChartWidth(800));
+    assertEquals(461, OctaneReportZoneHtmlRenderer.emailBarChartWidth(1200));
+    assertEquals(561, OctaneReportZoneHtmlRenderer.emailBarChartWidth(1400));
   }
 
   @Test
@@ -144,6 +257,40 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("<html>"));
     assertFalse(html.contains("<body>"));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
+  }
+
+  @Test
+  public void rendersExplicitDarkScreenshotThemeWithStatusTokens() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result(), classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().render(snapshot, "dark");
+
+    assertTrue(html.contains("<html data-octane-theme=\"dark\">"));
+    assertTrue(html.contains("<meta name=\"color-scheme\" content=\"dark\""));
+    assertTrue(html.contains("color-scheme: dark"));
+    assertTrue(html.contains("oklch(0.17 0.01 265 / 1)"));
+    assertTrue(html.contains("--octane-card-background: #1b1e24"));
+    assertTrue(html.contains("--octane-text: #f3f6fb"));
+    assertTrue(html.contains("--octane-status-passed: #30D158"));
+    assertTrue(html.contains("--octane-status-failed: #FF453A"));
+    assertTrue(html.contains("--octane-status-blocked: #FF9F0A"));
+    assertTrue(html.contains("--octane-status-skipped: #BF5AF2"));
+    assertTrue(html.contains("--octane-status-no-run: #8E8E93"));
+    assertTrue(html.contains("var(--octane-status-passed)"));
+    assertTrue(html.contains("var(--octane-status-failed)"));
+    assertTrue(html.contains("var(--octane-status-no-run)"));
+  }
+
+  @Test
+  public void rendersSystemScreenshotThemeWithPreferenceMediaQuery() {
+    String html =
+        new OctaneReportZoneHtmlRenderer().render(OctaneGateReportSnapshot.empty(), "SYSTEM");
+
+    assertTrue(html.contains("<html data-octane-theme=\"system\">"));
+    assertTrue(html.contains("<meta name=\"color-scheme\" content=\"light dark\""));
+    assertTrue(html.contains("@media (prefers-color-scheme: dark)"));
   }
 
   @Test
@@ -280,5 +427,40 @@ public class OctaneReportZoneHtmlRendererTest {
                 List.of(new RunRecord("3", "three", "passed", "Ben Tester")),
                 criticalSuiteRuns)),
         Instant.parse("2026-05-15T00:00:00Z"));
+  }
+
+  private OctaneGateReportSnapshot denseSnapshot(int barCount) {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 1; index <= barCount; index++) {
+      String runId = Integer.toString(index);
+      String suiteRunId = Integer.toString(5000 + index);
+      RunRecord run = new RunRecord(runId, "run " + index, "passed", "Tester " + index);
+      runs.add(run);
+      suiteRuns.put(suiteRunId, List.of(run));
+    }
+    GateResult result =
+        new GateResult(
+            String.join(",", suiteRuns.keySet()),
+            "regressions.passRate == 100",
+            true,
+            true,
+            new GateMetrics(barCount, barCount, barCount, 0, 0, 0),
+            runs,
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private int occurrences(String value, String needle) {
+    int count = 0;
+    int offset = 0;
+    while ((offset = value.indexOf(needle, offset)) >= 0) {
+      count++;
+      offset += needle.length();
+    }
+    return count;
   }
 }

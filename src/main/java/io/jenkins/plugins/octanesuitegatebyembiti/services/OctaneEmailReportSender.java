@@ -6,6 +6,8 @@ public interface OctaneEmailReportSender {
   void send(
       StepContext context,
       String recipients,
+      String from,
+      String replyTo,
       String subject,
       String body,
       String attachmentsPattern)

@@ -4,11 +4,13 @@ import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class OctaneGateReportSection implements Serializable {
@@ -82,9 +84,11 @@ public class OctaneGateReportSection implements Serializable {
     List<OctaneGateSuiteRunChart> suiteRunCharts =
         groupSuiteRunsByRunBy(chartSuiteRuns).stream()
             .map(group -> group.toChart(classifier))
+            .sorted(
+                Comparator.comparingInt((OctaneGateSuiteRunChart chart) -> chart.getTotal())
+                    .thenComparing(chart -> suiteRunSortKey(chart)))
             .toList();
-    int maxSuiteRunTotal =
-        suiteRunCharts.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);
+    int maxSuiteRunTotal = maxSuiteRunTotal(suiteRunCharts);
     List<OctaneGateSuiteRunChart> scaledSuiteRunCharts =
         suiteRunCharts.stream().map(chart -> chart.scaledAgainst(maxSuiteRunTotal)).toList();
     List<RunRecord> reportRuns = runsForTotals(chartSuiteRuns, fallbackRuns);
@@ -133,7 +137,7 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   public int getMaxSuiteRunTotal() {
-    return suiteRuns.stream().mapToInt(OctaneGateSuiteRunChart::getTotal).max().orElse(0);
+    return maxSuiteRunTotal(suiteRuns);
   }
 
   public List<Integer> getYAxisTicks() {
@@ -213,7 +217,11 @@ public class OctaneGateReportSection implements Serializable {
     if (!fallbackRuns.isEmpty()) {
       return fallbackRuns;
     }
-    return suiteRuns.values().stream().flatMap(List::stream).toList();
+    List<RunRecord> runs = new ArrayList<>();
+    for (List<RunRecord> suiteRun : suiteRuns.values()) {
+      runs.addAll(Objects.requireNonNull(suiteRun));
+    }
+    return List.copyOf(runs);
   }
 
   private static List<OctaneGateStatusCount> totalsFromRuns(
@@ -262,7 +270,10 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   private static List<OctaneGatePieSlice> buildPieSlices(List<OctaneGateStatusCount> totals) {
-    int total = totals.stream().mapToInt(OctaneGateStatusCount::getCount).sum();
+    int total = 0;
+    for (OctaneGateStatusCount status : totals) {
+      total += Objects.requireNonNull(status).getCount();
+    }
     if (total == 0) {
       return List.of();
     }
@@ -270,14 +281,27 @@ public class OctaneGateReportSection implements Serializable {
     double angle = -90.0;
     ArrayList<OctaneGatePieSlice> slices = new ArrayList<>();
     for (OctaneGateStatusCount status : totals) {
-      if (status.getCount() == 0) {
+      OctaneGateStatusCount nonNullStatus = Objects.requireNonNull(status);
+      if (nonNullStatus.getCount() == 0) {
         continue;
       }
-      double nextAngle = angle + 360.0 * status.getCount() / total;
-      slices.add(new OctaneGatePieSlice(status, angle, nextAngle));
+      double nextAngle = angle + 360.0 * nonNullStatus.getCount() / total;
+      slices.add(new OctaneGatePieSlice(nonNullStatus, angle, nextAngle));
       angle = nextAngle;
     }
     return slices;
+  }
+
+  private static int maxSuiteRunTotal(List<OctaneGateSuiteRunChart> suiteRunCharts) {
+    int max = 0;
+    for (OctaneGateSuiteRunChart chart : suiteRunCharts) {
+      max = Math.max(max, Objects.requireNonNull(chart).getTotal());
+    }
+    return max;
+  }
+
+  private static String suiteRunSortKey(OctaneGateSuiteRunChart chart) {
+    return String.join(",", chart.getSuiteRunIds()) + ":" + chart.getSuiteRunId();
   }
 
   private static String displayScopeName(String scopeName) {

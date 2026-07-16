@@ -21,6 +21,8 @@ public class GateResult implements Serializable {
   private final Map<String, List<RunRecord>> suiteRuns;
   private final Map<String, GateScopeResult> scopedResults;
   private final OctaneRiskHeatMap riskHeatMap;
+  private final DefectCriteriaMetrics defectMetrics;
+  private final CriteriaEvaluation criteriaEvaluation;
   private final Instant polledAt;
 
   public GateResult(
@@ -78,6 +80,60 @@ public class GateResult implements Serializable {
       Map<String, GateScopeResult> scopedResults,
       OctaneRiskHeatMap riskHeatMap,
       Instant polledAt) {
+    this(
+        suiteRunId,
+        criteria,
+        passed,
+        terminal,
+        metrics,
+        runs,
+        suiteRuns,
+        scopedResults,
+        riskHeatMap,
+        new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
+        polledAt);
+  }
+
+  public GateResult(
+      String suiteRunId,
+      String criteria,
+      boolean passed,
+      boolean terminal,
+      GateMetrics metrics,
+      List<RunRecord> runs,
+      Map<String, List<RunRecord>> suiteRuns,
+      Map<String, GateScopeResult> scopedResults,
+      OctaneRiskHeatMap riskHeatMap,
+      DefectCriteriaMetrics defectMetrics,
+      Instant polledAt) {
+    this(
+        suiteRunId,
+        criteria,
+        passed,
+        terminal,
+        metrics,
+        runs,
+        suiteRuns,
+        scopedResults,
+        riskHeatMap,
+        defectMetrics,
+        CriteriaEvaluation.unavailable(),
+        polledAt);
+  }
+
+  public GateResult(
+      String suiteRunId,
+      String criteria,
+      boolean passed,
+      boolean terminal,
+      GateMetrics metrics,
+      List<RunRecord> runs,
+      Map<String, List<RunRecord>> suiteRuns,
+      Map<String, GateScopeResult> scopedResults,
+      OctaneRiskHeatMap riskHeatMap,
+      DefectCriteriaMetrics defectMetrics,
+      CriteriaEvaluation criteriaEvaluation,
+      Instant polledAt) {
     this.suiteRunId = suiteRunId;
     this.criteria = criteria;
     this.passed = passed;
@@ -87,6 +143,12 @@ public class GateResult implements Serializable {
     this.suiteRuns = copySuiteRuns(suiteRuns);
     this.scopedResults = new LinkedHashMap<>(scopedResults);
     this.riskHeatMap = riskHeatMap == null ? OctaneRiskHeatMap.disabled() : riskHeatMap;
+    this.defectMetrics =
+        defectMetrics == null
+            ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
+            : defectMetrics;
+    this.criteriaEvaluation =
+        criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
     this.polledAt = polledAt;
   }
 
@@ -138,6 +200,16 @@ public class GateResult implements Serializable {
     return riskHeatMap;
   }
 
+  public DefectCriteriaMetrics getDefectMetrics() {
+    return defectMetrics == null
+        ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
+        : defectMetrics;
+  }
+
+  public CriteriaEvaluation getCriteriaEvaluation() {
+    return criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
+  }
+
   public Map<String, Object> toPipelineMap() {
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("suiteRunId", suiteRunId);
@@ -160,6 +232,8 @@ public class GateResult implements Serializable {
     result.put("runs", toRunMaps(runs));
     result.put("suiteRuns", toSuiteRunMaps(suiteRuns));
     result.put("riskHeatMap", riskHeatMap.toMap());
+    result.put("defects", getDefectMetrics().toMap());
+    result.put("criteriaEvaluation", getCriteriaEvaluation().toMap());
     return result;
   }
 

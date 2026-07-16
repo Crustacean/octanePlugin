@@ -15,8 +15,10 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.EmailExtensionOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.HeadlessBrowserReportScreenshotService;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailBodyRenderer;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshotService;
@@ -50,10 +52,16 @@ public class OctaneEmailReportStep extends Step {
   private String bcc = "";
   private String subject = "";
   private String body = "";
+  private String projectName = "";
+  private String domainName = "";
+  private String from = "";
+  private String replyTo = "";
   private String onFailure = OctaneEmailFailureMode.UNSTABLE.name();
   private String browserPath = "";
+  private String theme = OctaneReportTheme.LIGHT.name();
   private int viewportWidth = DEFAULT_VIEWPORT_WIDTH;
   private boolean archiveScreenshot = true;
+  private boolean printDefectGroups;
 
   @DataBoundConstructor
   public OctaneEmailReportStep(String to) {
@@ -100,6 +108,42 @@ public class OctaneEmailReportStep extends Step {
     this.body = Util.trimToEmpty(body);
   }
 
+  public String getProjectName() {
+    return projectName;
+  }
+
+  @DataBoundSetter
+  public void setProjectName(String projectName) {
+    this.projectName = Util.trimToEmpty(projectName);
+  }
+
+  public String getDomainName() {
+    return domainName;
+  }
+
+  @DataBoundSetter
+  public void setDomainName(String domainName) {
+    this.domainName = Util.trimToEmpty(domainName);
+  }
+
+  public String getFrom() {
+    return from;
+  }
+
+  @DataBoundSetter
+  public void setFrom(String from) {
+    this.from = Util.trimToEmpty(from);
+  }
+
+  public String getReplyTo() {
+    return replyTo;
+  }
+
+  @DataBoundSetter
+  public void setReplyTo(String replyTo) {
+    this.replyTo = Util.trimToEmpty(replyTo);
+  }
+
   public String getOnFailure() {
     return onFailure;
   }
@@ -118,6 +162,15 @@ public class OctaneEmailReportStep extends Step {
     this.browserPath = Util.trimToEmpty(browserPath);
   }
 
+  public String getTheme() {
+    return theme;
+  }
+
+  @DataBoundSetter
+  public void setTheme(String theme) {
+    this.theme = OctaneReportTheme.normalize(theme);
+  }
+
   public int getViewportWidth() {
     return viewportWidth;
   }
@@ -134,6 +187,15 @@ public class OctaneEmailReportStep extends Step {
   @DataBoundSetter
   public void setArchiveScreenshot(boolean archiveScreenshot) {
     this.archiveScreenshot = archiveScreenshot;
+  }
+
+  public boolean isPrintDefectGroups() {
+    return printDefectGroups;
+  }
+
+  @DataBoundSetter
+  public void setPrintDefectGroups(boolean printDefectGroups) {
+    this.printDefectGroups = printDefectGroups;
   }
 
   @Override
@@ -161,14 +223,6 @@ public class OctaneEmailReportStep extends Step {
     return String.join(",", recipients);
   }
 
-  static String appendReportUrl(String body, String reportUrl) {
-    String base =
-        Util.trimToEmpty(body).isEmpty()
-            ? "Attached is the Octane report-zone screenshot."
-            : Util.trimToEmpty(body);
-    return base + "\n\nOctane Gate Report: " + Util.trimToEmpty(reportUrl);
-  }
-
   private static void addRecipients(List<String> recipients, String prefix, String value) {
     String trimmed = Util.trimToEmpty(value);
     if (trimmed.isEmpty()) {
@@ -185,7 +239,21 @@ public class OctaneEmailReportStep extends Step {
 
   private EmailRequest toRequest() {
     return new EmailRequest(
-        to, cc, bcc, subject, body, onFailure, browserPath, viewportWidth, archiveScreenshot);
+        to,
+        cc,
+        bcc,
+        subject,
+        body,
+        projectName,
+        domainName,
+        from,
+        replyTo,
+        onFailure,
+        browserPath,
+        theme,
+        viewportWidth,
+        archiveScreenshot,
+        printDefectGroups);
   }
 
   private static class EmailRequest implements Serializable {
@@ -196,10 +264,16 @@ public class OctaneEmailReportStep extends Step {
     private final String bcc;
     private final String subject;
     private final String body;
+    private final String projectName;
+    private final String domainName;
+    private final String from;
+    private final String replyTo;
     private final String onFailure;
     private final String browserPath;
+    private final String theme;
     private final int viewportWidth;
     private final boolean archiveScreenshot;
+    private final boolean printDefectGroups;
 
     EmailRequest(
         String to,
@@ -207,19 +281,31 @@ public class OctaneEmailReportStep extends Step {
         String bcc,
         String subject,
         String body,
+        String projectName,
+        String domainName,
+        String from,
+        String replyTo,
         String onFailure,
         String browserPath,
+        String theme,
         int viewportWidth,
-        boolean archiveScreenshot) {
+        boolean archiveScreenshot,
+        boolean printDefectGroups) {
       this.to = to;
       this.cc = cc;
       this.bcc = bcc;
       this.subject = subject;
       this.body = body;
+      this.projectName = projectName;
+      this.domainName = domainName;
+      this.from = from;
+      this.replyTo = replyTo;
       this.onFailure = onFailure;
       this.browserPath = browserPath;
+      this.theme = theme;
       this.viewportWidth = viewportWidth;
       this.archiveScreenshot = archiveScreenshot;
+      this.printDefectGroups = printDefectGroups;
     }
   }
 
@@ -271,17 +357,41 @@ public class OctaneEmailReportStep extends Step {
               launcher,
               listener,
               request.browserPath,
-              request.viewportWidth);
+              request.viewportWidth,
+              request.theme);
       if (request.archiveScreenshot) {
+        listener.getLogger().println("Archiving Octane report-zone screenshot.");
         archiveScreenshot(run, workspace, envVars, launcher, listener, screenshot);
+        listener.getLogger().println("Octane report-zone screenshot archived successfully.");
       }
 
       String subject = effectiveSubject(run, request.subject);
-      String body = appendReportUrl(request.body, action.getReportUrl());
-      emailSender.send(getContext(), recipients, subject, body, screenshot.getAttachmentPattern());
+      String body =
+          new OctaneEmailBodyRenderer()
+              .render(
+                  request.body,
+                  effectiveProjectName(run, request.projectName),
+                  request.domainName,
+                  action.getSnapshot(),
+                  action.getReportUrl(),
+                  screenshot.getScreenshotFile().getName(),
+                  request.theme,
+                  request.printDefectGroups);
+      listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
+      emailSender.send(
+          getContext(),
+          recipients,
+          request.from,
+          request.replyTo,
+          subject,
+          body,
+          screenshot.getAttachmentPattern());
       listener
           .getLogger()
-          .println("Octane report-zone screenshot emailed to " + visibleRecipients(recipients));
+          .println(
+              "Jenkins Email Extension completed the SMTP handoff for "
+                  + visibleRecipients(recipients)
+                  + ". Inbox placement is controlled by the receiving mail service.");
     }
 
     private EnvVars envVars() throws InterruptedException {
@@ -311,6 +421,11 @@ public class OctaneEmailReportStep extends Step {
         return trimmed;
       }
       return "Octane Gate Report - " + run.getParent().getFullName() + " #" + run.getNumber();
+    }
+
+    private String effectiveProjectName(Run<?, ?> run, String configuredProjectName) {
+      String trimmed = Util.trimToEmpty(configuredProjectName);
+      return trimmed.isEmpty() ? run.getParent().getDisplayName() : trimmed;
     }
 
     private String visibleRecipients(String recipients) {
@@ -374,6 +489,14 @@ public class OctaneEmailReportStep extends Step {
       return model;
     }
 
+    public ListBoxModel doFillThemeItems() {
+      ListBoxModel model = new ListBoxModel();
+      model.add("Light", OctaneReportTheme.LIGHT.name());
+      model.add("Dark", OctaneReportTheme.DARK.name());
+      model.add("Agent system preference", OctaneReportTheme.SYSTEM.name());
+      return model;
+    }
+
     public FormValidation doCheckTo(@QueryParameter String value) {
       return checkOptionalRecipients("To", value);
     }
@@ -386,9 +509,26 @@ public class OctaneEmailReportStep extends Step {
       return checkOptionalRecipients("Bcc", value);
     }
 
+    public FormValidation doCheckFrom(@QueryParameter String value) {
+      return checkOptionalRecipients("From", value);
+    }
+
+    public FormValidation doCheckReplyTo(@QueryParameter String value) {
+      return checkOptionalRecipients("Reply-To", value);
+    }
+
     public FormValidation doCheckOnFailure(@QueryParameter String value) {
       try {
         OctaneEmailFailureMode.from(value);
+        return FormValidation.ok();
+      } catch (IllegalArgumentException e) {
+        return FormValidation.error(e.getMessage());
+      }
+    }
+
+    public FormValidation doCheckTheme(@QueryParameter String value) {
+      try {
+        OctaneReportTheme.from(value);
         return FormValidation.ok();
       } catch (IllegalArgumentException e) {
         return FormValidation.error(e.getMessage());

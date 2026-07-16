@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.Test;
 
 public class OctaneGateReportSnapshotTest {
@@ -36,11 +37,11 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(1, count(regressions, OctaneGateStatusBucket.SKIPPED));
     assertEquals(1, count(regressions, OctaneGateStatusBucket.RUNNING));
     assertEquals(2, regressions.getSuiteRuns().size());
-    assertEquals("Ada Tester", regressions.getSuiteRuns().get(0).getDisplayName());
+    assertEquals("Ben Tester", regressions.getSuiteRuns().get(0).getDisplayName());
     assertEquals(2, regressions.getSuiteRunCount());
-    assertEquals(3, regressions.getSuiteRuns().get(0).getTotal());
-    assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(0).getBarHeightStyle());
-    assertEquals("height: 66.67%;", regressions.getSuiteRuns().get(1).getBarHeightStyle());
+    assertEquals(2, regressions.getSuiteRuns().get(0).getTotal());
+    assertEquals("height: 66.67%;", regressions.getSuiteRuns().get(0).getBarHeightStyle());
+    assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(1).getBarHeightStyle());
     assertEquals(83.333, snapshot.getExecutionProgress(), 0.001);
     assertEquals("83%", snapshot.getExecutionProgressText());
     assertEquals(6, snapshot.getPassRateTotal());
@@ -86,6 +87,49 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(List.of("4501", "4502"), regressions.getSuiteRuns().get(0).getSuiteRunIds());
     assertEquals(3, regressions.getSuiteRuns().get(0).getTotal());
     assertTrue(regressions.getSuiteRuns().get(0).getTitle().contains("4501, 4502"));
+  }
+
+  @Test
+  public void sortsSuiteRunBarsByTotalThenSuiteRunId() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    suiteRuns.put(
+        "9002",
+        List.of(
+            new RunRecord("1", "one", "passed", "Beta Tester"),
+            new RunRecord("2", "two", "failed", "Beta Tester")));
+    suiteRuns.put(
+        "9001",
+        List.of(
+            new RunRecord("3", "three", "passed", "Alpha Tester"),
+            new RunRecord("4", "four", "passed", "Alpha Tester")));
+    suiteRuns.put("9003", List.of(new RunRecord("5", "five", "passed", "Gamma Tester")));
+    List<RunRecord> runs =
+        suiteRuns.values().stream()
+            .flatMap(
+                suiteRunRecords ->
+                    suiteRunRecords == null ? Stream.<RunRecord>empty() : suiteRunRecords.stream())
+            .toList();
+    GateResult result =
+        new GateResult(
+            "9002,9001,9003",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(5, 5, 4, 1, 0, 0),
+            runs,
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
+    assertEquals(
+        List.of("Gamma Tester", "Alpha Tester", "Beta Tester"),
+        charts.stream().map(chart -> chart.getDisplayName()).toList());
+    assertEquals(List.of(1, 2, 2), charts.stream().map(chart -> chart.getTotal()).toList());
   }
 
   @Test
@@ -166,11 +210,16 @@ public class OctaneGateReportSnapshotTest {
 
   @Test
   public void usesRequiredStatusColors() {
-    assertEquals("#009900", OctaneGateStatusBucket.PASSED.getColor());
-    assertEquals("#990000", OctaneGateStatusBucket.FAILED.getColor());
-    assertEquals("#631919", OctaneGateStatusBucket.BLOCKED.getColor());
-    assertEquals("#ffb74d", OctaneGateStatusBucket.SKIPPED.getColor());
-    assertEquals("#808080", OctaneGateStatusBucket.RUNNING.getColor());
+    assertEquals("var(--octane-status-passed)", OctaneGateStatusBucket.PASSED.getColor());
+    assertEquals("var(--octane-status-failed)", OctaneGateStatusBucket.FAILED.getColor());
+    assertEquals("var(--octane-status-blocked)", OctaneGateStatusBucket.BLOCKED.getColor());
+    assertEquals("var(--octane-status-skipped)", OctaneGateStatusBucket.SKIPPED.getColor());
+    assertEquals("var(--octane-status-no-run)", OctaneGateStatusBucket.RUNNING.getColor());
+    assertEquals("#30D158", OctaneGateStatusBucket.PASSED.getTooltipColor());
+    assertEquals("#FF453A", OctaneGateStatusBucket.FAILED.getTooltipColor());
+    assertEquals("#FF9F0A", OctaneGateStatusBucket.BLOCKED.getTooltipColor());
+    assertEquals("#BF5AF2", OctaneGateStatusBucket.SKIPPED.getTooltipColor());
+    assertEquals("#8E8E93", OctaneGateStatusBucket.RUNNING.getTooltipColor());
   }
 
   @Test
@@ -186,16 +235,16 @@ public class OctaneGateReportSnapshotTest {
             classifier);
 
     assertEquals("Failed", chart.getDominantStatusLabel());
-    assertEquals("#990000", chart.getDominantStatusColor());
+    assertEquals("#FF453A", chart.getDominantStatusColor());
     assertEquals(2, chart.getDominantStatusCount());
   }
 
   @Test
   public void suiteRunDominantStatusTieBreaksTowardRisk() {
-    assertDominantStatusForTie("failed", "blocked", "Failed", "#990000");
-    assertDominantStatusForTie("blocked", "planned", "Blocked", "#631919");
-    assertDominantStatusForTie("planned", "skipped", "Running", "#808080");
-    assertDominantStatusForTie("skipped", "passed", "Skipped", "#ffb74d");
+    assertDominantStatusForTie("failed", "blocked", "Failed", "#FF453A");
+    assertDominantStatusForTie("blocked", "planned", "Blocked", "#FF9F0A");
+    assertDominantStatusForTie("planned", "skipped", "Skipped", "#BF5AF2");
+    assertDominantStatusForTie("skipped", "passed", "Passed", "#30D158");
   }
 
   @Test
@@ -248,13 +297,80 @@ public class OctaneGateReportSnapshotTest {
     GateRequest request = new GateRequest("octane-prod", "4501");
     request.setPollIntervalSeconds(17);
     request.setTimeoutMinutes(45);
+    request.setTimeoutMinutesExtended(12);
+    request.setBasePassrateFigure(80);
+    request.setBaseExecutionFigure(90);
 
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.waiting(request, 17, "2026-05-15T00:00:00Z");
 
     assertEquals(17, snapshot.getRefreshSeconds());
     assertEquals(2700, snapshot.getTimeoutSeconds());
+    assertEquals(720, snapshot.getTimeoutExtendedSeconds());
     assertEquals("2026-05-15T00:00:00Z", snapshot.getStartedAt());
+    assertEquals(80, snapshot.getBasePassrateFigure());
+    assertEquals(90, snapshot.getBaseExecutionFigure());
+  }
+
+  @Test
+  public void calculatesTesterDetailsAcrossOverlappingSuiteRunScopes() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+                OctaneGateReportState.POLLING, "Polling", result(), classifier, 30)
+            .withTesterThresholds(70, 90);
+
+    List<OctaneTesterPerformance> passRateDetails = snapshot.getTesterPassRateDetails();
+    List<OctaneTesterPerformance> executionDetails = snapshot.getTesterExecutionDetails();
+
+    assertEquals(List.of("Ada Tester", "Ben Tester"), emails(passRateDetails));
+    assertEquals(List.of("Ada Tester"), emails(executionDetails));
+    OctaneTesterPerformance ada =
+        snapshot.getTesterPerformances().stream()
+            .filter(tester -> "Ada Tester".equals(tester.getEmail()))
+            .findFirst()
+            .orElseThrow();
+    OctaneTesterPerformance ben =
+        snapshot.getTesterPerformances().stream()
+            .filter(tester -> "Ben Tester".equals(tester.getEmail()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(3, ada.getTotal());
+    assertEquals(2, ada.getExecuted());
+    assertEquals(66.667, ada.getExecutionRate(), 0.001);
+    assertEquals(50.0, ada.getPassRate(), 0.001);
+    assertEquals("66.7%", ada.getExecutionRateText());
+    assertEquals(2, ben.getTotal());
+    assertEquals(2, ben.getExecuted());
+    assertEquals(1, ben.getPassed());
+  }
+
+  @Test
+  public void excludesUnstartedTestersFromPassRateDetails() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord("10", "planned", "planned", "New Tester"),
+            new RunRecord("11", "failed", "failed", "Started Tester"));
+    GateResult result =
+        new GateResult(
+            "4501",
+            "regressions.passRate >= 90",
+            false,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("4501", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+                OctaneGateReportState.POLLING, "Polling", result, classifier, 30)
+            .withTesterThresholds(90, 90);
+
+    assertEquals(List.of("Started Tester"), emails(snapshot.getTesterPassRateDetails()));
+    assertEquals(List.of("New Tester"), emails(snapshot.getTesterExecutionDetails()));
+    assertEquals(1, snapshot.getTesterPassRateDetailsCount());
+    assertEquals(1, snapshot.getTesterExecutionDetailsCount());
   }
 
   @Test
@@ -413,6 +529,10 @@ public class OctaneGateReportSnapshotTest {
         .filter(card -> key.equals(card.getKey()))
         .findFirst()
         .orElseThrow();
+  }
+
+  private List<String> emails(List<OctaneTesterPerformance> testers) {
+    return testers.stream().map(tester -> tester.getEmail()).toList();
   }
 
   private void assertDominantStatusForTie(

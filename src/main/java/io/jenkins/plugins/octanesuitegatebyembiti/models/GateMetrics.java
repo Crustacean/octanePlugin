@@ -118,6 +118,13 @@ public class GateMetrics implements Serializable {
     }
   }
 
+  public static boolean isPercentageMetric(String metricName) {
+    String normalized = normalizeMetricName(metricName);
+    return "executionrate".equals(normalized)
+        || "passrate".equals(normalized)
+        || "failrate".equals(normalized);
+  }
+
   Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("total", total);

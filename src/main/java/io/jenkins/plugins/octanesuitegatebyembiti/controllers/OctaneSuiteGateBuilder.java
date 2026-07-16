@@ -16,6 +16,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
@@ -81,6 +82,15 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
     delegate.setScopes(scopes);
   }
 
+  public List<OctaneDefectGroup> getDefectGroups() {
+    return Collections.unmodifiableList(new ArrayList<>(delegate.getDefectGroups()));
+  }
+
+  @DataBoundSetter
+  public void setDefectGroups(List<OctaneDefectGroup> defectGroups) {
+    delegate.setDefectGroups(defectGroups);
+  }
+
   public int getPollIntervalSeconds() {
     return delegate.getPollIntervalSeconds();
   }
@@ -97,6 +107,33 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
   @DataBoundSetter
   public void setTimeoutMinutes(int timeoutMinutes) {
     delegate.setTimeoutMinutes(timeoutMinutes);
+  }
+
+  public int getTimeoutMinutesExtended() {
+    return delegate.getTimeoutMinutesExtended();
+  }
+
+  @DataBoundSetter
+  public void setTimeoutMinutesExtended(int timeoutMinutesExtended) {
+    delegate.setTimeoutMinutesExtended(timeoutMinutesExtended);
+  }
+
+  public int getBasePassrateFigure() {
+    return delegate.getBasePassrateFigure();
+  }
+
+  @DataBoundSetter
+  public void setBasePassrateFigure(int basePassrateFigure) {
+    delegate.setBasePassrateFigure(basePassrateFigure);
+  }
+
+  public int getBaseExecutionFigure() {
+    return delegate.getBaseExecutionFigure();
+  }
+
+  @DataBoundSetter
+  public void setBaseExecutionFigure(int baseExecutionFigure) {
+    delegate.setBaseExecutionFigure(baseExecutionFigure);
   }
 
   public boolean isMarkUnstable() {
@@ -245,6 +282,18 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
 
     public FormValidation doCheckTimeoutMinutes(@QueryParameter String value) {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckTimeoutMinutes(value);
+    }
+
+    public FormValidation doCheckTimeoutMinutesExtended(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckTimeoutMinutesExtended(value);
+    }
+
+    public FormValidation doCheckBasePassrateFigure(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckBasePassrateFigure(value);
+    }
+
+    public FormValidation doCheckBaseExecutionFigure(@QueryParameter String value) {
+      return new OctaneSuiteGateStep.DescriptorImpl().doCheckBaseExecutionFigure(value);
     }
 
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {

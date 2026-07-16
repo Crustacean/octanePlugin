@@ -1,29 +1,64 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaComparisonEvaluation;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class CriteriaExpression implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private final Node root;
+  private final Set<String> metricReferences;
 
-  private CriteriaExpression(Node root) {
+  private CriteriaExpression(Node root, Set<String> metricReferences) {
     this.root = root;
+    this.metricReferences = Set.copyOf(metricReferences);
   }
 
   public static CriteriaExpression parse(String expression) {
-    Parser parser = new Parser(tokenize(expression));
-    CriteriaExpression parsed = new CriteriaExpression(parser.parseExpression());
+    List<Token> tokens = tokenize(expression);
+    Parser parser = new Parser(tokens);
+    CriteriaExpression parsed =
+        new CriteriaExpression(parser.parseExpression(), metricReferences(tokens));
     parser.expect(TokenType.END);
     return parsed;
   }
 
   public boolean evaluate(MetricsContext context) {
-    return root.evaluate(context);
+    return evaluateDetailed(context).isPassed();
+  }
+
+  public CriteriaEvaluation evaluateDetailed(MetricsContext context) {
+    List<CriteriaComparisonEvaluation> comparisons = new ArrayList<>();
+    boolean passed = root.evaluate(context, comparisons);
+    return CriteriaEvaluation.available(passed, comparisons);
+  }
+
+  public boolean usesMetricNamespace(String namespace) {
+    String prefix = Util.trimToEmpty(namespace).toLowerCase(Locale.ROOT) + ".";
+    if (metricReferences == null) {
+      return false;
+    }
+    return metricReferences.stream()
+        .map(reference -> reference.toLowerCase(Locale.ROOT))
+        .anyMatch(reference -> reference.startsWith(prefix));
+  }
+
+  private static Set<String> metricReferences(List<Token> tokens) {
+    Set<String> references = new LinkedHashSet<>();
+    for (Token token : tokens) {
+      if (token.type == TokenType.IDENTIFIER) {
+        references.add(token.text);
+      }
+    }
+    return references;
   }
 
   private static List<Token> tokenize(String expression) {
@@ -113,7 +148,8 @@ public class CriteriaExpression implements Serializable {
   }
 
   private interface Node extends Serializable {
-    boolean evaluate(MetricsContext context);
+    boolean evaluate(
+        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations);
   }
 
   private static class LogicalNode implements Node {
@@ -130,11 +166,11 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public boolean evaluate(MetricsContext context) {
-      if (operator == TokenType.AND) {
-        return left.evaluate(context) && right.evaluate(context);
-      }
-      return left.evaluate(context) || right.evaluate(context);
+    public boolean evaluate(
+        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations) {
+      boolean leftPassed = left.evaluate(context, comparisonEvaluations);
+      boolean rightPassed = right.evaluate(context, comparisonEvaluations);
+      return operator == TokenType.AND ? leftPassed && rightPassed : leftPassed || rightPassed;
     }
   }
 
@@ -152,8 +188,22 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public boolean evaluate(MetricsContext context) {
+    public boolean evaluate(
+        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations) {
       double actualValue = context.value(metricName);
+      boolean passed = compare(actualValue);
+      comparisonEvaluations.add(
+          new CriteriaComparisonEvaluation(
+              metricName,
+              operator,
+              expectedValue,
+              actualValue,
+              context.isPercentageMetric(metricName),
+              passed));
+      return passed;
+    }
+
+    private boolean compare(double actualValue) {
       switch (operator) {
         case "==":
           return nearlyEqual(actualValue, expectedValue);

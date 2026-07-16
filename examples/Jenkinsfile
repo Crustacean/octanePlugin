@@ -6,6 +6,8 @@ pipeline {
     OCTANE_WORKSPACE_ID = '4001'
     OCTANE_REGRESSION_SUITE_RUN_ID = '1196,1200,1204'
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
+    OCTANE_PROJECT_NAME = 'Business Payments Secure Checkout'
+    OCTANE_DOMAIN_NAME = 'FS_TRIBE_DOMAIN'
   }
 
   stages {
@@ -34,7 +36,12 @@ pipeline {
 
     stage('Wait For Octane Suite') {
       steps {
-        script {
+        catchError(
+            buildResult: 'FAILURE',
+          catchInterruptions: false,
+          stageResult: 'FAILURE') {
+          script {
+          env.OCTANE_GATE_PASSED = 'false'
           def suiteRunIds =
               env.OCTANE_REGRESSION_SUITE_RUN_ID
                   .split(/[,\s]+/)
@@ -61,9 +68,24 @@ pipeline {
                   sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                   workspaceId: env.OCTANE_WORKSPACE_ID,
                   suiteRunId: suiteRunIds.join(','),
+                  // Defect rates are open matching defects / total defects raised. The total is
+                  // deduplicated by defect ID and includes defects closed during this gate session.
+                  // Group names and types are case-insensitive. Supported individual types are
+                  // Critical, VeryHigh, High, Medium, Low, and Unspecified. Append Count for a
+                  // raw count, for example defects.majorCount or defects.UnspecifiedCount.
+                  // A type can be used in a group and individually. It contributes independently
+                  // to both criteria, but is counted only once inside each metric.
+                  defectGroups: [
+                    octaneDefectGroup(
+                        name: 'major',
+                        types: 'Critical, Very High, High, Unspecified'),
+                    octaneDefectGroup(name: 'minor', types: 'Low, Medium')
+                  ],
                   criteria:
                       '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
-                          + 'AND (critical.executionRate == 100 AND critical.passRate == 100)',
+                          + 'AND (critical.executionRate == 100 AND critical.passRate == 100) '
+                          + 'AND (defects.major < 10% AND defects.minor < 20%) '
+                          + 'AND (defects.Unspecified == 0%)',
                   scopes: [
                     octaneGateScope(
                         name: 'critical',
@@ -71,12 +93,17 @@ pipeline {
                   ],
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
+                  timeoutMinutesExtended: 30,
+                  basePassrateFigure: 95,
+                  baseExecutionFigure: 100,
                   markUnstable: false,
                   riskHeatMap: true,
                   riskHeatMapDefectQuery: '',
                   riskHeatMapMaxDefects: 1000)
 
-          echo "Octane gate passed for suite run(s) ${gateResult.suiteRunIds.join(', ')}"
+          env.OCTANE_GATE_PASSED = gateResult.passed == true ? 'true' : 'false'
+          echo "Octane criteria verdict: ${gateResult.passed ? 'PASS' : 'FAIL'}"
+          echo "Octane suite run IDs: ${gateResult.suiteRunIds.join(', ')}"
           echo "Regression execution rate: ${gateResult.regressions.executionRate}"
           echo "Regression pass rate: ${gateResult.regressions.passRate}"
           echo "Critical scope execution rate: ${gateResult.scopes.critical.executionRate}"
@@ -84,6 +111,7 @@ pipeline {
           echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"
           def criticalChildRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
           echo "Critical scope child run IDs: ${criticalChildRunIds}"
+          }
         }
       }
     }
@@ -92,15 +120,42 @@ pipeline {
       steps {
         octaneEmailReport(
             to: 'qa-team@example.com,dev-team@example.com',
+            cc: 'qa-leads@example.com',
+            bcc: 'qa-audit@example.com',
+            projectName: env.OCTANE_PROJECT_NAME,
+            domainName: env.OCTANE_DOMAIN_NAME,
+            // For Gmail SMTP, use the same authenticated account or an authorized alias.
+            from: 'jenkins-notifications@example.com',
+            replyTo: 'qa-team@example.com',
             subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            body: 'Attached is the Octane report-zone screenshot.',
+            body: '''Hello Team,
+
+The automated job for {{PROJECT_NAME}} tests has run and is {{GATE_RESULT}}.
+
+Set criteria: {{CRITERIA}}
+
+Click here to {{REPORT_LINK}}.
+
+See below the execution details:
+
+{{EXECUTION_DETAILS}}
+
+{{REPORT_SCREENSHOT}}
+
+Thanks.
+QA Automation Team''',
             onFailure: 'UNSTABLE',
+            printDefectGroups: true,
+            theme: 'DARK',
             viewportWidth: 1400,
             archiveScreenshot: true)
       }
     }
 
     stage('Deploy') {
+      when {
+        expression { env.OCTANE_GATE_PASSED == 'true' }
+      }
       steps {
         echo 'Continue with the next stage once the Octane gate passes.'
       }

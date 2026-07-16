@@ -31,6 +31,8 @@ public class OctaneDefectSeveritySummaryTest {
     assertEquals(1, summary.getLow());
     assertEquals(1, summary.getUnspecified());
     assertEquals(1, summary.getClosed());
+    assertEquals(1, summary.getClosedCount("High"));
+    assertEquals(2, summary.getTotalCount("High"));
     assertEquals("#9D1D34", summary.getBuckets().get(0).getColor());
     assertEquals("#D1334C", summary.getBuckets().get(1).getColor());
     assertEquals("#ED8D25", summary.getBuckets().get(2).getColor());
@@ -58,6 +60,8 @@ public class OctaneDefectSeveritySummaryTest {
     assertTrue(summary.isAllClosed());
     assertEquals(0, summary.getOpenTotal());
     assertEquals(2, summary.getClosed());
+    assertEquals(1, summary.getClosedCount("Critical"));
+    assertEquals(1, summary.getClosedCount("Low"));
     assertEquals("#7BE5B3", summary.getBuckets().get(6).getColor());
   }
 

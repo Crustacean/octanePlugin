@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import hudson.AbortException;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -252,6 +253,42 @@ public class OctaneClientTest {
               "1001", "2002", List.of("101", "102"), "test={((product_areas={id=1004||id=1005}))}");
 
       assertEquals(0, records.size());
+    }
+  }
+
+  @Test
+  public void fetchesKnownDefectsByIdForLedgerRefresh() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/defects",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          assertTrue(query.contains("id EQ 901||id EQ 902"));
+          json(
+              exchange,
+              200,
+              "{\"data\":["
+                  + "{\"id\":\"901\",\"name\":\"closed later\","
+                  + "\"severity\":{\"logical_name\":\"high\"},"
+                  + "\"phase\":{\"logical_name\":\"closed\"}},"
+                  + "{\"id\":\"902\",\"name\":\"still open\","
+                  + "\"severity\":{\"logical_name\":\"critical\"},"
+                  + "\"phase\":{\"logical_name\":\"opened\"}}"
+                  + "]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<DefectRecord> records =
+          client.fetchDefectsByIds("1001", "2002", List.of("901", "902"), 1000);
+
+      assertEquals(2, records.size());
+      assertEquals("901", records.get(0).getId());
+      assertFalse(records.get(0).isOpen());
+      assertEquals("902", records.get(1).getId());
+      assertTrue(records.get(1).isOpen());
     }
   }
 

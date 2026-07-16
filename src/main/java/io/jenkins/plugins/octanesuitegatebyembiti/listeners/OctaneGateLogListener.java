@@ -69,6 +69,25 @@ public class OctaneGateLogListener {
     listener.getLogger().println("Skipped final ALM Octane refresh: " + e.getMessage());
   }
 
+  public void logExtendedTimeStarted(TaskListener listener, int timeoutMinutesExtended) {
+    listener
+        .getLogger()
+        .println(
+            "Primary Octane timeout elapsed. Continuing in extended time for "
+                + timeoutMinutesExtended
+                + " minute(s).");
+  }
+
+  public void logExtendedTimeExpired(TaskListener listener) {
+    listener.getLogger().println("Extended Octane timeout elapsed. Finalizing the gate.");
+  }
+
+  public void logManualExitRequested(TaskListener listener) {
+    listener
+        .getLogger()
+        .println("Exit Octane and Continue requested. Finalizing the gate with latest data.");
+  }
+
   public void logPassed(TaskListener listener) {
     listener.getLogger().println("ALM Octane suite gate passed.");
   }

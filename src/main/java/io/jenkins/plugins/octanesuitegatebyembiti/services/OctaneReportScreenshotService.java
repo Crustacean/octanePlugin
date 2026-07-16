@@ -15,6 +15,7 @@ public interface OctaneReportScreenshotService {
       Launcher launcher,
       TaskListener listener,
       String browserPath,
-      int viewportWidth)
+      int viewportWidth,
+      String theme)
       throws IOException, InterruptedException;
 }

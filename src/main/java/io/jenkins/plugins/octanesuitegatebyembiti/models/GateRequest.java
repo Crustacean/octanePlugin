@@ -11,7 +11,10 @@ public class GateRequest implements Serializable {
 
   public static final int DEFAULT_POLL_INTERVAL_SECONDS = 30;
   public static final int DEFAULT_TIMEOUT_MINUTES = 120;
+  public static final int DEFAULT_TIMEOUT_MINUTES_EXTENDED = 0;
   public static final int DEFAULT_RISK_HEAT_MAP_MAX_DEFECTS = 1000;
+  public static final int DEFAULT_BASE_PASSRATE_FIGURE = 95;
+  public static final int DEFAULT_BASE_EXECUTION_FIGURE = 100;
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
 
   private final String serverId;
@@ -20,8 +23,12 @@ public class GateRequest implements Serializable {
   private String workspaceId = "";
   private String criteria = DEFAULT_CRITERIA;
   private List<OctaneGateScope> scopes = new ArrayList<>();
+  private List<OctaneDefectGroup> defectGroups = new ArrayList<>();
   private int pollIntervalSeconds = DEFAULT_POLL_INTERVAL_SECONDS;
   private int timeoutMinutes = DEFAULT_TIMEOUT_MINUTES;
+  private int timeoutMinutesExtended = DEFAULT_TIMEOUT_MINUTES_EXTENDED;
+  private int basePassrateFigure = DEFAULT_BASE_PASSRATE_FIGURE;
+  private int baseExecutionFigure = DEFAULT_BASE_EXECUTION_FIGURE;
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -81,6 +88,14 @@ public class GateRequest implements Serializable {
     this.scopes = scopes == null ? new ArrayList<>() : new ArrayList<>(scopes);
   }
 
+  public List<OctaneDefectGroup> getDefectGroups() {
+    return defectGroups == null ? List.of() : Collections.unmodifiableList(defectGroups);
+  }
+
+  public void setDefectGroups(List<OctaneDefectGroup> defectGroups) {
+    this.defectGroups = defectGroups == null ? new ArrayList<>() : new ArrayList<>(defectGroups);
+  }
+
   public int getPollIntervalSeconds() {
     return pollIntervalSeconds;
   }
@@ -95,6 +110,30 @@ public class GateRequest implements Serializable {
 
   public void setTimeoutMinutes(int timeoutMinutes) {
     this.timeoutMinutes = Math.max(1, timeoutMinutes);
+  }
+
+  public int getTimeoutMinutesExtended() {
+    return timeoutMinutesExtended;
+  }
+
+  public void setTimeoutMinutesExtended(int timeoutMinutesExtended) {
+    this.timeoutMinutesExtended = Math.max(0, timeoutMinutesExtended);
+  }
+
+  public int getBasePassrateFigure() {
+    return basePassrateFigure;
+  }
+
+  public void setBasePassrateFigure(int basePassrateFigure) {
+    this.basePassrateFigure = percentageThreshold(basePassrateFigure);
+  }
+
+  public int getBaseExecutionFigure() {
+    return baseExecutionFigure;
+  }
+
+  public void setBaseExecutionFigure(int baseExecutionFigure) {
+    this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
   }
 
   public boolean isMarkUnstable() {
@@ -170,5 +209,9 @@ public class GateRequest implements Serializable {
   private String defaultIfBlank(String value, String defaultValue) {
     String trimmed = Util.trimToEmpty(value);
     return trimmed.isEmpty() ? defaultValue : trimmed;
+  }
+
+  private int percentageThreshold(int value) {
+    return Math.min(100, Math.max(0, value));
   }
 }

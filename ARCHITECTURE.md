@@ -61,7 +61,8 @@ flowchart LR
     Request["GateRequest"]
     Client["OctaneClient"]
     Metrics["GateMetrics\nregressions + scopes"]
-    Criteria["CriteriaExpression\nregressions.* / critical.*"]
+    Criteria["CriteriaExpression\nregressions.* / critical.* / defects.*"]
+    DefectMetrics["DefectCriteriaMetrics\ngroups + individual severities"]
     RiskMap["Risk heat map model\noptional defect rollup"]
     Snapshot["Report snapshot\nupdated every poll"]
     SnapshotEndpoint["Snapshot endpoint\nHTML + JSON"]
@@ -82,13 +83,14 @@ flowchart LR
   Client -->|"API key sign-in"| Auth
   Client -->|"pollIntervalSeconds loop\nfetch suite child runs"| SuiteRuns
   SuiteRuns --> ChildRuns
-  Client -->|"when riskHeatMap is enabled\nfetch linked defects"| Defects
+  Client -->|"when riskHeatMap is enabled\nor criteria uses defects.*"| Defects
   ChildRuns -->|"JSON statuses"| Client
   Defects -->|"defect severity / priority"| Client
   Client --> Runner
   Runner -->|"dedupe + classify statuses"| Metrics
   Metrics --> Criteria
   Metrics --> RiskMap
+  Defects --> DefectMetrics --> Criteria
   RiskMap --> Snapshot
   Criteria -->|"pass / fail / wait"| Runner
   Runner -->|"publish latest snapshot"| Snapshot
@@ -205,6 +207,7 @@ octaneSuiteGate(
   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   pollIntervalSeconds: 30,
   timeoutMinutes: 120,
+  timeoutMinutesExtended: 0,
   markUnstable: false,
   riskHeatMap: true
 )
@@ -233,16 +236,19 @@ Pipeline jobs may add a later notification stage:
 ```groovy
 octaneEmailReport(
   to: 'qa-team@example.com',
+  cc: 'qa-leads@example.com',
+  bcc: 'qa-audit@example.com',
   subject: "Octane Gate Report - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-  body: 'Attached is the Octane report-zone screenshot.',
+  body: 'Attached is the Octane report-zone screenshot. Criteria evidence follows.',
   onFailure: 'UNSTABLE'
 )
 ```
 
 This step reads the current build's `Octane Gate Report`, captures only
-`octane-report-zone`, and sends it through Jenkins Email Extension. It is
-Pipeline-only and does not change gate criteria or build result unless the email
-step itself fails according to `onFailure`.
+`octane-report-zone`, renders the persisted criteria evaluation as HTML, and sends both through
+Jenkins Email Extension. The comparison table preserves AST leaf order and reports the expected
+threshold, actual value, and `OK` or `NOT OK` result. It is Pipeline-only and does not change gate
+criteria or build result unless the email step itself fails according to `onFailure`.
 
 ## Runtime Flow
 
@@ -256,8 +262,10 @@ step itself fails according to `onFailure`.
 8. The runner polls until the gate passes, fails, or times out.
 9. Each poll fetches suite child runs, computes metrics, and updates the report snapshot.
 10. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
-11. When `riskHeatMap` is enabled, linked defects are fetched and rolled into the risk map.
-12. `CriteriaExpression` evaluates the criteria against regression and scoped metrics.
+11. When `riskHeatMap` is enabled or criteria reference `defects.*`, linked defects are fetched
+    and refreshed from the per-build defect ledger.
+12. The runner computes case-insensitive grouped and individual open-defect rates before
+    `CriteriaExpression` evaluates regression, scoped, and defect metrics together.
 13. Before the step exits, the runner publishes a final snapshot so the dashboard reflects
     the latest pass/fail/timeout state without waiting for another poll interval.
 14. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
@@ -278,12 +286,13 @@ failure, unstable, timeout, or unexpected error.
 The report contains chart cards for regression suite runs and each scope. Cards are
 resizable and can be reordered by dragging. Two cards fit per row by default;
 when one card is resized wide enough, the neighboring card wraps below. The
-report also shows two centered countdown donut cards: Testing Time Remaining
-from `timeoutMinutes`, and Status Check from `pollIntervalSeconds`. Timer
-ring movement uses browser animation frames for smooth millisecond-based motion,
-while the center text remains rounded to minutes or seconds. Timer SVGs render at
-a higher internal resolution with geometric precision hints and a subtle progress
-halo to reduce jagged circular edges. Each section renders:
+report also shows four timer-style cards: Testing Time, Status Check,
+Execution Progress, and Execution Pass Rate. Each card has a primary timer or
+progress face and a secondary analytical face. Timer ring movement uses browser
+animation frames for smooth millisecond-based motion, while the center text
+remains rounded to minutes or seconds. Timer SVGs render at a higher internal
+resolution with geometric precision hints and a subtle progress halo to reduce
+jagged circular edges. Each report section renders:
 
 - a donut chart for total Passed, Failed, Blocked, Skipped, and Running counts.
 - a vertical bar chart for the same counts per suite run, with bar height
@@ -313,7 +322,8 @@ sequenceDiagram
   Runner->>Action: Store updated snapshot
   Browser->>Action: GET /octaneSuiteGateReport/snapshot
   Action-->>Browser: JSON + rendered report-zone HTML
-  Browser->>Browser: Replace report zone and keep timers smooth
+  Browser->>Browser: Update secondary panels and replace report zone
+  Browser->>Browser: Evaluate one-time completion auto-flips
 ```
 
 The Status Check timer counts down from `pollIntervalSeconds`. When it reaches
@@ -326,12 +336,56 @@ The report keeps user interaction state during refresh:
 
 - expanded chart cards remain expanded when possible.
 - focused timer/report sections remain focused until Escape or backdrop click.
-- the active Status Check face, timer or heat map, is preserved.
+- active timer-card faces are preserved.
+- the selected Volume or Density defect analytics pane is preserved.
 - vertical bar hover popups are restored from stable bar keys after the DOM is
   replaced.
 
-When execution reaches 100% or the gate times out, the report auto-flips the
-Status Check card to the heat-map face if `riskHeatMap` is enabled.
+## Timer Card Secondary View Lifecycle
+
+All four timer-style cards use the same `data-active-view` state and delegated
+view-toggle handler. The server initially renders the primary `timer` face. A
+user can switch either direction at any time while the corresponding view toggle
+is available.
+
+| Primary face | Secondary face |
+| --- | --- |
+| Testing Time | Test Metrics |
+| Status Check | Risk Heat Map |
+| Execution Progress | All Testcase Status breakdown |
+| Execution Pass Rate | Defect analytics |
+
+The Risk Heat Map toggle and automatic flip are available only when
+`riskHeatMap` is enabled. Defect analytics contains a second, independent pane
+switch between Volume and Density. Entering the defect analytics face does not
+change that inner selection; Volume is the default on a new page load.
+
+The browser evaluates the automatic flip after initial page setup, after every
+accepted snapshot, and when the local Testing Time animation reaches its
+configured boundary. Snapshot data updates the heat map, test metrics, execution
+status distribution, and defect trend before the automatic flip makes those
+faces visible.
+
+With `timeoutMinutesExtended: 0`, the completion boundary is reached when any of
+the following is true:
+
+- execution progress is `100%` or greater.
+- the primary `timeoutMinutes` window is exhausted.
+- the persisted report state is `Timed out`.
+
+With `timeoutMinutesExtended` greater than zero, execution reaching `100%` does
+not flip the cards or end the waiting period. The completion boundary is reached
+only when:
+
+- the combined primary and extended timeout is exhausted.
+- the operator selects **Exit Octane and Continue**.
+- the persisted report state is `Timed out`.
+
+At the boundary, all eligible cards switch to their secondary faces together.
+Each card is automatically switched at most once per browser page load. A user
+can therefore return to its primary face afterward without the next animation
+frame or snapshot forcing it back. A full browser reload starts from the primary
+faces and evaluates the completion rule again.
 
 ## Status Check And Risk Heat Map
 
@@ -341,8 +395,8 @@ Status Check card to the heat-map face if `riskHeatMap` is enabled.
 - heat-map face: project risk sunburst built from suite runs, run-by users,
   test cases, and linked defects.
 
-The heat map is visual-only. It does not change criteria evaluation, pass/fail
-behavior, or `markUnstable`.
+The heat-map risk score and visualization are visual-only. Open-defect severity data changes
+gate behavior only when the Jenkins criteria explicitly reference the `defects.*` namespace.
 
 Heat map hierarchy:
 
@@ -418,13 +472,16 @@ This keeps the popup focused on the most important status when a bar is mixed.
 flowchart LR
   Build["Completed or running Jenkins build"]
   Action["Octane Gate Report action"]
+  Evaluation["Persisted criteria evaluation\nverdict + ordered comparisons"]
   Html["Temporary static HTML\ncontaining octane-report-zone"]
   Chrome["Headless Chrome / Chromium"]
   Png["octane-report-zone.png"]
   Archive["Optional Jenkins archive"]
   Mail["Jenkins Email Extension"]
 
-  Build --> Action --> Html --> Chrome --> Png
+  Build --> Action --> Evaluation
+  Action --> Html --> Chrome --> Png
+  Evaluation --> Mail
   Png --> Archive
   Png --> Mail
 ```
@@ -624,6 +681,9 @@ The criteria parser supports:
 - `==`, `!=`, `>`, `>=`, `<`, `<=`
 - regression metrics, such as `regressions.passRate >= 95`
 - scoped metrics, such as `critical.passRate == 100`
+- grouped open-defect rates, such as `defects.major < 10%`
+- individual open-defect rates, such as `defects.Unspecified == 0%`
+- raw open-defect counts using `Count`, such as `defects.majorCount < 3`
 - shorthand thresholds, such as `100% execution` and `95% pass`
 
 Default criteria:
@@ -632,12 +692,24 @@ Default criteria:
 100% execution AND 100% pass
 ```
 
-Criteria are evaluated on every poll. The gate passes as soon as the expression
-evaluates to true.
+Criteria are evaluated on every poll. With the default `timeoutMinutesExtended: 0`,
+the gate passes as soon as the expression evaluates to true. When
+`timeoutMinutesExtended` is greater than zero, the gate keeps polling after the
+primary timeout and only exits when the extended window depletes or the operator
+uses **Exit Octane and Continue**. That manual exit still evaluates the latest
+Octane data against the configured criteria.
 
 Unqualified regression metrics and shorthand expressions remain supported for
 backward compatibility, but new Jenkinsfiles should prefer `regressions.executionRate`
 and `regressions.passRate` for readability.
+
+Defect groups are configured with `octaneDefectGroup`. Names and severity values are
+case-insensitive. A defect metric without `Count` is calculated as matching open defects divided
+by total defects raised, multiplied by 100. Total defects raised is deduplicated by defect ID and
+includes open and closed defects retained by the per-build ledger, so resolving a defect reduces
+the open severity numerator but not the denominator. Group membership and individual severity
+references are independent views: a defect may contribute to both `defects.major` and
+`defects.Unspecified`, but it is not duplicated within either metric.
 
 ## Terminal, Timeout, And Build Result Behavior
 
@@ -652,6 +724,13 @@ The gate fails when:
 The gate times out when:
 
 - `timeoutMinutes` is reached before pass or terminal failure.
+
+When `timeoutMinutesExtended` is greater than zero, primary timeout starts an
+`Extended time` report state instead of immediately ending the step. During that
+state, execution reaching `100%` does not advance the Pipeline. Finalization
+happens only when the extended window expires or **Exit Octane and Continue** is
+clicked, then the latest data is judged by the same criteria and `markUnstable`
+rules.
 
 When `markUnstable` is false, gate failure stops the build. When `markUnstable`
 is true, the build result is set to `UNSTABLE` and the step returns the latest
@@ -778,6 +857,8 @@ containing API secrets are not logged.
 | `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
 | `repositories.OctaneClient` | Low-level authenticated Octane REST client. |
 | `models.GateMetrics` | Regression or scoped computed run metrics. |
+| `models.DefectCriteriaMetrics` | Case-insensitive grouped/individual open-defect rates and counts. |
+| `models.OctaneDefectGroup` | Pipeline/Freestyle definition of a named defect severity group. |
 | `models.GateScopeResult` | Scoped suite/query source, matched run statuses, and scoped metrics. |
 | `models.MetricsContext` | Resolves regression and scoped metrics during criteria evaluation. |
 | `services.CriteriaExpression` | Safe criteria parser and evaluator. |

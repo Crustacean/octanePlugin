@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class GateScopeResult implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -87,12 +88,15 @@ public class GateScopeResult implements Serializable {
     values.put("suiteRunId", suiteRunId);
     values.put("suiteRunIds", suiteRunIds);
     values.put("metrics", metrics.toMap());
-    values.put("runIds", runs.stream().map(RunRecord::getId).toList());
 
-    List<Map<String, Object>> runMaps = new ArrayList<>();
+    List<String> runIds = new ArrayList<>(runs.size());
+    List<Map<String, Object>> runMaps = new ArrayList<>(runs.size());
     for (RunRecord run : runs) {
-      runMaps.add(run.toMap());
+      RunRecord nonNullRun = Objects.requireNonNull(run);
+      runIds.add(nonNullRun.getId());
+      runMaps.add(nonNullRun.toMap());
     }
+    values.put("runIds", runIds);
     values.put("runs", runMaps);
     values.put("suiteRuns", toSuiteRunMaps(suiteRuns));
     return values;

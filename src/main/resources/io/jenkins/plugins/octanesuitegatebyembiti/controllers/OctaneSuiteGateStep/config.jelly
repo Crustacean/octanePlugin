@@ -18,12 +18,24 @@
   <f:entry title="Scopes">
     <f:repeatableProperty field="scopes" />
   </f:entry>
+  <f:entry title="Defect groups">
+    <f:repeatableProperty field="defectGroups" />
+  </f:entry>
   <f:advanced>
     <f:entry title="Poll interval seconds" field="pollIntervalSeconds">
       <f:number />
     </f:entry>
     <f:entry title="Timeout minutes" field="timeoutMinutes">
       <f:number />
+    </f:entry>
+    <f:entry title="Extended timeout minutes" field="timeoutMinutesExtended">
+      <f:number />
+    </f:entry>
+    <f:entry title="Base tester pass rate percentage" field="basePassrateFigure">
+      <f:number min="0" max="100" />
+    </f:entry>
+    <f:entry title="Base tester execution percentage" field="baseExecutionFigure">
+      <f:number min="0" max="100" />
     </f:entry>
     <f:entry title="Mark unstable instead of failed" field="markUnstable">
       <f:checkbox />

@@ -5,21 +5,49 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSection
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateStatusCount;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateSuiteRunChart;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
+import java.util.List;
 
 public class OctaneReportZoneHtmlRenderer {
+  static final int DEFAULT_VIEWPORT_WIDTH = 1400;
+  static final int MIN_BAR_WIDTH_PX = 8;
+  static final int MAX_BAR_WIDTH_PX = 100;
+  static final int MIN_BAR_GAP_PX = 2;
+  static final int MAX_BAR_GAP_PX = 40;
+  static final int BAR_SLOT_WIDTH_PX = MIN_BAR_WIDTH_PX + MIN_BAR_GAP_PX;
+  static final int OVERFLOW_INDICATOR_WIDTH_PX = 24;
+  static final int EMAIL_SINGLE_COLUMN_BREAKPOINT_PX = 840;
+  static final int EMAIL_SINGLE_COLUMN_CHROME_PX = 164;
+  static final int EMAIL_TWO_COLUMN_CHROME_PX = 139;
+
   public String render(OctaneGateReportSnapshot snapshot) {
+    return render(snapshot, OctaneReportTheme.LIGHT.name(), DEFAULT_VIEWPORT_WIDTH);
+  }
+
+  public String render(OctaneGateReportSnapshot snapshot, String theme) {
+    return render(snapshot, theme, DEFAULT_VIEWPORT_WIDTH);
+  }
+
+  public String render(OctaneGateReportSnapshot snapshot, String theme, int viewportWidth) {
     OctaneGateReportSnapshot safeSnapshot =
         snapshot == null ? OctaneGateReportSnapshot.empty() : snapshot;
+    OctaneReportTheme reportTheme = OctaneReportTheme.from(theme);
     StringBuilder html = new StringBuilder();
     html.append("<!doctype html>\n");
-    html.append("<html>\n");
+    html.append("<html data-octane-theme=\"");
+    html.append(reportTheme.getHtmlValue());
+    html.append("\">\n");
     html.append("<head>\n");
     html.append("<meta charset=\"UTF-8\" />\n");
+    html.append("<meta name=\"color-scheme\" content=\"");
+    html.append(reportTheme.getColorSchemeContent());
+    html.append("\" />\n");
     html.append("<title>Octane Gate Report</title>\n");
     appendStyle(html);
     html.append("</head>\n");
     html.append("<body>\n");
-    renderReportZone(html, safeSnapshot);
+    int barChartWidth = emailBarChartWidth(viewportWidth);
+    renderReportZone(html, safeSnapshot, maxVisibleBars(barChartWidth), barChartWidth);
     html.append("</body>\n");
     html.append("</html>\n");
     return html.toString();
@@ -29,7 +57,7 @@ public class OctaneReportZoneHtmlRenderer {
     OctaneGateReportSnapshot safeSnapshot =
         snapshot == null ? OctaneGateReportSnapshot.empty() : snapshot;
     StringBuilder html = new StringBuilder();
-    renderReportZone(html, safeSnapshot);
+    renderReportZone(html, safeSnapshot, null, null);
     return html.toString();
   }
 
@@ -39,20 +67,94 @@ public class OctaneReportZoneHtmlRenderer {
         """
         :root {
           color-scheme: light;
+          --octane-axis-line: #30363D;
+          --octane-axis-text: #827C7B;
+          --octane-bar-track: #e6ebf2;
+          --octane-border: #d7dde6;
+          --octane-card-background: #ffffff;
+          --octane-card-shadow: rgba(0, 0, 0, 0.14);
+          --octane-grid-dot: rgba(33, 38, 45, 0.92);
+          --octane-muted-text: #5f6b7a;
+          --octane-page-background: #f5f7fb;
+          --octane-popup-background: #ffffff;
+          --octane-popup-shadow: rgba(0, 0, 0, 0.18);
+          --octane-status-blocked: #FF9500;
+          --octane-status-failed: #FF3B30;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #34C759;
+          --octane-status-skipped: #AF52DE;
+          --octane-text: #1f2937;
+          --octane-tool-color: #8a94a6;
+        }
+        :root[data-octane-theme="dark"] {
+          color-scheme: dark;
+          --octane-axis-line: #576779;
+          --octane-axis-text: #a8b2c3;
+          --octane-bar-track: #30363d;
+          --octane-border: #30363d;
+          --octane-card-background: #1b1e24;
+          --octane-card-shadow: rgba(0, 0, 0, 0.34);
+          --octane-grid-dot: rgba(87, 103, 121, 0.7);
+          --octane-muted-text: #9aa7bd;
+          --octane-page-background: #181a20;
+          --octane-popup-background: #22262e;
+          --octane-popup-shadow: rgba(0, 0, 0, 0.42);
+          --octane-status-blocked: #FF9F0A;
+          --octane-status-failed: #FF453A;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #30D158;
+          --octane-status-skipped: #BF5AF2;
+          --octane-text: #f3f6fb;
+          --octane-tool-color: #9aa7bd;
+        }
+        :root[data-octane-theme="system"] {
+          color-scheme: light dark;
+        }
+        @media (prefers-color-scheme: dark) {
+          :root[data-octane-theme="system"] {
+            --octane-axis-line: #576779;
+            --octane-axis-text: #a8b2c3;
+            --octane-bar-track: #30363d;
+            --octane-border: #30363d;
+            --octane-card-background: #1b1e24;
+            --octane-card-shadow: rgba(0, 0, 0, 0.34);
+            --octane-grid-dot: rgba(87, 103, 121, 0.7);
+            --octane-muted-text: #9aa7bd;
+            --octane-page-background: #181a20;
+            --octane-popup-background: #22262e;
+            --octane-popup-shadow: rgba(0, 0, 0, 0.42);
+            --octane-status-blocked: #FF9F0A;
+            --octane-status-failed: #FF453A;
+            --octane-status-no-run: #8E8E93;
+            --octane-status-passed: #30D158;
+            --octane-status-skipped: #BF5AF2;
+            --octane-text: #f3f6fb;
+            --octane-tool-color: #9aa7bd;
+          }
+        }
+        @supports (background: oklch(0.17 0.01 265 / 1)) {
+          :root[data-octane-theme="dark"] {
+            --octane-page-background: oklch(0.17 0.01 265 / 1);
+          }
+          @media (prefers-color-scheme: dark) {
+            :root[data-octane-theme="system"] {
+              --octane-page-background: oklch(0.17 0.01 265 / 1);
+            }
+          }
         }
         * {
           box-sizing: border-box;
         }
         body {
-          background: #f5f7fb;
-          color: #1f2937;
+          background: var(--octane-page-background);
+          color: var(--octane-text);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           margin: 0;
           padding: 16px;
         }
         .octane-report-zone {
           align-items: stretch;
-          border: 1px solid #f5f7fb;
+          border: 1px solid var(--octane-page-background);
           border-radius: 8px;
           display: flex;
           flex-wrap: wrap;
@@ -61,10 +163,10 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-chart-card {
-          background: #ffffff;
-          border: 1px solid #d7dde6;
+          background: var(--octane-card-background);
+          border: 1px solid var(--octane-border);
           border-radius: 14px;
-          box-shadow: 0 1px 7px rgba(0, 0, 0, 0.14);
+          box-shadow: 0 1px 7px var(--octane-card-shadow);
           flex: 0 1 calc(50% - 8px);
           min-height: 310px;
           min-width: 360px;
@@ -86,7 +188,7 @@ public class OctaneReportZoneHtmlRenderer {
           margin: 0;
         }
         .octane-muted {
-          color: #5f6b7a;
+          color: var(--octane-muted-text);
         }
         .octane-visually-hidden:where(:not(:focus-within, :active)) {
           border: 0 !important;
@@ -105,7 +207,7 @@ public class OctaneReportZoneHtmlRenderer {
           background: transparent;
           border: 0;
           border-radius: 4px;
-          color: #8a94a6;
+          color: var(--octane-tool-color);
           cursor: grab;
           display: inline-flex;
           height: 18px;
@@ -136,14 +238,14 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-donut-label {
-          fill: #1f2937;
+          fill: var(--octane-text);
           font-size: 4.5px;
           font-weight: 700;
           pointer-events: none;
           text-anchor: middle;
         }
         .octane-donut-hole {
-          fill: #ffffff;
+          fill: var(--octane-card-background);
         }
         .octane-distribution-meta {
           align-items: center;
@@ -153,7 +255,7 @@ public class OctaneReportZoneHtmlRenderer {
           margin-top: 4px;
         }
         .octane-total-label {
-          color: #5f6b7a;
+          color: var(--octane-muted-text);
         }
         .octane-suite-chart-meta {
           align-items: center;
@@ -163,7 +265,7 @@ public class OctaneReportZoneHtmlRenderer {
           margin-top: 4px;
         }
         .octane-axis-value {
-          color: #827C7B;
+          color: var(--octane-axis-text);
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
           font-weight: 400;
@@ -181,7 +283,7 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-y-axis-label {
           align-self: center;
-          color: #827C7B;
+          color: var(--octane-axis-text);
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
           font-weight: 400;
@@ -213,7 +315,7 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-bar-plot::before {
           background-image: radial-gradient(
             circle,
-            rgba(33, 38, 45, 0.92) 0 1px,
+            var(--octane-grid-dot) 0 1px,
             transparent 1.2px
           );
           background-size: 9px calc(100% / var(--octane-grid-line-count, 4));
@@ -227,7 +329,7 @@ public class OctaneReportZoneHtmlRenderer {
           z-index: 0;
         }
         .octane-bar-plot::after {
-          background: #30363D;
+          background: var(--octane-axis-line);
           bottom: var(--octane-axis-label-row);
           content: "";
           height: 1px;
@@ -259,14 +361,50 @@ public class OctaneReportZoneHtmlRenderer {
           align-items: stretch;
           box-sizing: border-box;
           display: flex;
-          gap: clamp(2px, 1vw, 16px);
+          gap: clamp(2px, 1vw, 40px);
+          gap: var(--octane-bar-gap, clamp(2px, 1cqw, 40px));
           height: 100%;
           justify-content: center;
           min-height: 0;
           overflow-x: hidden;
           overflow-y: visible;
-          padding: 0 clamp(2px, 0.7vw, 8px);
+          padding: 0;
           width: 100%;
+        }
+        .octane-vertical-bars.octane-fluid-bars-dense {
+          justify-content: center;
+        }
+        .octane-bar-overflow-indicator {
+          align-self: stretch;
+          box-sizing: border-box;
+          display: grid;
+          flex: 0 0 24px;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+          height: 100%;
+          max-width: 24px;
+          min-width: 24px;
+          position: relative;
+          width: 24px;
+          z-index: 2;
+        }
+        .octane-bar-overflow-line {
+          align-self: end;
+          background: var(--background, var(--octane-card-background));
+          border-bottom: 2px dashed #666;
+          box-sizing: border-box;
+          grid-row: 1;
+          height: 3px;
+          width: 100%;
+        }
+        .octane-bar-overflow-count {
+          align-self: start;
+          color: #888;
+          font-size: 10px;
+          grid-row: 2;
+          justify-self: end;
+          line-height: 1.1;
+          padding-top: 3px;
+          white-space: nowrap;
         }
         .octane-vertical-bars::before,
         .octane-vertical-bars::after {
@@ -276,13 +414,15 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-suite-column {
           align-items: center;
           display: grid;
-          flex: 1 1 74px;
+          flex: 1 1 auto;
+          flex-basis: var(--octane-bar-width, clamp(8px, 4cqw, 100px));
           grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
           height: 100%;
           justify-items: center;
-          max-width: 83px;
-          min-width: 0;
+          max-width: 100px;
+          min-width: 8px !important;
           position: relative;
+          width: var(--octane-bar-width, auto);
         }
         .octane-vertical-bar-wrap {
           align-items: end;
@@ -297,20 +437,24 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-vertical-bar {
           align-items: stretch;
           align-self: end;
-          background: #e6ebf2;
+          background: var(--octane-bar-track);
           border-radius: 0;
           display: flex;
           flex-direction: column-reverse;
           height: 100%;
+          max-width: 100px;
+          min-width: 8px !important;
           overflow: hidden;
-          width: min(clamp(18.2px, 80.6%, 54.6px), calc(100% - 2px));
+          width: 100%;
         }
         .octane-bar-popup {
-          background: #ffffff;
-          border: 1px solid #d7dde6;
+          background: var(--octane-popup-background);
+          border: 1px solid var(--octane-popup-border-color, var(--octane-border));
           border-radius: 8px;
-          box-shadow: 0 7px 22px rgba(0, 0, 0, 0.18);
-          color: #1f2937;
+          box-shadow:
+              0 0 0 1px var(--octane-popup-border-color, transparent),
+              0 7px 22px var(--octane-popup-shadow);
+          color: var(--octane-text);
           display: grid;
           font-size: 10.35px;
           gap: 5px;
@@ -332,7 +476,7 @@ public class OctaneReportZoneHtmlRenderer {
           visibility: visible;
         }
         .octane-bar-popup-name {
-          border-bottom: 1px solid #d7dde6;
+          border-bottom: 1px solid var(--octane-border);
           font-weight: 700;
           line-height: 1.25;
           overflow-wrap: anywhere;
@@ -360,7 +504,7 @@ public class OctaneReportZoneHtmlRenderer {
           text-align: right;
         }
         .octane-bar-popup-total {
-          border-top: 1px solid #d7dde6;
+          border-top: 1px solid var(--octane-border);
           display: flex;
           justify-content: space-between;
           padding-top: 5px;
@@ -373,7 +517,7 @@ public class OctaneReportZoneHtmlRenderer {
           align-self: start;
           box-sizing: border-box;
           display: block;
-          color: #827C7B;
+          color: var(--octane-axis-text);
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
           font-weight: 400;
@@ -391,9 +535,9 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-empty {
-          border: 1px dashed #d7dde6;
+          border: 1px dashed var(--octane-border);
           border-radius: 8px;
-          color: #5f6b7a;
+          color: var(--octane-muted-text);
           padding: 16px;
         }
         @media (max-width: 840px) {
@@ -407,12 +551,16 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</style>\n");
   }
 
-  private void renderReportZone(StringBuilder html, OctaneGateReportSnapshot snapshot) {
+  private void renderReportZone(
+      StringBuilder html,
+      OctaneGateReportSnapshot snapshot,
+      Integer maxVisibleBars,
+      Integer barChartWidth) {
     html.append("<div class=\"octane-report-zone octane-card-zone\" id=\"octane-report-zone\">\n");
     if (snapshot.hasReportSections()) {
       for (OctaneGateReportSection section : snapshot.getReportSections()) {
         renderDistributionCard(html, section);
-        renderSuiteRunCard(html, section);
+        renderSuiteRunCard(html, section, maxVisibleBars, barChartWidth);
       }
     } else if (!snapshot.hasSections()) {
       html.append("<section class=\"octane-chart-card\" draggable=\"true\" ");
@@ -517,7 +665,11 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</text>\n");
   }
 
-  private void renderSuiteRunCard(StringBuilder html, OctaneGateReportSection section) {
+  private void renderSuiteRunCard(
+      StringBuilder html,
+      OctaneGateReportSection section,
+      Integer maxVisibleBars,
+      Integer barChartWidth) {
     html.append("<section class=\"octane-chart-card\" draggable=\"true\" data-card-key=\"bars-");
     html.append(escapeAttribute(section.getSource()));
     html.append("\">\n");
@@ -552,10 +704,34 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<div class=\"octane-bar-plot\" style=\"--octane-grid-line-count: ");
     html.append(section.getYAxisGridLineCount());
     html.append(";\">\n");
-    html.append("<div class=\"octane-vertical-bars\">\n");
     String cardKey = "bars-" + section.getSource();
-    for (OctaneGateSuiteRunChart suiteRun : section.getSuiteRuns()) {
+    List<OctaneGateSuiteRunChart> suiteRuns = section.getSuiteRuns();
+    List<OctaneGateSuiteRunChart> visibleSuiteRuns = suiteRuns;
+    int hiddenCount = 0;
+    if (maxVisibleBars != null && suiteRuns.size() > maxVisibleBars) {
+      visibleSuiteRuns = suiteRuns.subList(0, maxVisibleBars);
+      hiddenCount = suiteRuns.size() - maxVisibleBars;
+    }
+    boolean hasOverflow = hiddenCount > 0;
+    html.append("<div class=\"octane-vertical-bars");
+    if (hasOverflow) {
+      html.append(" octane-fluid-bars-dense");
+    }
+    html.append("\"");
+    if (barChartWidth != null) {
+      BarLayout layout = calculateBarLayout(barChartWidth, visibleSuiteRuns.size(), hasOverflow);
+      html.append(" style=\"--octane-bar-width: ");
+      html.append(cssPixels(layout.barWidth()));
+      html.append("; --octane-bar-gap: ");
+      html.append(cssPixels(layout.gap()));
+      html.append(";\"");
+    }
+    html.append(">\n");
+    for (OctaneGateSuiteRunChart suiteRun : visibleSuiteRuns) {
       renderSuiteRunColumn(html, suiteRun, cardKey);
+    }
+    if (hasOverflow) {
+      renderBarOverflowIndicator(html, hiddenCount);
     }
     html.append("</div>\n");
     html.append("</div>\n");
@@ -643,6 +819,26 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(escapeAttribute(suiteRun.getDominantStatusColor()));
     html.append("\" data-dominant-status-label=\"");
     html.append(escapeAttribute(suiteRun.getDominantStatusLabel()));
+    html.append("\" data-status-passed-count=\"");
+    html.append(suiteRun.getPassedCount());
+    html.append("\" data-status-passed-color=\"");
+    html.append(escapeAttribute(suiteRun.getPassedTooltipColor()));
+    html.append("\" data-status-failed-count=\"");
+    html.append(suiteRun.getFailedCount());
+    html.append("\" data-status-failed-color=\"");
+    html.append(escapeAttribute(suiteRun.getFailedTooltipColor()));
+    html.append("\" data-status-blocked-count=\"");
+    html.append(suiteRun.getBlockedCount());
+    html.append("\" data-status-blocked-color=\"");
+    html.append(escapeAttribute(suiteRun.getBlockedTooltipColor()));
+    html.append("\" data-status-skipped-count=\"");
+    html.append(suiteRun.getSkippedCount());
+    html.append("\" data-status-skipped-color=\"");
+    html.append(escapeAttribute(suiteRun.getSkippedTooltipColor()));
+    html.append("\" data-status-running-count=\"");
+    html.append(suiteRun.getRunningCount());
+    html.append("\" data-status-running-color=\"");
+    html.append(escapeAttribute(suiteRun.getRunningTooltipColor()));
     html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");
@@ -666,8 +862,84 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div>\n");
   }
 
+  private void renderBarOverflowIndicator(StringBuilder html, int hiddenCount) {
+    html.append("<div class=\"octane-bar-overflow-indicator\" role=\"note\" aria-label=\"");
+    html.append(hiddenCount);
+    html.append(" tester bars omitted\" data-hidden-count=\"");
+    html.append(hiddenCount);
+    html.append("\">");
+    html.append("<span class=\"octane-bar-overflow-line\" aria-hidden=\"true\"></span>");
+    html.append("<span class=\"octane-bar-overflow-count\">+");
+    html.append(hiddenCount);
+    html.append("</span></div>\n");
+  }
+
+  static int maxVisibleBars(int viewportWidth) {
+    return Math.max(
+        1, (Math.max(0, viewportWidth) - OVERFLOW_INDICATOR_WIDTH_PX) / BAR_SLOT_WIDTH_PX);
+  }
+
+  static BarLayout calculateBarLayout(int width, int visibleBarCount, boolean hasOverflow) {
+    int safeWidth = Math.max(0, width);
+    int safeBarCount = Math.max(0, visibleBarCount);
+    int gapCount = Math.max(0, safeBarCount - 1 + (hasOverflow ? 1 : 0));
+    double availableWidth =
+        Math.max(0, safeWidth - (hasOverflow ? OVERFLOW_INDICATOR_WIDTH_PX : 0));
+    double minimumWidth = safeBarCount * MIN_BAR_WIDTH_PX + gapCount * MIN_BAR_GAP_PX;
+    double extraWidth = Math.max(0, availableWidth - minimumWidth);
+    int adjustableSlots = safeBarCount + gapCount;
+    double sharedIncrease = 0;
+    if (adjustableSlots > 0) {
+      double sharedLimit = MAX_BAR_WIDTH_PX - MIN_BAR_WIDTH_PX;
+      if (gapCount > 0) {
+        sharedLimit = Math.min(sharedLimit, MAX_BAR_GAP_PX - MIN_BAR_GAP_PX);
+      }
+      sharedIncrease = Math.min(sharedLimit, extraWidth / adjustableSlots);
+    }
+    double barWidth = MIN_BAR_WIDTH_PX + sharedIncrease;
+    double gap = MIN_BAR_GAP_PX + sharedIncrease;
+    double remainingWidth = Math.max(0, extraWidth - sharedIncrease * adjustableSlots);
+    if (safeBarCount > 0 && remainingWidth > 0) {
+      double barIncrease = Math.min(MAX_BAR_WIDTH_PX - barWidth, remainingWidth / safeBarCount);
+      barWidth += barIncrease;
+      remainingWidth -= barIncrease * safeBarCount;
+    }
+    if (gapCount > 0 && remainingWidth > 0) {
+      gap += Math.min(MAX_BAR_GAP_PX - gap, remainingWidth / gapCount);
+    }
+    return new BarLayout(roundToThreeDecimals(barWidth), roundToThreeDecimals(gap));
+  }
+
+  static int emailBarChartWidth(int viewportWidth) {
+    int safeViewportWidth = Math.max(320, viewportWidth);
+    int availableWidth =
+        safeViewportWidth <= EMAIL_SINGLE_COLUMN_BREAKPOINT_PX
+            ? safeViewportWidth - EMAIL_SINGLE_COLUMN_CHROME_PX
+            : safeViewportWidth / 2 - EMAIL_TWO_COLUMN_CHROME_PX;
+    return Math.max(BAR_SLOT_WIDTH_PX + OVERFLOW_INDICATOR_WIDTH_PX, availableWidth);
+  }
+
+  private static double roundToThreeDecimals(double value) {
+    return Math.round(value * 1000.0) / 1000.0;
+  }
+
+  private static String cssPixels(double value) {
+    if (Math.abs(value - Math.rint(value)) < 0.0001) {
+      return Long.toString(Math.round(value)) + "px";
+    }
+    return Double.toString(value) + "px";
+  }
+
+  record BarLayout(double barWidth, double gap) {}
+
   private void renderSuiteRunPopup(StringBuilder html, OctaneGateSuiteRunChart suiteRun) {
-    html.append("<div class=\"octane-bar-popup\" role=\"tooltip\">\n");
+    html.append("<div class=\"octane-bar-popup\" role=\"tooltip\"");
+    if (!suiteRun.getDominantStatusColor().isEmpty()) {
+      html.append(" style=\"--octane-popup-border-color: ");
+      html.append(escapeAttribute(suiteRun.getDominantStatusColor()));
+      html.append(";\"");
+    }
+    html.append(">\n");
     html.append("<div class=\"octane-bar-popup-name\">");
     html.append(escapeHtml(suiteRun.getDisplayName()));
     html.append("</div>\n");
@@ -675,7 +947,7 @@ public class OctaneReportZoneHtmlRenderer {
       if (status.getCount() > 0) {
         html.append("<div class=\"octane-bar-popup-row\">");
         html.append("<span class=\"octane-swatch\" style=\"background: ");
-        html.append(escapeAttribute(status.getColor()));
+        html.append(escapeAttribute(status.getTooltipColor()));
         html.append(";\"></span>");
         html.append("<span class=\"octane-bar-popup-label\">");
         html.append(escapeHtml(status.getLabel()));

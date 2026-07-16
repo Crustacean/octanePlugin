@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 public enum OctaneGateReportState {
   WAITING("Waiting"),
   POLLING("Polling"),
+  EXTENDED_TIME("Extended time"),
   PASSED("Passed"),
   FAILED("Failed"),
   UNSTABLE("Unstable"),
@@ -20,6 +21,6 @@ public enum OctaneGateReportState {
   }
 
   public boolean isBuilding() {
-    return this == WAITING || this == POLLING;
+    return this == WAITING || this == POLLING || this == EXTENDED_TIME;
   }
 }

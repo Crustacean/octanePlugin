@@ -1,5 +1,5 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+<j:jelly xmlns:f="/lib/form" xmlns:j="jelly:core" xmlns:l="/lib/layout">
   <l:layout title="${it.displayName}">
     <l:main-panel>
       <style>
@@ -32,11 +32,80 @@
           text-transform: uppercase;
         }
         .octane-dashboard {
+          --octane-color-bad: #FF3B30;
+          --octane-color-good: #34C759;
+          --octane-color-neutral: #007AFF;
+          --octane-color-warn: #FFCC00;
+          --octane-status-blocked: #FF9500;
+          --octane-status-failed: #FF3B30;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #34C759;
+          --octane-status-skipped: #AF52DE;
           align-items: stretch;
           display: flex;
           flex-wrap: wrap;
           gap: 1rem;
           margin-top: 1rem;
+        }
+        @media (prefers-color-scheme: dark) {
+          .octane-dashboard {
+            --octane-color-bad: #FF453A;
+            --octane-color-good: #30D158;
+            --octane-color-neutral: #0A84FF;
+            --octane-color-warn: #FFD60A;
+            --octane-status-blocked: #FF9F0A;
+            --octane-status-failed: #FF453A;
+            --octane-status-no-run: #8E8E93;
+            --octane-status-passed: #30D158;
+            --octane-status-skipped: #BF5AF2;
+          }
+        }
+        html[data-theme="dark"] .octane-dashboard,
+        body[data-theme="dark"] .octane-dashboard,
+        [data-color-mode="dark"] .octane-dashboard,
+        .jenkins-theme-dark .octane-dashboard,
+        .theme-dark .octane-dashboard {
+          --octane-color-bad: #FF453A;
+          --octane-color-good: #30D158;
+          --octane-color-neutral: #0A84FF;
+          --octane-color-warn: #FFD60A;
+          --octane-status-blocked: #FF9F0A;
+          --octane-status-failed: #FF453A;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #30D158;
+          --octane-status-skipped: #BF5AF2;
+        }
+        html[data-theme="light"] .octane-dashboard,
+        body[data-theme="light"] .octane-dashboard,
+        [data-color-mode="light"] .octane-dashboard,
+        .jenkins-theme-light .octane-dashboard,
+        .theme-light .octane-dashboard {
+          --octane-color-bad: #FF3B30;
+          --octane-color-good: #34C759;
+          --octane-color-neutral: #007AFF;
+          --octane-color-warn: #FFCC00;
+          --octane-status-blocked: #FF9500;
+          --octane-status-failed: #FF3B30;
+          --octane-status-no-run: #8E8E93;
+          --octane-status-passed: #34C759;
+          --octane-status-skipped: #AF52DE;
+        }
+        .octane-exit-extended-form {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.65rem;
+          margin-top: 0.85rem;
+        }
+        .octane-exit-extended-form form {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.65rem;
+          margin: 0;
+        }
+        .octane-exit-extended-form[data-visible="false"] {
+          display: none;
         }
         .octane-timer-zone,
         .octane-report-zone {
@@ -76,6 +145,8 @@
         .octane-zone-focus-toggle:focus-visible,
         .octane-expand-toggle:focus-visible,
         .octane-view-toggle:focus-visible,
+        .octane-tester-details-toggle:focus-visible,
+        .octane-exit-extended-button:focus-visible,
         .octane-card-tools:focus-visible,
         .octane-suite-column:focus-visible {
           outline: 3px solid #4391F5;
@@ -216,17 +287,10 @@
           row-gap: 0;
         }
         .octane-zone-focused .octane-y-axis-label {
-          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
         }
         .octane-zone-focused .octane-axis-value {
-          font-size: 12px;
-        }
-        .octane-zone-focused .octane-suite-column {
-          flex-basis: clamp(1.6rem, 7vw, 4.65rem);
-          max-width: none;
-        }
-        .octane-zone-focused .octane-vertical-bar {
-          width: min(clamp(0.715rem, 70.2%, 3.12rem), calc(100% - 0.1rem));
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
         }
         .octane-zone-focused .octane-suite-label {
           font-size: 12px;
@@ -276,6 +340,7 @@
         }
         .octane-card-header .octane-muted,
         .octane-flip-face-header .octane-muted,
+        .octane-defect-face-header .octane-muted,
         .octane-total-label,
         .octane-legend-row {
           font-size: clamp(0.62rem, 0.9vw, 0.88rem);
@@ -291,6 +356,7 @@
           font-size: clamp(0.58rem, 2.35cqw, 0.765rem);
         }
         .octane-card-actions {
+          --octane-control-size: 1.15rem;
           align-items: center;
           display: inline-flex;
           flex: 0 0 auto;
@@ -306,10 +372,10 @@
           color: var(--text-color-secondary);
           cursor: pointer;
           display: inline-flex;
-          height: 1.15rem;
+          height: var(--octane-control-size);
           justify-content: center;
           padding: 0;
-          width: 1.15rem;
+          width: var(--octane-control-size);
         }
         .octane-expand-toggle:hover,
         .octane-view-toggle:hover {
@@ -332,11 +398,20 @@
         .octane-icon-timer {
           display: none;
         }
+        .octane-chart-card[data-active-view="breakdown"] .octane-icon-breakdown {
+          display: none;
+        }
         .octane-chart-card[data-active-view="heatmap"] .octane-icon-heatmap {
           display: none;
         }
         .octane-chart-card[data-active-view="metrics"] .octane-icon-metrics {
           display: none;
+        }
+        .octane-chart-card[data-active-view="defects"] .octane-icon-defects {
+          display: none;
+        }
+        .octane-chart-card[data-active-view="breakdown"] .octane-icon-timer {
+          display: block;
         }
         .octane-chart-card[data-active-view="heatmap"] .octane-icon-timer {
           display: block;
@@ -344,8 +419,13 @@
         .octane-chart-card[data-active-view="metrics"] .octane-icon-timer {
           display: block;
         }
+        .octane-chart-card[data-active-view="defects"] .octane-icon-timer {
+          display: block;
+        }
         .octane-chart-card[data-card-key="timer-timeout"],
-        .octane-chart-card[data-card-key="timer-poll"] {
+        .octane-chart-card[data-card-key="timer-poll"],
+        .octane-chart-card[data-card-key="progress-execution"],
+        .octane-chart-card[data-card-key="progress-pass-rate"] {
           display: flex;
           flex-direction: column;
           position: relative;
@@ -358,7 +438,9 @@
           min-height: 0;
         }
         .octane-chart-card[data-card-key="timer-timeout"] > .octane-card-actions,
-        .octane-chart-card[data-card-key="timer-poll"] > .octane-card-actions {
+        .octane-chart-card[data-card-key="timer-poll"] > .octane-card-actions,
+        .octane-chart-card[data-card-key="progress-execution"] > .octane-card-actions,
+        .octane-chart-card[data-card-key="progress-pass-rate"] > .octane-card-actions {
           position: absolute;
           right: 1rem;
           top: 1rem;
@@ -390,7 +472,9 @@
         }
         .octane-chart-card[data-active-view="timer"] .octane-flip-face-timer,
         .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap,
-        .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics {
+        .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics,
+        .octane-chart-card[data-active-view="breakdown"] .octane-flip-face-breakdown,
+        .octane-chart-card[data-active-view="defects"] .octane-flip-face-defects {
           opacity: 1;
           pointer-events: auto;
           transform: translateY(0);
@@ -424,6 +508,592 @@
           .octane-flip-face-body {
           align-items: stretch;
           justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-execution"][data-active-view="breakdown"]
+          .octane-flip-face-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-pass-rate"][data-active-view="defects"]
+          .octane-flip-face-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-pass-rate"][data-active-view="defects"]
+          > .octane-card-actions {
+          display: none;
+        }
+        .octane-execution-breakdown {
+          align-items: center;
+          box-sizing: border-box;
+          container-type: size;
+          display: flex;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          overflow: hidden;
+          padding: clamp(0.2rem, min(1cqh, 1cqw), 0.6rem);
+          width: 100%;
+        }
+        .octane-execution-breakdown-content {
+          --octane-execution-height-width: 132cqh;
+          align-items: center;
+          container-type: inline-size;
+          display: grid;
+          gap: clamp(0.35rem, min(1.4cqh, 1.2cqw), 0.9rem);
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: auto auto;
+          justify-items: center;
+          max-height: 100%;
+          max-width: 100%;
+          width: min(92cqw, var(--octane-execution-height-width), 80rem);
+        }
+        .octane-execution-breakdown-content[data-status-count="1"] {
+          --octane-execution-height-width: 172cqh;
+        }
+        .octane-execution-breakdown-content[data-status-count="2"] {
+          --octane-execution-height-width: 160cqh;
+        }
+        .octane-execution-breakdown-content[data-status-count="3"] {
+          --octane-execution-height-width: 150cqh;
+        }
+        .octane-execution-breakdown-content[data-status-count="4"] {
+          --octane-execution-height-width: 141cqh;
+        }
+        .octane-execution-half-pie-wrap {
+          align-items: center;
+          display: flex;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-execution-half-pie {
+          aspect-ratio: 2 / 1;
+          display: block;
+          height: auto;
+          max-height: 100%;
+          max-width: 100%;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: 100%;
+        }
+        .octane-chart-card[data-card-key="progress-execution"].octane-expanded
+          .octane-card-title,
+        .octane-timer-zone.octane-zone-focused
+          .octane-chart-card[data-card-key="progress-execution"]
+          .octane-card-title {
+          font-size: clamp(1rem, 2cqw, 1.5rem);
+        }
+        .octane-chart-card[data-card-key="progress-execution"].octane-expanded
+          .octane-muted,
+        .octane-timer-zone.octane-zone-focused
+          .octane-chart-card[data-card-key="progress-execution"]
+          .octane-muted {
+          font-size: clamp(0.76rem, 1.35cqw, 1.05rem);
+        }
+        .octane-execution-half-pie-segment {
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 24;
+        }
+        .octane-execution-half-pie-total {
+          fill: var(--text-color);
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 2.25rem;
+          font-weight: 700;
+          text-anchor: middle;
+        }
+        .octane-execution-half-pie-label {
+          fill: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 0.92rem;
+          font-weight: 500;
+          text-anchor: middle;
+        }
+        .octane-execution-breakdown-list {
+          box-sizing: border-box;
+          display: grid;
+          gap: clamp(0.18rem, 0.72cqw, 0.55rem);
+          max-width: 100%;
+          min-width: 0;
+          padding-inline: clamp(0.35rem, 4cqw, 3rem);
+          width: 100%;
+        }
+        .octane-execution-breakdown-row {
+          align-items: center;
+          color: var(--text-color);
+          display: grid;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.7rem, 1.8cqw, 1.3rem);
+          font-weight: 600;
+          gap: clamp(0.4rem, 1cqw, 0.75rem);
+          grid-template-columns: clamp(0.55rem, 1.15cqw, 0.9rem) minmax(0, 1fr) max-content;
+          line-height: 1.2;
+          min-width: 0;
+        }
+        .octane-execution-breakdown-swatch {
+          border-radius: 50%;
+          display: inline-block;
+          height: clamp(0.55rem, 1.15cqw, 0.9rem);
+          width: clamp(0.55rem, 1.15cqw, 0.9rem);
+        }
+        .octane-execution-breakdown-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-execution-breakdown-metric {
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+        .octane-execution-breakdown-pipe {
+          color: var(--text-color-secondary);
+          padding: 0 0.16rem;
+        }
+        .octane-execution-breakdown-empty {
+          align-items: center;
+          border: 1px dashed var(--input-border);
+          border-radius: 8px;
+          color: var(--text-color-secondary);
+          display: flex;
+          height: 100%;
+          justify-content: center;
+          padding: 1rem;
+          text-align: center;
+          width: 100%;
+        }
+        .octane-defect-face-header {
+          align-items: flex-start;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: clamp(0.28rem, min(1.1cqw, 1.1cqh), 0.65rem);
+          min-width: 0;
+          overflow: hidden;
+          padding-right: 0;
+        }
+        .octane-defect-face-heading {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        .octane-defect-face-heading .octane-card-title,
+        .octane-defect-face-heading .octane-muted {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-defect-face-actions {
+          --octane-control-size: 1.15rem;
+          align-items: center;
+          display: inline-flex;
+          flex: 0 0 auto;
+          gap: 0.45rem;
+          height: var(--octane-control-size);
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
+        }
+        .octane-defect-main-view-toggle {
+          flex: 0 0 var(--octane-control-size);
+        }
+        .octane-defect-analytics {
+          box-sizing: border-box;
+          container-type: size;
+          display: grid;
+          gap: clamp(0.35rem, min(1.4cqw, 1.4cqh), 0.9rem);
+          grid-template-rows: minmax(0, 1fr);
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          padding: clamp(0.15rem, min(0.8cqw, 0.8cqh), 0.5rem);
+          width: 100%;
+        }
+        .octane-defect-pane-switcher {
+          align-items: center;
+          background: rgba(87, 103, 121, 0.3);
+          border: 1px solid rgba(130, 124, 123, 0.32);
+          border-radius: 9999px;
+          box-sizing: border-box;
+          display: inline-flex;
+          flex: 0 0 auto;
+          gap: 2px;
+          height: var(--octane-control-size, 1.15rem);
+          min-width: 0;
+          overflow: hidden;
+          padding: 2px;
+          width: auto;
+        }
+        .octane-defect-pane-toggle {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 9999px;
+          box-sizing: border-box;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: inline-flex;
+          flex: 0 0 auto;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.52rem, calc(var(--octane-control-size, 1.15rem) * 0.52), 0.68rem);
+          font-weight: 600;
+          height: 100%;
+          justify-content: center;
+          line-height: 1;
+          min-inline-size: calc(var(--octane-control-size, 1.15rem) * 2.62);
+          min-width: 0;
+          padding: 0 calc(var(--octane-control-size, 1.15rem) * 0.42);
+          text-align: center;
+          white-space: nowrap;
+        }
+        .octane-defect-pane-label-short {
+          display: none;
+        }
+        .octane-defect-pane-toggle[aria-selected="true"] {
+          background: rgba(255, 255, 255, 0.12);
+          color: var(--text-color);
+        }
+        .octane-defect-pane-toggle:focus-visible {
+          outline: 3px solid #4391F5;
+          outline-offset: 2px;
+        }
+        .octane-defect-pane-viewport {
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          position: relative;
+          width: 100%;
+        }
+        .octane-defect-pane {
+          box-sizing: border-box;
+          display: grid;
+          grid-template-rows: minmax(0, 1fr);
+          height: 100%;
+          inset: 0;
+          min-height: 0;
+          min-width: 0;
+          opacity: 0;
+          pointer-events: none;
+          position: absolute;
+          transform: translateY(0.2rem);
+          transition: opacity 160ms ease, transform 160ms ease;
+          width: 100%;
+        }
+        .octane-defect-analytics[data-active-defect-view="volumes"]
+          .octane-defect-pane[data-defect-pane="volumes"],
+        .octane-defect-analytics[data-active-defect-view="density"]
+          .octane-defect-pane[data-defect-pane="density"] {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateY(0);
+        }
+        .octane-defect-pane-body {
+          align-items: stretch;
+          display: flex;
+          height: 100%;
+          justify-content: stretch;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-defect-trend {
+          align-items: stretch;
+          box-sizing: border-box;
+          container-type: size;
+          display: grid;
+          gap: clamp(0.35rem, min(1.3cqw, 1.3cqh), 0.9rem);
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: max-content minmax(0, 1fr);
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-defect-trend-summary-card {
+          align-content: start;
+          background: transparent;
+          border: 0;
+          box-sizing: border-box;
+          display: grid;
+          min-height: 0;
+          min-width: 0;
+          padding: 2px 0;
+          width: 100%;
+        }
+        .octane-defect-trend-totals {
+          align-items: start;
+          display: flex;
+          flex-wrap: wrap;
+          gap: clamp(0.65rem, min(3.8cqw, 1.6cqh), 2.4rem);
+          min-width: 0;
+        }
+        .octane-defect-trend-total {
+          display: grid;
+          min-width: clamp(5rem, 16cqw, 10rem);
+        }
+        .octane-defect-trend-total[data-visible="false"] {
+          display: none;
+        }
+        .octane-defect-trend-value,
+        .octane-defect-density-value {
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(1.55rem, min(8cqw, 10cqh), 4.8rem);
+          font-variant-numeric: tabular-nums;
+          font-weight: 700;
+          line-height: 0.95;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-defect-trend-total-opened .octane-defect-trend-value {
+          color: #ff6361;
+        }
+        .octane-defect-trend-total-closed .octane-defect-trend-value {
+          color: #7BE5B3;
+        }
+        .octane-defect-trend-total-label,
+        .octane-defect-density-label {
+          color: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, min(2.4cqw, 2.8cqh), 1rem);
+          font-weight: 500;
+          line-height: 1.2;
+          margin-top: clamp(0.2rem, 0.8cqh, 0.45rem);
+        }
+        .octane-defect-trend-chart {
+          column-gap: clamp(0.16rem, 0.8cqw, 0.45rem);
+          display: grid;
+          grid-template-columns: max-content max-content minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) max-content;
+          min-height: 0;
+          min-width: 0;
+          row-gap: clamp(0.12rem, 0.6cqh, 0.3rem);
+        }
+        .octane-defect-trend-plot {
+          grid-column: 3;
+          grid-row: 1;
+          min-height: 0;
+          min-width: 0;
+        }
+        .octane-defect-trend-svg {
+          display: block;
+          height: 100%;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: 100%;
+        }
+        .octane-defect-trend-grid-line {
+          stroke: #576779;
+          stroke-dasharray: 5 7;
+          stroke-opacity: 0.58;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-trend-axis-line {
+          stroke: #576779;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-trend-axis-label {
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
+          font-weight: 400;
+          line-height: 1;
+          white-space: nowrap;
+        }
+        .octane-defect-trend-axis-title,
+        .octane-defect-density-axis-title {
+          align-self: center;
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
+          font-weight: 400;
+          grid-column: 1;
+          grid-row: 1;
+          justify-self: center;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          writing-mode: vertical-rl;
+        }
+        .octane-defect-trend-y-labels {
+          align-items: flex-end;
+          display: flex;
+          flex-direction: column;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          min-height: 0;
+        }
+        .octane-defect-trend-x-labels {
+          display: flex;
+          grid-column: 3;
+          grid-row: 2;
+          justify-content: space-between;
+          min-width: 0;
+        }
+        .octane-defect-trend-line {
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: clamp(2px, 0.28cqw, 4px);
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-trend-line-opened {
+          stroke: #ff6361;
+        }
+        .octane-defect-trend-line-closed {
+          stroke: #7BE5B3;
+        }
+        .octane-defect-trend-points {
+          display: none;
+        }
+        .octane-defect-density {
+          box-sizing: border-box;
+          container-type: size;
+          display: grid;
+          gap: clamp(0.35rem, min(1.3cqw, 1.3cqh), 0.9rem);
+          grid-template-rows: max-content minmax(0, 1fr);
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-defect-density-total {
+          align-self: start;
+          color: var(--text-color);
+          display: grid;
+          gap: clamp(0.1rem, 0.4cqh, 0.25rem);
+          justify-self: start;
+          min-width: 0;
+          padding: 2px 0;
+        }
+        .octane-defect-density-value {
+          color: #ff6361;
+        }
+        .octane-defect-density-chart {
+          column-gap: clamp(0.22rem, 0.8cqw, 0.55rem);
+          display: grid;
+          grid-template-columns: max-content max-content minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) max-content;
+          min-height: 0;
+          min-width: 0;
+          row-gap: clamp(0.16rem, 0.7cqh, 0.36rem);
+        }
+        .octane-defect-density-axis-title {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        .octane-defect-density-y-labels {
+          align-items: flex-end;
+          display: flex;
+          flex-direction: column;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          min-height: 0;
+        }
+        .octane-defect-density-plot {
+          grid-column: 3;
+          grid-row: 1;
+          min-height: 0;
+          min-width: 0;
+        }
+        .octane-defect-density-svg {
+          display: block;
+          height: 100%;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: 100%;
+        }
+        .octane-defect-density-grid-line {
+          stroke: #576779;
+          stroke-dasharray: 5 7;
+          stroke-opacity: 0.58;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-density-axis-line {
+          stroke: #576779;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-density-axis-line-dotted {
+          stroke-dasharray: 5 7;
+          stroke-opacity: 0.58;
+        }
+        .octane-defect-density-area {
+          fill: #3B82F6;
+          fill-opacity: 0.76;
+          shape-rendering: geometricPrecision;
+        }
+        .octane-defect-density-line {
+          fill: none;
+          shape-rendering: geometricPrecision;
+          stroke: #3B82F6;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 1px;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-defect-density-x-labels {
+          display: flex;
+          grid-column: 3;
+          grid-row: 2;
+          justify-content: space-between;
+          min-width: 0;
+        }
+        .octane-defect-density-axis-label {
+          color: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
+          font-weight: 400;
+          line-height: 1;
+          white-space: nowrap;
+        }
+        .octane-defect-density-buckets {
+          display: none;
+        }
+        @container (max-width: 34rem) {
+          .octane-defect-face-header {
+            gap: calc(var(--octane-control-size, 1.15rem) * 0.24);
+          }
+          .octane-defect-pane-switcher {
+            gap: 1px;
+            padding: 1px;
+          }
+          .octane-defect-pane-toggle {
+            min-inline-size: var(--octane-control-size, 1.15rem);
+            padding: 0 calc(var(--octane-control-size, 1.15rem) * 0.28);
+          }
+          .octane-defect-pane-label-full {
+            display: none;
+          }
+          .octane-defect-pane-label-short {
+            display: inline;
+          }
+          .octane-defect-analytics {
+            grid-template-rows: minmax(0, 1fr);
+          }
+          .octane-defect-pane-switcher {
+            justify-self: start;
+          }
+          .octane-defect-trend {
+            grid-template-rows: max-content minmax(0, 1fr);
+          }
+          .octane-defect-trend-summary-card {
+            padding: 2px 0;
+          }
+          .octane-defect-trend-totals {
+            gap: clamp(0.45rem, 2cqw, 1rem);
+          }
         }
         .octane-heatmap-subtitle-row {
           align-items: center;
@@ -869,22 +1539,13 @@
           fill: none;
           opacity: 0.5;
           stroke: var(--panel-border-color);
-          stroke-width: 4;
-        }
-        .octane-timer-progress-halo {
-          fill: none;
-          opacity: 0.22;
-          stroke-linecap: round;
-          stroke-width: 20;
+          stroke-width: 1;
         }
         .octane-timer-progress {
           fill: none;
-          filter: drop-shadow(0 0 1px rgba(30, 167, 255, 0.35));
+          opacity: 1;
           stroke-linecap: round;
           stroke-width: 16;
-        }
-        .octane-timer-head {
-          transition: fill 0.25s ease;
         }
         .octane-timer-value {
           fill: var(--text-color);
@@ -943,6 +1604,7 @@
           color: #827C7B;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
           font-weight: 400;
         }
         .octane-bar-graph {
@@ -961,6 +1623,7 @@
           color: #827C7B;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
           font-size: 12px;
+          font-size: clamp(0.66rem, 2.1cqw, 0.75rem);
           font-weight: 400;
           grid-column: 1;
           grid-row: 1;
@@ -1036,14 +1699,50 @@
           align-items: stretch;
           box-sizing: border-box;
           display: flex;
-          gap: clamp(0.15rem, 1vw, 1rem);
+          gap: clamp(2px, 1vw, 40px);
+          gap: var(--octane-bar-gap, clamp(2px, 1cqw, 40px));
           height: 100%;
           justify-content: center;
           min-height: 0;
           overflow-x: hidden;
           overflow-y: visible;
-          padding: 0 clamp(0.15rem, 0.7vw, 0.5rem);
+          padding: 0;
           width: 100%;
+        }
+        .octane-vertical-bars.octane-fluid-bars-dense {
+          justify-content: center;
+        }
+        .octane-bar-overflow-indicator {
+          align-self: stretch;
+          box-sizing: border-box;
+          display: grid;
+          flex: 0 0 24px;
+          grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
+          height: 100%;
+          max-width: 24px;
+          min-width: 24px;
+          position: relative;
+          width: 24px;
+          z-index: 2;
+        }
+        .octane-bar-overflow-line {
+          align-self: end;
+          background: var(--background, var(--octane-card-background));
+          border-bottom: 2px dashed #666;
+          box-sizing: border-box;
+          grid-row: 1;
+          height: 3px;
+          width: 100%;
+        }
+        .octane-bar-overflow-count {
+          align-self: start;
+          color: #888;
+          font-size: 10px;
+          grid-row: 2;
+          justify-self: end;
+          line-height: 1.1;
+          padding-top: 3px;
+          white-space: nowrap;
         }
         .octane-vertical-bars::before,
         .octane-vertical-bars::after {
@@ -1053,13 +1752,15 @@
         .octane-suite-column {
           align-items: center;
           display: grid;
-          flex: 1 1 4.65rem;
+          flex: 1 1 auto;
+          flex-basis: var(--octane-bar-width, clamp(8px, 4cqw, 100px));
           grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
           height: 100%;
           justify-items: center;
-          max-width: 5.2rem;
-          min-width: 0;
+          max-width: 100px;
+          min-width: 8px !important;
           position: relative;
+          width: var(--octane-bar-width, auto);
         }
         .octane-vertical-bar-wrap {
           align-items: end;
@@ -1079,21 +1780,26 @@
           display: flex;
           flex-direction: column-reverse;
           height: 100%;
+          max-width: 100px;
+          min-width: 8px !important;
           overflow: hidden;
-          width: min(clamp(1.105rem, 80.6%, 3.38rem), calc(100% - 0.1rem));
+          width: 100%;
         }
         .octane-bar-popup {
           background: var(--background);
-          border: 1px solid var(--panel-border-color);
+          border: 1px solid var(--octane-popup-border-color, var(--panel-border-color));
           border-radius: 8px;
-          box-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
+          box-sizing: border-box;
+          box-shadow:
+              0 0 0 1px var(--octane-popup-border-color, transparent),
+              0 0.45rem 1.4rem rgba(0, 0, 0, 0.18);
           color: var(--text-color);
           display: grid;
           font-size: 0.644rem;
           gap: 0.32rem;
           left: 0;
           max-width: min(18rem, calc(100vw - 1rem));
-          min-width: 10.92rem;
+          min-width: min(10.92rem, calc(100vw - 1rem));
           opacity: 0;
           padding: 0.5rem 0.6rem;
           pointer-events: none;
@@ -1102,7 +1808,7 @@
           transition: opacity 90ms ease;
           visibility: hidden;
           will-change: left, top;
-          z-index: 9999;
+          z-index: 10001;
         }
         .octane-bar-popup.octane-bar-popup-visible {
           opacity: 1;
@@ -1206,6 +1912,210 @@
           color: var(--text-color-secondary);
           padding: 1rem;
         }
+        .octane-tester-details-zone {
+          background: var(--background);
+          border: 1px solid var(--background);
+          border-radius: 8px;
+          box-sizing: border-box;
+          container-name: tester-details;
+          container-type: inline-size;
+          display: flex;
+          flex-direction: column;
+          max-height: calc(100vh - 2rem);
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-tester-details-header {
+          align-items: center;
+          border-bottom: 1px solid var(--input-border);
+          display: flex;
+          flex: 0 0 auto;
+          gap: clamp(0.5rem, 1.5vw, 1rem);
+          justify-content: space-between;
+          min-height: clamp(2.75rem, 6vh, 4rem);
+          padding: clamp(0.65rem, 1.5vw, 1rem) clamp(0.75rem, 2vw, 1.25rem);
+        }
+        .octane-tester-details-title {
+          font-size: clamp(0.95rem, 1.5vw, 1.25rem);
+          font-weight: 600;
+          line-height: 1.25;
+          margin: 0;
+        }
+        .octane-tester-details-toggle {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 4px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: inline-flex;
+          flex: 0 0 auto;
+          height: 1.5rem;
+          justify-content: center;
+          padding: 0;
+          width: 1.5rem;
+        }
+        .octane-tester-details-toggle:hover {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-tester-details-toggle .octane-icon-tester-expand {
+          display: none;
+        }
+        .octane-tester-details-toggle[aria-expanded="false"] .octane-icon-tester-collapse {
+          display: none;
+        }
+        .octane-tester-details-toggle[aria-expanded="false"] .octane-icon-tester-expand {
+          display: block;
+        }
+        .octane-tester-details-body {
+          display: grid;
+          flex: 1 1 auto;
+          grid-template-columns: minmax(0, 1fr);
+          max-height: calc(100vh - 6rem);
+          min-height: 0;
+          overflow: hidden;
+        }
+        .octane-tester-details-body[hidden] {
+          display: none;
+        }
+        .octane-tester-tracker {
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          min-height: 0;
+          min-width: 0;
+        }
+        .octane-tester-tracker + .octane-tester-tracker {
+          border-top: 1px solid var(--input-border);
+        }
+        .octane-tester-tracker-title {
+          font-size: clamp(0.78rem, 1.2vw, 1rem);
+          font-weight: 600;
+          line-height: 1.35;
+          margin: 0;
+          overflow-wrap: anywhere;
+          padding: clamp(0.7rem, 1.6vw, 1.1rem) clamp(0.75rem, 2vw, 1.25rem);
+        }
+        .octane-tester-column-content {
+          max-height: min(58vh, 36rem);
+          min-height: clamp(12rem, 28vh, 22rem);
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          scrollbar-color: #666 transparent;
+          scrollbar-width: thin;
+        }
+        .octane-tester-column-content::-webkit-scrollbar {
+          width: 6px;
+        }
+        .octane-tester-column-content::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .octane-tester-column-content::-webkit-scrollbar-thumb {
+          background: #666;
+          border-radius: 4px;
+        }
+        .octane-tester-column-content::-webkit-scrollbar-thumb:hover {
+          background: #888;
+        }
+        .octane-tester-table {
+          border-collapse: collapse;
+          table-layout: fixed;
+          width: 100%;
+        }
+        .octane-tester-table[hidden] {
+          display: none;
+        }
+        .octane-tester-column-content[data-empty="true"] {
+          display: flex;
+          flex-direction: column;
+        }
+        .octane-tester-column-content[data-empty="true"] .octane-tester-table tbody,
+        .octane-tester-column-content[data-empty="false"] .octane-tester-empty-state {
+          display: none;
+        }
+        .octane-tester-table th,
+        .octane-tester-table td {
+          border-bottom: 1px solid var(--input-border);
+          box-sizing: border-box;
+          font-size: clamp(0.75rem, 1.2vw, 1rem);
+          line-height: 1.35;
+          min-height: clamp(2.4rem, 5vh, 3.4rem);
+          padding: clamp(0.55rem, 1.2vw, 0.85rem) clamp(0.75rem, 2vw, 1.25rem);
+          vertical-align: middle;
+        }
+        .octane-tester-table thead th {
+          background: var(--background);
+          color: var(--text-color-secondary);
+          font-weight: 500;
+          position: sticky;
+          top: 0;
+          z-index: 1;
+        }
+        .octane-tester-email {
+          overflow-wrap: anywhere;
+          text-align: left;
+          width: 68%;
+        }
+        .octane-tester-rate {
+          font-variant-numeric: tabular-nums;
+          text-align: right;
+          white-space: nowrap;
+          width: 32%;
+        }
+        .octane-tester-empty-state {
+          align-items: center;
+          box-sizing: border-box;
+          color: #000000;
+          display: flex;
+          font-size: clamp(1.35rem, 3vw, 2.5rem);
+          font-weight: 600;
+          flex: 1 1 auto;
+          justify-content: center;
+          min-height: 0;
+          padding: clamp(1rem, 4vw, 3rem);
+          text-align: center;
+        }
+        .octane-tester-empty-state[hidden] {
+          display: none;
+        }
+        @media (prefers-color-scheme: dark) {
+          .octane-tester-empty-state {
+            color: #ffffff;
+          }
+        }
+        html[data-theme="dark"] .octane-tester-empty-state,
+        body[data-theme="dark"] .octane-tester-empty-state,
+        [data-color-mode="dark"] .octane-tester-empty-state,
+        .jenkins-theme-dark .octane-tester-empty-state,
+        .theme-dark .octane-tester-empty-state {
+          color: #ffffff;
+        }
+        html[data-theme="light"] .octane-tester-empty-state,
+        body[data-theme="light"] .octane-tester-empty-state,
+        [data-color-mode="light"] .octane-tester-empty-state,
+        .jenkins-theme-light .octane-tester-empty-state,
+        .theme-light .octane-tester-empty-state {
+          color: #000000;
+        }
+        @media (min-width: 840px) {
+          .octane-tester-details-body {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .octane-tester-tracker + .octane-tester-tracker {
+            border-left: 1px solid var(--input-border);
+            border-top: 0;
+          }
+        }
+        @container tester-details (min-width: 52rem) {
+          .octane-tester-details-body {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .octane-tester-tracker + .octane-tester-tracker {
+            border-left: 1px solid var(--input-border);
+            border-top: 0;
+          }
+        }
         @media (max-width: 840px) {
           .octane-chart-card {
             flex-basis: 100%;
@@ -1242,6 +2152,15 @@
           Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
         </p>
         <p data-report-message="true">${snapshot.message}</p>
+          <div class="octane-exit-extended-form" data-exit-extended-form="true"
+            data-visible="${snapshot.extendedTime}">
+            <f:form method="post" action="exitOctaneAndContinue">
+              <button class="jenkins-button jenkins-button--primary octane-exit-extended-button"
+                  type="submit">
+                Exit Octane and Continue
+              </button>
+            </f:form>
+          </div>
         <j:if test="${snapshot.hasCriteria()}">
           <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
         </j:if>
@@ -1249,6 +2168,8 @@
         <div class="octane-dashboard octane-card-zone" id="octane-dashboard"
             data-current-updated-at="${snapshot.updatedAt}"
             data-report-building="${snapshot.building}"
+            data-extended-time="${snapshot.extendedTime}"
+            data-manual-exit-requested="${it.manualExitRequested}"
             data-snapshot-url="snapshot">
           <div id="octane-reorder-status" class="octane-visually-hidden"
               aria-live="polite" aria-atomic="true"></div>
@@ -1258,6 +2179,8 @@
                 data-card-key="timer-timeout"
                 data-octane-timer="timeout"
                 data-total-seconds="${snapshot.timeoutSeconds}"
+                data-extended-total-seconds="${snapshot.timeoutExtendedSeconds}"
+                data-extended-active="${snapshot.extendedTime}"
                 data-started-at="${snapshot.startedAt}"
                 data-updated-at="${snapshot.updatedAt}"
                 data-active="${snapshot.building}"
@@ -1327,24 +2250,18 @@
                           <linearGradient id="octane-timeout-gradient" x1="32" y1="208" x2="208"
                               y2="32" gradientUnits="userSpaceOnUse">
                             <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                                offset="0%" stop-color="#4caf50" />
+                                offset="0%" stop-color="#34C759" />
                             <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                                offset="50%" stop-color="#449d48" />
+                                offset="50%" stop-color="#34C759" />
                             <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                                offset="100%" stop-color="#3c8c40" />
+                                offset="100%" stop-color="#34C759" />
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-progress" data-timer-progress="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-timeout-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-head" data-timer-head="true"
-                            cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                        <path class="octane-timer-progress" data-timer-progress="true"
+                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
+                            pathLength="100" stroke="url(#octane-timeout-gradient)"
+                            stroke-dasharray="100 100" stroke-linecap="round" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           <j:choose>
                             <j:when test="${snapshot.building}">--</j:when>
@@ -1510,30 +2427,24 @@
                           <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208"
                               y2="32" gradientUnits="userSpaceOnUse">
                             <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                                offset="0%" stop-color="#757575" />
+                                offset="0%" stop-color="#007AFF" />
                             <stop data-timer-gradient-stop="true" offset="20%"
-                                stop-color="#696969" />
+                                stop-color="#007AFF" />
                             <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                                offset="40%" stop-color="#5d5d5d" />
+                                offset="40%" stop-color="#007AFF" />
                             <stop data-timer-gradient-stop="true" offset="60%"
-                                stop-color="#bbdefb" />
+                                stop-color="#007AFF" />
                             <stop data-timer-gradient-stop="true" offset="80%"
-                                stop-color="#a8c7e1" />
+                                stop-color="#007AFF" />
                             <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                                offset="100%" stop-color="#95b1c8" />
+                                offset="100%" stop-color="#007AFF" />
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <circle class="octane-timer-progress-halo" data-timer-progress-halo="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-progress" data-timer-progress="true"
-                            cx="120" cy="120" r="84" pathLength="100"
-                            stroke="url(#octane-poll-gradient)" stroke-dasharray="0 100"
-                            transform="rotate(-90 120 120)" />
-                        <circle class="octane-timer-head" data-timer-head="true"
-                            cx="120" cy="36" r="9.6" fill="#1f5fff" />
+                        <path class="octane-timer-progress" data-timer-progress="true"
+                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
+                            pathLength="100" stroke="url(#octane-poll-gradient)"
+                            stroke-dasharray="100 100" stroke-linecap="round" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           --
                         </text>
@@ -1585,154 +2496,450 @@
             <section class="octane-chart-card octane-timer-card" draggable="true"
                 data-card-key="progress-execution"
                 data-octane-progress="execution"
-                data-progress-value="${snapshot.executionProgress}">
-              <div class="octane-card-header">
-                <div>
-                  <h2 class="octane-card-title">Execution Progress</h2>
-                  <div class="octane-muted">All Testcase execution</div>
-                </div>
-                <div class="octane-card-actions">
-                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
-                      aria-expanded="false" title="Expand widget">
-                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M8 4H4v4" />
-                      <path d="M16 4h4v4" />
-                      <path d="M20 16v4h-4" />
-                      <path d="M8 20H4v-4" />
-                    </svg>
-                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M9 3v6H3" />
-                      <path d="M3 9l6-6" />
-                      <path d="M15 21v-6h6" />
-                      <path d="M21 15l-6 6" />
-                    </svg>
-                  </button>
-                  <button class="octane-card-tools" type="button"
-                      aria-label="Move widget"
-                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
-                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
-                        focusable="false">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </button>
-                </div>
+                data-progress-value="${snapshot.executionProgress}"
+                data-active-view="timer">
+              <div class="octane-card-actions">
+                <button class="octane-view-toggle" type="button"
+                    data-target-view="breakdown" data-target-view-label="status breakdown"
+                    aria-label="Show status breakdown" title="Show status breakdown">
+                  <svg class="octane-action-icon octane-icon-breakdown" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M5 17a7 7 0 0 1 14 0" />
+                    <path d="M8 17a4 4 0 0 1 8 0" />
+                    <path d="M12 17v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l3 2" />
+                    <path d="M9 2h6" />
+                  </svg>
+                </button>
+                <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                    aria-expanded="false" title="Expand widget">
+                  <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M8 4H4v4" />
+                    <path d="M16 4h4v4" />
+                    <path d="M20 16v4h-4" />
+                    <path d="M8 20H4v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M9 3v6H3" />
+                    <path d="M3 9l6-6" />
+                    <path d="M15 21v-6h6" />
+                    <path d="M21 15l-6 6" />
+                  </svg>
+                </button>
+                <button class="octane-card-tools" type="button"
+                    aria-label="Move widget"
+                    title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                  <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                      focusable="false">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
+                </button>
               </div>
-              <div class="octane-timer-wrap">
-                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                    aria-label="Execution Progress">
-                  <defs>
-                    <linearGradient id="octane-execution-progress-gradient" x1="32" y1="208"
-                        x2="208" y2="32" gradientUnits="userSpaceOnUse">
-                      <stop data-execution-gradient-stop="true" offset="0%"
-                          stop-color="#fb4b4b" />
-                      <stop data-execution-gradient-stop="true" offset="50%"
-                          stop-color="#e14343" />
-                      <stop data-execution-gradient-stop="true" offset="100%"
-                          stop-color="#e14343" />
-                    </linearGradient>
-                  </defs>
-                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                  <circle class="octane-timer-progress-halo" data-execution-progress-halo="true"
-                      data-progress-halo="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-execution-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-progress" data-execution-progress-circle="true"
-                      data-progress-circle="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-execution-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-head" data-execution-progress-head="true"
-                      data-progress-head="true"
-                      cx="120" cy="36" r="9.6" fill="#e14343" />
-                  <text class="octane-timer-value" data-execution-progress-value="true"
-                      data-progress-value-text="true" x="120" y="118">
-                    ${snapshot.executionProgressText}
-                  </text>
-                  <text class="octane-timer-unit" x="120" y="132.4">
-                    execution
-                  </text>
-                </svg>
+              <div class="octane-flip-viewport">
+                <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Execution Progress</h2>
+                      <div class="octane-muted">All Testcase execution</div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-timer-wrap">
+                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                          aria-label="Execution Progress">
+                        <defs>
+                          <linearGradient id="octane-execution-progress-gradient" x1="32" y1="208"
+                              x2="208" y2="32" gradientUnits="userSpaceOnUse">
+                            <stop data-execution-gradient-stop="true" offset="0%"
+                                stop-color="#FF3B30" />
+                            <stop data-execution-gradient-stop="true" offset="50%"
+                                stop-color="#FF3B30" />
+                            <stop data-execution-gradient-stop="true" offset="100%"
+                                stop-color="#FF3B30" />
+                          </linearGradient>
+                        </defs>
+                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                        <circle class="octane-timer-progress"
+                            data-execution-progress-circle="true" data-progress-circle="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-execution-progress-gradient)"
+                            stroke-dasharray="0 100" stroke-linecap="round"
+                            transform="rotate(-90 120 120)" />
+                        <text class="octane-timer-value" data-execution-progress-value="true"
+                            data-progress-value-text="true" x="120" y="118">
+                          ${snapshot.executionProgressText}
+                        </text>
+                        <text class="octane-timer-unit" x="120" y="132.4">
+                          execution
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="octane-flip-face octane-flip-face-breakdown"
+                    data-card-view="breakdown">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Execution Progress</h2>
+                      <div class="octane-muted">All Testcase Status</div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body" data-execution-breakdown-panel="true">
+                    <div class="octane-execution-breakdown">
+                      <j:choose>
+                        <j:when test="${snapshot.executionStatusDistribution.total == 0}">
+                          <div class="octane-execution-breakdown-empty">
+                            Execution status distribution will appear after Octane returns test runs.
+                          </div>
+                        </j:when>
+                        <j:otherwise>
+                          <div class="octane-execution-breakdown-content"
+                              data-status-count="${snapshot.executionStatusDistribution.statusCount}">
+                            <div class="octane-execution-half-pie-wrap">
+                              <svg class="octane-execution-half-pie" viewBox="0 36 320 160"
+                                  preserveAspectRatio="xMidYMid meet" role="img"
+                                  aria-label="Execution status distribution">
+                              <j:forEach var="segment"
+                                  items="${snapshot.executionStatusDistribution.segments}">
+                                <path class="octane-execution-half-pie-segment"
+                                    d="${segment.path}" stroke="${segment.color}">
+                                  <title>${segment.title}</title>
+                                </path>
+                              </j:forEach>
+                              <text class="octane-execution-half-pie-total" x="160" y="146">
+                                ${snapshot.executionStatusDistribution.total}
+                              </text>
+                              <text class="octane-execution-half-pie-label" x="160" y="172">
+                                Testcases
+                              </text>
+                              </svg>
+                            </div>
+                            <div class="octane-execution-breakdown-list">
+                              <j:forEach var="segment"
+                                  items="${snapshot.executionStatusDistribution.segments}">
+                                <div class="octane-execution-breakdown-row">
+                                  <span class="octane-execution-breakdown-swatch"
+                                      style="background:${segment.color};"></span>
+                                  <span class="octane-execution-breakdown-label">
+                                    ${segment.label}
+                                  </span>
+                                  <span class="octane-execution-breakdown-metric">
+                                    ${segment.count}
+                                    <span class="octane-execution-breakdown-pipe">|</span>
+                                    ${segment.percentageLabel}
+                                  </span>
+                                </div>
+                              </j:forEach>
+                            </div>
+                          </div>
+                        </j:otherwise>
+                      </j:choose>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
                 data-card-key="progress-pass-rate"
                 data-octane-progress="pass-rate"
-                data-progress-value="${snapshot.passRateProgress}">
-              <div class="octane-card-header">
-                <div>
-                  <h2 class="octane-card-title">Execution Pass Rate</h2>
-                  <div class="octane-muted" data-pass-rate-label="true">
-                    ${snapshot.passRateLabel}
+                data-progress-value="${snapshot.passRateProgress}"
+                data-active-view="timer">
+              <div class="octane-card-actions">
+                <button class="octane-view-toggle octane-view-toggle-root" type="button"
+                    data-target-view="defects" data-target-view-label="execution defect rate"
+                    aria-label="Show execution defect rate" title="Show execution defect rate">
+                  <svg class="octane-action-icon octane-icon-defects" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M4 18l4-5 4 2 4-8 4 3" />
+                    <path d="M4 20h16" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l3 2" />
+                    <path d="M9 2h6" />
+                  </svg>
+                </button>
+                <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                    aria-expanded="false" title="Expand widget">
+                  <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M8 4H4v4" />
+                    <path d="M16 4h4v4" />
+                    <path d="M20 16v4h-4" />
+                    <path d="M8 20H4v-4" />
+                  </svg>
+                  <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                      aria-hidden="true" focusable="false">
+                    <path d="M9 3v6H3" />
+                    <path d="M3 9l6-6" />
+                    <path d="M15 21v-6h6" />
+                    <path d="M21 15l-6 6" />
+                  </svg>
+                </button>
+                <button class="octane-card-tools" type="button"
+                    aria-label="Move widget"
+                    title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                  <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                      focusable="false">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
+                </button>
+              </div>
+              <div class="octane-flip-viewport">
+                <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
+                  <div class="octane-flip-face-header">
+                    <div>
+                      <h2 class="octane-card-title">Execution Pass Rate</h2>
+                      <div class="octane-muted" data-pass-rate-label="true">
+                        ${snapshot.passRateLabel}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-timer-wrap">
+                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
+                          aria-label="Execution Pass Rate">
+                        <defs>
+                          <linearGradient id="octane-pass-rate-progress-gradient" x1="32" y1="208"
+                              x2="208" y2="32" gradientUnits="userSpaceOnUse">
+                            <stop data-progress-gradient-stop="true" offset="0%"
+                                stop-color="#FF3B30" />
+                            <stop data-progress-gradient-stop="true" offset="50%"
+                                stop-color="#FF3B30" />
+                            <stop data-progress-gradient-stop="true" offset="100%"
+                                stop-color="#FF3B30" />
+                          </linearGradient>
+                        </defs>
+                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
+                        <circle class="octane-timer-progress" data-progress-circle="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-pass-rate-progress-gradient)"
+                            stroke-dasharray="0 100" stroke-linecap="round"
+                            transform="rotate(-90 120 120)" />
+                        <text class="octane-timer-value" data-progress-value-text="true"
+                            x="120" y="118">
+                          ${snapshot.passRateProgressText}
+                        </text>
+                        <text class="octane-timer-unit" x="120" y="132.4">
+                          passed
+                        </text>
+                      </svg>
+                    </div>
                   </div>
                 </div>
-                <div class="octane-card-actions">
-                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
-                      aria-expanded="false" title="Expand widget">
-                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M8 4H4v4" />
-                      <path d="M16 4h4v4" />
-                      <path d="M20 16v4h-4" />
-                      <path d="M8 20H4v-4" />
-                    </svg>
-                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
-                        aria-hidden="true" focusable="false">
-                      <path d="M9 3v6H3" />
-                      <path d="M3 9l6-6" />
-                      <path d="M15 21v-6h6" />
-                      <path d="M21 15l-6 6" />
-                    </svg>
-                  </button>
-                  <button class="octane-card-tools" type="button"
-                      aria-label="Move widget"
-                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
-                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
-                        focusable="false">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </button>
+                <div class="octane-flip-face octane-flip-face-defects"
+                    data-card-view="defects">
+                  <div class="octane-defect-face-header">
+                    <div class="octane-defect-face-heading">
+                      <h2 class="octane-card-title" data-defect-view-title="true">
+                        Execution Defect Rate
+                      </h2>
+                      <div class="octane-muted" data-defect-view-subtitle="true">
+                        Defect Arrival vs. Resolution Trend Analysis
+                      </div>
+                    </div>
+                    <div class="octane-defect-pane-switcher" role="tablist"
+                      aria-label="Defect analytics view">
+                      <button class="octane-defect-pane-toggle" type="button" role="tab"
+                          aria-selected="true" data-defect-target-view="volumes"
+                          data-defect-title="Execution Defect Rate"
+                          data-defect-subtitle="Defect Arrival vs. Resolution Trend Analysis">
+                        <span class="octane-defect-pane-label-full">Volume</span>
+                        <span class="octane-defect-pane-label-short">V</span>
+                      </button>
+                      <button class="octane-defect-pane-toggle" type="button" role="tab"
+                          aria-selected="false" data-defect-target-view="density"
+                          data-defect-title="Defect Density"
+                          data-defect-subtitle="Execution Defect Density">
+                        <span class="octane-defect-pane-label-full">Density</span>
+                        <span class="octane-defect-pane-label-short">D</span>
+                      </button>
+                    </div>
+                    <div class="octane-card-actions octane-defect-face-actions">
+                      <button class="octane-view-toggle octane-defect-main-view-toggle"
+                          type="button" data-target-view="defects"
+                          data-target-view-label="execution defect rate"
+                          aria-label="Show timer" title="Show timer">
+                        <svg class="octane-action-icon octane-icon-defects" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <path d="M4 18l4-5 4 2 4-8 4 3" />
+                          <path d="M4 20h16" />
+                        </svg>
+                        <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <circle cx="12" cy="13" r="8" />
+                          <path d="M12 9v4l3 2" />
+                          <path d="M9 2h6" />
+                        </svg>
+                      </button>
+                      <button class="octane-expand-toggle" type="button"
+                          aria-label="Expand widget" aria-expanded="false"
+                          title="Expand widget">
+                        <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <path d="M8 4H4v4" />
+                          <path d="M16 4h4v4" />
+                          <path d="M20 16v4h-4" />
+                          <path d="M8 20H4v-4" />
+                        </svg>
+                        <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <path d="M9 3v6H3" />
+                          <path d="M3 9l6-6" />
+                          <path d="M15 21v-6h6" />
+                          <path d="M21 15l-6 6" />
+                        </svg>
+                      </button>
+                      <button class="octane-card-tools" type="button"
+                          aria-label="Move widget"
+                          title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                        <svg class="octane-grabber-icon" viewBox="0 0 24 24"
+                            aria-hidden="true" focusable="false">
+                          <circle cx="12" cy="5" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="19" r="2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="octane-flip-face-body">
+                    <div class="octane-defect-analytics" data-defect-analytics="true"
+                        data-active-defect-view="volumes">
+                      <div class="octane-defect-pane-viewport">
+                        <div class="octane-defect-pane" data-defect-pane="volumes" role="tabpanel">
+                          <div class="octane-defect-pane-body">
+                            <div class="octane-defect-trend" data-defect-trend-panel="true"
+                                data-started-at="${snapshot.defectTrend.startedAt}"
+                                data-duration-millis="${snapshot.defectTrend.durationMillis}"
+                                data-building="${snapshot.building}">
+                              <div class="octane-defect-trend-summary-card">
+                                <div class="octane-defect-trend-totals">
+                                  <div class="octane-defect-trend-total octane-defect-trend-total-opened">
+                                    <div class="octane-defect-trend-value"
+                                        data-defect-trend-opened-total="true">
+                                      ${snapshot.defectTrend.openedTotal}
+                                    </div>
+                                    <div class="octane-defect-trend-total-label">Opened Defects</div>
+                                  </div>
+                                  <div class="octane-defect-trend-total octane-defect-trend-total-closed"
+                                      data-defect-trend-closed="true"
+                                      data-visible="${snapshot.defectTrend.openedTotal > 0}">
+                                    <div class="octane-defect-trend-value"
+                                        data-defect-trend-closed-total="true">
+                                      ${snapshot.defectTrend.closedTotal}
+                                    </div>
+                                    <div class="octane-defect-trend-total-label">Closed Defects</div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="octane-defect-trend-chart">
+                                <div class="octane-defect-trend-axis-title">Defects</div>
+                                <div class="octane-defect-trend-y-labels"
+                                    data-defect-trend-y-labels="true"></div>
+                                <div class="octane-defect-trend-plot">
+                                  <svg class="octane-defect-trend-svg" viewBox="0 0 1000 434"
+                                      preserveAspectRatio="none" role="img"
+                                      aria-labelledby="octane-defect-trend-title octane-defect-trend-description">
+                                    <title id="octane-defect-trend-title">Defects raised and closed over time</title>
+                                    <desc id="octane-defect-trend-description">
+                                      Red tracks all defects raised. Green tracks closed defects.
+                                    </desc>
+                                    <g data-defect-trend-grid="true"></g>
+                                    <line class="octane-defect-trend-axis-line" x1="0" y1="434"
+                                        x2="1000" y2="434" />
+                                    <path class="octane-defect-trend-line octane-defect-trend-line-opened"
+                                        data-defect-trend-opened-line="true" d="" />
+                                    <path class="octane-defect-trend-line octane-defect-trend-line-closed"
+                                        data-defect-trend-closed-line="true" d="" />
+                                  </svg>
+                                </div>
+                                <div class="octane-defect-trend-x-labels"
+                                    data-defect-trend-x-labels="true"></div>
+                              </div>
+                              <div class="octane-defect-trend-points" aria-hidden="true">
+                                <j:forEach var="point" items="${snapshot.defectTrend.points}">
+                                  <span data-defect-trend-point="true"
+                                      data-elapsed-millis="${point.elapsedMillis}"
+                                      data-opened="${point.opened}" data-closed="${point.closed}"
+                                      data-executed="${point.executed}"></span>
+                                </j:forEach>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="octane-defect-pane" data-defect-pane="density" role="tabpanel">
+                          <div class="octane-defect-pane-body">
+                            <div class="octane-defect-density" data-defect-density-panel="true"
+                                data-started-at="${snapshot.defectTrend.startedAt}"
+                                data-duration-millis="${snapshot.defectTrend.durationMillis}">
+                              <div class="octane-defect-density-total">
+                                <div class="octane-defect-density-value"
+                                    data-defect-density-raised-total="true">
+                                  ${snapshot.defectTrend.openedTotal}
+                                </div>
+                                <div class="octane-defect-density-label">Defects Raised</div>
+                              </div>
+                              <div class="octane-defect-density-chart">
+                                <div class="octane-defect-density-axis-title">Defect Density</div>
+                                <div class="octane-defect-density-y-labels"
+                                    data-defect-density-y-labels="true"></div>
+                                <div class="octane-defect-density-plot">
+                                  <svg class="octane-defect-density-svg" viewBox="0 0 1000 360"
+                                      preserveAspectRatio="none" role="img"
+                                      aria-labelledby="octane-defect-density-title octane-defect-density-description">
+                                    <title id="octane-defect-density-title">Defect density over execution time</title>
+                                    <desc id="octane-defect-density-description">
+                                      Blue tracks new defects divided by tests executed in each interval.
+                                    </desc>
+                                    <g data-defect-density-grid="true"></g>
+                                    <line class="octane-defect-density-axis-line octane-defect-density-axis-line-dotted"
+                                        x1="0" y1="360" x2="80" y2="360" />
+                                    <line class="octane-defect-density-axis-line"
+                                        x1="80" y1="360" x2="920" y2="360" />
+                                    <line class="octane-defect-density-axis-line octane-defect-density-axis-line-dotted"
+                                        x1="920" y1="360" x2="1000" y2="360" />
+                                    <path class="octane-defect-density-area"
+                                        data-defect-density-area="true"
+                                        shape-rendering="geometricPrecision" d="" />
+                                    <path class="octane-defect-density-line"
+                                        data-defect-density-line="true"
+                                        shape-rendering="geometricPrecision" stroke-width="1"
+                                        d="" />
+                                  </svg>
+                                </div>
+                                <div class="octane-defect-density-x-labels"
+                                    data-defect-density-x-labels="true"></div>
+                              </div>
+                              <div class="octane-defect-density-buckets" aria-hidden="true">
+                                <j:forEach var="bucket" items="${snapshot.defectTrend.densityBuckets}">
+                                  <span data-defect-density-bucket="true"
+                                      data-start-millis="${bucket.startMillis}"
+                                      data-end-millis="${bucket.endMillis}"
+                                      data-new-defects="${bucket.newDefects}"
+                                      data-executed-tests="${bucket.executedTests}"
+                                      data-density="${bucket.density}"
+                                      data-zero-test-spike="${bucket.zeroTestSpike}"></span>
+                                </j:forEach>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div class="octane-timer-wrap">
-                <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                    aria-label="Execution Pass Rate">
-                  <defs>
-                    <linearGradient id="octane-pass-rate-progress-gradient" x1="32" y1="208"
-                        x2="208" y2="32" gradientUnits="userSpaceOnUse">
-                      <stop data-progress-gradient-stop="true" offset="0%" stop-color="#fb4b4b" />
-                      <stop data-progress-gradient-stop="true" offset="50%"
-                          stop-color="#e14343" />
-                      <stop data-progress-gradient-stop="true" offset="100%"
-                          stop-color="#e14343" />
-                    </linearGradient>
-                  </defs>
-                  <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                  <circle class="octane-timer-progress-halo" data-progress-halo="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-pass-rate-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-progress" data-progress-circle="true"
-                      cx="120" cy="120" r="84" pathLength="100"
-                      stroke="url(#octane-pass-rate-progress-gradient)" stroke-dasharray="0 100"
-                      transform="rotate(-90 120 120)" />
-                  <circle class="octane-timer-head" data-progress-head="true"
-                      cx="120" cy="36" r="9.6" fill="#e14343" />
-                  <text class="octane-timer-value" data-progress-value-text="true"
-                      x="120" y="118">
-                    ${snapshot.passRateProgressText}
-                  </text>
-                  <text class="octane-timer-unit" x="120" y="132.4">
-                    passed
-                  </text>
-                </svg>
               </div>
             </section>
           </div>
@@ -1912,6 +3119,16 @@
                                 data-bar-key="${suiteRun.suiteRunId}"
                                 data-dominant-status-color="${suiteRun.dominantStatusColor}"
                                 data-dominant-status-label="${suiteRun.dominantStatusLabel}"
+                                data-status-passed-count="${suiteRun.passedCount}"
+                                data-status-passed-color="${suiteRun.passedTooltipColor}"
+                                data-status-failed-count="${suiteRun.failedCount}"
+                                data-status-failed-color="${suiteRun.failedTooltipColor}"
+                                data-status-blocked-count="${suiteRun.blockedCount}"
+                                data-status-blocked-color="${suiteRun.blockedTooltipColor}"
+                                data-status-skipped-count="${suiteRun.skippedCount}"
+                                data-status-skipped-color="${suiteRun.skippedTooltipColor}"
+                                data-status-running-count="${suiteRun.runningCount}"
+                                data-status-running-color="${suiteRun.runningTooltipColor}"
                                 aria-label="${suiteRun.title}">
                               <div class="octane-vertical-bar-wrap">
                                 <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
@@ -1926,13 +3143,14 @@
                               <span class="octane-suite-label" title="${suiteRun.title}">
                                 ${suiteRun.axisLabel}
                               </span>
-                              <div class="octane-bar-popup" role="tooltip">
+                              <div class="octane-bar-popup" role="tooltip"
+                                  style="--octane-popup-border-color: ${suiteRun.dominantStatusColor};">
                                 <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
                                 <j:forEach var="status" items="${suiteRun.statuses}">
                                   <j:if test="${status.count > 0}">
                                     <div class="octane-bar-popup-row">
                                       <span class="octane-swatch"
-                                          style="background: ${status.color};"></span>
+                                          style="background: ${status.tooltipColor};"></span>
                                       <span class="octane-bar-popup-label">${status.label}</span>
                                       <span class="octane-bar-popup-value">${status.count}</span>
                                       <span class="octane-bar-popup-percent">
@@ -2024,6 +3242,83 @@
               </j:when>
             </j:choose>
           </div>
+          <section class="octane-tester-details-zone" id="tester-details-zone"
+              aria-labelledby="octane-tester-details-title">
+            <header class="octane-tester-details-header">
+              <h2 class="octane-tester-details-title" id="octane-tester-details-title">
+                Tester Details
+              </h2>
+              <button class="octane-tester-details-toggle" type="button"
+                  aria-controls="octane-tester-details-body" aria-expanded="true"
+                  aria-label="Collapse tester details" title="Collapse tester details">
+                <svg class="octane-action-icon octane-icon-tester-collapse" viewBox="0 0 24 24"
+                    aria-hidden="true" focusable="false">
+                  <path d="M6 15l6-6 6 6" />
+                </svg>
+                <svg class="octane-action-icon octane-icon-tester-expand" viewBox="0 0 24 24"
+                    aria-hidden="true" focusable="false">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            </header>
+            <div class="octane-tester-details-body" id="octane-tester-details-body">
+              <section class="octane-tester-tracker"
+                  aria-labelledby="octane-execution-tracker-title">
+                <h3 class="octane-tester-tracker-title" id="octane-execution-tracker-title"
+                    data-tester-execution-title="true">
+                  Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})
+                </h3>
+                <div class="octane-tester-column-content"
+                    data-tester-execution-content="true"
+                    data-empty="${snapshot.testerExecutionDetailsEmpty}">
+                  <table class="octane-tester-table">
+                    <thead>
+                      <tr>
+                        <th class="octane-tester-email" scope="col">Email</th>
+                        <th class="octane-tester-rate" scope="col">Suiterun Execution</th>
+                      </tr>
+                    </thead>
+                    <tbody data-tester-execution-rows="true">
+                      <j:forEach var="tester" items="${snapshot.testerExecutionDetails}">
+                        <tr>
+                          <td class="octane-tester-email">${tester.email}</td>
+                          <td class="octane-tester-rate">${tester.executionRateText}</td>
+                        </tr>
+                      </j:forEach>
+                    </tbody>
+                  </table>
+                  <div class="octane-tester-empty-state">Everything Good!</div>
+                </div>
+              </section>
+              <section class="octane-tester-tracker" aria-labelledby="octane-pass-rate-tracker-title">
+                <h3 class="octane-tester-tracker-title" id="octane-pass-rate-tracker-title"
+                    data-tester-pass-rate-title="true">
+                  Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})
+                </h3>
+                <div class="octane-tester-column-content"
+                    data-tester-pass-rate-content="true"
+                    data-empty="${snapshot.testerPassRateDetailsEmpty}">
+                  <table class="octane-tester-table">
+                    <thead>
+                      <tr>
+                        <th class="octane-tester-email" scope="col">Email</th>
+                        <th class="octane-tester-rate" scope="col">Suiterun Passrate</th>
+                      </tr>
+                    </thead>
+                    <tbody data-tester-pass-rate-rows="true">
+                      <j:forEach var="tester" items="${snapshot.testerPassRateDetails}">
+                        <tr>
+                          <td class="octane-tester-email">${tester.email}</td>
+                          <td class="octane-tester-rate">${tester.passRateText}</td>
+                        </tr>
+                      </j:forEach>
+                    </tbody>
+                  </table>
+                  <div class="octane-tester-empty-state">Everything Good!</div>
+                </div>
+              </section>
+            </div>
+          </section>
         </div>
         <div id="octane-bar-popup-overlay" class="octane-bar-popup" role="tooltip"
             aria-hidden="true"></div>
@@ -2061,6 +3356,7 @@
           var liveUpdateLine = dashboard.querySelector("[data-live-update-line]");
           var liveUpdateTitle = dashboard.querySelector("[data-live-update-title]");
           var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
+          var exitExtendedForm = document.querySelector("[data-exit-extended-form]");
           var reorderStatus = document.getElementById("octane-reorder-status");
           var liveRefresh = {
             fetching: false,
@@ -2069,39 +3365,36 @@
             waiting: false,
             waitingSince: 0
           };
-          var TIMER_CENTER = 120;
-          var TIMER_RADIUS = 84;
+          var completionAutoFlipState = {};
+          var TIMER_ACTIVE_OPACITY = "1";
+          var COLOR_GOOD = "--octane-color-good";
+          var COLOR_WARN = "--octane-color-warn";
+          var COLOR_BAD = "--octane-color-bad";
+          var COLOR_NEUTRAL = "--octane-color-neutral";
+          var COLOR_TOKEN_FALLBACKS = {};
+          COLOR_TOKEN_FALLBACKS[COLOR_GOOD] = "#34C759";
+          COLOR_TOKEN_FALLBACKS[COLOR_WARN] = "#FFCC00";
+          COLOR_TOKEN_FALLBACKS[COLOR_BAD] = "#FF3B30";
+          COLOR_TOKEN_FALLBACKS[COLOR_NEUTRAL] = "#007AFF";
           var PROGRESS_COLOR_PHASES = {
             execution: [
-              {limit: 5, colors: ["#fb4b4b", "#e14343"]},
-              {limit: 30, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
-              {limit: 70, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 100, colors: ["#4bfb4b", "#43e143", "#3cc83c"]}
+              {limit: 20, token: COLOR_BAD},
+              {limit: 79, token: COLOR_WARN},
+              {limit: 100, token: COLOR_GOOD}
             ],
             passRate: [
-              {limit: 20, colors: ["#fb4b4b", "#e14343"]},
-              {limit: 60, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
-              {limit: 94, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 100, colors: ["#4bfb4b", "#43e143", "#3cc83c"]}
+              {limit: 49, token: COLOR_BAD},
+              {limit: 89, token: COLOR_WARN},
+              {limit: 100, token: COLOR_GOOD}
             ],
             poll: [
-              {
-                limit: 100,
-                colors: ["#757575", "#696969", "#5d5d5d", "#bbdefb", "#a8c7e1", "#95b1c8"]
-              }
+              {limit: 100, token: COLOR_NEUTRAL}
             ],
             timeout: [
-              {limit: 30, colors: ["#4caf50", "#449d48", "#3c8c40"]},
-              {limit: 70, colors: ["#fff47f", "#e5db72", "#ccc365"]},
-              {limit: 95, colors: ["#ff7e5f", "#e57155", "#cc644c"]},
-              {limit: 100, colors: ["#fb4b4b", "#e14343"]}
+              {limit: 50, token: COLOR_GOOD},
+              {limit: 79, token: COLOR_WARN},
+              {limit: 100, token: COLOR_BAD}
             ]
-          };
-          var COMPLETE_PROGRESS_COLORS = {
-            execution: "#3cc83c",
-            passRate: "#3cc83c",
-            poll: "#95b1c8",
-            timeout: "#e14343"
           };
           var wallClockAnchor = Date.now();
           var performanceClockAnchor = hasPerformanceClock ? window.performance.now() : 0;
@@ -2121,18 +3414,24 @@
           function trimNumber(value) {
             return value.toFixed(3).replace(/\.?0+$/, "");
           }
-          function colorsForProgress(kind, progress) {
-            var completeColor = COMPLETE_PROGRESS_COLORS[kind];
-            if (progress >= 100 && completeColor) {
-              return [completeColor, completeColor, completeColor];
+          function colorTokenValue(token) {
+            var fallback = COLOR_TOKEN_FALLBACKS[token] || "#4a4a4a";
+            if (!dashboard || !window.getComputedStyle) {
+              return fallback;
             }
+            var value = window.getComputedStyle(dashboard).getPropertyValue(token).trim();
+            return value || fallback;
+          }
+          function colorsForProgress(kind, progress) {
             var phases = PROGRESS_COLOR_PHASES[kind] || PROGRESS_COLOR_PHASES.timeout;
             for (var index = 0; index < phases.length; index += 1) {
               if (progress <= phases[index].limit) {
-                return phases[index].colors;
+                var phaseColor = colorTokenValue(phases[index].token);
+                return [phaseColor, phaseColor, phaseColor];
               }
             }
-            return phases[phases.length - 1].colors;
+            var finalColor = colorTokenValue(phases[phases.length - 1].token);
+            return [finalColor, finalColor, finalColor];
           }
           function stopColorAt(colors, index, stopCount) {
             if (colors.length === 0) {
@@ -2169,10 +3468,96 @@
               liveUpdateStatus.textContent = isLastUpdated === true ? "" : message || "";
             }
           }
+          function setExtendedExitVisibility(extendedTime) {
+            if (exitExtendedForm) {
+              exitExtendedForm.setAttribute("data-visible", String(extendedTime === true));
+            }
+          }
           function htmlToElement(html) {
             var container = document.createElement("div");
             container.innerHTML = html || "";
             return container.querySelector("#octane-report-zone");
+          }
+          function replaceTesterRows(contentSelector, rowsSelector, testers, rateProperty) {
+            var content = dashboard.querySelector(contentSelector);
+            var tableRows = dashboard.querySelector(rowsSelector);
+            if (!content || !tableRows) {
+              return;
+            }
+            var rows = Array.isArray(testers) ? testers : [];
+            while (tableRows.firstChild) {
+              tableRows.removeChild(tableRows.firstChild);
+            }
+            for (var index = 0; index < rows.length; index += 1) {
+              var tester = rows[index] || {};
+              var row = document.createElement("tr");
+              var email = document.createElement("td");
+              email.className = "octane-tester-email";
+              email.textContent = tester.email || "Unassigned";
+              var rate = document.createElement("td");
+              rate.className = "octane-tester-rate";
+              rate.textContent = tester[rateProperty] || "0%";
+              row.appendChild(email);
+              row.appendChild(rate);
+              tableRows.appendChild(row);
+            }
+            content.setAttribute("data-empty", String(rows.length === 0));
+          }
+          function updateTesterDetails(payload) {
+            var details = payload && payload.testerDetails;
+            if (!details) {
+              return;
+            }
+            var passRateTesters = Array.isArray(details.passRateTesters)
+                ? details.passRateTesters
+                : [];
+            var executionTesters = Array.isArray(details.executionTesters)
+                ? details.executionTesters
+                : [];
+            var passRateTitle = dashboard.querySelector("[data-tester-pass-rate-title]");
+            var executionTitle = dashboard.querySelector("[data-tester-execution-title]");
+            if (passRateTitle) {
+              passRateTitle.textContent =
+                  "Testers with LESS THAN "
+                  + String(details.basePassrateFigure || 0)
+                  + "% Pass Rate ("
+                  + String(passRateTesters.length)
+                  + ")";
+            }
+            if (executionTitle) {
+              executionTitle.textContent =
+                  "Testers with LESS THAN "
+                  + String(details.baseExecutionFigure || 0)
+                  + "% Execution ("
+                  + String(executionTesters.length)
+                  + ")";
+            }
+            replaceTesterRows(
+                "[data-tester-pass-rate-content]",
+                "[data-tester-pass-rate-rows]",
+                passRateTesters,
+                "passRateText");
+            replaceTesterRows(
+                "[data-tester-execution-content]",
+                "[data-tester-execution-rows]",
+                executionTesters,
+                "executionRateText");
+          }
+          function setTesterDetailsExpanded(zone, expanded) {
+            if (!zone) {
+              return;
+            }
+            var body = zone.querySelector(".octane-tester-details-body");
+            var button = zone.querySelector(".octane-tester-details-toggle");
+            if (body) {
+              body.hidden = !expanded;
+            }
+            if (button) {
+              var action = expanded ? "Collapse" : "Expand";
+              button.setAttribute("aria-expanded", String(expanded));
+              button.setAttribute("aria-label", action + " tester details");
+              button.setAttribute("title", action + " tester details");
+            }
           }
           function createExpandButton() {
             var button = document.createElement("button");
@@ -2210,7 +3595,8 @@
             if (!card) {
               return;
             }
-            var button = card.querySelector(".octane-view-toggle");
+            var buttons = card.querySelectorAll(".octane-view-toggle");
+            var button = buttons.length > 0 ? buttons[0] : null;
             var targetView =
                 button ? button.getAttribute("data-target-view") || "heatmap" : "heatmap";
             var targetLabel =
@@ -2223,8 +3609,10 @@
               return;
             }
             var label = nextView === targetView ? "Show timer" : "Show " + targetLabel;
-            button.setAttribute("aria-label", label);
-            button.setAttribute("title", label);
+            for (var index = 0; index < buttons.length; index += 1) {
+              buttons[index].setAttribute("aria-label", label);
+              buttons[index].setAttribute("title", label);
+            }
           }
           function activeCardView(card) {
             return card ? card.getAttribute("data-active-view") || "timer" : "timer";
@@ -2232,12 +3620,67 @@
           function toggleCardView(card) {
             var button = card ? card.querySelector(".octane-view-toggle") : null;
             var targetView = button ? button.getAttribute("data-target-view") || "heatmap" : "heatmap";
-            setCardView(card, activeCardView(card) === targetView ? "timer" : targetView);
+            var nextView = activeCardView(card) === targetView ? "timer" : targetView;
+            setCardView(card, nextView);
+            if (nextView === "defects") {
+              scheduleDefectTrendAnimation();
+            }
           }
           function initializeCardViews(root) {
             var cards = root.querySelectorAll("[data-active-view]");
             for (var index = 0; index < cards.length; index += 1) {
               setCardView(cards[index], activeCardView(cards[index]));
+            }
+          }
+          function setDefectAnalyticsView(container, view) {
+            if (!container) {
+              return;
+            }
+            var nextView = view === "density" ? "density" : "volumes";
+            container.setAttribute("data-active-defect-view", nextView);
+            var card = container.closest(".octane-chart-card");
+            var toggleRoot = card || container;
+            var toggles = toggleRoot.querySelectorAll("[data-defect-target-view]");
+            var selectedButton = null;
+            for (var index = 0; index < toggles.length; index += 1) {
+              var selected = toggles[index].getAttribute("data-defect-target-view") === nextView;
+              toggles[index].setAttribute("aria-selected", String(selected));
+              if (selected) {
+                selectedButton = toggles[index];
+              }
+            }
+            if (card && selectedButton) {
+              var title = card.querySelector("[data-defect-view-title]");
+              var subtitle = card.querySelector("[data-defect-view-subtitle]");
+              if (title) {
+                title.textContent =
+                    selectedButton.getAttribute("data-defect-title") || "Execution Defect Rate";
+              }
+              if (subtitle) {
+                subtitle.textContent =
+                    selectedButton.getAttribute("data-defect-subtitle")
+                    || "Defect Arrival vs. Resolution Trend Analysis";
+              }
+            }
+            if (nextView === "density") {
+              renderDefectDensity(currentWallTime());
+            } else {
+              renderDefectTrend(currentWallTime());
+            }
+            scheduleDefectTrendAnimation();
+          }
+          function activeDefectAnalyticsView() {
+            var container = dashboard.querySelector("[data-defect-analytics]");
+            return container
+                ? container.getAttribute("data-active-defect-view") || "volumes"
+                : "volumes";
+          }
+          function initializeDefectAnalyticsViews(root) {
+            var containers = root.querySelectorAll("[data-defect-analytics]");
+            for (var index = 0; index < containers.length; index += 1) {
+              setDefectAnalyticsView(
+                  containers[index],
+                  containers[index].getAttribute("data-active-defect-view") || "volumes");
             }
           }
           function updateRiskHeatMap(payload) {
@@ -2258,6 +3701,535 @@
               panel.innerHTML = payload.testMetricsHtml;
             }
           }
+          function updateExecutionStatusDistribution(payload) {
+            if (!payload || typeof payload.executionStatusDistributionHtml !== "string") {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-execution-breakdown-panel]");
+            if (panel) {
+              panel.innerHTML = payload.executionStatusDistributionHtml;
+            }
+          }
+          var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+          var DEFECT_TREND_BOUNDS = {
+            left: 0,
+            right: 1000,
+            top: 0,
+            bottom: 434
+          };
+          var DEFECT_DENSITY_BOUNDS = {
+            left: 80,
+            right: 920,
+            top: 0,
+            bottom: 360
+          };
+          var defectTrendState = null;
+          var defectTrendLoopRunning = false;
+          function safeTrendNumber(value, fallback) {
+            var parsed = Number(value);
+            return isFinite(parsed) ? parsed : fallback;
+          }
+          function readDefectTrendPoints(panel) {
+            var points = [];
+            var sources = panel ? panel.querySelectorAll("[data-defect-trend-point]") : [];
+            for (var index = 0; index < sources.length; index += 1) {
+              points.push({
+                elapsedMillis: Math.max(
+                    0, safeTrendNumber(sources[index].getAttribute("data-elapsed-millis"), 0)),
+                opened: Math.max(0, safeTrendNumber(sources[index].getAttribute("data-opened"), 0)),
+                closed: Math.max(0, safeTrendNumber(sources[index].getAttribute("data-closed"), 0)),
+                executed:
+                    Math.max(0, safeTrendNumber(sources[index].getAttribute("data-executed"), 0))
+              });
+            }
+            return points.length ? points : [{elapsedMillis: 0, opened: 0, closed: 0, executed: 0}];
+          }
+          function normalizeDefectTrendPoints(points, durationMillis) {
+            var normalized = [];
+            if (points && typeof points.length === "number") {
+              for (var index = 0; index < points.length; index += 1) {
+                normalized.push({
+                  elapsedMillis: clamp(
+                      safeTrendNumber(points[index].elapsedMillis, 0), 0, durationMillis),
+                  opened: Math.max(0, safeTrendNumber(points[index].opened, 0)),
+                  closed: Math.max(0, safeTrendNumber(points[index].closed, 0)),
+                  executed: Math.max(0, safeTrendNumber(points[index].executed, 0))
+                });
+              }
+            }
+            normalized.sort(function (left, right) {
+              return left.elapsedMillis - right.elapsedMillis;
+            });
+            return normalized.length
+                ? normalized
+                : [{elapsedMillis: 0, opened: 0, closed: 0, executed: 0}];
+          }
+          function initializeDefectTrend() {
+            var panel = dashboard.querySelector("[data-defect-trend-panel]");
+            if (!panel) {
+              return;
+            }
+            var durationMillis = Math.max(
+                1, safeTrendNumber(panel.getAttribute("data-duration-millis"), 1));
+            defectTrendState = {
+              panel: panel,
+              startedAt: parseTimestamp(panel.getAttribute("data-started-at")),
+              durationMillis: durationMillis,
+              building: panel.getAttribute("data-building") === "true",
+              points: normalizeDefectTrendPoints(readDefectTrendPoints(panel), durationMillis),
+              renderedYMaximum: -1,
+              renderedDurationMillis: -1,
+              renderedDensityYMaximum: -1,
+              renderedDensityDurationMillis: -1
+            };
+            renderDefectTrend(currentWallTime());
+            renderDefectDensity(currentWallTime());
+          }
+          function defectTrendVisible() {
+            var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
+            return card
+                && activeCardView(card) === "defects"
+                && activeDefectAnalyticsView() === "volumes";
+          }
+          function defectDensityVisible() {
+            var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
+            return card
+                && activeCardView(card) === "defects"
+                && activeDefectAnalyticsView() === "density";
+          }
+          function defectAnalyticsVisible() {
+            var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
+            return card && activeCardView(card) === "defects";
+          }
+          function latestDefectTrendPoint() {
+            if (!defectTrendState || !defectTrendState.points.length) {
+              return {elapsedMillis: 0, opened: 0, closed: 0, executed: 0};
+            }
+            return defectTrendState.points[defectTrendState.points.length - 1];
+          }
+          function niceDefectTrendScale(maximumCount) {
+            if (maximumCount <= 5) {
+              return {maximum: 5, step: 1};
+            }
+            var roughStep = maximumCount / 5;
+            var magnitude = Math.pow(10, Math.floor(Math.log(roughStep) / Math.LN10));
+            var normalizedStep = roughStep / magnitude;
+            var multiplier = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 :
+                normalizedStep <= 5 ? 5 : 10;
+            var step = multiplier * magnitude;
+            return {
+              maximum: Math.ceil(maximumCount / step) * step,
+              step: step
+            };
+          }
+          function formatDefectTrendTime(milliseconds) {
+            var totalSeconds = Math.max(0, Math.round(milliseconds / 1000));
+            if (totalSeconds < 60) {
+              return totalSeconds + "s";
+            }
+            var totalMinutes = Math.round(totalSeconds / 60);
+            if (totalMinutes < 60) {
+              return totalMinutes + "m";
+            }
+            var hours = Math.floor(totalMinutes / 60);
+            var minutes = totalMinutes % 60;
+            return minutes ? hours + "h " + minutes + "m" : hours + "h";
+          }
+          function formatClockOffset(timestampMillis) {
+            var date = new Date(timestampMillis);
+            if (isNaN(date.getTime())) {
+              return "";
+            }
+            var hours = String(date.getHours()).padStart(2, "0");
+            var minutes = String(date.getMinutes()).padStart(2, "0");
+            return hours + ":" + minutes;
+          }
+          function createTrendSvgElement(name, attributes, textValue) {
+            var element = document.createElementNS(SVG_NAMESPACE, name);
+            for (var key in attributes) {
+              if (Object.prototype.hasOwnProperty.call(attributes, key)) {
+                element.setAttribute(key, attributes[key]);
+              }
+            }
+            if (typeof textValue === "string") {
+              element.textContent = textValue;
+            }
+            return element;
+          }
+          function createTrendAxisLabel(value) {
+            var label = document.createElement("span");
+            label.className = "octane-defect-trend-axis-label";
+            label.textContent = value;
+            return label;
+          }
+          function createDensityAxisLabel(value) {
+            var label = document.createElement("span");
+            label.className = "octane-defect-density-axis-label";
+            label.textContent = value;
+            return label;
+          }
+          function effectiveDefectTrendPoints(now) {
+            if (!defectTrendState) {
+              return [{elapsedMillis: 0, opened: 0, closed: 0, executed: 0}];
+            }
+            var points = defectTrendState.points.slice();
+            var latest = latestDefectTrendPoint();
+            var elapsedMillis = latest.elapsedMillis;
+            if (defectTrendState.building) {
+              elapsedMillis = Math.max(
+                  elapsedMillis,
+                  clamp(now - defectTrendState.startedAt, 0, defectTrendState.durationMillis));
+            }
+            if (elapsedMillis > latest.elapsedMillis) {
+              points.push({
+                elapsedMillis: elapsedMillis,
+                opened: latest.opened,
+                closed: latest.closed,
+                executed: latest.executed
+              });
+            }
+            return points;
+          }
+          function rebuildDefectTrendAxes(scale) {
+            if (!defectTrendState) {
+              return;
+            }
+            var panel = defectTrendState.panel;
+            var grid = panel.querySelector("[data-defect-trend-grid]");
+            var yLabels = panel.querySelector("[data-defect-trend-y-labels]");
+            var xLabels = panel.querySelector("[data-defect-trend-x-labels]");
+            if (!grid || !yLabels || !xLabels) {
+              return;
+            }
+            grid.textContent = "";
+            yLabels.textContent = "";
+            xLabels.textContent = "";
+            var height = DEFECT_TREND_BOUNDS.bottom - DEFECT_TREND_BOUNDS.top;
+            for (var value = scale.step; value <= scale.maximum; value += scale.step) {
+              var y = DEFECT_TREND_BOUNDS.bottom - (value / scale.maximum) * height;
+              grid.appendChild(createTrendSvgElement("line", {
+                "class": "octane-defect-trend-grid-line",
+                x1: DEFECT_TREND_BOUNDS.left,
+                y1: y,
+                x2: DEFECT_TREND_BOUNDS.right,
+                y2: y
+              }));
+            }
+            for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step) {
+              yLabels.appendChild(createTrendAxisLabel(String(yValue)));
+            }
+            for (var index = 0; index <= 4; index += 1) {
+              var ratio = index / 4;
+              xLabels.appendChild(
+                  createTrendAxisLabel(
+                      formatDefectTrendTime(defectTrendState.durationMillis * ratio)));
+            }
+            defectTrendState.renderedYMaximum = scale.maximum;
+            defectTrendState.renderedDurationMillis = defectTrendState.durationMillis;
+          }
+          function niceDefectDensityScale(maximumDensity) {
+            if (maximumDensity <= 5) {
+              return {maximum: 5, step: 1};
+            }
+            var roughStep = maximumDensity / 5;
+            var magnitude = Math.pow(10, Math.floor(Math.log(roughStep) / Math.LN10));
+            var normalizedStep = roughStep / magnitude;
+            var multiplier = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 :
+                normalizedStep <= 5 ? 5 : 10;
+            var step = multiplier * magnitude;
+            return {
+              maximum: Math.ceil(maximumDensity / step) * step,
+              step: step
+            };
+          }
+          function formatDensityAxisValue(value) {
+            return trimNumber(value);
+          }
+          function densityBucketMillis(durationMillis) {
+            var target = Math.max(1, Math.round(durationMillis / 10));
+            var friendly = [15000, 30000, 60000, 120000, 300000, 600000, 900000];
+            for (var index = 0; index < friendly.length; index += 1) {
+              if (target <= friendly[index]) {
+                return friendly[index];
+              }
+            }
+            return 900000;
+          }
+          function defectPointAt(points, elapsedMillis) {
+            var selected = points.length
+                ? points[0]
+                : {elapsedMillis: 0, opened: 0, closed: 0, executed: 0};
+            for (var index = 0; index < points.length; index += 1) {
+              if (points[index].elapsedMillis > elapsedMillis) {
+                return selected;
+              }
+              selected = points[index];
+            }
+            return selected;
+          }
+          function buildDefectDensityBuckets(points, durationMillis, elapsedLimitMillis) {
+            var safeDuration = Math.max(1, durationMillis);
+            var bucketMillis = densityBucketMillis(safeDuration);
+            var visibleLimit = clamp(elapsedLimitMillis, 0, safeDuration);
+            var buckets = [];
+            for (var start = 0; start < safeDuration && start < visibleLimit; start += bucketMillis) {
+              var end = Math.min(safeDuration, start + bucketMillis, visibleLimit);
+              var startPoint = defectPointAt(points, start);
+              var endPoint = defectPointAt(points, end);
+              var newDefects = Math.max(0, endPoint.opened - startPoint.opened);
+              var executedTests = Math.max(0, endPoint.executed - startPoint.executed);
+              buckets.push({
+                startMillis: start,
+                endMillis: end,
+                newDefects: newDefects,
+                executedTests: executedTests,
+                density: executedTests === 0 ? newDefects : newDefects / executedTests,
+                zeroTestSpike: newDefects > 0 && executedTests === 0
+              });
+            }
+            return buckets;
+          }
+          function rebuildDefectDensityAxes(scale) {
+            if (!defectTrendState) {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-defect-density-panel]");
+            if (!panel) {
+              return;
+            }
+            var grid = panel.querySelector("[data-defect-density-grid]");
+            var yLabels = panel.querySelector("[data-defect-density-y-labels]");
+            var xLabels = panel.querySelector("[data-defect-density-x-labels]");
+            if (!grid || !yLabels || !xLabels) {
+              return;
+            }
+            grid.textContent = "";
+            yLabels.textContent = "";
+            xLabels.textContent = "";
+            var height = DEFECT_DENSITY_BOUNDS.bottom - DEFECT_DENSITY_BOUNDS.top;
+            var width = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
+            for (var value = scale.step; value <= scale.maximum; value += scale.step) {
+              var y = DEFECT_DENSITY_BOUNDS.bottom - (value / scale.maximum) * height;
+              grid.appendChild(createTrendSvgElement("line", {
+                "class": "octane-defect-density-grid-line",
+                x1: DEFECT_DENSITY_BOUNDS.left,
+                y1: y,
+                x2: DEFECT_DENSITY_BOUNDS.right,
+                y2: y
+              }));
+            }
+            for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step) {
+              yLabels.appendChild(createDensityAxisLabel(formatDensityAxisValue(yValue)));
+            }
+            for (var index = 0; index <= 4; index += 1) {
+              var ratio = index / 4;
+              xLabels.appendChild(
+                  createDensityAxisLabel(
+                      formatClockOffset(defectTrendState.startedAt
+                          + defectTrendState.durationMillis * ratio)));
+            }
+            defectTrendState.renderedDensityYMaximum = scale.maximum;
+            defectTrendState.renderedDensityDurationMillis = defectTrendState.durationMillis;
+            defectTrendState.renderedDensityWidth = width;
+          }
+          function densityXFor(milliseconds) {
+            var width = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
+            return DEFECT_DENSITY_BOUNDS.left
+                + (milliseconds / defectTrendState.durationMillis) * width;
+          }
+          function densityYFor(value, scale) {
+            var height = DEFECT_DENSITY_BOUNDS.bottom - DEFECT_DENSITY_BOUNDS.top;
+            return DEFECT_DENSITY_BOUNDS.bottom - (value / scale.maximum) * height;
+          }
+          function defectDensityLinePath(buckets, scale) {
+            if (!buckets.length) {
+              return "";
+            }
+            var path = "";
+            for (var index = 0; index < buckets.length; index += 1) {
+              var x = densityXFor((buckets[index].startMillis + buckets[index].endMillis) / 2);
+              var y = densityYFor(buckets[index].density, scale);
+              path += (index === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
+            }
+            return path;
+          }
+          function defectDensityAreaPath(buckets, scale) {
+            if (!buckets.length) {
+              return "";
+            }
+            var firstX = densityXFor((buckets[0].startMillis + buckets[0].endMillis) / 2);
+            var lastX =
+                densityXFor(
+                    (buckets[buckets.length - 1].startMillis
+                        + buckets[buckets.length - 1].endMillis) / 2);
+            var path =
+                "M " + firstX.toFixed(2) + " " + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2);
+            for (var index = 0; index < buckets.length; index += 1) {
+              var x = densityXFor((buckets[index].startMillis + buckets[index].endMillis) / 2);
+              var y = densityYFor(buckets[index].density, scale);
+              path += " L " + x.toFixed(2) + " " + y.toFixed(2);
+            }
+            path += " L " + lastX.toFixed(2) + " "
+                + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2) + " Z";
+            return path;
+          }
+          function defectTrendPath(points, property, scale) {
+            if (!points.length) {
+              return "";
+            }
+            var width = DEFECT_TREND_BOUNDS.right - DEFECT_TREND_BOUNDS.left;
+            var height = DEFECT_TREND_BOUNDS.bottom - DEFECT_TREND_BOUNDS.top;
+            function xFor(point) {
+              return DEFECT_TREND_BOUNDS.left
+                  + (point.elapsedMillis / defectTrendState.durationMillis) * width;
+            }
+            function yFor(point) {
+              return DEFECT_TREND_BOUNDS.bottom - (point[property] / scale.maximum) * height;
+            }
+            var path = "M " + xFor(points[0]).toFixed(2) + " " + yFor(points[0]).toFixed(2);
+            for (var index = 1; index < points.length; index += 1) {
+              path += " H " + xFor(points[index]).toFixed(2)
+                  + " V " + yFor(points[index]).toFixed(2);
+            }
+            return path;
+          }
+          function renderDefectTrend(now) {
+            if (!defectTrendState || !defectTrendState.panel) {
+              return;
+            }
+            var points = effectiveDefectTrendPoints(now);
+            var maximumCount = 0;
+            for (var index = 0; index < points.length; index += 1) {
+              maximumCount = Math.max(maximumCount, points[index].opened, points[index].closed);
+            }
+            var scale = niceDefectTrendScale(maximumCount);
+            if (scale.maximum !== defectTrendState.renderedYMaximum
+                || defectTrendState.durationMillis !== defectTrendState.renderedDurationMillis) {
+              rebuildDefectTrendAxes(scale);
+            }
+            var openedLine =
+                defectTrendState.panel.querySelector("[data-defect-trend-opened-line]");
+            var closedLine =
+                defectTrendState.panel.querySelector("[data-defect-trend-closed-line]");
+            if (openedLine) {
+              openedLine.setAttribute("d", defectTrendPath(points, "opened", scale));
+            }
+            if (closedLine) {
+              closedLine.setAttribute("d", defectTrendPath(points, "closed", scale));
+            }
+          }
+          function renderDefectDensity(now) {
+            if (!defectTrendState) {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-defect-density-panel]");
+            if (!panel) {
+              return;
+            }
+            var points = effectiveDefectTrendPoints(now);
+            var latest = points.length
+                ? points[points.length - 1]
+                : {elapsedMillis: 0, opened: 0, closed: 0, executed: 0};
+            var buckets =
+                buildDefectDensityBuckets(
+                    points, defectTrendState.durationMillis, latest.elapsedMillis);
+            var maximumDensity = 0;
+            for (var index = 0; index < buckets.length; index += 1) {
+              maximumDensity = Math.max(maximumDensity, buckets[index].density);
+            }
+            var scale = niceDefectDensityScale(maximumDensity);
+            if (scale.maximum !== defectTrendState.renderedDensityYMaximum
+                || defectTrendState.durationMillis !== defectTrendState.renderedDensityDurationMillis) {
+              rebuildDefectDensityAxes(scale);
+            }
+            var total = panel.querySelector("[data-defect-density-raised-total]");
+            if (total) {
+              total.textContent = String(latest.opened);
+            }
+            var area = panel.querySelector("[data-defect-density-area]");
+            var line = panel.querySelector("[data-defect-density-line]");
+            if (area) {
+              area.setAttribute("d", defectDensityAreaPath(buckets, scale));
+            }
+            if (line) {
+              line.setAttribute("d", defectDensityLinePath(buckets, scale));
+            }
+          }
+          function animateDefectTrend() {
+            if (!defectTrendState || !defectTrendState.building || !defectAnalyticsVisible()) {
+              defectTrendLoopRunning = false;
+              return;
+            }
+            var now = currentWallTime();
+            if (defectTrendVisible()) {
+              renderDefectTrend(now);
+            }
+            if (defectDensityVisible()) {
+              renderDefectDensity(now);
+            }
+            var latest = latestDefectTrendPoint();
+            var elapsed = Math.max(
+                latest.elapsedMillis,
+                currentWallTime() - defectTrendState.startedAt);
+            if (elapsed < defectTrendState.durationMillis) {
+              scheduleTimerFrame(animateDefectTrend);
+              return;
+            }
+            defectTrendLoopRunning = false;
+          }
+          function scheduleDefectTrendAnimation() {
+            if (defectTrendLoopRunning || !defectTrendState || !defectAnalyticsVisible()) {
+              return;
+            }
+            if (defectTrendVisible()) {
+              renderDefectTrend(currentWallTime());
+            }
+            if (defectDensityVisible()) {
+              renderDefectDensity(currentWallTime());
+            }
+            defectTrendLoopRunning = true;
+            scheduleTimerFrame(animateDefectTrend);
+          }
+          function updateDefectTrend(payload) {
+            if (!payload || !payload.defectTrend) {
+              return;
+            }
+            var panel = dashboard.querySelector("[data-defect-trend-panel]");
+            if (!panel) {
+              return;
+            }
+            var trend = payload.defectTrend;
+            var durationMillis = Math.max(
+                1, safeTrendNumber(trend.durationMillis, defectTrendState
+                    ? defectTrendState.durationMillis : 1));
+            defectTrendState = {
+              panel: panel,
+              startedAt: parseTimestamp(trend.startedAt),
+              durationMillis: durationMillis,
+              building: payload.building === true,
+              points: normalizeDefectTrendPoints(trend.points, durationMillis),
+              renderedYMaximum: -1,
+              renderedDurationMillis: -1,
+              renderedDensityYMaximum: -1,
+              renderedDensityDurationMillis: -1
+            };
+            var latest = latestDefectTrendPoint();
+            var openedTotal = panel.querySelector("[data-defect-trend-opened-total]");
+            var closedTotal = panel.querySelector("[data-defect-trend-closed-total]");
+            var closedContainer = panel.querySelector("[data-defect-trend-closed]");
+            if (openedTotal) {
+              openedTotal.textContent = String(latest.opened);
+            }
+            if (closedTotal) {
+              closedTotal.textContent = String(latest.closed);
+            }
+            if (closedContainer) {
+              closedContainer.setAttribute("data-visible", String(latest.opened > 0));
+            }
+            renderDefectTrend(currentWallTime());
+            renderDefectDensity(currentWallTime());
+            scheduleDefectTrendAnimation();
+          }
           function currentReportPayload() {
             var executionProgressCard =
                 dashboard.querySelector('[data-octane-progress="execution"]');
@@ -2265,46 +4237,140 @@
                 executionProgressCard
                     ? parseFloat(executionProgressCard.getAttribute("data-progress-value") || "0")
                     : 0;
+            var timeoutCard = dashboard.querySelector('[data-octane-timer="timeout"]');
+            var timeoutSeconds = timeoutCard
+                ? parseInt(timeoutCard.getAttribute("data-total-seconds") || "0", 10)
+                : 0;
+            var timeoutExtendedSeconds = timeoutCard
+                ? parseInt(timeoutCard.getAttribute("data-extended-total-seconds") || "0", 10)
+                : 0;
             return {
               building: dashboard.getAttribute("data-report-building") === "true",
+              extendedTime: dashboard.getAttribute("data-extended-time") === "true",
+              manualExitRequested:
+                  dashboard.getAttribute("data-manual-exit-requested") === "true",
               executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
-              stateLabel: stateLabel ? stateLabel.textContent : ""
+              sampleTimeMillis: currentWallTime(),
+              startedAt: timeoutCard ? timeoutCard.getAttribute("data-started-at") || "" : "",
+              stateLabel: stateLabel ? stateLabel.textContent : "",
+              timeoutSeconds: isNaN(timeoutSeconds) ? 0 : timeoutSeconds,
+              timeoutExtendedSeconds:
+                  isNaN(timeoutExtendedSeconds) ? 0 : timeoutExtendedSeconds,
+              updatedAt: currentUpdatedAt
             };
           }
-          function autoShowHeatMapOnCompletion(payload) {
-            var card = dashboard.querySelector('[data-card-key="timer-poll"]');
-            if (!card || !card.querySelector(".octane-view-toggle")) {
-              return;
+          function payloadTimeMillis(payload, key) {
+            if (
+                key === "sampleTimeMillis"
+                && payload
+                && typeof payload.sampleTimeMillis === "number") {
+              return payload.sampleTimeMillis;
             }
-            if (activeCardView(card) === "heatmap") {
-              return;
+            var parsed = Date.parse(payload && payload[key] ? payload[key] : "");
+            return isNaN(parsed) ? currentWallTime() : parsed;
+          }
+          function manualExitRequested(payload) {
+            return payload && payload.manualExitRequested === true;
+          }
+          function timeoutSampleTimeMillis(payload) {
+            if (payload && payload.building !== true) {
+              return payloadTimeMillis(payload, "updatedAt");
             }
-            var progress =
-                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
-            if (isNaN(progress)) {
-              progress = 0;
+            return payloadTimeMillis(payload, "sampleTimeMillis");
+          }
+          function primaryTimeoutReached(payload) {
+            var timeoutSeconds =
+                Number(payload && payload.timeoutSeconds ? payload.timeoutSeconds : 0);
+            if (!payload || !isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+              return false;
             }
+            var startedAt = payloadTimeMillis(payload, "startedAt");
+            var sampleTime = timeoutSampleTimeMillis(payload);
+            return sampleTime - startedAt >= timeoutSeconds * 1000;
+          }
+          function totalTimeoutReached(payload) {
+            var timeoutSeconds =
+                Number(payload && payload.timeoutSeconds ? payload.timeoutSeconds : 0);
+            var timeoutExtendedSeconds =
+                Number(
+                    payload && payload.timeoutExtendedSeconds
+                        ? payload.timeoutExtendedSeconds
+                        : 0);
+            if (
+                !payload
+                || !isFinite(timeoutSeconds)
+                || !isFinite(timeoutExtendedSeconds)
+                || timeoutSeconds <= 0) {
+              return false;
+            }
+            var startedAt = payloadTimeMillis(payload, "startedAt");
+            var sampleTime = timeoutSampleTimeMillis(payload);
+            return sampleTime - startedAt
+                >= (timeoutSeconds + Math.max(0, timeoutExtendedSeconds)) * 1000;
+          }
+          function executionProgressReached(payload) {
+            var executionProgress = Number(
+                payload && payload.executionProgress ? payload.executionProgress : 0);
+            return isFinite(executionProgress) && executionProgress >= 100;
+          }
+          function completionReached(payload) {
             var timedOut =
                 payload && payload.building !== true && payload.stateLabel === "Timed out";
-            if (timedOut || progress >= 100) {
-              setCardView(card, "heatmap");
+            var extendedSeconds = Number(
+                payload && payload.timeoutExtendedSeconds
+                    ? payload.timeoutExtendedSeconds
+                    : 0);
+            if (extendedSeconds > 0) {
+              return timedOut || manualExitRequested(payload) || totalTimeoutReached(payload);
+            }
+            return timedOut || primaryTimeoutReached(payload) || executionProgressReached(payload);
+          }
+          function autoFlipKey(cardKey, targetView) {
+            return cardKey + ":" + targetView;
+          }
+          function hasAutoFlipped(cardKey, targetView) {
+            return completionAutoFlipState[autoFlipKey(cardKey, targetView)] === true;
+          }
+          function markAutoFlipped(card, cardKey, targetView) {
+            completionAutoFlipState[autoFlipKey(cardKey, targetView)] = true;
+            dashboard.setAttribute("data-has-auto-flipped", "true");
+            if (card) {
+              card.setAttribute("data-has-auto-flipped", "true");
             }
           }
-          function autoShowTestMetricsOnCompletion(payload) {
-            var card = dashboard.querySelector('[data-card-key="timer-timeout"]');
+          function autoShowCardViewOnce(payload, cardKey, targetView) {
+            var card = dashboard.querySelector('[data-card-key="' + cardKey + '"]');
             if (!card || !card.querySelector(".octane-view-toggle")) {
-              return;
+              return null;
             }
-            if (activeCardView(card) === "metrics") {
-              return;
+            if (!completionReached(payload) || hasAutoFlipped(cardKey, targetView)) {
+              return null;
             }
-            var progress =
-                Number(payload && payload.executionProgress ? payload.executionProgress : 0);
-            if (isNaN(progress)) {
-              progress = 0;
+            markAutoFlipped(card, cardKey, targetView);
+            if (activeCardView(card) !== targetView) {
+              setCardView(card, targetView);
             }
-            if ((payload && payload.building !== true) || progress >= 100) {
-              setCardView(card, "metrics");
+            return card;
+          }
+          function runCompletionAutoFlips(payload) {
+            autoShowHeatMapOnCompletion(payload);
+            autoShowTestMetricsOnCompletion(payload);
+            autoShowExecutionBreakdownOnCompletion(payload);
+            autoShowDefectTrendOnCompletion(payload);
+          }
+          function autoShowHeatMapOnCompletion(payload) {
+            autoShowCardViewOnce(payload, "timer-poll", "heatmap");
+          }
+          function autoShowTestMetricsOnCompletion(payload) {
+            autoShowCardViewOnce(payload, "timer-timeout", "metrics");
+          }
+          function autoShowExecutionBreakdownOnCompletion(payload) {
+            autoShowCardViewOnce(payload, "progress-execution", "breakdown");
+          }
+          function autoShowDefectTrendOnCompletion(payload) {
+            var card = autoShowCardViewOnce(payload, "progress-pass-rate", "defects");
+            if (card) {
+              scheduleDefectTrendAnimation();
             }
           }
           function zoneKeyFor(zone) {
@@ -2359,6 +4425,168 @@
             }
             zone.insertBefore(createZoneFocusButton(), zone.firstChild);
           }
+          /* OCTANE_FLUID_BAR_CHART_START */
+          var FLUID_BAR_MIN_WIDTH = 8;
+          var FLUID_BAR_MAX_WIDTH = 100;
+          var FLUID_BAR_MIN_GAP = 2;
+          var FLUID_BAR_MAX_GAP = 40;
+          var FLUID_BAR_SLOT_WIDTH = FLUID_BAR_MIN_WIDTH + FLUID_BAR_MIN_GAP;
+          var FLUID_BAR_OVERFLOW_WIDTH = 24;
+          function maxVisibleBarsForWidth(width) {
+            var safeWidth = isFinite(width) ? Math.max(0, width) : 0;
+            return Math.max(
+                1,
+                Math.floor(
+                    (safeWidth - FLUID_BAR_OVERFLOW_WIDTH) / FLUID_BAR_SLOT_WIDTH));
+          }
+          function fluidBarLayoutForWidth(width, visibleBarCount, hasOverflow) {
+            var safeWidth = isFinite(width) ? Math.max(0, width) : 0;
+            var safeBarCount = isFinite(visibleBarCount)
+                ? Math.max(0, Math.floor(visibleBarCount))
+                : 0;
+            var overflowVisible = hasOverflow === true;
+            var gapCount = Math.max(
+                0,
+                safeBarCount - 1 + (overflowVisible ? 1 : 0));
+            var availableWidth = Math.max(
+                0,
+                safeWidth - (overflowVisible ? FLUID_BAR_OVERFLOW_WIDTH : 0));
+            var minimumWidth =
+                safeBarCount * FLUID_BAR_MIN_WIDTH + gapCount * FLUID_BAR_MIN_GAP;
+            var extraWidth = Math.max(0, availableWidth - minimumWidth);
+            var adjustableSlots = safeBarCount + gapCount;
+            var sharedIncrease = 0;
+            if (adjustableSlots > 0) {
+              var sharedLimit = FLUID_BAR_MAX_WIDTH - FLUID_BAR_MIN_WIDTH;
+              if (gapCount > 0) {
+                sharedLimit = Math.min(
+                    sharedLimit,
+                    FLUID_BAR_MAX_GAP - FLUID_BAR_MIN_GAP);
+              }
+              sharedIncrease = Math.min(
+                  sharedLimit,
+                  extraWidth / adjustableSlots);
+            }
+            var barWidth = FLUID_BAR_MIN_WIDTH + sharedIncrease;
+            var gap = FLUID_BAR_MIN_GAP + sharedIncrease;
+            var remainingWidth = Math.max(
+                0,
+                extraWidth - sharedIncrease * adjustableSlots);
+            if (safeBarCount > 0 && remainingWidth > 0) {
+              var barIncrease = Math.min(
+                  FLUID_BAR_MAX_WIDTH - barWidth,
+                  remainingWidth / safeBarCount);
+              barWidth += barIncrease;
+              remainingWidth -= barIncrease * safeBarCount;
+            }
+            if (gapCount > 0 && remainingWidth > 0) {
+              gap += Math.min(
+                  FLUID_BAR_MAX_GAP - gap,
+                  remainingWidth / gapCount);
+            }
+            return {
+              barWidth: Math.round(barWidth * 1000) / 1000,
+              gap: Math.round(gap * 1000) / 1000
+            };
+          }
+          /* OCTANE_FLUID_BAR_CHART_END */
+          var fluidBarContainers = [];
+          var fluidBarResizeObserver = null;
+          var fluidBarResizeScheduled = false;
+          var fluidBarFallbackBound = false;
+          function directSuiteRunColumns(container) {
+            var columns = [];
+            var children = container ? container.children : [];
+            for (var index = 0; index < children.length; index += 1) {
+              if (children[index].classList.contains("octane-suite-column")) {
+                columns.push(children[index]);
+              }
+            }
+            return columns;
+          }
+          function createBarOverflowIndicator(hiddenCount) {
+            var indicator = document.createElement("div");
+            var line = document.createElement("span");
+            var count = document.createElement("span");
+            indicator.className = "octane-bar-overflow-indicator";
+            indicator.setAttribute("role", "note");
+            indicator.setAttribute("aria-label", hiddenCount + " tester bars omitted");
+            indicator.setAttribute("data-hidden-count", String(hiddenCount));
+            line.className = "octane-bar-overflow-line";
+            line.setAttribute("aria-hidden", "true");
+            count.className = "octane-bar-overflow-count";
+            count.textContent = "+" + hiddenCount;
+            indicator.appendChild(line);
+            indicator.appendChild(count);
+            return indicator;
+          }
+          function renderFluidChart(container) {
+            if (!container) {
+              return;
+            }
+            var allSuiteRuns = container.octaneAllSuiteRuns;
+            if (!allSuiteRuns) {
+              allSuiteRuns = directSuiteRunColumns(container);
+              container.octaneAllSuiteRuns = allSuiteRuns;
+            }
+            var width = container.getBoundingClientRect().width;
+            var maxVisibleBars = maxVisibleBarsForWidth(width);
+            var visibleCount = Math.min(allSuiteRuns.length, maxVisibleBars);
+            var hiddenCount = Math.max(0, allSuiteRuns.length - visibleCount);
+            var layout = fluidBarLayoutForWidth(width, visibleCount, hiddenCount > 0);
+            container.style.setProperty("--octane-bar-width", layout.barWidth + "px");
+            container.style.setProperty("--octane-bar-gap", layout.gap + "px");
+            var renderSignature = visibleCount + ":" + hiddenCount;
+            if (container.octaneFluidRenderSignature === renderSignature) {
+              return;
+            }
+            container.octaneFluidRenderSignature = renderSignature;
+            container.classList.toggle("octane-fluid-bars-dense", hiddenCount > 0);
+            while (container.firstChild) {
+              container.removeChild(container.firstChild);
+            }
+            var fragment = document.createDocumentFragment();
+            var visibleSuiteRuns = allSuiteRuns.slice(0, maxVisibleBars);
+            for (var index = 0; index < visibleSuiteRuns.length; index += 1) {
+              fragment.appendChild(visibleSuiteRuns[index]);
+            }
+            if (hiddenCount > 0) {
+              fragment.appendChild(createBarOverflowIndicator(hiddenCount));
+            }
+            container.appendChild(fragment);
+          }
+          function renderAllFluidCharts() {
+            fluidBarResizeScheduled = false;
+            for (var index = 0; index < fluidBarContainers.length; index += 1) {
+              renderFluidChart(fluidBarContainers[index]);
+            }
+          }
+          function scheduleFluidBarCharts() {
+            if (fluidBarResizeScheduled) {
+              return;
+            }
+            fluidBarResizeScheduled = true;
+            requestFrame(renderAllFluidCharts);
+          }
+          function initializeFluidBarCharts(root) {
+            if (fluidBarResizeObserver) {
+              fluidBarResizeObserver.disconnect();
+              fluidBarResizeObserver = null;
+            }
+            fluidBarContainers = root && root.querySelectorAll
+                ? Array.prototype.slice.call(root.querySelectorAll(".octane-vertical-bars"))
+                : [];
+            renderAllFluidCharts();
+            if (typeof window.ResizeObserver === "function") {
+              fluidBarResizeObserver = new window.ResizeObserver(scheduleFluidBarCharts);
+              for (var index = 0; index < fluidBarContainers.length; index += 1) {
+                fluidBarResizeObserver.observe(fluidBarContainers[index]);
+              }
+            } else if (!fluidBarFallbackBound) {
+              fluidBarFallbackBound = true;
+              window.addEventListener("resize", scheduleFluidBarCharts);
+            }
+          }
           function decorateReportZone(zone) {
             if (!zone) {
               return;
@@ -2378,29 +4606,38 @@
             }
           }
           decorateCardZones(dashboard);
+          initializeFluidBarCharts(dashboard);
           initializeCardViews(dashboard);
-          autoShowHeatMapOnCompletion(currentReportPayload());
-          autoShowTestMetricsOnCompletion(currentReportPayload());
+          initializeDefectAnalyticsViews(dashboard);
+          initializeDefectTrend();
+          scheduleDefectTrendAnimation();
+          runCompletionAutoFlips(currentReportPayload());
           function createTimerState(card) {
             var totalSeconds = parseInt(card.getAttribute("data-total-seconds") || "1", 10);
             if (isNaN(totalSeconds)) {
               totalSeconds = 1;
             }
             var totalMillis = Math.max(1, totalSeconds) * 1000;
+            var extendedTotalSeconds =
+                parseInt(card.getAttribute("data-extended-total-seconds") || "0", 10);
+            if (isNaN(extendedTotalSeconds)) {
+              extendedTotalSeconds = 0;
+            }
             var startedAt = parseTimestamp(card.getAttribute("data-started-at"));
             var updatedAt = parseTimestamp(card.getAttribute("data-updated-at"));
             var active = card.getAttribute("data-active") === "true";
+            var extendedActive = card.getAttribute("data-extended-active") === "true";
             var mode = card.getAttribute("data-octane-timer");
             return {
               active: active,
               card: card,
               endAt: startedAt + totalMillis,
+              extendedActive: extendedActive,
+              extendedTotalMillis: Math.max(0, extendedTotalSeconds) * 1000,
               gradientStops: card.querySelectorAll("[data-timer-gradient-stop]"),
-              head: card.querySelector("[data-timer-head]"),
               lastDisplayedUnit: "",
               lastDisplayedValue: "",
               mode: mode,
-              progressHalo: card.querySelector("[data-timer-progress-halo]"),
               progressCircle: card.querySelector("[data-timer-progress]"),
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
@@ -2413,13 +4650,42 @@
             if (!state.active && state.mode === "poll") {
               return 0;
             }
+            if (state.mode === "timeout" && state.extendedActive) {
+              return 0;
+            }
             var sampleTime = state.active ? now : state.updatedAt;
             return clamp(state.endAt - sampleTime, 0, state.totalMillis);
           }
           function testingTimeSpentMillis(state, now) {
             var sampleTime = state.active ? now : state.updatedAt;
             var elapsed = sampleTime - (state.endAt - state.totalMillis);
-            return clamp(elapsed, 0, state.totalMillis);
+            var maximum = state.totalMillis + (state.extendedTotalMillis || 0);
+            return clamp(elapsed, 0, maximum);
+          }
+          function timerTrackTotalMillis(state) {
+            if (state.mode !== "timeout") {
+              return state.totalMillis;
+            }
+            return state.totalMillis + state.extendedTotalMillis;
+          }
+          function timerTrackRemainingMillis(state, now) {
+            if (!state.active && state.mode === "poll") {
+              return 0;
+            }
+            var sampleTime = state.active ? now : state.updatedAt;
+            var startedAt = state.endAt - state.totalMillis;
+            var trackTotalMillis = timerTrackTotalMillis(state);
+            return clamp(startedAt + trackTotalMillis - sampleTime, 0, trackTotalMillis);
+          }
+          function timerColorProgress(state, now) {
+            if (state.mode === "timeout") {
+              return clamp(
+                  (testingTimeSpentMillis(state, now) / state.totalMillis) * 100,
+                  0,
+                  100);
+            }
+            var remaining = remainingMillis(state, now);
+            return clamp(((state.totalMillis - remaining) / state.totalMillis) * 100, 0, 100);
           }
           function setTimeoutTitle(state) {
             if (state.mode !== "timeout" || !state.title) {
@@ -2427,13 +4693,46 @@
             }
             state.title.textContent = state.active ? "Testing Time Remaining" : "Testing Time";
           }
+          function fitTimerText(state, displayValue, displayUnit) {
+            if (!state.value || !state.unit) {
+              return;
+            }
+            var valueLength = Math.max(1, displayValue.length);
+            var unitLength = Math.max(1, displayUnit.length);
+            var valueSize = clamp(116 / (valueLength * 0.56), 23, 42);
+            var unitSize = clamp(78 / (unitLength * 0.52), 10, 14.7);
+            var valueWeight = valueSize < 27 ? "600" : valueSize < 32 ? "650" : "700";
+            state.value.style.fontSize = trimNumber(valueSize) + "px";
+            state.value.style.fontWeight = valueWeight;
+            state.unit.style.fontSize = trimNumber(unitSize) + "px";
+          }
           function setTimerText(state, remaining) {
             if (!state.value || !state.unit) {
               return;
             }
             var displayValue;
             var displayUnit;
-            if (!state.active && state.mode === "timeout") {
+            if (state.active && state.mode === "timeout" && state.extendedActive) {
+              var primaryMinutes = Math.ceil(state.totalMillis / 60000);
+              var extendedElapsed =
+                  testingTimeSpentMillis(state, currentWallTime()) - state.totalMillis;
+              var firstExtendedWindow = Math.min(
+                  60000,
+                  Math.max(1000, state.extendedTotalMillis || 60000));
+              if (extendedElapsed < firstExtendedWindow) {
+                var extendedSeconds =
+                    Math.max(1, Math.ceil((firstExtendedWindow - extendedElapsed) / 1000));
+                displayValue = String(primaryMinutes) + " + " + String(extendedSeconds);
+                displayUnit = "min + sec";
+              } else {
+                var extendedMinutes =
+                    Math.min(
+                        Math.floor(Math.max(0, extendedElapsed) / 60000),
+                        Math.ceil((state.extendedTotalMillis || 0) / 60000));
+                displayValue = String(primaryMinutes) + " + " + String(extendedMinutes);
+                displayUnit = "min + min";
+              }
+            } else if (!state.active && state.mode === "timeout") {
               var spentMinutes = Math.round(testingTimeSpentMillis(state, currentWallTime()) / 60000);
               displayValue = String(spentMinutes);
               displayUnit = displayValue === "1" ? "minute" : "minutes";
@@ -2452,32 +4751,22 @@
               state.unit.textContent = displayUnit;
               state.lastDisplayedUnit = displayUnit;
             }
+            fitTimerText(state, displayValue, displayUnit);
           }
           function updateTimer(state, now) {
             setTimeoutTitle(state);
             var remaining = remainingMillis(state, now);
-            var elapsed = state.totalMillis - remaining;
-            var progress = clamp((elapsed / state.totalMillis) * 100, 0, 100);
-            var colors = colorsForProgress(state.mode, progress);
+            var trackTotalMillis = timerTrackTotalMillis(state);
+            var trackRemaining = timerTrackRemainingMillis(state, now);
+            var remainingProgress = clamp((trackRemaining / trackTotalMillis) * 100, 0, 100);
+            var colors = colorsForProgress(state.mode, timerColorProgress(state, now));
             if (state.progressCircle) {
-              state.progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
-              state.progressCircle.style.opacity = progress <= 0 ? "0" : "1";
-            }
-            if (state.progressHalo) {
-              state.progressHalo.style.strokeDasharray = trimNumber(progress) + " 100";
-              state.progressHalo.style.opacity = progress <= 0 ? "0" : "0.22";
+              state.progressCircle.style.strokeDasharray =
+                  trimNumber(remainingProgress) + " 100";
+              state.progressCircle.style.opacity =
+                  remainingProgress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
             applyGradientStops(state.gradientStops, colors);
-            var headColor = colors[colors.length - 1];
-            if (state.head) {
-              var angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
-              state.head.setAttribute(
-                  "cx", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle)));
-              state.head.setAttribute(
-                  "cy", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle)));
-              state.head.setAttribute("fill", headColor);
-              state.head.style.display = progress <= 0 ? "none" : "block";
-            }
             setTimerText(state, remaining);
           }
           var timers = [];
@@ -2529,10 +4818,19 @@
             if (isNaN(refreshSeconds)) {
               refreshSeconds = 1;
             }
+            var timeoutSeconds = parseInt(payload.timeoutSeconds || "1", 10);
+            if (isNaN(timeoutSeconds)) {
+              timeoutSeconds = 1;
+            }
+            var timeoutExtendedSeconds = parseInt(payload.timeoutExtendedSeconds || "0", 10);
+            if (isNaN(timeoutExtendedSeconds)) {
+              timeoutExtendedSeconds = 0;
+            }
             for (var index = 0; index < timers.length; index += 1) {
               var state = timers[index];
               state.active = payload.building === true;
               state.updatedAt = updatedAt;
+              state.extendedActive = payload.extendedTime === true && state.mode === "timeout";
               state.card.setAttribute("data-active", String(state.active));
               state.card.setAttribute("data-updated-at", payload.updatedAt || "");
               if (state.mode === "poll") {
@@ -2540,6 +4838,20 @@
                 state.endAt = updatedAt + state.totalMillis;
                 state.card.setAttribute("data-total-seconds", String(refreshSeconds));
                 state.card.setAttribute("data-started-at", payload.updatedAt || "");
+                state.lastDisplayedUnit = "";
+                state.lastDisplayedValue = "";
+              } else if (state.mode === "timeout") {
+                state.totalMillis = Math.max(1, timeoutSeconds) * 1000;
+                state.extendedTotalMillis = Math.max(0, timeoutExtendedSeconds) * 1000;
+                if (payload.startedAt) {
+                  state.card.setAttribute("data-started-at", payload.startedAt);
+                }
+                state.endAt = parseTimestamp(state.card.getAttribute("data-started-at"))
+                    + state.totalMillis;
+                state.card.setAttribute("data-total-seconds", String(timeoutSeconds));
+                state.card.setAttribute(
+                    "data-extended-total-seconds", String(timeoutExtendedSeconds));
+                state.card.setAttribute("data-extended-active", String(state.extendedActive));
                 state.lastDisplayedUnit = "";
                 state.lastDisplayedValue = "";
               }
@@ -2550,6 +4862,10 @@
             currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
             dashboard.setAttribute("data-current-updated-at", currentUpdatedAt);
             dashboard.setAttribute("data-report-building", String(payload.building === true));
+            dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
+            dashboard.setAttribute(
+                "data-manual-exit-requested", String(payload.manualExitRequested === true));
+            setExtendedExitVisibility(payload.extendedTime === true);
             if (stateLabel) {
               stateLabel.textContent = payload.stateLabel || "";
             }
@@ -2561,8 +4877,10 @@
             }
             updateRiskHeatMap(payload);
             updateTestMetrics(payload);
-            autoShowHeatMapOnCompletion(payload);
-            autoShowTestMetricsOnCompletion(payload);
+            updateExecutionStatusDistribution(payload);
+            updateDefectTrend(payload);
+            updateTesterDetails(payload);
+            runCompletionAutoFlips(payload);
             var reportZone = document.getElementById("octane-report-zone");
             var updatedReportZone = htmlToElement(payload.reportZoneHtml);
             decorateReportZone(updatedReportZone);
@@ -2600,6 +4918,7 @@
                   collapseFocusedZone();
                 }
               }
+              initializeFluidBarCharts(updatedReportZone);
               requestFrame(function () {
                 barPopupRefreshInProgress = false;
                 restoreBarPopupAfterRefresh(updatedReportZone, popupRestoreState);
@@ -2678,8 +4997,9 @@
             }).then(function (payload) {
               updateRiskHeatMap(payload);
               updateTestMetrics(payload);
-              autoShowHeatMapOnCompletion(payload);
-              autoShowTestMetricsOnCompletion(payload);
+              updateExecutionStatusDistribution(payload);
+              updateDefectTrend(payload);
+              runCompletionAutoFlips(payload);
             }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
             });
@@ -2689,12 +5009,21 @@
             var activeTimerStillRunning = false;
             for (var index = 0; index < timers.length; index += 1) {
               var remaining = remainingMillis(timers[index], now);
+              var trackRemaining = timerTrackRemainingMillis(timers[index], now);
               updateTimer(timers[index], now);
               if (timers[index].mode === "poll" && timers[index].active && remaining <= 0) {
                 beginSnapshotRefresh(now);
               }
+              if (
+                  timers[index].mode === "timeout"
+                  && timers[index].active
+                  && trackRemaining <= 0) {
+                runCompletionAutoFlips(currentReportPayload());
+              }
               activeTimerStillRunning =
-                  activeTimerStillRunning || remaining > 0 || liveRefresh.waiting;
+                  activeTimerStillRunning
+                  || trackRemaining > 0
+                  || liveRefresh.waiting;
             }
             if (hasActiveTimer && activeTimerStillRunning) {
               scheduleTimerFrame(animateTimers);
@@ -2716,276 +5045,523 @@
             var progressCircle =
                 card.querySelector("[data-progress-circle]")
                 || card.querySelector("[data-execution-progress-circle]");
-            var progressHalo =
-                card.querySelector("[data-progress-halo]")
-                || card.querySelector("[data-execution-progress-halo]");
             var gradientStops = card.querySelectorAll("[data-progress-gradient-stop]");
             if (!gradientStops.length) {
               gradientStops = card.querySelectorAll("[data-execution-gradient-stop]");
             }
-            var head =
-                card.querySelector("[data-progress-head]")
-                || card.querySelector("[data-execution-progress-head]");
             var value =
                 card.querySelector("[data-progress-value-text]")
                 || card.querySelector("[data-execution-progress-value]");
             var displayValue = String(Math.round(progress)) + "%";
             var colorKind = progressKind === "pass-rate" ? "passRate" : progressKind;
             var executionColors = colorsForProgress(colorKind, progress);
-            var executionColor = executionColors[executionColors.length - 1];
             if (value) {
               value.textContent = displayValue;
             }
             applyGradientStops(gradientStops, executionColors);
             if (progressCircle) {
               progressCircle.style.strokeDasharray = trimNumber(progress) + " 100";
-              progressCircle.style.opacity = progress <= 0 ? "0" : "1";
-            }
-            if (progressHalo) {
-              progressHalo.style.strokeDasharray = trimNumber(progress) + " 100";
-              progressHalo.style.opacity = progress <= 0 ? "0" : "0.22";
-            }
-            if (head) {
-              var angle = (progress / 100) * Math.PI * 2 - Math.PI / 2;
-              head.setAttribute(
-                  "cx", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.cos(angle)));
-              head.setAttribute(
-                  "cy", trimNumber(TIMER_CENTER + TIMER_RADIUS * Math.sin(angle)));
-              head.setAttribute("fill", executionColor);
+              progressCircle.style.opacity = progress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
           }
           for (var progressIndex = 0; progressIndex < progressCards.length; progressIndex += 1) {
             updateExecutionProgress(progressCards[progressIndex]);
           }
-	          var barPopupOverlay = document.getElementById("octane-bar-popup-overlay");
-	          var barPopupRefreshInProgress = false;
-	          var activeBarPopupState = {
-	            barKey: "",
-	            cardKey: "",
-	            clientX: 0,
-	            clientY: 0,
-	            input: "",
-	            visible: false
-	          };
-	          function hideBarPopup() {
-	            if (!activeBarPopupState.visible || !barPopupOverlay) {
-	              return;
-	            }
-	            barPopupOverlay.classList.remove(
-	                "octane-bar-popup-visible", "octane-bar-popup-restoring");
-	            barPopupOverlay.removeAttribute("data-placement");
-	            barPopupOverlay.removeAttribute("data-dominant-status-label");
-	            barPopupOverlay.setAttribute("aria-hidden", "true");
-	            barPopupOverlay.style.borderColor = "";
-	            barPopupOverlay.style.boxShadow = "";
-	            barPopupOverlay.style.left = "";
-	            barPopupOverlay.style.top = "";
-	            activeBarPopupState = {
-	              barKey: "",
-	              cardKey: "",
-	              clientX: 0,
-	              clientY: 0,
-	              input: "",
-	              visible: false
-	            };
-	          }
-	          function popupForColumn(column) {
-	            return column ? column.querySelector(".octane-bar-popup") : null;
-	          }
-	          function cardKeyForColumn(column) {
-	            return column ? column.getAttribute("data-card-key") || "" : "";
-	          }
-	          function barKeyForColumn(column) {
-	            return column ? column.getAttribute("data-bar-key") || "" : "";
-	          }
-	          function applyBarPopupDominantColor(column) {
-	            if (!barPopupOverlay) {
-	              return;
-	            }
-	            var color = column ? column.getAttribute("data-dominant-status-color") || "" : "";
-	            var label = column ? column.getAttribute("data-dominant-status-label") || "" : "";
-	            if (!color) {
-	              barPopupOverlay.removeAttribute("data-dominant-status-label");
-	              barPopupOverlay.style.borderColor = "";
-	              barPopupOverlay.style.boxShadow = "";
-	              return;
-	            }
-	            barPopupOverlay.setAttribute("data-dominant-status-label", label);
-	            barPopupOverlay.style.borderColor = color;
-	            barPopupOverlay.style.boxShadow =
-	                "0 0 0 1px " + color + ", 0 0.45rem 1.4rem rgba(0, 0, 0, 0.18)";
-	          }
-	          function pointForColumn(column) {
-	            var bar = column ? column.querySelector(".octane-vertical-bar") : null;
-	            var rect = (bar || column).getBoundingClientRect();
-	            return {
-	              clientX: rect.left + rect.width / 2,
-	              clientY: rect.top + rect.height / 2
-	            };
-	          }
-	          function pointInsideColumn(column, point) {
-	            if (!column || !point) {
-	              return false;
-	            }
-	            var rect = column.getBoundingClientRect();
-	            return point.clientX >= rect.left
-	                && point.clientX <= rect.right
-	                && point.clientY >= rect.top
-	                && point.clientY <= rect.bottom;
-	          }
-	          function findColumnByKeys(root, cardKey, barKey) {
-	            if (!root || !cardKey || !barKey) {
-	              return null;
-	            }
-	            var columns = root.querySelectorAll(".octane-suite-column[data-bar-key]");
-	            for (var index = 0; index < columns.length; index += 1) {
-	              if (cardKeyForColumn(columns[index]) === cardKey
-	                  && barKeyForColumn(columns[index]) === barKey) {
-	                return columns[index];
-	              }
-	            }
-	            return null;
-	          }
-	          function positionBarPopup(popup, point) {
-	            var margin = 8;
-	            var gap = 14;
-	            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-	            var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-	            var popupWidth = popup.offsetWidth || 180;
-	            var popupHeight = popup.offsetHeight || 80;
-	            var fitsRight = point.clientX + gap + popupWidth <= viewportWidth - margin;
-	            var left = fitsRight ? point.clientX + gap : point.clientX - gap - popupWidth;
-	            var top = point.clientY - popupHeight / 2;
-	            left = clamp(left, margin, Math.max(margin, viewportWidth - popupWidth - margin));
-	            top = clamp(top, margin, Math.max(margin, viewportHeight - popupHeight - margin));
-	            popup.style.left = trimNumber(left) + "px";
-	            popup.style.top = trimNumber(top) + "px";
-	            popup.setAttribute("data-placement", fitsRight ? "right" : "left");
-	          }
-	          function showBarPopup(column, point, input, restoring) {
-	            var source = popupForColumn(column);
-	            if (!source || !barPopupOverlay) {
-	              return;
-	            }
-	            var cardKey = cardKeyForColumn(column);
-	            var barKey = barKeyForColumn(column);
-	            if (!cardKey || !barKey) {
-	              return;
-	            }
-	            barPopupOverlay.innerHTML = source.innerHTML;
-	            applyBarPopupDominantColor(column);
-	            if (restoring) {
-	              barPopupOverlay.classList.add("octane-bar-popup-restoring");
-	            } else {
-	              barPopupOverlay.classList.remove("octane-bar-popup-restoring");
-	            }
-	            activeBarPopupState = {
-	              barKey: barKey,
-	              cardKey: cardKey,
-	              clientX: point.clientX,
-	              clientY: point.clientY,
-	              input: input,
-	              visible: true
-	            };
-	            barPopupOverlay.setAttribute("aria-hidden", "false");
-	            barPopupOverlay.classList.add("octane-bar-popup-visible");
-	            positionBarPopup(barPopupOverlay, point);
-	            if (restoring) {
-	              requestFrame(function () {
-	                barPopupOverlay.classList.remove("octane-bar-popup-restoring");
-	              });
-	            }
-	          }
-	          function captureBarPopupRestoreState() {
-	            if (!activeBarPopupState.visible) {
-	              return null;
-	            }
-	            return {
-	              barKey: activeBarPopupState.barKey,
-	              cardKey: activeBarPopupState.cardKey,
-	              clientX: activeBarPopupState.clientX,
-	              clientY: activeBarPopupState.clientY,
-	              input: activeBarPopupState.input,
-	              visible: activeBarPopupState.visible
-	            };
-	          }
-	          function restoreBarPopupAfterRefresh(root, restoreState) {
-	            if (!restoreState || !restoreState.visible) {
-	              return;
-	            }
-	            var column =
-	                findColumnByKeys(root || dashboard, restoreState.cardKey, restoreState.barKey);
-	            if (!column) {
-	              hideBarPopup();
-	              return;
-	            }
-	            var point = restoreState.input === "focus"
-	                ? pointForColumn(column)
-	                : {clientX: restoreState.clientX, clientY: restoreState.clientY};
-	            if (restoreState.input !== "focus" && !pointInsideColumn(column, point)) {
-	              hideBarPopup();
-	              return;
-	            }
-	            showBarPopup(column, point, restoreState.input, true);
-	          }
-	          function refreshActiveBarPopup() {
-	            if (!activeBarPopupState.visible) {
-	              return;
-	            }
-	            restoreBarPopupAfterRefresh(dashboard, captureBarPopupRestoreState());
-	          }
-	          dashboard.addEventListener("mousemove", function (event) {
-	            var bar = event.target.closest(".octane-vertical-bar");
-	            if (!bar || !dashboard.contains(bar)) {
-	              return;
-	            }
-	            var column = bar.closest(".octane-suite-column");
-	            if (!column) {
-	              return;
-	            }
-	            showBarPopup(
-	                column, {clientX: event.clientX, clientY: event.clientY}, "mouse", false);
-	          });
-	          dashboard.addEventListener("mouseout", function (event) {
-	            if (barPopupRefreshInProgress) {
-	              return;
-	            }
-	            var column = event.target.closest(".octane-suite-column");
-	            if (!column) {
-	              return;
-	            }
-	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
-	              return;
-	            }
-	            if (activeBarPopupState.input === "mouse"
-	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
-	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
-	              hideBarPopup();
-	            }
-	          });
-	          dashboard.addEventListener("focusin", function (event) {
-	            var column = event.target.closest(".octane-suite-column");
-	            if (!column || !dashboard.contains(column)) {
-	              return;
-	            }
-	            showBarPopup(column, pointForColumn(column), "focus", false);
-	          });
-	          dashboard.addEventListener("focusout", function (event) {
-	            var column = event.target.closest(".octane-suite-column");
-	            if (!column) {
-	              return;
-	            }
-	            if (event.relatedTarget && column.contains(event.relatedTarget)) {
-	              return;
-	            }
-	            if (activeBarPopupState.input === "focus"
-	                && cardKeyForColumn(column) === activeBarPopupState.cardKey
-	                && barKeyForColumn(column) === activeBarPopupState.barKey) {
-	              hideBarPopup();
-	            }
-	          });
-	          window.addEventListener("scroll", refreshActiveBarPopup, true);
-	          window.addEventListener("resize", refreshActiveBarPopup);
+          var barPopupOverlay = document.getElementById("octane-bar-popup-overlay");
+          if (barPopupOverlay && barPopupOverlay.parentNode !== document.body) {
+            document.body.appendChild(barPopupOverlay);
+          }
+          var barPopupRefreshInProgress = false;
+          var activeBarPopupState = {
+            barKey: "",
+            cardKey: "",
+            clientX: 0,
+            clientY: 0,
+            input: "",
+            visible: false
+          };
+          function hideBarPopup() {
+            if (!activeBarPopupState.visible || !barPopupOverlay) {
+              return;
+            }
+            barPopupOverlay.classList.remove(
+                "octane-bar-popup-visible", "octane-bar-popup-restoring");
+            barPopupOverlay.removeAttribute("data-placement");
+            barPopupOverlay.removeAttribute("data-dominant-status-label");
+            barPopupOverlay.setAttribute("aria-hidden", "true");
+            barPopupOverlay.style.removeProperty("--octane-popup-border-color");
+            barPopupOverlay.style.left = "";
+            barPopupOverlay.style.maxWidth = "";
+            barPopupOverlay.style.minWidth = "";
+            barPopupOverlay.style.top = "";
+            activeBarPopupState = {
+              barKey: "",
+              cardKey: "",
+              clientX: 0,
+              clientY: 0,
+              input: "",
+              visible: false
+            };
+          }
+          function popupForColumn(column) {
+            return column ? column.querySelector(".octane-bar-popup") : null;
+          }
+          function cardKeyForColumn(column) {
+            return column ? column.getAttribute("data-card-key") || "" : "";
+          }
+          function barKeyForColumn(column) {
+            return column ? column.getAttribute("data-bar-key") || "" : "";
+          }
+          function barForColumn(column) {
+            return column ? column.querySelector(".octane-vertical-bar") : null;
+          }
+          function statusMetricForColumn(column, key, label) {
+            var rawCount = column ? column.getAttribute("data-status-" + key + "-count") : "";
+            var color = column ? column.getAttribute("data-status-" + key + "-color") || "" : "";
+            var count = Number(rawCount || 0);
+            return {
+              color: color,
+              count: Number.isFinite(count) ? count : 0,
+              label: label
+            };
+          }
+          function dominantStatusForColumn(column) {
+            if (!column) {
+              return null;
+            }
+            var metrics = [
+              statusMetricForColumn(column, "failed", "Failed"),
+              statusMetricForColumn(column, "blocked", "Blocked"),
+              statusMetricForColumn(column, "passed", "Passed"),
+              statusMetricForColumn(column, "skipped", "Skipped"),
+              statusMetricForColumn(column, "running", "Running")
+            ];
+            var dominant = metrics[0];
+            for (var index = 1; index < metrics.length; index += 1) {
+              if (metrics[index].count > dominant.count) {
+                dominant = metrics[index];
+              }
+            }
+            return dominant && dominant.count > 0 ? dominant : null;
+          }
+          function applyBarPopupDominantColor(column) {
+            if (!barPopupOverlay) {
+              return;
+            }
+            var dominant = dominantStatusForColumn(column);
+            var color =
+                dominant && dominant.color
+                    ? dominant.color
+                    : column
+                        ? column.getAttribute("data-dominant-status-color") || ""
+                        : "";
+            var label =
+                dominant && dominant.label
+                    ? dominant.label
+                    : column
+                        ? column.getAttribute("data-dominant-status-label") || ""
+                        : "";
+            if (!color) {
+              barPopupOverlay.removeAttribute("data-dominant-status-label");
+              barPopupOverlay.style.removeProperty("--octane-popup-border-color");
+              return;
+            }
+            barPopupOverlay.setAttribute("data-dominant-status-label", label);
+            barPopupOverlay.style.setProperty("--octane-popup-border-color", color);
+          }
+          function pointForColumn(column) {
+            var bar = barForColumn(column);
+            var rect = (bar || column).getBoundingClientRect();
+            return {
+              clientX: rect.left + rect.width / 2,
+              clientY: rect.top + rect.height / 2
+            };
+          }
+          function pointInsideBar(column, point) {
+            var bar = barForColumn(column);
+            if (!bar || !point) {
+              return false;
+            }
+            var rect = bar.getBoundingClientRect();
+            return point.clientX >= rect.left
+                && point.clientX <= rect.right
+                && point.clientY >= rect.top
+                && point.clientY <= rect.bottom;
+          }
+          function findColumnByKeys(root, cardKey, barKey) {
+            if (!root || !cardKey || !barKey) {
+              return null;
+            }
+            var columns = root.querySelectorAll(".octane-suite-column[data-bar-key]");
+            for (var index = 0; index < columns.length; index += 1) {
+              if (cardKeyForColumn(columns[index]) === cardKey
+                  && barKeyForColumn(columns[index]) === barKey) {
+                return columns[index];
+              }
+            }
+            return null;
+          }
+          /* OCTANE_BAR_POPUP_LAYOUT_START */
+          function rectangleWidth(rect) {
+            return Math.max(0, rect.right - rect.left);
+          }
+          function rectangleHeight(rect) {
+            return Math.max(0, rect.bottom - rect.top);
+          }
+          function intersectRectangles(first, second) {
+            return {
+              bottom: Math.min(first.bottom, second.bottom),
+              left: Math.max(first.left, second.left),
+              right: Math.max(
+                  Math.max(first.left, second.left), Math.min(first.right, second.right)),
+              top: Math.max(first.top, second.top)
+            };
+          }
+          function browserViewportRectangle() {
+            var visualViewport = window.visualViewport;
+            var left = visualViewport ? visualViewport.offsetLeft : 0;
+            var top = visualViewport ? visualViewport.offsetTop : 0;
+            var width = visualViewport
+                ? visualViewport.width
+                : window.innerWidth || document.documentElement.clientWidth;
+            var height = visualViewport
+                ? visualViewport.height
+                : window.innerHeight || document.documentElement.clientHeight;
+            return {bottom: top + height, left: left, right: left + width, top: top};
+          }
+          function chartViewportRectangle(column) {
+            var browserViewport = browserViewportRectangle();
+            var card = column ? column.closest(".octane-chart-card") : null;
+            if (!card) {
+              return browserViewport;
+            }
+            var cardRect = card.getBoundingClientRect();
+            if (cardRect.width <= 0 || cardRect.height <= 0) {
+              return browserViewport;
+            }
+            return intersectRectangles(cardRect, browserViewport);
+          }
+          function pointerAnchorRectangle(point) {
+            return {
+              bottom: point.clientY,
+              left: point.clientX,
+              right: point.clientX,
+              top: point.clientY
+            };
+          }
+          function popupCandidate(side, anchorRect, popupSize, gap) {
+            var horizontalCenter = anchorRect.left + rectangleWidth(anchorRect) / 2;
+            var verticalCenter = anchorRect.top + rectangleHeight(anchorRect) / 2;
+            if (side === "left") {
+              return {
+                left: anchorRect.left - gap - popupSize.width,
+                top: verticalCenter - popupSize.height / 2
+              };
+            }
+            if (side === "above") {
+              return {
+                left: horizontalCenter - popupSize.width / 2,
+                top: anchorRect.top - gap - popupSize.height
+              };
+            }
+            if (side === "below") {
+              return {
+                left: horizontalCenter - popupSize.width / 2,
+                top: anchorRect.bottom + gap
+              };
+            }
+            return {
+              left: anchorRect.right + gap,
+              top: verticalCenter - popupSize.height / 2
+            };
+          }
+          function popupCandidateFits(candidate, popupSize, bounds) {
+            return candidate.left >= bounds.left
+                && candidate.top >= bounds.top
+                && candidate.left + popupSize.width <= bounds.right
+                && candidate.top + popupSize.height <= bounds.bottom;
+          }
+          function popupCandidateOverflow(candidate, popupSize, bounds) {
+            return Math.max(0, bounds.left - candidate.left)
+                + Math.max(0, bounds.top - candidate.top)
+                + Math.max(0, candidate.left + popupSize.width - bounds.right)
+                + Math.max(0, candidate.top + popupSize.height - bounds.bottom);
+          }
+          function popupCandidateOverlap(candidate, popupSize, barRectangles) {
+            var right = candidate.left + popupSize.width;
+            var bottom = candidate.top + popupSize.height;
+            var overlap = 0;
+            for (var index = 0; index < barRectangles.length; index += 1) {
+              var barRect = barRectangles[index];
+              var overlapWidth = Math.max(
+                  0, Math.min(right, barRect.right) - Math.max(candidate.left, barRect.left));
+              var overlapHeight = Math.max(
+                  0, Math.min(bottom, barRect.bottom) - Math.max(candidate.top, barRect.top));
+              overlap += overlapWidth * overlapHeight;
+            }
+            return overlap;
+          }
+          function clampPopupCandidate(candidate, popupSize, bounds) {
+            var maxLeft = Math.max(bounds.left, bounds.right - popupSize.width);
+            var maxTop = Math.max(bounds.top, bounds.bottom - popupSize.height);
+            return {
+              left: Math.min(Math.max(candidate.left, bounds.left), maxLeft),
+              top: Math.min(Math.max(candidate.top, bounds.top), maxTop)
+            };
+          }
+          function chooseBarPopupPlacement(
+              anchorRect, popupSize, viewportRect, barRectangles, preferredSide) {
+            var gap = 14;
+            var margin = 8;
+            var bounds = {
+              bottom: Math.max(viewportRect.top + margin, viewportRect.bottom - margin),
+              left: viewportRect.left + margin,
+              right: Math.max(viewportRect.left + margin, viewportRect.right - margin),
+              top: viewportRect.top + margin
+            };
+            var sides = [];
+            function addSide(side) {
+              if (sides.indexOf(side) < 0) {
+                sides.push(side);
+              }
+            }
+            if (preferredSide === "left" || preferredSide === "right") {
+              addSide(preferredSide);
+            }
+            addSide("right");
+            addSide("left");
+            addSide("above");
+            addSide("below");
+
+            var candidates = [];
+            for (var index = 0; index < sides.length; index += 1) {
+              var side = sides[index];
+              var candidate = popupCandidate(side, anchorRect, popupSize, gap);
+              var evaluated = {
+                fits: popupCandidateFits(candidate, popupSize, bounds),
+                left: candidate.left,
+                overlap: popupCandidateOverlap(candidate, popupSize, barRectangles),
+                overflow: popupCandidateOverflow(candidate, popupSize, bounds),
+                side: side,
+                top: candidate.top
+              };
+              candidates.push(evaluated);
+              if (evaluated.fits && evaluated.overlap === 0) {
+                return evaluated;
+              }
+            }
+
+            var best = null;
+            for (var candidateIndex = 0;
+                candidateIndex < candidates.length;
+                candidateIndex += 1) {
+              var current = candidates[candidateIndex];
+              var isVertical = current.side === "above" || current.side === "below";
+              if (isVertical && current.fits
+                  && (!best || current.overlap < best.overlap)) {
+                best = current;
+              }
+            }
+            if (!best) {
+              for (var fallbackIndex = 0;
+                  fallbackIndex < candidates.length;
+                  fallbackIndex += 1) {
+                var fallback = candidates[fallbackIndex];
+                var fallbackScore = fallback.overflow * 100000 + fallback.overlap;
+                var bestScore = best ? best.overflow * 100000 + best.overlap : Infinity;
+                if (!best || fallbackScore < bestScore) {
+                  best = fallback;
+                }
+              }
+            }
+            var clamped = clampPopupCandidate(best, popupSize, bounds);
+            best.left = clamped.left;
+            best.top = clamped.top;
+            return best;
+          }
+          /* OCTANE_BAR_POPUP_LAYOUT_END */
+          function barRectanglesForColumn(column) {
+            var anchorBar = barForColumn(column);
+            var plot = column ? column.closest(".octane-bar-plot") : null;
+            var bars = plot ? plot.querySelectorAll(".octane-vertical-bar") : [];
+            var rectangles = [];
+            for (var index = 0; index < bars.length; index += 1) {
+              if (bars[index] === anchorBar) {
+                continue;
+              }
+              var rect = bars[index].getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                rectangles.push(rect);
+              }
+            }
+            return rectangles;
+          }
+          function positionBarPopup(popup, column, point, input) {
+            var bar = barForColumn(column);
+            if (!popup || !bar) {
+              return;
+            }
+            var viewportRect = chartViewportRectangle(column);
+            var availableWidth = Math.max(1, rectangleWidth(viewportRect) - 16);
+            popup.style.maxWidth = trimNumber(availableWidth) + "px";
+            popup.style.minWidth = trimNumber(Math.min(174.72, availableWidth)) + "px";
+            var popupSize = {
+              height: popup.offsetHeight || 80,
+              width: popup.offsetWidth || Math.min(180, availableWidth)
+            };
+            var anchorRect = input === "mouse" && point
+                ? pointerAnchorRectangle(point)
+                : bar.getBoundingClientRect();
+            var placement = chooseBarPopupPlacement(
+                anchorRect,
+                popupSize,
+                viewportRect,
+                barRectanglesForColumn(column),
+                popup.getAttribute("data-placement") || "right");
+            popup.style.left = trimNumber(placement.left) + "px";
+            popup.style.top = trimNumber(placement.top) + "px";
+            popup.setAttribute("data-placement", placement.side);
+          }
+          function showBarPopup(column, point, input, restoring) {
+            var source = popupForColumn(column);
+            if (!source || !barPopupOverlay) {
+              return;
+            }
+            var cardKey = cardKeyForColumn(column);
+            var barKey = barKeyForColumn(column);
+            if (!cardKey || !barKey) {
+              return;
+            }
+            var sameBar = activeBarPopupState.visible
+                && activeBarPopupState.cardKey === cardKey
+                && activeBarPopupState.barKey === barKey
+                && activeBarPopupState.input === input;
+            if (sameBar && !restoring) {
+              activeBarPopupState.clientX = point.clientX;
+              activeBarPopupState.clientY = point.clientY;
+              positionBarPopup(barPopupOverlay, column, point, input);
+              return;
+            }
+            barPopupOverlay.innerHTML = source.innerHTML;
+            applyBarPopupDominantColor(column);
+            if (restoring) {
+              barPopupOverlay.classList.add("octane-bar-popup-restoring");
+            } else {
+              barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+            }
+            activeBarPopupState = {
+              barKey: barKey,
+              cardKey: cardKey,
+              clientX: point.clientX,
+              clientY: point.clientY,
+              input: input,
+              visible: true
+            };
+            barPopupOverlay.setAttribute("aria-hidden", "false");
+            barPopupOverlay.classList.add("octane-bar-popup-visible");
+            positionBarPopup(barPopupOverlay, column, point, input);
+            if (restoring) {
+              requestFrame(function () {
+                barPopupOverlay.classList.remove("octane-bar-popup-restoring");
+              });
+            }
+          }
+          function captureBarPopupRestoreState() {
+            if (!activeBarPopupState.visible) {
+              return null;
+            }
+            return {
+              barKey: activeBarPopupState.barKey,
+              cardKey: activeBarPopupState.cardKey,
+              clientX: activeBarPopupState.clientX,
+              clientY: activeBarPopupState.clientY,
+              input: activeBarPopupState.input,
+              visible: activeBarPopupState.visible
+            };
+          }
+          function restoreBarPopupAfterRefresh(root, restoreState) {
+            if (!restoreState || !restoreState.visible) {
+              return;
+            }
+            var column =
+                findColumnByKeys(root || dashboard, restoreState.cardKey, restoreState.barKey);
+            if (!column) {
+              hideBarPopup();
+              return;
+            }
+            var point = restoreState.input === "focus"
+                ? pointForColumn(column)
+                : {clientX: restoreState.clientX, clientY: restoreState.clientY};
+            if (restoreState.input !== "focus" && !pointInsideBar(column, point)) {
+              hideBarPopup();
+              return;
+            }
+            showBarPopup(column, point, restoreState.input, true);
+          }
+          function refreshActiveBarPopup() {
+            if (!activeBarPopupState.visible) {
+              return;
+            }
+            restoreBarPopupAfterRefresh(dashboard, captureBarPopupRestoreState());
+          }
+          dashboard.addEventListener("mousemove", function (event) {
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar || !dashboard.contains(bar)) {
+              return;
+            }
+            var column = bar.closest(".octane-suite-column");
+            if (!column) {
+              return;
+            }
+            showBarPopup(
+                column, {clientX: event.clientX, clientY: event.clientY}, "mouse", false);
+          });
+          dashboard.addEventListener("mouseout", function (event) {
+            if (barPopupRefreshInProgress) {
+              return;
+            }
+            var bar = event.target.closest(".octane-vertical-bar");
+            if (!bar) {
+              return;
+            }
+            if (event.relatedTarget && bar.contains(event.relatedTarget)) {
+              return;
+            }
+            var column = bar.closest(".octane-suite-column");
+            if (column
+                && activeBarPopupState.input === "mouse"
+                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+              hideBarPopup();
+            }
+          });
+          dashboard.addEventListener("focusin", function (event) {
+            var column = event.target.closest(".octane-suite-column");
+            if (!column || !dashboard.contains(column)) {
+              return;
+            }
+            showBarPopup(column, pointForColumn(column), "focus", false);
+          });
+          dashboard.addEventListener("focusout", function (event) {
+            var column = event.target.closest(".octane-suite-column");
+            if (!column) {
+              return;
+            }
+            if (event.relatedTarget && column.contains(event.relatedTarget)) {
+              return;
+            }
+            if (activeBarPopupState.input === "focus"
+                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+                && barKeyForColumn(column) === activeBarPopupState.barKey) {
+              hideBarPopup();
+            }
+          });
+          window.addEventListener("scroll", refreshActiveBarPopup, true);
+          window.addEventListener("resize", refreshActiveBarPopup);
+          if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", refreshActiveBarPopup);
+            window.visualViewport.addEventListener("scroll", refreshActiveBarPopup);
+          }
           var expandedCard = null;
           var focusedZone = null;
           var expandedBackdrop = document.createElement("div");
@@ -3079,14 +5655,16 @@
             return expandedCard || focusedZone;
           }
           function setExpandButtonState(card, expanded) {
-            var button = card ? card.querySelector(".octane-expand-toggle") : null;
-            if (!button) {
+            var buttons = card ? card.querySelectorAll(".octane-expand-toggle") : [];
+            if (!buttons.length) {
               return;
             }
             var label = expanded ? "Collapse widget" : "Expand widget";
-            button.setAttribute("aria-expanded", String(expanded));
-            button.setAttribute("aria-label", label);
-            button.setAttribute("title", label);
+            for (var index = 0; index < buttons.length; index += 1) {
+              buttons[index].setAttribute("aria-expanded", String(expanded));
+              buttons[index].setAttribute("aria-label", label);
+              buttons[index].setAttribute("title", label);
+            }
           }
           function removeExpandedState(card) {
             if (!card) {
@@ -3095,6 +5673,7 @@
             card.classList.remove("octane-expanded");
             card.setAttribute("draggable", "true");
             setExpandButtonState(card, false);
+            scheduleFluidBarCharts();
           }
           function findCardByKey(key) {
             if (!key) {
@@ -3149,6 +5728,7 @@
             zone.classList.remove("octane-zone-focused");
             restoreZoneFocusButton(zone);
             setZoneButtonState(zone, false);
+            scheduleFluidBarCharts();
           }
           function findZoneByKey(key) {
             if (!key) {
@@ -3185,6 +5765,7 @@
             zone.classList.add("octane-zone-focused");
             removeZoneFocusButton(zone);
             activateOverlayAccessibility(zone);
+            scheduleFluidBarCharts();
           }
           function expandCard(card) {
             if (!card) {
@@ -3201,6 +5782,7 @@
             card.setAttribute("draggable", "false");
             setExpandButtonState(card, true);
             activateOverlayAccessibility(card);
+            scheduleFluidBarCharts();
           }
           expandedBackdrop.addEventListener("click", function () {
             collapseExpandedCard();
@@ -3214,6 +5796,17 @@
             moveFocusInto(activeOverlay);
           });
           dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-tester-details-toggle");
+            if (!button) {
+              return;
+            }
+            var zone = button.closest(".octane-tester-details-zone");
+            event.preventDefault();
+            event.stopPropagation();
+            setTesterDetailsExpanded(
+                zone, button.getAttribute("aria-expanded") !== "true");
+          });
+          dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-zone-focus-toggle");
             if (!button) {
               return;
@@ -3225,6 +5818,21 @@
               return;
             }
             focusZone(zone);
+          });
+          dashboard.addEventListener("click", function (event) {
+            var button = event.target.closest(".octane-defect-pane-toggle");
+            if (!button) {
+              return;
+            }
+            var container = button.closest("[data-defect-analytics]");
+            if (!container) {
+              var card = button.closest(".octane-chart-card");
+              container = card ? card.querySelector("[data-defect-analytics]") : null;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            setDefectAnalyticsView(
+                container, button.getAttribute("data-defect-target-view") || "volumes");
           });
           dashboard.addEventListener("click", function (event) {
             var button = event.target.closest(".octane-view-toggle");

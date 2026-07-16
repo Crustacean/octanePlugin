@@ -13,9 +13,9 @@ public class OctaneGateSuiteRunChart implements Serializable {
       List.of(
           OctaneGateStatusBucket.FAILED,
           OctaneGateStatusBucket.BLOCKED,
-          OctaneGateStatusBucket.RUNNING,
+          OctaneGateStatusBucket.PASSED,
           OctaneGateStatusBucket.SKIPPED,
-          OctaneGateStatusBucket.PASSED);
+          OctaneGateStatusBucket.RUNNING);
 
   private final String suiteRunId;
   private final String displayName;
@@ -119,12 +119,52 @@ public class OctaneGateSuiteRunChart implements Serializable {
 
   public String getDominantStatusColor() {
     OctaneGateStatusCount dominantStatus = getDominantStatus();
-    return dominantStatus == null ? "" : dominantStatus.getColor();
+    return dominantStatus == null ? "" : dominantStatus.getTooltipColor();
   }
 
   public int getDominantStatusCount() {
     OctaneGateStatusCount dominantStatus = getDominantStatus();
     return dominantStatus == null ? 0 : dominantStatus.getCount();
+  }
+
+  public int getPassedCount() {
+    return getStatusCount(OctaneGateStatusBucket.PASSED);
+  }
+
+  public String getPassedTooltipColor() {
+    return OctaneGateStatusBucket.PASSED.getTooltipColor();
+  }
+
+  public int getFailedCount() {
+    return getStatusCount(OctaneGateStatusBucket.FAILED);
+  }
+
+  public String getFailedTooltipColor() {
+    return OctaneGateStatusBucket.FAILED.getTooltipColor();
+  }
+
+  public int getBlockedCount() {
+    return getStatusCount(OctaneGateStatusBucket.BLOCKED);
+  }
+
+  public String getBlockedTooltipColor() {
+    return OctaneGateStatusBucket.BLOCKED.getTooltipColor();
+  }
+
+  public int getSkippedCount() {
+    return getStatusCount(OctaneGateStatusBucket.SKIPPED);
+  }
+
+  public String getSkippedTooltipColor() {
+    return OctaneGateStatusBucket.SKIPPED.getTooltipColor();
+  }
+
+  public int getRunningCount() {
+    return getStatusCount(OctaneGateStatusBucket.RUNNING);
+  }
+
+  public String getRunningTooltipColor() {
+    return OctaneGateStatusBucket.RUNNING.getTooltipColor();
   }
 
   public String getBarHeightStyle() {
@@ -158,6 +198,15 @@ public class OctaneGateSuiteRunChart implements Serializable {
       }
     }
     return null;
+  }
+
+  private int getStatusCount(OctaneGateStatusBucket bucket) {
+    for (OctaneGateStatusCount status : statuses) {
+      if (status.getBucket() == bucket) {
+        return status.getCount();
+      }
+    }
+    return 0;
   }
 
   private static String groupKey(String displayName, List<String> suiteRunIds) {
