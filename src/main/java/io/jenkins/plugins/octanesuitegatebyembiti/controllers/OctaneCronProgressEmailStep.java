@@ -12,7 +12,6 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneProgressEmailScheduler;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
-import java.io.Serializable;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -380,7 +379,7 @@ public class OctaneCronProgressEmailStep extends Step {
     }
   }
 
-  private static final class Callback extends BodyExecutionCallback implements Serializable {
+  private static final class Callback extends BodyExecutionCallback {
     private static final long serialVersionUID = 1L;
     private final Execution execution;
 
