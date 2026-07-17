@@ -1,62 +1,3 @@
-String formatRemainingTime(long totalMinutes) {
-  long remainderMinutes = totalMinutes > 0L ? totalMinutes : 0L
-  long weeks = remainderMinutes / 10_080L
-  remainderMinutes %= 10_080L
-  long days = remainderMinutes / 1_440L
-  remainderMinutes %= 1_440L
-  long hours = remainderMinutes / 60L
-  long minutes = remainderMinutes % 60L
-
-  List<String> parts = []
-  if (weeks > 0L) {
-    parts.add("${weeks} ${weeks == 1L ? 'week' : 'weeks'}")
-  }
-  if (days > 0L) {
-    parts.add("${days} ${days == 1L ? 'day' : 'days'}")
-  }
-  if (hours > 0L) {
-    parts.add("${hours} ${hours == 1L ? 'hour' : 'hours'}")
-  }
-  if (minutes > 0L) {
-    parts.add("${minutes} ${minutes == 1L ? 'minute' : 'minutes'}")
-  }
-
-  return parts.isEmpty() ? 'no time remaining' : "${parts.join(' ')} remaining"
-}
-
-int parseMinuteOfDay(String configuredTime) {
-  String normalizedTime = configuredTime == null ? '' : configuredTime.trim()
-  String[] components = normalizedTime.split(':')
-  if (components.length != 2) {
-    return -1
-  }
-
-  try {
-    int hour = Integer.parseInt(components[0])
-    int minute = Integer.parseInt(components[1])
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-      return -1
-    }
-    return (hour * 60) + minute
-  } catch (NumberFormatException ignored) {
-    return -1
-  }
-}
-
-boolean isMinuteWithinWindow(int currentMinute, int startMinute, int endMinute) {
-  if (startMinute == endMinute) {
-    return true
-  }
-  return startMinute < endMinute
-      ? currentMinute >= startMinute && currentMinute < endMinute
-      : currentMinute >= startMinute || currentMinute < endMinute
-}
-
-int currentControllerMinuteOfDay() {
-  Calendar clock = Calendar.getInstance()
-  return (clock.get(Calendar.HOUR_OF_DAY) * 60) + clock.get(Calendar.MINUTE)
-}
-
 pipeline {
   agent any
 
@@ -71,10 +12,8 @@ pipeline {
     OCTANE_TIMEOUT_MINUTES = '120'
     OCTANE_TIMEOUT_MINUTES_EXTENDED = '30'
 
-    PROGRESS_EMAIL_INTERVAL_MINUTES = '15'
-    PROGRESS_EMAIL_SEND_DELAY_SECONDS = '5'
-    PROGRESS_EMAIL_WINDOW_START_TIME = '08:00'
-    PROGRESS_EMAIL_WINDOW_END_TIME = '17:00'
+    // Leave blank to disable periodic progress emails for this Pipeline run.
+    PROGRESS_EMAIL_INTERVAL_CRONJOB = '23 0-20/2 * * *'
 
     OCTANE_EMAIL_TO = 'qa-team@example.com,dev-team@example.com'
     OCTANE_EMAIL_CC = 'qa-leads@example.com'
@@ -110,245 +49,39 @@ pipeline {
     stage('Wait For Octane Suite') {
       steps {
         script {
-          int progressEmailIntervalMinutes
-          int progressEmailSendDelaySeconds
           int timeoutMinutes
           int timeoutMinutesExtended
           try {
-            progressEmailIntervalMinutes =
-                Integer.parseInt(env.PROGRESS_EMAIL_INTERVAL_MINUTES.trim())
-            progressEmailSendDelaySeconds =
-                Integer.parseInt(env.PROGRESS_EMAIL_SEND_DELAY_SECONDS.trim())
             timeoutMinutes = Integer.parseInt(env.OCTANE_TIMEOUT_MINUTES.trim())
             timeoutMinutesExtended =
                 Integer.parseInt(env.OCTANE_TIMEOUT_MINUTES_EXTENDED.trim())
           } catch (NumberFormatException ignored) {
             error(
-                'PROGRESS_EMAIL_INTERVAL_MINUTES, PROGRESS_EMAIL_SEND_DELAY_SECONDS, '
-                    + 'OCTANE_TIMEOUT_MINUTES, and OCTANE_TIMEOUT_MINUTES_EXTENDED '
+                'OCTANE_TIMEOUT_MINUTES and OCTANE_TIMEOUT_MINUTES_EXTENDED '
                     + 'must be whole numbers.')
-          }
-
-          if (progressEmailIntervalMinutes < 0) {
-            error 'PROGRESS_EMAIL_INTERVAL_MINUTES must be zero or greater.'
-          }
-          if (progressEmailSendDelaySeconds < 0) {
-            error 'PROGRESS_EMAIL_SEND_DELAY_SECONDS must be zero or greater.'
           }
           if (timeoutMinutes <= 0 || timeoutMinutesExtended < 0) {
             error(
                 'OCTANE_TIMEOUT_MINUTES must be greater than zero and '
                     + 'OCTANE_TIMEOUT_MINUTES_EXTENDED must be zero or greater.')
           }
-          String progressEmailWindowStartTime =
-              env.PROGRESS_EMAIL_WINDOW_START_TIME == null
-                  ? ''
-                  : env.PROGRESS_EMAIL_WINDOW_START_TIME.trim()
-          String progressEmailWindowEndTime =
-              env.PROGRESS_EMAIL_WINDOW_END_TIME == null
-                  ? ''
-                  : env.PROGRESS_EMAIL_WINDOW_END_TIME.trim()
-          boolean progressEmailWindowUnbounded =
-              progressEmailWindowStartTime.isEmpty() && progressEmailWindowEndTime.isEmpty()
-          if (progressEmailWindowStartTime.isEmpty() != progressEmailWindowEndTime.isEmpty()) {
-            error(
-                'PROGRESS_EMAIL_WINDOW_START_TIME and PROGRESS_EMAIL_WINDOW_END_TIME '
-                    + 'must either both be blank or both contain a time.')
-          }
-          int progressEmailWindowStartMinute =
-              progressEmailWindowUnbounded ? 0 : parseMinuteOfDay(progressEmailWindowStartTime)
-          int progressEmailWindowEndMinute =
-              progressEmailWindowUnbounded ? 0 : parseMinuteOfDay(progressEmailWindowEndTime)
-          if (!progressEmailWindowUnbounded
-              && (progressEmailWindowStartMinute < 0 || progressEmailWindowEndMinute < 0)) {
-            error(
-                'Configured progress email window times must use 24-hour HH:mm format.')
-          }
-          boolean progressEmailWindowAllDay = progressEmailWindowUnbounded
-          if (!progressEmailWindowAllDay) {
-            progressEmailWindowAllDay =
-                progressEmailWindowStartMinute == progressEmailWindowEndMinute
-          }
-          String progressEmailWindowRange =
-              "${progressEmailWindowStartTime} and ${progressEmailWindowEndTime}"
-          String progressEmailWindowDescription =
-              progressEmailWindowAllDay
-                  ? 'all day in Jenkins controller time'
-                  : "between ${progressEmailWindowRange} in Jenkins controller time"
-
-          int combinedTimeoutMinutes = timeoutMinutes + timeoutMinutesExtended
-          long gateStartedAtMillis = System.currentTimeMillis()
-          long gateDeadlineMillis =
-              gateStartedAtMillis + (combinedTimeoutMinutes * 60_000L)
-          long progressEmailIntervalMillis = progressEmailIntervalMinutes * 60_000L
-          String notifierId =
-              (env.BUILD_TAG ?: "${env.JOB_NAME}-${env.BUILD_NUMBER}")
-                  .replaceAll('[^A-Za-z0-9_.-]', '_')
-          String stopFile = ".octane-progress-email-${notifierId}.stop"
 
           env.OCTANE_GATE_PASSED = 'false'
+          octaneCronProgressEmail(
+              cron: env.PROGRESS_EMAIL_INTERVAL_CRONJOB,
+              to: env.OCTANE_EMAIL_TO,
+              cc: env.OCTANE_EMAIL_CC,
+              bcc: env.OCTANE_EMAIL_BCC,
+              projectName: env.OCTANE_PROJECT_NAME,
+              domainName: env.OCTANE_DOMAIN_NAME,
+              from: env.OCTANE_EMAIL_FROM,
+              replyTo: env.OCTANE_EMAIL_REPLY_TO,
+              subject:
+                  "Octane Gate Progress - ${env.JOB_NAME} #${env.BUILD_NUMBER} "
+                      + '({{REMAINING_TIME}})',
+              body: '''Hello Team,
 
-          def branches = [:]
-          branches['Octane Gate'] = {
-            try {
-              catchError(
-                  buildResult: 'FAILURE',
-                  catchInterruptions: false,
-                  stageResult: 'FAILURE') {
-                def suiteRunIds =
-                    env.OCTANE_REGRESSION_SUITE_RUN_ID
-                        .split(/[,\s]+/)
-                        .collect { it.trim() }
-                        .findAll { it }
-                def criticalSuiteRunIds =
-                    env.OCTANE_CRITICAL_SUITE_RUN_ID
-                        .split(/[,\s]+/)
-                        .collect { it.trim() }
-                        .findAll { it }
-                if (suiteRunIds.isEmpty()) {
-                  error 'OCTANE_REGRESSION_SUITE_RUN_ID must contain at least one ID.'
-                }
-                if (criticalSuiteRunIds.isEmpty()) {
-                  error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain at least one ID.'
-                }
-
-                echo "Octane regression suite run IDs: ${suiteRunIds.join(', ')}"
-                echo "Octane critical suite run IDs: ${criticalSuiteRunIds.join(', ')}"
-
-                Map gateResult =
-                    octaneSuiteGate(
-                        serverId: 'octane-prod',
-                        sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
-                        workspaceId: env.OCTANE_WORKSPACE_ID,
-                        suiteRunId: suiteRunIds.join(','),
-                        // Defect rates are open matching defects / total defects raised. The total
-                        // is deduplicated by defect ID and includes defects closed during this gate
-                        // session. Group names and types are case-insensitive.
-                        defectGroups: [
-                          octaneDefectGroup(
-                              name: 'major',
-                              types: 'Critical, Very High, High, Unspecified'),
-                          octaneDefectGroup(name: 'minor', types: 'Low, Medium')
-                        ],
-                        criteria:
-                            '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
-                                + 'AND (critical.executionRate == 100 '
-                                + 'AND critical.passRate == 100) '
-                                + 'AND (defects.major < 10% AND defects.minor < 20%) '
-                                + 'AND (defects.Unspecified == 0%)',
-                        scopes: [
-                          octaneGateScope(
-                              name: 'critical',
-                              suiteRunId: criticalSuiteRunIds.join(','))
-                        ],
-                        pollIntervalSeconds: 30,
-                        timeoutMinutes: timeoutMinutes,
-                        timeoutMinutesExtended: timeoutMinutesExtended,
-                        basePassrateFigure: 95,
-                        baseExecutionFigure: 100,
-                        markUnstable: false,
-                        riskHeatMap: true,
-                        riskHeatMapDefectQuery: '',
-                        riskHeatMapMaxDefects: 1000)
-
-                env.OCTANE_GATE_PASSED = gateResult.passed == true ? 'true' : 'false'
-                echo "Octane criteria verdict: ${gateResult.passed ? 'PASS' : 'FAIL'}"
-                echo "Octane suite run IDs: ${gateResult.suiteRunIds.join(', ')}"
-                echo "Regression execution rate: ${gateResult.regressions.executionRate}"
-                echo "Regression pass rate: ${gateResult.regressions.passRate}"
-                echo(
-                    'Critical scope execution rate: '
-                        + "${gateResult.scopes.critical.executionRate}")
-                echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
-              }
-            } finally {
-              writeFile file: stopFile, text: 'Octane gate finished.\n'
-            }
-          }
-
-          branches['Progress Email Notifier'] = {
-            if (progressEmailIntervalMinutes == 0 || combinedTimeoutMinutes <= 0) {
-              echo 'Periodic Octane progress emails are disabled.'
-              return
-            }
-
-            long nextEmailAtMillis = gateStartedAtMillis + progressEmailIntervalMillis
-            echo(
-                "Periodic Octane progress emails will be sent every "
-                    + "${progressEmailIntervalMinutes} minute(s), "
-                    + "${progressEmailWindowDescription}.")
-
-            while (!fileExists(stopFile)) {
-              long nowMillis = System.currentTimeMillis()
-              if (nowMillis >= gateDeadlineMillis) {
-                echo 'Progress email notifier stopped because the combined timeout elapsed.'
-                break
-              }
-
-              if (nowMillis < nextEmailAtMillis) {
-                sleep time: 5, unit: 'SECONDS'
-                continue
-              }
-              if (!isMinuteWithinWindow(
-                  currentControllerMinuteOfDay(),
-                  progressEmailWindowStartMinute,
-                  progressEmailWindowEndMinute)) {
-                sleep time: 60, unit: 'SECONDS'
-                continue
-              }
-
-              try {
-                nowMillis = System.currentTimeMillis()
-                long remainingMillis = gateDeadlineMillis - nowMillis
-                if (remainingMillis <= 0L || fileExists(stopFile)) {
-                  echo(
-                      'Progress email notifier stopped before sending because the gate '
-                          + 'finished or the combined timeout elapsed.')
-                  break
-                }
-                if (progressEmailSendDelaySeconds > 0) {
-                  sleep time: progressEmailSendDelaySeconds, unit: 'SECONDS'
-                }
-
-                nowMillis = System.currentTimeMillis()
-                remainingMillis = gateDeadlineMillis - nowMillis
-                if (remainingMillis <= 0L || fileExists(stopFile)) {
-                  echo(
-                      'Progress email notifier stopped after the pre-send delay because '
-                          + 'the gate finished or the combined timeout elapsed.')
-                  break
-                }
-                if (!isMinuteWithinWindow(
-                    currentControllerMinuteOfDay(),
-                    progressEmailWindowStartMinute,
-                    progressEmailWindowEndMinute)) {
-                  echo(
-                      'Periodic Octane progress email deferred because the configured '
-                          + 'send window closed during the pre-send delay.')
-                  continue
-                }
-                long remainingSeconds = (remainingMillis + 999L) / 1000L
-                long remainingMinutes = (remainingSeconds + 59L) / 60L
-                String remainingTimeText = formatRemainingTime(remainingMinutes)
-
-                catchError(
-                    buildResult: 'UNSTABLE',
-                    catchInterruptions: false,
-                    stageResult: 'UNSTABLE') {
-                  octaneEmailReport(
-                      to: env.OCTANE_EMAIL_TO,
-                      cc: env.OCTANE_EMAIL_CC,
-                      bcc: env.OCTANE_EMAIL_BCC,
-                      projectName: env.OCTANE_PROJECT_NAME,
-                      domainName: env.OCTANE_DOMAIN_NAME,
-                      from: env.OCTANE_EMAIL_FROM,
-                      replyTo: env.OCTANE_EMAIL_REPLY_TO,
-                      subject:
-                          "Octane Gate Progress - ${env.JOB_NAME} #${env.BUILD_NUMBER} "
-                              + "(${remainingTimeText})",
-                      body: """Hello Team,
-
-The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}, with ${remainingTimeText}; the latest Octane update was {{UPDATED_AT_TEXT}}.
+The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}, with {{REMAINING_TIME}}; the latest Octane update was {{UPDATED_AT_TEXT}}.
 
 Set criteria: {{CRITERIA}}
 
@@ -361,48 +94,81 @@ See below the execution details:
 {{REPORT_SCREENSHOT}}
 
 Thanks.
-QA Automation Team""",
-                      onFailure: 'UNSTABLE',
-                      printDefectGroups: true,
-                      theme: 'DARK',
-                      viewportWidth: 1400,
-                      archiveScreenshot: false)
-                }
-                echo "Sent periodic Octane progress email with ${remainingTimeText}."
-              } catch (Exception notificationError) {
-                if (notificationError.getClass().getName()
-                    == 'org.jenkinsci.plugins.workflow.steps.FlowInterruptedException') {
-                  throw notificationError
-                }
-                echo(
-                    'WARNING: Periodic Octane progress email was not sent: '
-                        + notificationError.getMessage())
+QA Automation Team''',
+              onFailure: 'WARN',
+              printDefectGroups: true,
+              theme: 'DARK',
+              viewportWidth: 1400,
+              archiveScreenshot: false) {
+            catchError(
+                buildResult: 'FAILURE',
+                catchInterruptions: false,
+                stageResult: 'FAILURE') {
+              def suiteRunIds =
+                  env.OCTANE_REGRESSION_SUITE_RUN_ID
+                      .split(/[,\s]+/)
+                      .collect { it.trim() }
+                      .findAll { it }
+              def criticalSuiteRunIds =
+                  env.OCTANE_CRITICAL_SUITE_RUN_ID
+                      .split(/[,\s]+/)
+                      .collect { it.trim() }
+                      .findAll { it }
+              if (suiteRunIds.isEmpty()) {
+                error 'OCTANE_REGRESSION_SUITE_RUN_ID must contain at least one ID.'
+              }
+              if (criticalSuiteRunIds.isEmpty()) {
+                error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain at least one ID.'
               }
 
-              nextEmailAtMillis = System.currentTimeMillis() + progressEmailIntervalMillis
-            }
-          }
+              echo "Octane regression suite run IDs: ${suiteRunIds.join(', ')}"
+              echo "Octane critical suite run IDs: ${criticalSuiteRunIds.join(', ')}"
 
-          try {
-            parallel branches
-          } finally {
-            try {
-              if (fileExists(stopFile)) {
-                withEnv(["OCTANE_PROGRESS_STOP_FILE=${stopFile}"]) {
-                  if (isUnix()) {
-                    sh 'rm -f -- "$OCTANE_PROGRESS_STOP_FILE"'
-                  } else {
-                    powershell '''
-                      $ErrorActionPreference = 'Stop'
-                      Remove-Item -LiteralPath $env:OCTANE_PROGRESS_STOP_FILE -Force
-                    '''
-                  }
-                }
-              }
-            } catch (Exception cleanupError) {
+              Map gateResult =
+                  octaneSuiteGate(
+                      serverId: 'octane-prod',
+                      sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
+                      workspaceId: env.OCTANE_WORKSPACE_ID,
+                      suiteRunId: suiteRunIds.join(','),
+                      // Defect rates are open matching defects / total defects raised. The total
+                      // is deduplicated by defect ID and includes defects closed during this gate
+                      // session. Group names and types are case-insensitive.
+                      defectGroups: [
+                        octaneDefectGroup(
+                            name: 'major',
+                            types: 'Critical, Very High, High, Unspecified'),
+                        octaneDefectGroup(name: 'minor', types: 'Low, Medium')
+                      ],
+                      criteria:
+                          '(regressions.executionRate == 100 AND regressions.passRate >= 95) '
+                              + 'AND (critical.executionRate == 100 '
+                              + 'AND critical.passRate == 100) '
+                              + 'AND (defects.major < 10% AND defects.minor < 20%) '
+                              + 'AND (defects.Unspecified == 0%)',
+                      scopes: [
+                        octaneGateScope(
+                            name: 'critical',
+                            suiteRunId: criticalSuiteRunIds.join(','))
+                      ],
+                      pollIntervalSeconds: 30,
+                      timeoutMinutes: timeoutMinutes,
+                      timeoutMinutesExtended: timeoutMinutesExtended,
+                      basePassrateFigure: 95,
+                      baseExecutionFigure: 100,
+                      markUnstable: false,
+                      riskHeatMap: true,
+                      riskHeatMapDefectQuery: '',
+                      riskHeatMapMaxDefects: 1000)
+
+              env.OCTANE_GATE_PASSED = gateResult.passed == true ? 'true' : 'false'
+              echo "Octane criteria verdict: ${gateResult.passed ? 'PASS' : 'FAIL'}"
+              echo "Octane suite run IDs: ${gateResult.suiteRunIds.join(', ')}"
+              echo "Regression execution rate: ${gateResult.regressions.executionRate}"
+              echo "Regression pass rate: ${gateResult.regressions.passRate}"
               echo(
-                  'WARNING: Could not remove the progress email stop marker: '
-                      + cleanupError.getMessage())
+                  'Critical scope execution rate: '
+                      + "${gateResult.scopes.critical.executionRate}")
+              echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
             }
           }
         }

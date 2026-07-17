@@ -40,12 +40,12 @@ profiler run.
 
 | Verification | Result |
 | --- | ---: |
-| Concurrent jobs | 20 |
+| Concurrent jobs | 30 |
 | Suites per job | 500 |
 | Child runs per suite / per job | 50 / 25,000 |
-| Linked defects per job / total | 1,000 / 20,000 |
-| Scale mapper wall time across acceptance reruns | 964-2,114 ms |
-| Sampled heap peak across `-Xmx1g` reruns | 370,671,616-488,771,680 bytes |
+| Linked defects per job / total | 1,000 / 30,000 |
+| Scale mapper wall time | 1,458 ms |
+| Sampled heap peak with `-Xmx1g` | 549,064,800 bytes |
 | Maximum compact index | 162,024 bytes |
 | Maximum complete JSON | 687,775 bytes |
 | Dense fixture `build.xml` | 3,671 bytes |
@@ -53,13 +53,24 @@ profiler run.
 | Unchanged snapshot/index response | HTTP `304` |
 | 500-suite x 50-child suite/child requests | 638, down from 1,500 (57.5%) |
 | 20 simultaneous requests | Maximum 8 in flight |
-| Full Maven regression suite | 146 tests, 0 failures, 0 errors |
+| Aggressive cron registrations (`* * * * *`) | 30 active / 30 queued |
+| Maximum progress-email delivery workers | 4 |
+| Progress-email minimum delivery interval | 5 minutes per build |
+| Progress-email active-schedule admission limit | 256 |
+| Full Maven regression suite | 158 tests, 0 failures, 0 errors |
 
-Both 1 GB acceptance runs completed without `OutOfMemoryError`, versus the reproducible baseline
-failure. The conservative 488.8 MB sampled maximum covers concurrent construction and compact
-mapping of all 500,000 child-run records plus 20,000 defect records. It does not include a live
+The 1 GB acceptance run completed without `OutOfMemoryError`, versus the reproducible baseline
+failure. The 549.1 MB sampled maximum covers concurrent construction and compact
+mapping of all 750,000 child-run records plus 30,000 defect records. It does not include a live
 Octane server, Jenkins XStream startup, or a browser process, so it should not be compared directly
 with the original 2.11 GB end-to-end peak.
+
+The cron scheduler fixture registered 30 simultaneous every-minute schedules while retaining one
+future per active build. A separate 20-delivery overlap fixture blocked outbound work deliberately
+and observed no more than four concurrent delivery workers. Cancelling registrations removed their
+queued futures immediately. Cron parsing tests also cover daily, weekday-range, hour-step, and
+minute-step expressions, while the aggressive schedule is advanced to the first eligible cron time
+at least five minutes after the preceding delivery.
 
 The persistence fixture confirms that dense report objects no longer enter new `build.xml` files.
 Archived inline snapshots remain readable, while current data is published atomically as a compact

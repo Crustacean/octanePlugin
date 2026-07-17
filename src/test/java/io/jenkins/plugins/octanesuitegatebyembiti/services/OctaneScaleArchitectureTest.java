@@ -20,12 +20,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
 
 public class OctaneScaleArchitectureTest {
-  private static final int JOBS = 20;
+  private static final int JOBS = 30;
   private static final int SUITES_PER_JOB = 500;
   private static final int CHILD_RUNS_PER_SUITE = 50;
 
   @Test(timeout = 60_000L)
-  public void mapsTwentyConcurrentDenseJobsToBoundedClientArtifacts() throws Exception {
+  public void mapsThirtyConcurrentDenseJobsToBoundedClientArtifacts() throws Exception {
     CountDownLatch ready = new CountDownLatch(JOBS);
     CountDownLatch start = new CountDownLatch(1);
     List<Future<Measurement>> futures = new ArrayList<>();
