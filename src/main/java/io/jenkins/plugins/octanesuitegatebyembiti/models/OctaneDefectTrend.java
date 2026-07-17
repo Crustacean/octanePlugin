@@ -81,6 +81,10 @@ public final class OctaneDefectTrend implements Serializable {
     return latestPoint().getOpened();
   }
 
+  public int getRaisedTotal() {
+    return latestPoint().getOpened();
+  }
+
   public int getClosedTotal() {
     return latestPoint().getClosed();
   }
@@ -130,6 +134,7 @@ public final class OctaneDefectTrend implements Serializable {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("startedAt", startedAt);
     values.put("durationMillis", durationMillis);
+    values.put("raisedTotal", getRaisedTotal());
     values.put("openedTotal", getOpenedTotal());
     values.put("closedTotal", getClosedTotal());
     values.put("openedColor", OPENED_COLOR);

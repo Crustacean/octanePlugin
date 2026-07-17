@@ -92,7 +92,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Defects Raised"));
     assertTrue(text.contains("Defects"));
     assertTrue(xml.contains("octane-defect-density-axis-title"));
-    assertTrue(xml.contains(">Defect Density</div>"));
+    assertTrue(xml.contains(">Defects / Test</div>"));
     assertTrue(text.contains("Opened Defects"));
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
     assertTrue(text.contains("Total: 2"));
@@ -376,6 +376,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("selectedButton.getAttribute(\"data-defect-title\")"));
     assertTrue(xml.contains("function buildDefectDensityBuckets"));
     assertTrue(xml.contains("function renderDefectDensity"));
+    assertTrue(xml.contains("Math.ceil(safeMaximum) + 1"));
+    assertTrue(xml.contains("function densityXAxisIntervalCount"));
+    assertTrue(xml.contains("function formatDensityClockOffset"));
+    assertTrue(xml.contains("OCTANE_DEFECT_DENSITY_MATH_START"));
+    assertTrue(xml.contains("OCTANE_DEFECT_DENSITY_MATH_END"));
     assertTrue(xml.contains("event.target.closest(\".octane-defect-pane-toggle\")"));
     assertTrue(xml.contains("octane-flip-face-breakdown"));
     assertTrue(xml.contains("data-execution-breakdown-panel=\"true\""));

@@ -2985,12 +2985,12 @@
                               <div class="octane-defect-density-total">
                                 <div class="octane-defect-density-value"
                                     data-defect-density-raised-total="true">
-                                  ${snapshot.defectTrend.openedTotal}
+                                  ${snapshot.defectTrend.raisedTotal}
                                 </div>
                                 <div class="octane-defect-density-label">Defects Raised</div>
                               </div>
                               <div class="octane-defect-density-chart">
-                                <div class="octane-defect-density-axis-title">Defect Density</div>
+                                <div class="octane-defect-density-axis-title">Defects / Test</div>
                                 <div class="octane-defect-density-y-labels"
                                     data-defect-density-y-labels="true"></div>
                                 <div class="octane-defect-density-plot">
@@ -3854,6 +3854,9 @@
           };
           var defectTrendState = null;
           var defectTrendLoopRunning = false;
+          var defectDensityResizeObserver = null;
+          var defectDensityResizeScheduled = false;
+          var defectDensityResizeFallbackBound = false;
           function safeTrendNumber(value, fallback) {
             var parsed = Number(value);
             return isFinite(parsed) ? parsed : fallback;
@@ -3909,10 +3912,43 @@
               renderedYMaximum: -1,
               renderedDurationMillis: -1,
               renderedDensityYMaximum: -1,
-              renderedDensityDurationMillis: -1
+              renderedDensityDurationMillis: -1,
+              renderedDensityWidth: -1
             };
+            initializeDefectDensityResizeObserver();
             renderDefectTrend(currentWallTime());
             renderDefectDensity(currentWallTime());
+          }
+          function renderDefectDensityAfterResize() {
+            defectDensityResizeScheduled = false;
+            if (defectTrendState) {
+              renderDefectDensity(currentWallTime());
+            }
+          }
+          function scheduleDefectDensityResize() {
+            if (defectDensityResizeScheduled) {
+              return;
+            }
+            defectDensityResizeScheduled = true;
+            requestFrame(renderDefectDensityAfterResize);
+          }
+          function initializeDefectDensityResizeObserver() {
+            if (defectDensityResizeObserver) {
+              defectDensityResizeObserver.disconnect();
+              defectDensityResizeObserver = null;
+            }
+            var plot = dashboard.querySelector(".octane-defect-density-plot");
+            if (!plot) {
+              return;
+            }
+            if (typeof window.ResizeObserver === "function") {
+              defectDensityResizeObserver =
+                  new window.ResizeObserver(scheduleDefectDensityResize);
+              defectDensityResizeObserver.observe(plot);
+            } else if (!defectDensityResizeFallbackBound) {
+              defectDensityResizeFallbackBound = true;
+              window.addEventListener("resize", scheduleDefectDensityResize);
+            }
           }
           function defectTrendVisible() {
             var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
@@ -4056,23 +4092,59 @@
             defectTrendState.renderedYMaximum = scale.maximum;
             defectTrendState.renderedDurationMillis = defectTrendState.durationMillis;
           }
+          /* OCTANE_DEFECT_DENSITY_MATH_START */
           function niceDefectDensityScale(maximumDensity) {
-            if (maximumDensity <= 5) {
-              return {maximum: 5, step: 1};
+            var safeMaximum = Number(maximumDensity);
+            if (!isFinite(safeMaximum) || safeMaximum <= 0) {
+              return {maximum: 1, step: 1, intervals: 1};
             }
-            var roughStep = maximumDensity / 5;
-            var magnitude = Math.pow(10, Math.floor(Math.log(roughStep) / Math.LN10));
-            var normalizedStep = roughStep / magnitude;
-            var multiplier = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 :
-                normalizedStep <= 5 ? 5 : 10;
-            var step = multiplier * magnitude;
+            var maximum = Math.ceil(safeMaximum) + 1;
+            var intervals = maximum <= 5 ? maximum : 5;
             return {
-              maximum: Math.ceil(maximumDensity / step) * step,
-              step: step
+              maximum: maximum,
+              step: maximum / intervals,
+              intervals: intervals
             };
           }
           function formatDensityAxisValue(value) {
             return trimNumber(value);
+          }
+          function defectDensityYAxisValues(scale) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            var values = [];
+            for (var tick = intervals; tick >= 0; tick -= 1) {
+              values.push(scale.step * tick);
+            }
+            return values;
+          }
+          function densityXAxisIntervalCount(plotWidth) {
+            var safeWidth = Number(plotWidth);
+            if (!isFinite(safeWidth) || safeWidth <= 0) {
+              return 4;
+            }
+            return clamp(Math.floor(safeWidth / 180), 2, 5);
+          }
+          function formatDensityClockOffset(timestampMillis, durationMillis) {
+            var date = new Date(timestampMillis);
+            if (isNaN(date.getTime())) {
+              return "";
+            }
+            var hours = String(date.getHours()).padStart(2, "0");
+            var minutes = String(date.getMinutes()).padStart(2, "0");
+            if (durationMillis <= 300000) {
+              return hours + ":" + minutes + ":" + String(date.getSeconds()).padStart(2, "0");
+            }
+            return hours + ":" + minutes;
+          }
+          function defectDensityXAxisValues(startedAt, durationMillis, plotWidth) {
+            var intervals = densityXAxisIntervalCount(plotWidth);
+            var values = [];
+            for (var tick = 0; tick <= intervals; tick += 1) {
+              values.push(
+                  formatDensityClockOffset(
+                      startedAt + durationMillis * (tick / intervals), durationMillis));
+            }
+            return values;
           }
           function densityBucketMillis(durationMillis) {
             var target = Math.max(1, Math.round(durationMillis / 10));
@@ -4118,7 +4190,7 @@
             }
             return buckets;
           }
-          function rebuildDefectDensityAxes(scale) {
+          function rebuildDefectDensityAxes(scale, plotWidth) {
             if (!defectTrendState) {
               return;
             }
@@ -4136,8 +4208,9 @@
             yLabels.textContent = "";
             xLabels.textContent = "";
             var height = DEFECT_DENSITY_BOUNDS.bottom - DEFECT_DENSITY_BOUNDS.top;
-            var width = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
-            for (var value = scale.step; value <= scale.maximum; value += scale.step) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            for (var tick = 1; tick <= intervals; tick += 1) {
+              var value = scale.step * tick;
               var y = DEFECT_DENSITY_BOUNDS.bottom - (value / scale.maximum) * height;
               grid.appendChild(createTrendSvgElement("line", {
                 "class": "octane-defect-density-grid-line",
@@ -4147,38 +4220,48 @@
                 y2: y
               }));
             }
-            for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step) {
-              yLabels.appendChild(createDensityAxisLabel(formatDensityAxisValue(yValue)));
+            var yAxisValues = defectDensityYAxisValues(scale);
+            for (var yIndex = 0; yIndex < yAxisValues.length; yIndex += 1) {
+              yLabels.appendChild(
+                  createDensityAxisLabel(formatDensityAxisValue(yAxisValues[yIndex])));
             }
-            for (var index = 0; index <= 4; index += 1) {
-              var ratio = index / 4;
-              xLabels.appendChild(
-                  createDensityAxisLabel(
-                      formatClockOffset(defectTrendState.startedAt
-                          + defectTrendState.durationMillis * ratio)));
+            var xAxisValues = defectDensityXAxisValues(
+                defectTrendState.startedAt, defectTrendState.durationMillis, plotWidth);
+            for (var index = 0; index < xAxisValues.length; index += 1) {
+              xLabels.appendChild(createDensityAxisLabel(xAxisValues[index]));
             }
             defectTrendState.renderedDensityYMaximum = scale.maximum;
             defectTrendState.renderedDensityDurationMillis = defectTrendState.durationMillis;
-            defectTrendState.renderedDensityWidth = width;
+            defectTrendState.renderedDensityWidth = plotWidth;
           }
           function densityXFor(milliseconds) {
             var width = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
+            var durationMillis = Math.max(1, defectTrendState.durationMillis);
+            var elapsedMillis = clamp(milliseconds, 0, durationMillis);
             return DEFECT_DENSITY_BOUNDS.left
-                + (milliseconds / defectTrendState.durationMillis) * width;
+                + (elapsedMillis / durationMillis) * width;
           }
           function densityYFor(value, scale) {
             var height = DEFECT_DENSITY_BOUNDS.bottom - DEFECT_DENSITY_BOUNDS.top;
-            return DEFECT_DENSITY_BOUNDS.bottom - (value / scale.maximum) * height;
+            var ratio = clamp(value / Math.max(1, scale.maximum), 0, 1);
+            return DEFECT_DENSITY_BOUNDS.bottom - ratio * height;
           }
           function defectDensityLinePath(buckets, scale) {
             if (!buckets.length) {
               return "";
             }
-            var path = "";
+            var first = buckets[0];
+            var firstY = densityYFor(first.density, scale);
+            var path = "M " + densityXFor(first.startMillis).toFixed(2)
+                + " " + firstY.toFixed(2);
             for (var index = 0; index < buckets.length; index += 1) {
-              var x = densityXFor((buckets[index].startMillis + buckets[index].endMillis) / 2);
               var y = densityYFor(buckets[index].density, scale);
-              path += (index === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
+              var startX = densityXFor(buckets[index].startMillis);
+              var endX = densityXFor(buckets[index].endMillis);
+              if (index > 0) {
+                path += " H " + startX.toFixed(2) + " V " + y.toFixed(2);
+              }
+              path += " H " + endX.toFixed(2);
             }
             return path;
           }
@@ -4186,22 +4269,26 @@
             if (!buckets.length) {
               return "";
             }
-            var firstX = densityXFor((buckets[0].startMillis + buckets[0].endMillis) / 2);
-            var lastX =
-                densityXFor(
-                    (buckets[buckets.length - 1].startMillis
-                        + buckets[buckets.length - 1].endMillis) / 2);
-            var path =
-                "M " + firstX.toFixed(2) + " " + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2);
+            var firstX = densityXFor(buckets[0].startMillis);
+            var firstY = densityYFor(buckets[0].density, scale);
+            var path = "M " + firstX.toFixed(2) + " "
+                + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2)
+                + " L " + firstX.toFixed(2) + " " + firstY.toFixed(2);
             for (var index = 0; index < buckets.length; index += 1) {
-              var x = densityXFor((buckets[index].startMillis + buckets[index].endMillis) / 2);
               var y = densityYFor(buckets[index].density, scale);
-              path += " L " + x.toFixed(2) + " " + y.toFixed(2);
+              var startX = densityXFor(buckets[index].startMillis);
+              var endX = densityXFor(buckets[index].endMillis);
+              if (index > 0) {
+                path += " H " + startX.toFixed(2) + " V " + y.toFixed(2);
+              }
+              path += " H " + endX.toFixed(2);
             }
+            var lastX = densityXFor(buckets[buckets.length - 1].endMillis);
             path += " L " + lastX.toFixed(2) + " "
                 + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2) + " Z";
             return path;
           }
+          /* OCTANE_DEFECT_DENSITY_MATH_END */
           function defectTrendPath(points, property, scale) {
             if (!points.length) {
               return "";
@@ -4267,9 +4354,15 @@
               maximumDensity = Math.max(maximumDensity, buckets[index].density);
             }
             var scale = niceDefectDensityScale(maximumDensity);
+            var plot = panel.querySelector(".octane-defect-density-plot");
+            var plotWidth = plot ? plot.getBoundingClientRect().width : 0;
+            if (!plotWidth) {
+              plotWidth = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
+            }
             if (scale.maximum !== defectTrendState.renderedDensityYMaximum
-                || defectTrendState.durationMillis !== defectTrendState.renderedDensityDurationMillis) {
-              rebuildDefectDensityAxes(scale);
+                || defectTrendState.durationMillis !== defectTrendState.renderedDensityDurationMillis
+                || Math.abs(plotWidth - defectTrendState.renderedDensityWidth) >= 24) {
+              rebuildDefectDensityAxes(scale, plotWidth);
             }
             var total = panel.querySelector("[data-defect-density-raised-total]");
             if (total) {
@@ -4340,7 +4433,8 @@
               renderedYMaximum: -1,
               renderedDurationMillis: -1,
               renderedDensityYMaximum: -1,
-              renderedDensityDurationMillis: -1
+              renderedDensityDurationMillis: -1,
+              renderedDensityWidth: -1
             };
             var latest = latestDefectTrendPoint();
             var openedTotal = panel.querySelector("[data-defect-trend-opened-total]");
