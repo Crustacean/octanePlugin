@@ -20,6 +20,7 @@ import java.util.Set;
 
 public class OctaneGateReportSnapshot implements Serializable {
   private static final long serialVersionUID = 1L;
+  public static final int CLIENT_RENDER_BAR_THRESHOLD = 80;
   private static final DateTimeFormatter EAT_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
 
@@ -601,6 +602,17 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public boolean hasReportSections() {
     return !getReportSections().isEmpty();
+  }
+
+  public boolean isClientRenderedReport() {
+    int barCount = 0;
+    for (OctaneGateReportSection section : getReportSections()) {
+      barCount += section.getSuiteRuns().size();
+      if (barCount > CLIENT_RENDER_BAR_THRESHOLD) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public double getExecutionProgress() {

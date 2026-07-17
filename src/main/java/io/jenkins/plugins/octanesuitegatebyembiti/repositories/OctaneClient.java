@@ -15,6 +15,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -22,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class OctaneClient implements AutoCloseable {
   private static final int PAGE_SIZE = 200;
@@ -37,6 +41,8 @@ public class OctaneClient implements AutoCloseable {
           + "run{id,name},test{id,name},product_areas{id,name}";
   private static final String MINIMAL_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name}";
+  private static final HttpClient SHARED_HTTP_CLIENT =
+      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -46,11 +52,7 @@ public class OctaneClient implements AutoCloseable {
   private String cookieHeader = "";
 
   public OctaneClient(String baseUrl, String clientId, String clientSecret) {
-    this(
-        HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build(),
-        baseUrl,
-        clientId,
-        clientSecret);
+    this(SHARED_HTTP_CLIENT, baseUrl, clientId, clientSecret);
   }
 
   public OctaneClient(HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
@@ -70,7 +72,7 @@ public class OctaneClient implements AutoCloseable {
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
             .build();
-    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    HttpResponse<String> response = send(request, HttpResponse.BodyHandlers.ofString());
     if (response.statusCode() != 200) {
       throw new AbortException(
           "ALM Octane authentication failed with HTTP "
@@ -91,6 +93,43 @@ public class OctaneClient implements AutoCloseable {
       return List.of(parseRun(suiteRun));
     }
     return fetchRunsByIds(sharedSpaceId, workspaceId, runIds, "");
+  }
+
+  public Map<String, List<RunRecord>> fetchSuiteChildRuns(
+      String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
+      throws IOException, InterruptedException {
+    if (suiteRunIds.isEmpty()) {
+      return Map.of();
+    }
+    String namespace =
+        baseUrl + "\u0000" + clientId + "\u0000" + sharedSpaceId + "\u0000" + workspaceId;
+    Map<String, List<String>> topology =
+        OctaneSuiteTopologyCache.getAll(
+            namespace,
+            suiteRunIds,
+            missing -> fetchSuiteTopologies(sharedSpaceId, workspaceId, missing));
+    LinkedHashSet<String> childRunIds = new LinkedHashSet<>();
+    for (String suiteRunId : suiteRunIds) {
+      childRunIds.addAll(topology.getOrDefault(suiteRunId, List.of()));
+    }
+    List<RunRecord> childRuns =
+        fetchRunsByIds(sharedSpaceId, workspaceId, new ArrayList<>(childRunIds), "");
+    Map<String, RunRecord> runsById = new LinkedHashMap<>();
+    for (RunRecord run : childRuns) {
+      runsById.putIfAbsent(run.getId(), run);
+    }
+    Map<String, List<RunRecord>> result = new LinkedHashMap<>();
+    for (String suiteRunId : suiteRunIds) {
+      List<RunRecord> runs = new ArrayList<>();
+      for (String runId : topology.getOrDefault(suiteRunId, List.of())) {
+        RunRecord run = runsById.get(runId);
+        if (run != null) {
+          runs.add(run);
+        }
+      }
+      result.put(suiteRunId, List.copyOf(runs));
+    }
+    return result;
   }
 
   public List<RunRecord> fetchScopedRuns(
@@ -186,8 +225,7 @@ public class OctaneClient implements AutoCloseable {
             + "&"
             + parameter("limit", "1");
     HttpResponse<Void> response =
-        httpClient.send(
-            requestBuilder(baseUrl + path).GET().build(), HttpResponse.BodyHandlers.discarding());
+        send(requestBuilder(baseUrl + path).GET().build(), HttpResponse.BodyHandlers.discarding());
     rememberCookies(response);
     return response.statusCode();
   }
@@ -203,7 +241,7 @@ public class OctaneClient implements AutoCloseable {
             .POST(HttpRequest.BodyPublishers.noBody())
             .build();
     try {
-      httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+      send(request, HttpResponse.BodyHandlers.discarding());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while signing out of ALM Octane.", e);
@@ -263,6 +301,52 @@ public class OctaneClient implements AutoCloseable {
       return node;
     }
     throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
+  }
+
+  private Map<String, List<String>> fetchSuiteTopologies(
+      String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
+      throws IOException, InterruptedException {
+    Map<String, List<String>> topology = new LinkedHashMap<>();
+    for (int start = 0; start < suiteRunIds.size(); start += QUERY_CHUNK_SIZE) {
+      int end = Math.min(start + QUERY_CHUNK_SIZE, suiteRunIds.size());
+      List<String> chunk = suiteRunIds.subList(start, end);
+      try {
+        String path =
+            workspacePath(sharedSpaceId, workspaceId)
+                + "/runs?"
+                + parameter("query", quote(buildIdQuery(chunk)))
+                + "&"
+                + parameter("fields", RUN_FIELDS)
+                + "&"
+                + parameter("limit", Integer.toString(PAGE_SIZE));
+        JsonNode data = getJson(path).path("data");
+        if (data.isArray()) {
+          for (JsonNode suiteRun : data) {
+            String id = suiteRun.path("id").asText();
+            if (!chunk.contains(id)) {
+              continue;
+            }
+            List<String> runIds = parseRunsInSuite(suiteRun);
+            topology.put(id, runIds.isEmpty() ? List.of(id) : List.copyOf(runIds));
+          }
+        }
+      } catch (IOException ignored) {
+        // Older Octane versions may require the suite_runs entity endpoint.
+      }
+      for (String suiteRunId : chunk) {
+        if (topology.containsKey(suiteRunId)) {
+          continue;
+        }
+        JsonNode suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
+        List<String> runIds = parseRunsInSuite(suiteRun);
+        topology.put(
+            suiteRunId,
+            runIds.isEmpty()
+                ? List.of(suiteRun.path("id").asText(suiteRunId))
+                : List.copyOf(runIds));
+      }
+    }
+    return topology;
   }
 
   private boolean isNotFound(IOException exception) {
@@ -370,7 +454,7 @@ public class OctaneClient implements AutoCloseable {
       String defectQuery,
       int maxDefects,
       Map<String, DefectRecord> recordsById)
-      throws InterruptedException {
+      throws IOException, InterruptedException {
     if (relatedIds.isEmpty() || recordsById.size() >= maxDefects) {
       return;
     }
@@ -392,8 +476,11 @@ public class OctaneClient implements AutoCloseable {
         }
       }
     } catch (IOException e) {
-      // Octane schemas differ by version. Ignore unsupported relationship fields and keep
-      // any defects found through the other supported relationships.
+      if (!isUnknownFieldFailure(e)) {
+        throw e;
+      }
+      // Octane schemas differ by version. Ignore only relationships the server explicitly
+      // reports as unknown; transport and server failures must not become zero-defect results.
     }
   }
 
@@ -498,10 +585,10 @@ public class OctaneClient implements AutoCloseable {
       lastRequest = request;
       HttpResponse<String> response;
       try {
-        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        response = send(request, HttpResponse.BodyHandlers.ofString());
       } catch (IOException e) {
         lastException = e;
-        pauseBeforeRetry(attempt);
+        pauseBeforeRetry(attempt, null);
         continue;
       }
       rememberCookies(response);
@@ -511,7 +598,7 @@ public class OctaneClient implements AutoCloseable {
       }
       if (response.statusCode() == 429 || response.statusCode() >= 500) {
         lastResponse = response;
-        pauseBeforeRetry(attempt);
+        pauseBeforeRetry(attempt, response);
         continue;
       }
       if (response.statusCode() >= 400) {
@@ -538,6 +625,11 @@ public class OctaneClient implements AutoCloseable {
       builder.header("Cookie", cookieHeader);
     }
     return builder;
+  }
+
+  private <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> bodyHandler)
+      throws IOException, InterruptedException {
+    return OctaneRequestCoordinator.send(baseUrl, httpClient, request, bodyHandler);
   }
 
   private AbortException requestFailure(HttpRequest request, HttpResponse<String> response) {
@@ -585,11 +677,38 @@ public class OctaneClient implements AutoCloseable {
     }
   }
 
-  private void pauseBeforeRetry(int attempt) throws InterruptedException {
+  private void pauseBeforeRetry(int attempt, HttpResponse<?> response) throws InterruptedException {
     if (attempt >= MAX_ATTEMPTS) {
       return;
     }
-    Thread.sleep(500L * attempt);
+    long exponentialMillis = Math.min(10_000L, 500L << Math.max(0, attempt - 1));
+    long jitterMillis = ThreadLocalRandom.current().nextLong(exponentialMillis / 4L + 1L);
+    long retryAfterMillis = retryAfterMillis(response);
+    Thread.sleep(Math.max(retryAfterMillis, exponentialMillis + jitterMillis));
+  }
+
+  private long retryAfterMillis(HttpResponse<?> response) {
+    if (response == null) {
+      return 0L;
+    }
+    Optional<String> value = response.headers().firstValue("Retry-After");
+    if (value.isEmpty() || value.get().isBlank()) {
+      return 0L;
+    }
+    String retryAfter = value.get().trim();
+    try {
+      return Math.max(0L, Long.parseLong(retryAfter)) * 1000L;
+    } catch (NumberFormatException ignored) {
+      try {
+        Duration duration =
+            Duration.between(
+                ZonedDateTime.now(),
+                ZonedDateTime.parse(retryAfter, DateTimeFormatter.RFC_1123_DATE_TIME));
+        return Math.max(0L, duration.toMillis());
+      } catch (DateTimeParseException invalidDate) {
+        return 0L;
+      }
+    }
   }
 
   private String workspacePath(String sharedSpaceId, String workspaceId) {

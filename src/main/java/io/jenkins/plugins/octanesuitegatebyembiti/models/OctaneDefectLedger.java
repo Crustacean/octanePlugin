@@ -2,13 +2,15 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OctaneDefectLedger {
+public class OctaneDefectLedger implements Serializable {
+  private static final long serialVersionUID = 1L;
   private final Map<String, DefectRecord> defectsById = new LinkedHashMap<>();
 
   public void merge(Collection<DefectRecord> defects) {

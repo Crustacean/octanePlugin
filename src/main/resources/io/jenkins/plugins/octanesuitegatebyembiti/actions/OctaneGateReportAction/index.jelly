@@ -144,6 +144,7 @@
         }
         .octane-zone-focus-toggle:focus-visible,
         .octane-expand-toggle:focus-visible,
+        .octane-client-page-button:focus-visible,
         .octane-view-toggle:focus-visible,
         .octane-tester-details-toggle:focus-visible,
         .octane-exit-extended-button:focus-visible,
@@ -363,6 +364,7 @@
           gap: 0.45rem;
         }
         .octane-expand-toggle,
+        .octane-client-page-button,
         .octane-view-toggle {
           align-items: center;
           appearance: none;
@@ -378,9 +380,17 @@
           width: var(--octane-control-size);
         }
         .octane-expand-toggle:hover,
+        .octane-client-page-button:hover:not(:disabled),
         .octane-view-toggle:hover {
           background: var(--panel-border-color);
           color: var(--text-color);
+        }
+        .octane-client-page-button:disabled {
+          cursor: default;
+          opacity: 0.35;
+        }
+        .octane-client-page-button[hidden] {
+          display: none;
         }
         .octane-action-icon {
           display: block;
@@ -2098,6 +2108,94 @@
         .theme-light .octane-tester-empty-state {
           color: #000000;
         }
+        .octane-report-zone[data-client-rendered="true"] .octane-deferred-chart-card {
+          contain: layout style paint;
+          contain-intrinsic-size: auto 360px;
+          content-visibility: auto;
+        }
+        .octane-report-zone[data-client-rendered="true"]
+            .octane-deferred-chart-card.octane-chart-expanded {
+          contain: none;
+          content-visibility: visible;
+        }
+        @supports not (content-visibility: auto) {
+          .octane-report-zone[data-client-rendered="true"] .octane-deferred-chart-card {
+            contain: layout style paint;
+          }
+        }
+        .octane-client-chart-loading {
+          align-items: center;
+          color: var(--text-color-secondary);
+          display: flex;
+          flex: 1 1 auto;
+          justify-content: center;
+          min-height: 260px;
+        }
+        .octane-client-noscript-summary {
+          color: var(--text-color-secondary);
+          padding: 1rem;
+        }
+        .octane-client-noscript-summary dl {
+          display: grid;
+          gap: 0.35rem 1rem;
+          grid-template-columns: max-content 1fr;
+          margin: 0 0 0.75rem;
+        }
+        .octane-client-noscript-summary dd,
+        .octane-client-noscript-summary dt {
+          margin: 0;
+        }
+        .octane-client-bar-content {
+          flex: 1 1 auto;
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-client-bar-chart {
+          aspect-ratio: 10 / 3;
+          display: block;
+          height: auto;
+          min-height: 260px;
+          overflow: visible;
+          width: 100%;
+        }
+        .octane-client-grid-line {
+          stroke: var(--input-border);
+          stroke-dasharray: 2 7;
+          stroke-width: 1;
+        }
+        .octane-client-axis-line {
+          stroke: var(--input-border);
+          stroke-width: 1;
+        }
+        .octane-client-axis-label,
+        .octane-client-axis-value,
+        .octane-client-overflow-label {
+          fill: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
+          letter-spacing: 0;
+        }
+        .octane-client-axis-value {
+          text-anchor: end;
+        }
+        .octane-client-overflow-line {
+          stroke: #666;
+          stroke-dasharray: 3 4;
+          stroke-width: 2;
+        }
+        .octane-client-suite-column {
+          cursor: default;
+        }
+        .octane-client-suite-column:focus-visible .octane-client-bar-segment {
+          filter: drop-shadow(0 0 2px #4391F5);
+          outline: none;
+          stroke: #4391F5;
+          stroke-width: 2;
+        }
+        .octane-client-donut-segment {
+          shape-rendering: geometricPrecision;
+        }
         @media (min-width: 840px) {
           .octane-tester-details-body {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2945,8 +3043,37 @@
           </div>
 
           <div class="octane-report-zone octane-card-zone" id="octane-report-zone"
-              data-zone-key="reports">
+              data-zone-key="reports"
+              data-client-rendered="${snapshot.clientRenderedReport}"
+              data-report-data-url="data"
+              data-report-checksum="${it.reportDataChecksum}">
             <j:choose>
+              <j:when test="${snapshot.clientRenderedReport}">
+                <section class="octane-chart-card octane-report-client-placeholder"
+                    data-card-key="report-loading" aria-live="polite">
+                  <div class="octane-card-header">
+                    <div>
+                      <h2 class="octane-card-title">Suite run charts</h2>
+                      <div class="octane-muted">Loading report data...</div>
+                    </div>
+                  </div>
+                  <noscript>
+                    <div class="octane-client-noscript-summary">
+                      <dl>
+                        <dt>Total tests</dt>
+                        <dd>${snapshot.projectTestTotal}</dd>
+                        <dt>Executed tests</dt>
+                        <dd>${snapshot.executedTestCount}</dd>
+                        <dt>Passed tests</dt>
+                        <dd>${snapshot.passedTestCount}</dd>
+                        <dt>Open defects</dt>
+                        <dd>${snapshot.openDefectCount}</dd>
+                      </dl>
+                      <a href="data">Report data (JSON)</a>
+                    </div>
+                  </noscript>
+                </section>
+              </j:when>
               <j:when test="${snapshot.hasReportSections()}">
                 <j:forEach var="section" items="${snapshot.reportSections}">
                   <section class="octane-chart-card" draggable="true"
@@ -3323,6 +3450,7 @@
         <div id="octane-bar-popup-overlay" class="octane-bar-popup" role="tooltip"
             aria-hidden="true"></div>
       </div>
+      <script src="scaleReportScript"></script>
       <script>
         //<![CDATA[
         (function () {
@@ -3349,6 +3477,7 @@
             return requestFrame(callback);
           }
           var snapshotUrl = dashboard.getAttribute("data-snapshot-url") || "snapshot";
+          var snapshotEtag = "";
           var currentUpdatedAt = dashboard.getAttribute("data-current-updated-at") || "";
           var stateLabel = document.querySelector("[data-report-state-label]");
           var updatedAtLabel = document.querySelector("[data-report-updated-at]");
@@ -4607,6 +4736,15 @@
           }
           decorateCardZones(dashboard);
           initializeFluidBarCharts(dashboard);
+          var initialClientReportZone = document.getElementById("octane-report-zone");
+          if (initialClientReportZone
+              && initialClientReportZone.getAttribute("data-client-rendered") === "true") {
+            mountClientRenderedReport(
+                initialClientReportZone,
+                initialClientReportZone.getAttribute("data-report-data-url") || "data",
+                initialClientReportZone.getAttribute("data-report-checksum") || "",
+                null);
+          }
           initializeCardViews(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
@@ -4858,6 +4996,34 @@
               updateTimer(state, currentWallTime());
             }
           }
+          function mountClientRenderedReport(reportZone, dataUrl, checksum, restoreState) {
+            if (!reportZone || !window.OctaneScaleReport) {
+              return Promise.resolve(false);
+            }
+            reportZone.setAttribute("data-client-rendered", "true");
+            reportZone.setAttribute("data-report-data-url", dataUrl || "data");
+            reportZone.setAttribute("data-report-checksum", checksum || "");
+            return window.OctaneScaleReport.mount(
+                reportZone, dataUrl || "data", checksum || "").then(function (rendered) {
+              decorateReportZone(reportZone);
+              decorateCardZones(reportZone);
+              if (restoreState && restoreState.expandedKey) {
+                var expandedReplacement = findCardByKey(restoreState.expandedKey);
+                if (expandedReplacement) {
+                  expandCard(expandedReplacement);
+                }
+              }
+              if (restoreState && restoreState.focusedKey) {
+                var focusedReplacement = findZoneByKey(restoreState.focusedKey);
+                if (focusedReplacement) {
+                  focusZone(focusedReplacement);
+                }
+              }
+              barPopupRefreshInProgress = false;
+              restoreBarPopupAfterRefresh(reportZone, restoreState && restoreState.popup);
+              return rendered;
+            });
+          }
           function applySnapshot(payload) {
             currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
             dashboard.setAttribute("data-current-updated-at", currentUpdatedAt);
@@ -4882,15 +5048,37 @@
             updateTesterDetails(payload);
             runCompletionAutoFlips(payload);
             var reportZone = document.getElementById("octane-report-zone");
-            var updatedReportZone = htmlToElement(payload.reportZoneHtml);
-            decorateReportZone(updatedReportZone);
-            decorateCardZones(updatedReportZone);
             var expandedKey = expandedCard ? expandedCard.getAttribute("data-card-key") : "";
             var restoreReportExpansion =
                 expandedCard && reportZone && reportZone.contains(expandedCard);
             var focusedKey = focusedZone ? zoneKeyFor(focusedZone) : "";
             var restoreReportFocus = focusedZone && reportZone && focusedZone === reportZone;
             var popupRestoreState = captureBarPopupRestoreState();
+            var updatedReportZone = null;
+            if (reportZone && payload.reportZoneDeferred === true) {
+              barPopupRefreshInProgress = true;
+              if (restoreReportExpansion) {
+                removeExpandedState(expandedCard);
+                expandedCard = null;
+              }
+              if (restoreReportFocus) {
+                removeFocusedZone(focusedZone);
+                focusedZone = null;
+              }
+              mountClientRenderedReport(
+                  reportZone,
+                  payload.reportDataUrl || "data",
+                  payload.reportDataChecksum || "",
+                  {
+                    expandedKey: restoreReportExpansion ? expandedKey : "",
+                    focusedKey: restoreReportFocus ? focusedKey : "",
+                    popup: popupRestoreState
+                  });
+            } else {
+              updatedReportZone = htmlToElement(payload.reportZoneHtml);
+              decorateReportZone(updatedReportZone);
+              decorateCardZones(updatedReportZone);
+            }
             if (reportZone && updatedReportZone) {
               barPopupRefreshInProgress = true;
               if (restoreReportExpansion) {
@@ -4958,17 +5146,29 @@
               return;
             }
             liveRefresh.fetching = true;
+            var snapshotHeaders = {"Accept": "application/json"};
+            if (snapshotEtag) {
+              snapshotHeaders["If-None-Match"] = snapshotEtag;
+            }
             window.fetch(snapshotUrl, {
               cache: "no-store",
               credentials: "same-origin",
-              headers: {"Accept": "application/json"}
+              headers: snapshotHeaders
             }).then(function (response) {
+              if (response.status === 304) {
+                return null;
+              }
               if (!response.ok) {
                 throw new Error("Snapshot request failed: " + response.status);
               }
+              snapshotEtag = response.headers.get("ETag") || snapshotEtag;
               return response.json();
             }).then(function (payload) {
               liveRefresh.fetching = false;
+              if (!payload) {
+                scheduleSnapshotRetry();
+                return;
+              }
               if (isFreshSnapshot(payload)) {
                 applySnapshot(payload);
                 return;
@@ -5105,6 +5305,64 @@
           }
           function popupForColumn(column) {
             return column ? column.querySelector(".octane-bar-popup") : null;
+          }
+          function populateClientBarPopup(column) {
+            if (!barPopupOverlay || !column) {
+              return false;
+            }
+            barPopupOverlay.replaceChildren();
+            var name = document.createElement("div");
+            name.className = "octane-bar-popup-name";
+            name.textContent = column.getAttribute("data-bar-name") || "Tester";
+            barPopupOverlay.appendChild(name);
+            var metrics = [
+              statusMetricForColumn(column, "passed", "Passed"),
+              statusMetricForColumn(column, "failed", "Failed"),
+              statusMetricForColumn(column, "blocked", "Blocked"),
+              statusMetricForColumn(column, "skipped", "Skipped"),
+              statusMetricForColumn(column, "running", "Running")
+            ];
+            var total = Number(column.getAttribute("data-bar-total") || 0);
+            if (!Number.isFinite(total) || total <= 0) {
+              total = metrics.reduce(function (sum, metric) { return sum + metric.count; }, 0);
+            }
+            for (var index = 0; index < metrics.length; index += 1) {
+              var metric = metrics[index];
+              if (metric.count <= 0) {
+                continue;
+              }
+              var row = document.createElement("div");
+              row.className = "octane-bar-popup-row";
+              var swatch = document.createElement("span");
+              swatch.className = "octane-swatch";
+              swatch.style.background = metric.color;
+              var label = document.createElement("span");
+              label.className = "octane-bar-popup-label";
+              label.textContent = metric.label;
+              var value = document.createElement("span");
+              value.className = "octane-bar-popup-value";
+              value.textContent = String(metric.count);
+              var percent = document.createElement("span");
+              percent.className = "octane-bar-popup-percent";
+              percent.textContent = "(" + (total > 0 ? Math.round(metric.count * 100 / total) : 0)
+                  + "%)";
+              row.appendChild(swatch);
+              row.appendChild(label);
+              row.appendChild(value);
+              row.appendChild(percent);
+              barPopupOverlay.appendChild(row);
+            }
+            var totalRow = document.createElement("div");
+            totalRow.className = "octane-bar-popup-total";
+            var totalLabel = document.createElement("span");
+            totalLabel.textContent = "Total";
+            var totalValue = document.createElement("span");
+            totalValue.className = "octane-bar-popup-total-value";
+            totalValue.textContent = String(total);
+            totalRow.appendChild(totalLabel);
+            totalRow.appendChild(totalValue);
+            barPopupOverlay.appendChild(totalRow);
+            return true;
           }
           function cardKeyForColumn(column) {
             return column ? column.getAttribute("data-card-key") || "" : "";
@@ -5424,7 +5682,7 @@
           }
           function showBarPopup(column, point, input, restoring) {
             var source = popupForColumn(column);
-            if (!source || !barPopupOverlay) {
+            if (!barPopupOverlay || (!source && !column.hasAttribute("data-bar-name"))) {
               return;
             }
             var cardKey = cardKeyForColumn(column);
@@ -5442,7 +5700,11 @@
               positionBarPopup(barPopupOverlay, column, point, input);
               return;
             }
-            barPopupOverlay.innerHTML = source.innerHTML;
+            if (source) {
+              barPopupOverlay.innerHTML = source.innerHTML;
+            } else if (!populateClientBarPopup(column)) {
+              return;
+            }
             applyBarPopupDominantColor(column);
             if (restoring) {
               barPopupOverlay.classList.add("octane-bar-popup-restoring");
@@ -5946,7 +6208,8 @@
               return;
             }
             if (event.target.closest(
-                ".octane-expand-toggle, .octane-zone-focus-toggle, .octane-view-toggle")
+                ".octane-client-page-button, .octane-expand-toggle, "
+                + ".octane-zone-focus-toggle, .octane-view-toggle")
                 || card.classList.contains("octane-expanded")) {
               event.preventDefault();
               return;

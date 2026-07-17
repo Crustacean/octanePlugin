@@ -8,6 +8,8 @@ logs
 agent.md
 DESIGN.MD
 TASK.md
+SCALE_ARCHITECTURE_PROPOSAL.MD
+PERFORMANCE_PROFILING.MD
 skills-lock.json
 skills.json
 skills/
