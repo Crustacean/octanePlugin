@@ -276,6 +276,12 @@ public class OctaneCronProgressEmailStep extends Step {
       if (completed) {
         return;
       }
+      auditSchedule(occurrence);
+      OctaneEmailReportStep.executeRequest(emailRequest, getContext());
+    }
+
+    private void auditSchedule(OctaneProgressEmailScheduler.Occurrence occurrence)
+        throws Exception {
       TaskListener listener = getContext().get(TaskListener.class);
       listener
           .getLogger()
@@ -288,7 +294,6 @@ public class OctaneCronProgressEmailStep extends Step {
       listener
           .getLogger()
           .println("next at " + AUDIT_TIME_FORMATTER.format(occurrence.scheduledAt()));
-      OctaneEmailReportStep.executeRequest(emailRequest, getContext());
     }
 
     @Override
@@ -329,6 +334,7 @@ public class OctaneCronProgressEmailStep extends Step {
         registration =
             OctaneProgressEmailScheduler.get()
                 .schedule(registrationId, run.getExternalizableId(), cron, this);
+        auditSchedule(registration.nextOccurrence());
       } catch (IllegalArgumentException | RejectedExecutionException e) {
         AbortException failure =
             new AbortException("Unable to schedule Octane progress emails: " + e.getMessage());

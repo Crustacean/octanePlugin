@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class OctaneProgressEmailScheduler {
   public static final int THREAD_COUNT = 4;
   public static final int MAX_ACTIVE_SCHEDULES = 256;
-  public static final Duration MINIMUM_EMAIL_INTERVAL = Duration.ofMinutes(5L);
+  public static final Duration MINIMUM_EMAIL_INTERVAL = Duration.ofMinutes(1L);
   static final Duration MAXIMUM_TRIGGER_LATENESS = Duration.ofMinutes(1L);
 
   private static final OctaneProgressEmailScheduler INSTANCE = createShared();
@@ -82,7 +82,7 @@ public final class OctaneProgressEmailScheduler {
       remove(task);
       throw e;
     }
-    return new Registration(this, registrationId);
+    return new Registration(this, registrationId, task.nextOccurrence());
   }
 
   public void cancelOwner(String ownerId) {
@@ -189,11 +189,18 @@ public final class OctaneProgressEmailScheduler {
   public static final class Registration {
     private final OctaneProgressEmailScheduler scheduler;
     private final String registrationId;
+    private final Occurrence nextOccurrence;
     private final AtomicBoolean cancelled = new AtomicBoolean();
 
-    private Registration(OctaneProgressEmailScheduler scheduler, String registrationId) {
+    private Registration(
+        OctaneProgressEmailScheduler scheduler, String registrationId, Occurrence nextOccurrence) {
       this.scheduler = scheduler;
       this.registrationId = registrationId;
+      this.nextOccurrence = nextOccurrence;
+    }
+
+    public Occurrence nextOccurrence() {
+      return nextOccurrence;
     }
 
     public void cancel() {
@@ -211,6 +218,7 @@ public final class OctaneProgressEmailScheduler {
     private final AtomicBoolean cancelled = new AtomicBoolean();
     private volatile ScheduledFuture<?> future;
     private volatile Instant lastDelivery;
+    private volatile Instant nextScheduledAt;
 
     private ScheduledTask(
         String registrationId,
@@ -234,8 +242,17 @@ public final class OctaneProgressEmailScheduler {
         return;
       }
       Instant next = schedule.nextAfter(after, lastDelivery, minimumInterval);
+      nextScheduledAt = next;
       long delayMillis = Math.max(0L, Duration.between(clock.instant(), next).toMillis());
       future = executor.schedule(() -> fire(next), delayMillis, TimeUnit.MILLISECONDS);
+    }
+
+    private Occurrence nextOccurrence() {
+      Instant scheduledAt = nextScheduledAt;
+      if (scheduledAt == null) {
+        throw new IllegalStateException("Progress email schedule has no next occurrence.");
+      }
+      return new Occurrence(schedule.expression(), schedule.description(), scheduledAt);
     }
 
     private void fire(Instant scheduledAt) {
@@ -258,14 +275,14 @@ public final class OctaneProgressEmailScheduler {
         if (lateness.compareTo(maximumLateness) > 0) {
           currentDelivery.skipped(occurrence, lateness);
         } else {
+          lastDelivery = scheduledAt;
           currentDelivery.send(occurrence);
-          lastDelivery = clock.instant();
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         currentDelivery.failed(occurrence, e);
       } catch (Exception | LinkageError failure) {
-        lastDelivery = clock.instant();
+        lastDelivery = scheduledAt;
         currentDelivery.failed(occurrence, failure);
       } finally {
         if (!cancelled.get()) {

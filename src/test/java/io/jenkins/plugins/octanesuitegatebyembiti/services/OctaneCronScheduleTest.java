@@ -49,13 +49,24 @@ public class OctaneCronScheduleTest {
   }
 
   @Test
-  public void throttlesAggressiveCronToOneDeliveryPerFiveMinutes() {
+  public void describesAndCalculatesEveryMinuteOnWeekdays() {
+    OctaneCronSchedule schedule = new OctaneCronSchedule("* * * * 1-5");
+
+    assertEquals(
+        at(2026, 7, 17, 10, 2), schedule.nextAfter(at(2026, 7, 17, 10, 1), null, Duration.ZERO));
+    assertEquals(
+        "Every minute on every day-of-week from Monday through Friday.", schedule.description());
+  }
+
+  @Test
+  public void throttlesAggressiveCronToOneDeliveryPerMinute() {
     OctaneCronSchedule schedule = new OctaneCronSchedule("* * * * *");
     Instant lastDelivery = at(2026, 7, 17, 10, 1);
 
     assertEquals(
-        at(2026, 7, 17, 10, 6),
-        schedule.nextAfter(at(2026, 7, 17, 10, 1), lastDelivery, Duration.ofMinutes(5L)));
+        at(2026, 7, 17, 10, 2),
+        schedule.nextAfter(
+            at(2026, 7, 17, 10, 1).plusSeconds(30L), lastDelivery, Duration.ofMinutes(1L)));
     assertEquals("Every minute.", schedule.description());
   }
 

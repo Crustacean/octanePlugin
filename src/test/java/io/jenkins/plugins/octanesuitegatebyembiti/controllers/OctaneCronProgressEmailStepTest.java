@@ -50,6 +50,8 @@ public class OctaneCronProgressEmailStepTest {
 
     WorkflowRun run = jenkins.buildAndAssertSuccess(job);
 
+    jenkins.assertLogContains("Cron job time: 0 0 1 1 * will run \"According to cron fields:", run);
+    jenkins.assertLogContains("next at ", run);
     assertEquals(0, OctaneProgressEmailScheduler.get().activeScheduleCount());
   }
 }

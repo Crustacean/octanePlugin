@@ -86,6 +86,18 @@ final class OctaneCronSchedule implements OctaneProgressEmailScheduler.Schedule 
       int step = Integer.parseInt(minute.substring(2));
       return "Every " + step + " minutes.";
     }
+    if ("*".equals(minute)
+        && "*".equals(hour)
+        && "*".equals(dayOfMonth)
+        && "*".equals(month)
+        && dayOfWeek.matches("\\d-\\d")) {
+      String[] range = dayOfWeek.split("-");
+      return "Every minute on every day-of-week from "
+          + dayName(range[0])
+          + " through "
+          + dayName(range[1])
+          + ".";
+    }
     if (isNumber(minute)
         && hour.matches("\\d+-\\d+/\\d+")
         && "*".equals(dayOfMonth)

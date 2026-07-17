@@ -8,12 +8,14 @@ pipeline {
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
     OCTANE_PROJECT_NAME = 'Business Payments Secure Checkout'
     OCTANE_DOMAIN_NAME = 'FS_TRIBE_DOMAIN'
+    BROWSERPATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 
-    OCTANE_TIMEOUT_MINUTES = '120'
-    OCTANE_TIMEOUT_MINUTES_EXTENDED = '30'
+    OCTANE_TIMEOUT_MINUTES = '5'
+    OCTANE_TIMEOUT_MINUTES_EXTENDED = '3'
 
-    // Leave blank to disable periodic progress emails for this Pipeline run.
-    PROGRESS_EMAIL_INTERVAL_CRONJOB = '23 0-20/2 * * *'
+    // Every minute on weekdays. Leave blank to disable progress emails for this Pipeline run.
+    // Note: '1 * * * 1-5' means only at minute 1 of each weekday hour.
+    PROGRESS_EMAIL_INTERVAL_CRONJOB = '* * * * 1-5'
 
     OCTANE_EMAIL_TO = 'qa-team@example.com,dev-team@example.com'
     OCTANE_EMAIL_CC = 'qa-leads@example.com'
@@ -98,6 +100,7 @@ QA Automation Team''',
               onFailure: 'WARN',
               printDefectGroups: true,
               theme: 'DARK',
+              browserPath: env.BROWSERPATH,
               viewportWidth: 1400,
               archiveScreenshot: false) {
             catchError(
@@ -205,6 +208,7 @@ QA Automation Team''',
             onFailure: 'UNSTABLE',
             printDefectGroups: true,
             theme: 'DARK',
+            browserPath: env.BROWSERPATH,
             viewportWidth: 1400,
             archiveScreenshot: true)
       }

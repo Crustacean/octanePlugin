@@ -291,7 +291,9 @@ null input disables progress emails for that run without failing the gate. Sched
 the same report screenshot, HTML body, recipient, theme, and SMTP implementation as
 `octaneEmailReport`; their gate result is rendered as `ONGOING`. A shared four-thread daemon pool
 coordinates all builds, caps active schedules at 256, and enforces at most one email per build every
-five minutes even for an aggressive expression such as `* * * * *`.
+minute even for an aggressive expression such as `* * * * *`. The wrapper logs the interpreted
+schedule and first calculated occurrence immediately when it registers, then repeats the audit
+immediately before each delivery.
 
 ## Runtime Flow
 
@@ -303,8 +305,9 @@ five minutes even for an aggressive expression such as `* * * * *`.
 6. The runner opens a polling session, creates `OctaneClient`, and signs in to Octane.
 7. The step attaches an `Octane Gate Report` action to the current build.
 8. If the gate is wrapped by `octaneCronProgressEmail`, the wrapper registers one weakly referenced
-   timer in the shared scheduler. It logs the raw cron, human-readable schedule, and occurrence time
-   immediately before each progress email.
+   timer in the shared scheduler. It logs the raw cron, human-readable schedule, and first
+   occurrence when registration succeeds, then repeats that audit immediately before each progress
+   email.
 9. Jenkins Timer schedules a short one-shot wake-up. Actual HTTP and poll work runs on a
    cancellable virtual thread, so no Timer/CPS worker is held during HTTP or poll intervals.
 10. Each poll bulk-fetches suite topology, deduplicates child IDs, computes metrics, and atomically

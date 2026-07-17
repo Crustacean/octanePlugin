@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -15,6 +16,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 public class OctaneProgressEmailSchedulerTest {
+  @Test
+  public void productionSchedulerAllowsOneDeliveryPerCronMinute() {
+    assertEquals(Duration.ofMinutes(1L), OctaneProgressEmailScheduler.MINIMUM_EMAIL_INTERVAL);
+  }
+
   @Test
   public void boundsTwentyOverlappingPipelineSchedulesToFourThreads() throws Exception {
     OctaneProgressEmailScheduler scheduler =
@@ -99,12 +105,14 @@ public class OctaneProgressEmailSchedulerTest {
       for (int pipeline = 0; pipeline < 30; pipeline++) {
         OctaneProgressEmailScheduler.Delivery delivery = occurrence -> {};
         deliveries.add(delivery);
-        registrations.add(
+        OctaneProgressEmailScheduler.Registration registration =
             scheduler.schedule(
                 "aggressive-pipeline-" + pipeline,
                 "aggressive-build-" + pipeline,
                 "* * * * *",
-                delivery));
+                delivery);
+        assertNotNull(registration.nextOccurrence());
+        registrations.add(registration);
       }
 
       assertEquals(30, scheduler.activeScheduleCount());
