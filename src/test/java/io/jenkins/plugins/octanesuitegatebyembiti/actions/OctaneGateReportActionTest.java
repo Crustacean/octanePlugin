@@ -693,12 +693,25 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("font-size: 0.91875rem"));
     assertTrue(xml.contains("data-timer-value=\"true\" x=\"120\" y=\"118\""));
     assertTrue(xml.contains("data-timer-unit=\"true\" x=\"120\" y=\"132.4\""));
+    assertTrue(xml.contains("data-timer-unit-compact=\"true\" x=\"120\" y=\"132.4\""));
+    assertTrue(xml.contains("container-name: octane-timer-display"));
+    assertTrue(xml.contains("@container octane-timer-display (max-width: 18rem)"));
+    assertTrue(xml.contains("@media (max-width: 480px)"));
+    assertTrue(xml.contains("minutes + seconds"));
+    assertTrue(xml.contains("m + s"));
     assertTrue(xml.contains("data-timeout-title=\"true\""));
     assertTrue(xml.contains("testingTimeSpentMillis"));
     assertTrue(xml.contains("function fitTimerText"));
     assertTrue(xml.contains("116 / (valueLength * 0.56)"));
-    assertTrue(xml.contains("displayUnit = \"min + sec\""));
-    assertTrue(xml.contains("displayUnit = \"min + min\""));
+    assertTrue(xml.contains("function timerDisplayParts"));
+    assertTrue(xml.contains("function timeoutCountdownRemainingMillis"));
+    assertTrue(xml.contains("fullLabel = \"weeks + days\""));
+    assertTrue(xml.contains("fullLabel = \"days + hours\""));
+    assertTrue(xml.contains("fullLabel = \"hours + minutes\""));
+    assertTrue(xml.contains("fullLabel = \"minutes + seconds\""));
+    assertTrue(
+        xml.contains(
+            "setTimerText(state, state.mode === \"timeout\" ? trackRemaining : remaining)"));
     assertTrue(xml.contains("Testing Time Remaining"));
     assertTrue(xml.contains("stroke-width: 1"));
     assertTrue(xml.contains("stroke-width: 16"));
