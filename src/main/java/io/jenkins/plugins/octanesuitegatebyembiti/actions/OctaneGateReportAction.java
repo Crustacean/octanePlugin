@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.actions;
 
+import hudson.AbortException;
 import hudson.model.Item;
 import hudson.model.Run;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPublisher;
@@ -48,6 +49,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private volatile boolean manualExitRequested;
   private transient Object manualExitLock = new Object();
   private transient Runnable manualExitCallback;
+  private transient Object refreshLock = new Object();
+  private transient RefreshCallback refreshCallback;
 
   public static OctaneGateReportAction attachTo(Run<?, ?> run, GateRequest request) {
     OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
@@ -337,6 +340,45 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
   }
 
+  public void setRefreshCallback(RefreshCallback callback) {
+    synchronized (refreshLock()) {
+      refreshCallback = callback;
+    }
+  }
+
+  public void clearRefreshCallback(RefreshCallback callback) {
+    synchronized (refreshLock()) {
+      if (refreshCallback == callback) {
+        refreshCallback = null;
+      }
+    }
+  }
+
+  public RefreshResult refreshIfStale(Duration threshold, Instant now) throws Exception {
+    Duration effectiveThreshold = nonNegative(threshold);
+    Instant effectiveNow = now == null ? Instant.now() : now;
+    OctaneGateReportSnapshot current = getSnapshot();
+    Duration age = snapshotAge(current, effectiveNow, effectiveThreshold);
+    if (!current.isBuilding()) {
+      return new RefreshResult(RefreshStatus.NOT_BUILDING, age);
+    }
+    if (age.compareTo(effectiveThreshold) <= 0) {
+      return new RefreshResult(RefreshStatus.FRESH, age);
+    }
+
+    RefreshCallback callback;
+    synchronized (refreshLock()) {
+      callback = refreshCallback;
+    }
+    if (callback == null) {
+      throw new AbortException(
+          "Stale Octane progress data could not be refreshed because the active gate poller "
+              + "is unavailable.");
+    }
+    boolean started = callback.refreshAndWait();
+    return new RefreshResult(started ? RefreshStatus.REFRESHED : RefreshStatus.JOINED, age);
+  }
+
   @Override
   public synchronized boolean isManualExitRequested() {
     return manualExitRequested;
@@ -467,6 +509,44 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
     return manualExitLock;
   }
+
+  private Object refreshLock() {
+    if (refreshLock == null) {
+      refreshLock = new Object();
+    }
+    return refreshLock;
+  }
+
+  private Duration nonNegative(Duration duration) {
+    if (duration == null || duration.isNegative()) {
+      return Duration.ZERO;
+    }
+    return duration;
+  }
+
+  private Duration snapshotAge(
+      OctaneGateReportSnapshot current, Instant now, Duration effectiveThreshold) {
+    try {
+      Duration age = Duration.between(Instant.parse(current.getUpdatedAt()), now);
+      return age.isNegative() ? Duration.ZERO : age;
+    } catch (RuntimeException ignored) {
+      return effectiveThreshold.plusSeconds(1L);
+    }
+  }
+
+  @FunctionalInterface
+  public interface RefreshCallback {
+    boolean refreshAndWait() throws Exception;
+  }
+
+  public enum RefreshStatus {
+    FRESH,
+    REFRESHED,
+    JOINED,
+    NOT_BUILDING
+  }
+
+  public record RefreshResult(RefreshStatus status, Duration age) {}
 
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
     return current

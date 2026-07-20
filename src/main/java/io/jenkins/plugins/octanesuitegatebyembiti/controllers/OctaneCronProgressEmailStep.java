@@ -8,11 +8,13 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneProgressEmailScheduler;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Set;
@@ -29,6 +31,9 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 public class OctaneCronProgressEmailStep extends Step {
+  static final String STALENESS_THRESHOLD_ENV = "PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES";
+  static final Duration DEFAULT_STALENESS_THRESHOLD = Duration.ofMinutes(1L);
+
   private final String cron;
   private final String to;
   private String cc = "";
@@ -191,6 +196,27 @@ public class OctaneCronProgressEmailStep extends Step {
     return new Execution(cron, emailRequest(), context);
   }
 
+  static Duration stalenessThreshold(EnvVars envVars) throws AbortException {
+    String configured =
+        envVars == null ? "" : Util.trimToEmpty(envVars.get(STALENESS_THRESHOLD_ENV));
+    if (configured.isEmpty()) {
+      return DEFAULT_STALENESS_THRESHOLD;
+    }
+    try {
+      long minutes = Long.parseLong(configured);
+      if (minutes < 0L) {
+        throw new NumberFormatException("negative threshold");
+      }
+      return Duration.ofMinutes(minutes);
+    } catch (ArithmeticException | NumberFormatException e) {
+      AbortException failure =
+          new AbortException(
+              STALENESS_THRESHOLD_ENV + " must be a whole number of zero or greater.");
+      failure.initCause(e);
+      throw failure;
+    }
+  }
+
   private OctaneEmailReportStep.EmailRequest emailRequest() {
     OctaneEmailReportStep email = new OctaneEmailReportStep(to);
     email.setCc(cc);
@@ -276,7 +302,49 @@ public class OctaneCronProgressEmailStep extends Step {
         return;
       }
       auditSchedule(occurrence);
+      refreshStaleReport();
       OctaneEmailReportStep.executeRequest(emailRequest, getContext());
+    }
+
+    private void refreshStaleReport() throws Exception {
+      Run<?, ?> run = getContext().get(Run.class);
+      OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
+      if (action == null) {
+        return;
+      }
+      TaskListener listener = getContext().get(TaskListener.class);
+      Duration threshold = stalenessThreshold(getContext().get(EnvVars.class));
+      OctaneGateReportAction.RefreshResult result = action.refreshIfStale(threshold, Instant.now());
+      long ageSeconds = Math.max(0L, result.age().toSeconds());
+      switch (result.status()) {
+        case FRESH ->
+            listener
+                .getLogger()
+                .println(
+                    "Octane progress data is fresh (age "
+                        + ageSeconds
+                        + "s; threshold "
+                        + threshold.toSeconds()
+                        + "s). Sending scheduled email from the current snapshot.");
+        case REFRESHED ->
+            listener
+                .getLogger()
+                .println(
+                    "Stale Octane progress data (age "
+                        + ageSeconds
+                        + "s) was refreshed before the scheduled email.");
+        case JOINED ->
+            listener
+                .getLogger()
+                .println(
+                    "Stale Octane progress data (age "
+                        + ageSeconds
+                        + "s) joined the active poll before the scheduled email.");
+        case NOT_BUILDING ->
+            listener
+                .getLogger()
+                .println("Octane gate is already complete; using its final report snapshot.");
+      }
     }
 
     private void auditSchedule(OctaneProgressEmailScheduler.Occurrence occurrence)

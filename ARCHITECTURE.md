@@ -289,11 +289,16 @@ octaneCronProgressEmail(
 `PROGRESS_EMAIL_INTERVAL_CRONJOB` accepts a standard five-field Jenkins cron expression. Blank or
 null input disables progress emails for that run without failing the gate. Scheduled messages use
 the same report screenshot, HTML body, recipient, theme, and SMTP implementation as
-`octaneEmailReport`; their gate result is rendered as `ONGOING`. A shared four-thread daemon pool
-coordinates all builds, caps active schedules at 256, and enforces at most one email per build every
-minute even for an aggressive expression such as `* * * * *`. The wrapper logs the interpreted
-schedule and first calculated occurrence immediately when it registers, then repeats the audit
-immediately before each delivery.
+`octaneEmailReport`; their gate result is rendered as `ONGOING`.
+
+Before rendering, `PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES` (default `1`) is compared with the
+latest report timestamp. When a running report is older than that threshold, email delivery starts
+an immediate gate poll or waits for the gate's active poll, then renders the refreshed snapshot.
+This coordination remains per build, while Octane HTTP concurrency continues to use the shared
+per-server request limiter. A shared four-thread daemon pool coordinates all builds, caps active
+schedules at 256, and enforces at most one email per build every minute even for an aggressive
+expression such as `* * * * *`. The wrapper logs the interpreted schedule and first calculated
+occurrence immediately when it registers, then repeats the audit immediately before each delivery.
 
 ## Runtime Flow
 

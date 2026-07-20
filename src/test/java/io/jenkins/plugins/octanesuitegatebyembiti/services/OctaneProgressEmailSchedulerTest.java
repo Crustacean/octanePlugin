@@ -12,10 +12,83 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 public class OctaneProgressEmailSchedulerTest {
+  @Test
+  public void coordinatesTwentyDenseStaleRefreshesWithoutStarvingDaemonPool() throws Exception {
+    int jobs = 20;
+    int suiteRunsPerJob = 500;
+    OctaneProgressEmailScheduler scheduler =
+        OctaneProgressEmailScheduler.createForTests(
+            4, 64, Duration.ofMinutes(5L), Duration.ofSeconds(5L));
+    CountDownLatch completed = new CountDownLatch(jobs);
+    AtomicInteger activePolls = new AtomicInteger();
+    AtomicInteger maximumActivePolls = new AtomicInteger();
+    AtomicInteger pollCalls = new AtomicInteger();
+    AtomicInteger processedSuiteRuns = new AtomicInteger();
+    AtomicBoolean daemonWorkers = new AtomicBoolean(true);
+    List<OctaneProgressEmailScheduler.Delivery> deliveries = new ArrayList<>();
+    List<OctaneProgressEmailScheduler.Registration> registrations = new ArrayList<>();
+    try {
+      for (int job = 0; job < jobs; job++) {
+        OctanePollRefreshCoordinator coordinator = new OctanePollRefreshCoordinator();
+        OctaneProgressEmailScheduler.Delivery delivery =
+            occurrence -> {
+              daemonWorkers.compareAndSet(true, Thread.currentThread().isDaemon());
+              OctanePollRefreshCoordinator.PollRequest refresh = coordinator.beginOrJoin();
+              if (refresh.owner()) {
+                OctaneGateExecutors.submitPoll(
+                    () -> {
+                      int active = activePolls.incrementAndGet();
+                      maximumActivePolls.accumulateAndGet(active, Math::max);
+                      pollCalls.incrementAndGet();
+                      Throwable failure = null;
+                      try {
+                        for (int suiteRun = 0; suiteRun < suiteRunsPerJob; suiteRun++) {
+                          processedSuiteRuns.incrementAndGet();
+                        }
+                        Thread.sleep(20L);
+                      } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        failure = e;
+                      } finally {
+                        activePolls.decrementAndGet();
+                        coordinator.complete(failure);
+                      }
+                    });
+              }
+              try {
+                refresh.completion().get(5L, TimeUnit.SECONDS);
+              } finally {
+                completed.countDown();
+              }
+            };
+        deliveries.add(delivery);
+        registrations.add(
+            scheduler.schedule(
+                "stale-job-" + job,
+                "stale-build-" + job,
+                new ImmediateThenDailySchedule(),
+                delivery));
+      }
+
+      assertTrue(completed.await(10L, TimeUnit.SECONDS));
+      assertTrue(daemonWorkers.get());
+      assertEquals(jobs, pollCalls.get());
+      assertEquals(jobs * suiteRunsPerJob, processedSuiteRuns.get());
+      assertTrue(maximumActivePolls.get() <= 4);
+      assertEquals(0, activePolls.get());
+    } finally {
+      for (OctaneProgressEmailScheduler.Registration registration : registrations) {
+        registration.cancel();
+      }
+      scheduler.shutdownForTests();
+    }
+  }
+
   @Test
   public void productionSchedulerAllowsOneDeliveryPerCronMinute() {
     assertEquals(Duration.ofMinutes(1L), OctaneProgressEmailScheduler.MINIMUM_EMAIL_INTERVAL);

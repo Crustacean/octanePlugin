@@ -20,6 +20,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaExpression;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateExecutors;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctanePollRefreshCoordinator;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.time.Duration;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -290,8 +292,9 @@ public class OctaneSuiteGateStep extends Step {
     private transient ScheduledFuture<?> wakeupFuture;
     private transient OctaneGateRunner.PollingSession pollingSession;
     private transient OctaneGateReportAction reportAction;
-    private transient boolean pollRunning;
     private transient Runnable manualExitCallback;
+    private transient OctaneGateReportAction.RefreshCallback refreshCallback;
+    private transient OctanePollRefreshCoordinator refreshCoordinator;
 
     Execution(GateRequest request, StepContext context) {
       super(context);
@@ -317,6 +320,7 @@ public class OctaneSuiteGateStep extends Step {
       cancelPendingWork();
       closeSession();
       clearManualExitCallback();
+      clearRefreshCallback();
       getContext().onFailure(cause);
     }
 
@@ -332,19 +336,35 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     private void startPoll() {
-      synchronized (this) {
-        if (completed || pollRunning) {
-          return;
-        }
-        pollRunning = true;
+      try {
+        startOrJoinPoll(false);
+      } catch (RuntimeException failure) {
+        completeWithFailure(failure);
       }
-      Future<?> submitted = OctaneGateExecutors.submitPoll(this::runSinglePoll);
+    }
+
+    private OctanePollRefreshCoordinator.PollRequest startOrJoinPoll(boolean immediate) {
       synchronized (this) {
-        if (completed || !pollRunning) {
-          submitted.cancel(true);
-          return;
+        if (completed) {
+          return null;
         }
-        pollFuture = submitted;
+        OctanePollRefreshCoordinator.PollRequest poll = refreshCoordinator().beginOrJoin();
+        if (!poll.owner()) {
+          return poll;
+        }
+        if (wakeupFuture != null) {
+          if (immediate) {
+            wakeupFuture.cancel(false);
+          }
+          wakeupFuture = null;
+        }
+        try {
+          pollFuture = OctaneGateExecutors.submitPoll(this::runSinglePoll);
+          return poll;
+        } catch (RuntimeException failure) {
+          refreshCoordinator().complete(failure);
+          throw failure;
+        }
       }
     }
 
@@ -369,10 +389,10 @@ public class OctaneSuiteGateStep extends Step {
         finishPoll();
         handleGateFailure(e);
       } catch (Throwable t) {
-        finishPoll();
         if (!isCompleted() && reportAction != null) {
           reportAction.onError(t.getMessage(), request);
         }
+        finishPoll(t);
         completeWithFailure(t);
       }
     }
@@ -392,6 +412,10 @@ public class OctaneSuiteGateStep extends Step {
         manualExitCallback = this::wakeForManualExit;
       }
       reportAction.setManualExitCallback(manualExitCallback);
+      if (refreshCallback == null) {
+        refreshCallback = this::refreshAndWait;
+      }
+      reportAction.setRefreshCallback(refreshCallback);
       if (pollingState == null) {
         pollingState =
             new OctaneGateRunner.PollingState(startedAt(reportAction.getSnapshot().getStartedAt()));
@@ -416,11 +440,31 @@ public class OctaneSuiteGateStep extends Step {
 
     private void wakeForManualExit() {
       synchronized (this) {
-        if (completed || pollRunning) {
+        if (completed || refreshCoordinator().isRunning()) {
           return;
         }
       }
       schedule(Duration.ZERO);
+    }
+
+    private boolean refreshAndWait() throws Exception {
+      OctanePollRefreshCoordinator.PollRequest poll = startOrJoinPoll(true);
+      if (poll == null) {
+        return false;
+      }
+      try {
+        poll.completion().get();
+      } catch (ExecutionException e) {
+        Throwable cause = e.getCause();
+        if (cause instanceof Exception exception) {
+          throw exception;
+        }
+        if (cause instanceof Error error) {
+          throw error;
+        }
+        throw new IllegalStateException("Octane refresh poll failed.", cause);
+      }
+      return poll.owner();
     }
 
     private void finishPollAndSchedule(Duration delay) {
@@ -429,8 +473,13 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     private synchronized void finishPoll() {
-      pollRunning = false;
       pollFuture = null;
+      refreshCoordinator().complete(null);
+    }
+
+    private synchronized void finishPoll(Throwable failure) {
+      pollFuture = null;
+      refreshCoordinator().complete(failure);
     }
 
     private void completeSuccessfully(GateResult result) {
@@ -440,6 +489,7 @@ public class OctaneSuiteGateStep extends Step {
       }
       closeSession();
       clearManualExitCallback();
+      clearRefreshCallback();
       getContext().onSuccess(result.toPipelineMap());
     }
 
@@ -450,6 +500,7 @@ public class OctaneSuiteGateStep extends Step {
       cancelPendingWork();
       closeSession();
       clearManualExitCallback();
+      clearRefreshCallback();
       getContext().onFailure(failure);
     }
 
@@ -474,7 +525,7 @@ public class OctaneSuiteGateStep extends Step {
         pollFuture.cancel(true);
         pollFuture = null;
       }
-      pollRunning = false;
+      refreshCoordinator().complete(new InterruptedException("Octane poll was cancelled."));
     }
 
     private void closeSession() {
@@ -497,6 +548,22 @@ public class OctaneSuiteGateStep extends Step {
         action.clearManualExitCallback(callback);
       }
       manualExitCallback = null;
+    }
+
+    private void clearRefreshCallback() {
+      OctaneGateReportAction action = reportAction;
+      OctaneGateReportAction.RefreshCallback callback = refreshCallback;
+      if (action != null && callback != null) {
+        action.clearRefreshCallback(callback);
+      }
+      refreshCallback = null;
+    }
+
+    private OctanePollRefreshCoordinator refreshCoordinator() {
+      if (refreshCoordinator == null) {
+        refreshCoordinator = new OctanePollRefreshCoordinator();
+      }
+      return refreshCoordinator;
     }
 
     private void handleGateFailure(GateFailedException exception) {

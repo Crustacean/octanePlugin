@@ -16,6 +16,8 @@ pipeline {
     // Every minute on weekdays. Leave blank to disable progress emails for this Pipeline run.
     // Note: '1 * * * 1-5' means only at minute 1 of each weekday hour.
     PROGRESS_EMAIL_INTERVAL_CRONJOB = '* * * * 1-5'
+    // Refresh Octane before a progress email when the latest poll is older than this value.
+    PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES = '1'
 
     OCTANE_EMAIL_TO = 'qa-team@example.com,dev-team@example.com'
     OCTANE_EMAIL_CC = 'qa-leads@example.com'

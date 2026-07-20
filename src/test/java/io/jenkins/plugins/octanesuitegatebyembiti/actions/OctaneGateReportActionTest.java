@@ -14,10 +14,12 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.sf.json.JSONObject;
 import org.htmlunit.Page;
 import org.htmlunit.html.HtmlElement;
@@ -28,6 +30,52 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 public class OctaneGateReportActionTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
+
+  @Test
+  public void refreshesOnlyWhenRunningSnapshotIsOlderThanThreshold() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    Instant now = Instant.parse("2026-07-20T12:00:00Z");
+    action.onPoll(result(now.minusSeconds(61L)), classifier());
+    AtomicInteger refreshes = new AtomicInteger();
+    action.setRefreshCallback(
+        () -> {
+          refreshes.incrementAndGet();
+          action.onPoll(result(now), classifier());
+          return true;
+        });
+
+    OctaneGateReportAction.RefreshResult refreshed =
+        action.refreshIfStale(Duration.ofMinutes(1L), now);
+
+    assertEquals(OctaneGateReportAction.RefreshStatus.REFRESHED, refreshed.status());
+    assertEquals(Duration.ofSeconds(61L), refreshed.age());
+    assertEquals(1, refreshes.get());
+    assertEquals(now.toString(), action.getSnapshot().getUpdatedAt());
+
+    action.onPoll(result(now.minusSeconds(60L)), classifier());
+    OctaneGateReportAction.RefreshResult fresh = action.refreshIfStale(Duration.ofMinutes(1L), now);
+    assertEquals(OctaneGateReportAction.RefreshStatus.FRESH, fresh.status());
+    assertEquals(1, refreshes.get());
+  }
+
+  @Test
+  public void completedReportNeverStartsOutOfBandRefresh() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    Instant now = Instant.parse("2026-07-20T12:00:00Z");
+    action.onFinal(
+        OctaneGateReportState.PASSED, "Complete", result(now.minusSeconds(600L)), classifier());
+
+    OctaneGateReportAction.RefreshResult refreshResult =
+        action.refreshIfStale(Duration.ofMinutes(1L), now);
+
+    assertEquals(OctaneGateReportAction.RefreshStatus.NOT_BUILDING, refreshResult.status());
+  }
 
   @Test
   public void attachesToBuildAndRendersReportPage() throws Exception {
@@ -1009,6 +1057,10 @@ public class OctaneGateReportActionTest {
   }
 
   private GateResult result() {
+    return result(Instant.parse("2026-05-15T00:00:00Z"));
+  }
+
+  private GateResult result(Instant polledAt) {
     return new GateResult(
         "4501",
         "100% pass",
@@ -1024,6 +1076,14 @@ public class OctaneGateReportActionTest {
                 new RunRecord("1", "one", "passed", "Ada Tester"),
                 new RunRecord("2", "two", "failed", "Ada Tester"))),
         Map.of(),
-        Instant.parse("2026-05-15T00:00:00Z"));
+        polledAt);
+  }
+
+  private StatusClassifier classifier() {
+    return new StatusClassifier(
+        StatusClassifier.DEFAULT_PASSED_STATUSES,
+        StatusClassifier.DEFAULT_FAILED_STATUSES,
+        StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+        StatusClassifier.DEFAULT_RUNNING_STATUSES);
   }
 }
