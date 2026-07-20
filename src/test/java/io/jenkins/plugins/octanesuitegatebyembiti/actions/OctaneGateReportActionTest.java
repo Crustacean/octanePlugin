@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.sf.json.JSONObject;
 import org.htmlunit.Page;
 import org.htmlunit.html.HtmlElement;
@@ -695,6 +697,23 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-timer-unit=\"true\" x=\"120\" y=\"132.4\""));
     assertTrue(xml.contains("data-timer-unit-compact=\"true\" x=\"120\" y=\"132.4\""));
     assertTrue(xml.contains("container-name: octane-timer-display"));
+    String timerWrapRule = cssRule(xml, ".octane-timer-wrap");
+    assertTrue(timerWrapRule.contains("flex: 1 1 auto"));
+    assertTrue(timerWrapRule.contains("height: 100%"));
+    assertTrue(timerWrapRule.contains("min-height: 0"));
+    assertTrue(timerWrapRule.contains("min-width: 0"));
+    assertTrue(timerWrapRule.contains("width: 100%"));
+    String timerDonutRule = cssRule(xml, ".octane-timer-donut");
+    assertTrue(timerDonutRule.contains("aspect-ratio: 1 / 1"));
+    assertTrue(timerDonutRule.contains("height: min(100%, 220px)"));
+    assertTrue(timerDonutRule.contains("max-height: 220px"));
+    assertTrue(timerDonutRule.contains("max-width: 220px"));
+    assertTrue(
+        cssRule(xml, ".octane-zone-focused .octane-timer-donut")
+            .contains("height: min(100%, 38vh, 38vw)"));
+    assertTrue(
+        cssRule(xml, ".octane-chart-card.octane-expanded .octane-timer-donut")
+            .contains("height: min(100%, 76vh, 76vw)"));
     assertTrue(xml.contains("@container octane-timer-display (max-width: 18rem)"));
     assertTrue(xml.contains("@media (max-width: 480px)"));
     assertTrue(xml.contains("minutes + seconds"));
@@ -1071,6 +1090,14 @@ public class OctaneGateReportActionTest {
 
   private GateResult result() {
     return result(Instant.parse("2026-05-15T00:00:00Z"));
+  }
+
+  private static String cssRule(String html, String selector) {
+    Matcher matcher =
+        Pattern.compile("(?m)^\\s*" + Pattern.quote(selector) + "\\s*\\{(?<declarations>[^}]*)}")
+            .matcher(html);
+    assertTrue("Missing CSS rule for " + selector, matcher.find());
+    return matcher.group("declarations");
   }
 
   private GateResult result(Instant polledAt) {

@@ -10,6 +10,14 @@ const jelly = readFileSync(jellyPath, "utf8");
 const timerDisplaySource = jelly
     .split("/* OCTANE_TIMER_DISPLAY_START */")[1]
     .split("/* OCTANE_TIMER_DISPLAY_END */")[0];
+
+function cssRule(selector) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = jelly.match(new RegExp(`(?:^|\\n)\\s*${escapedSelector}\\s*\\{([^}]*)\\}`));
+  assert.ok(match, `Missing CSS rule for ${selector}`);
+  return match[1];
+}
+
 const context = {
   clamp: (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value))
 };
@@ -81,8 +89,25 @@ test("counts down one continuous base plus extended timeout window", () => {
 });
 
 test("renders full and compact labels with component and mobile breakpoints", () => {
+  const timerWrapRule = cssRule(".octane-timer-wrap");
+  const timerDonutRule = cssRule(".octane-timer-donut");
+
   assert.match(jelly, /data-timer-unit-compact="true"/);
-  assert.match(jelly, /container-name:\s*octane-timer-display/);
+  assert.match(timerWrapRule, /container-name:\s*octane-timer-display/);
+  assert.match(timerWrapRule, /flex:\s*1 1 auto/);
+  assert.match(timerWrapRule, /height:\s*100%/);
+  assert.match(timerWrapRule, /min-width:\s*0/);
+  assert.match(timerWrapRule, /width:\s*100%/);
+  assert.match(timerDonutRule, /aspect-ratio:\s*1 \/ 1/);
+  assert.match(timerDonutRule, /height:\s*min\(100%,\s*220px\)/);
+  assert.match(timerDonutRule, /max-height:\s*220px/);
+  assert.match(timerDonutRule, /max-width:\s*220px/);
+  assert.match(
+      cssRule(".octane-zone-focused .octane-timer-donut"),
+      /height:\s*min\(100%,\s*38vh,\s*38vw\)/);
+  assert.match(
+      cssRule(".octane-chart-card.octane-expanded .octane-timer-donut"),
+      /height:\s*min\(100%,\s*76vh,\s*76vw\)/);
   assert.match(jelly, /@container octane-timer-display \(max-width: 18rem\)/);
   assert.match(jelly, /@media \(max-width: 480px\)/);
   assert.match(jelly, /\.octane-timer-unit-compact\s*{\s*display:\s*none;/);
