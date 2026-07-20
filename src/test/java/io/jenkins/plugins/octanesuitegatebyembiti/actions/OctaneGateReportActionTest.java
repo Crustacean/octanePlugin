@@ -14,10 +14,14 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.sf.json.JSONObject;
 import org.htmlunit.Page;
 import org.htmlunit.html.HtmlElement;
@@ -28,6 +32,52 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 public class OctaneGateReportActionTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
+
+  @Test
+  public void refreshesOnlyWhenRunningSnapshotIsOlderThanThreshold() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    Instant now = Instant.parse("2026-07-20T12:00:00Z");
+    action.onPoll(result(now.minusSeconds(61L)), classifier());
+    AtomicInteger refreshes = new AtomicInteger();
+    action.setRefreshCallback(
+        () -> {
+          refreshes.incrementAndGet();
+          action.onPoll(result(now), classifier());
+          return true;
+        });
+
+    OctaneGateReportAction.RefreshResult refreshed =
+        action.refreshIfStale(Duration.ofMinutes(1L), now);
+
+    assertEquals(OctaneGateReportAction.RefreshStatus.REFRESHED, refreshed.status());
+    assertEquals(Duration.ofSeconds(61L), refreshed.age());
+    assertEquals(1, refreshes.get());
+    assertEquals(now.toString(), action.getSnapshot().getUpdatedAt());
+
+    action.onPoll(result(now.minusSeconds(60L)), classifier());
+    OctaneGateReportAction.RefreshResult fresh = action.refreshIfStale(Duration.ofMinutes(1L), now);
+    assertEquals(OctaneGateReportAction.RefreshStatus.FRESH, fresh.status());
+    assertEquals(1, refreshes.get());
+  }
+
+  @Test
+  public void completedReportNeverStartsOutOfBandRefresh() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    Instant now = Instant.parse("2026-07-20T12:00:00Z");
+    action.onFinal(
+        OctaneGateReportState.PASSED, "Complete", result(now.minusSeconds(600L)), classifier());
+
+    OctaneGateReportAction.RefreshResult refreshResult =
+        action.refreshIfStale(Duration.ofMinutes(1L), now);
+
+    assertEquals(OctaneGateReportAction.RefreshStatus.NOT_BUILDING, refreshResult.status());
+  }
 
   @Test
   public void attachesToBuildAndRendersReportPage() throws Exception {
@@ -92,7 +142,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Defects Raised"));
     assertTrue(text.contains("Defects"));
     assertTrue(xml.contains("octane-defect-density-axis-title"));
-    assertTrue(xml.contains(">Defect Density</div>"));
+    assertTrue(xml.contains(">Defects / Test</div>"));
     assertTrue(text.contains("Opened Defects"));
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
     assertTrue(text.contains("Total: 2"));
@@ -376,6 +426,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("selectedButton.getAttribute(\"data-defect-title\")"));
     assertTrue(xml.contains("function buildDefectDensityBuckets"));
     assertTrue(xml.contains("function renderDefectDensity"));
+    assertTrue(xml.contains("Math.ceil(safeMaximum) + 1"));
+    assertTrue(xml.contains("function densityXAxisIntervalCount"));
+    assertTrue(xml.contains("function formatDensityClockOffset"));
+    assertTrue(xml.contains("OCTANE_DEFECT_DENSITY_MATH_START"));
+    assertTrue(xml.contains("OCTANE_DEFECT_DENSITY_MATH_END"));
     assertTrue(xml.contains("event.target.closest(\".octane-defect-pane-toggle\")"));
     assertTrue(xml.contains("octane-flip-face-breakdown"));
     assertTrue(xml.contains("data-execution-breakdown-panel=\"true\""));
@@ -640,12 +695,42 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("font-size: 0.91875rem"));
     assertTrue(xml.contains("data-timer-value=\"true\" x=\"120\" y=\"118\""));
     assertTrue(xml.contains("data-timer-unit=\"true\" x=\"120\" y=\"132.4\""));
+    assertTrue(xml.contains("data-timer-unit-compact=\"true\" x=\"120\" y=\"132.4\""));
+    assertTrue(xml.contains("container-name: octane-timer-display"));
+    String timerWrapRule = cssRule(xml, ".octane-timer-wrap");
+    assertTrue(timerWrapRule.contains("flex: 1 1 auto"));
+    assertTrue(timerWrapRule.contains("height: 100%"));
+    assertTrue(timerWrapRule.contains("min-height: 0"));
+    assertTrue(timerWrapRule.contains("min-width: 0"));
+    assertTrue(timerWrapRule.contains("width: 100%"));
+    String timerDonutRule = cssRule(xml, ".octane-timer-donut");
+    assertTrue(timerDonutRule.contains("aspect-ratio: 1 / 1"));
+    assertTrue(timerDonutRule.contains("height: min(100%, 220px)"));
+    assertTrue(timerDonutRule.contains("max-height: 220px"));
+    assertTrue(timerDonutRule.contains("max-width: 220px"));
+    assertTrue(
+        cssRule(xml, ".octane-zone-focused .octane-timer-donut")
+            .contains("height: min(100%, 38vh, 38vw)"));
+    assertTrue(
+        cssRule(xml, ".octane-chart-card.octane-expanded .octane-timer-donut")
+            .contains("height: min(100%, 76vh, 76vw)"));
+    assertTrue(xml.contains("@container octane-timer-display (max-width: 18rem)"));
+    assertTrue(xml.contains("@media (max-width: 480px)"));
+    assertTrue(xml.contains("minutes + seconds"));
+    assertTrue(xml.contains("m + s"));
     assertTrue(xml.contains("data-timeout-title=\"true\""));
     assertTrue(xml.contains("testingTimeSpentMillis"));
     assertTrue(xml.contains("function fitTimerText"));
     assertTrue(xml.contains("116 / (valueLength * 0.56)"));
-    assertTrue(xml.contains("displayUnit = \"min + sec\""));
-    assertTrue(xml.contains("displayUnit = \"min + min\""));
+    assertTrue(xml.contains("function timerDisplayParts"));
+    assertTrue(xml.contains("function timeoutCountdownRemainingMillis"));
+    assertTrue(xml.contains("fullLabel = \"weeks + days\""));
+    assertTrue(xml.contains("fullLabel = \"days + hours\""));
+    assertTrue(xml.contains("fullLabel = \"hours + minutes\""));
+    assertTrue(xml.contains("fullLabel = \"minutes + seconds\""));
+    assertTrue(
+        xml.contains(
+            "setTimerText(state, state.mode === \"timeout\" ? trackRemaining : remaining)"));
     assertTrue(xml.contains("Testing Time Remaining"));
     assertTrue(xml.contains("stroke-width: 1"));
     assertTrue(xml.contains("stroke-width: 16"));
@@ -1004,6 +1089,18 @@ public class OctaneGateReportActionTest {
   }
 
   private GateResult result() {
+    return result(Instant.parse("2026-05-15T00:00:00Z"));
+  }
+
+  private static String cssRule(String html, String selector) {
+    Matcher matcher =
+        Pattern.compile("(?m)^\\s*" + Pattern.quote(selector) + "\\s*\\{(?<declarations>[^}]*)}")
+            .matcher(html);
+    assertTrue("Missing CSS rule for " + selector, matcher.find());
+    return matcher.group("declarations");
+  }
+
+  private GateResult result(Instant polledAt) {
     return new GateResult(
         "4501",
         "100% pass",
@@ -1019,6 +1116,14 @@ public class OctaneGateReportActionTest {
                 new RunRecord("1", "one", "passed", "Ada Tester"),
                 new RunRecord("2", "two", "failed", "Ada Tester"))),
         Map.of(),
-        Instant.parse("2026-05-15T00:00:00Z"));
+        polledAt);
+  }
+
+  private StatusClassifier classifier() {
+    return new StatusClassifier(
+        StatusClassifier.DEFAULT_PASSED_STATUSES,
+        StatusClassifier.DEFAULT_FAILED_STATUSES,
+        StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+        StatusClassifier.DEFAULT_RUNNING_STATUSES);
   }
 }

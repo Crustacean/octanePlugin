@@ -125,8 +125,9 @@ public class OctaneEmailReportStepTest {
               long remainingMinutes = (remainingSeconds + 59L) / 60L
               octaneEmailReport(
                   to: 'qa@example.com',
-                  subject: "Interval ${remainingMinutes}m remaining",
-                  body: 'State {{GATE_RESULT}} updated {{UPDATED_AT_TEXT}} '
+                  subject: 'Interval {{REMAINING_TIME}}',
+                  body: 'State {{GATE_RESULT}} with {{REMAINING_TIME}} '
+                      + 'updated {{UPDATED_AT_TEXT}} '
                       + '{{EXECUTION_DETAILS}} {{REPORT_SCREENSHOT}}',
                   onFailure: 'FAILURE',
                   theme: 'DARK',
@@ -139,8 +140,10 @@ public class OctaneEmailReportStepTest {
 
     assertEquals("qa@example.com", sentRecipients.get());
     assertTrue(sentSubject.get().startsWith("Interval "));
-    assertTrue(sentSubject.get().endsWith("m remaining"));
+    assertTrue(sentSubject.get().endsWith("remaining"));
+    assertFalse(sentSubject.get().contains("{{REMAINING_TIME}}"));
     assertTrue(sentBody.get().contains("color:#FF9F0A;font-weight:700;\">ONGOING"));
+    assertFalse(sentBody.get().contains("{{REMAINING_TIME}}"));
     assertTrue(sentBody.get().contains("src=\"cid:report.png\""));
     assertFalse(sentBody.get().contains("{{UPDATED_AT_TEXT}}"));
     assertEquals("interval-email-test/report.png", sentAttachment.get());

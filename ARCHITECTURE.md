@@ -14,6 +14,7 @@ flowchart LR
   Runs["Suite runs\nchild test runs\ndefects"]
   Metrics["Metrics, criteria,\nand risk view"]
   Report["Live Jenkins build report\ncharts + timers"]
+  ProgressEmail["Optional cron-scheduled\nprogress email"]
   Decision{"Gate decision"}
   Next["Continue to\nnext stage"]
   Stop["Fail, timeout,\nor mark unstable"]
@@ -25,10 +26,12 @@ flowchart LR
   Octane --> Runs
   Runs --> Metrics
   Metrics --> Report
+  Report --> ProgressEmail
   Metrics --> Decision
   Decision -->|"criteria passed"| Next
   Decision -->|"criteria failed or timeout"| Stop
   Report --> Email
+  ProgressEmail --> Email
 ```
 
 In simple terms, Jenkins gives the plugin an Octane server, workspace, suite run
@@ -46,9 +49,12 @@ flowchart LR
     Credentials["Jenkins credentials\nclient_id / client_secret"]
     Job["Pipeline or Freestyle job"]
     GateStep["octaneSuiteGate / ALM Octane Suite Gate"]
-    Runner["OctaneGateRunner"]
+    CronEmailStep["octaneCronProgressEmail\noptional gate wrapper"]
+    Runner["Restart-safe poll coordinator"]
+    PollWorkers["Virtual-thread poll workers"]
     ReportAction["Octane Gate Report\nRunAction"]
     EmailStep["octaneEmailReport\noptional next stage"]
+    CronScheduler["Shared progress-email scheduler\n4 daemon threads / 5-minute throttle"]
     Screenshot["octane-report-zone.png\nworkspace file"]
     Email["Jenkins Email Extension"]
     Browser["Build report page\n/octaneSuiteGateReport/"]
@@ -60,12 +66,16 @@ flowchart LR
   subgraph Plugin["Plugin internals"]
     Request["GateRequest"]
     Client["OctaneClient"]
+    RequestLimiter["Shared async HTTP client\n8-request server cap"]
+    TopologyCache["Bounded suite topology cache\nper-suite single flight"]
     Metrics["GateMetrics\nregressions + scopes"]
     Criteria["CriteriaExpression\nregressions.* / critical.* / defects.*"]
     DefectMetrics["DefectCriteriaMetrics\ngroups + individual severities"]
     RiskMap["Risk heat map model\noptional defect rollup"]
-    Snapshot["Report snapshot\nupdated every poll"]
-    SnapshotEndpoint["Snapshot endpoint\nHTML + JSON"]
+    Snapshot["Compact report snapshot\nupdated every poll"]
+    Artifacts["Versioned JSON index\npaged sections + compatibility snapshot"]
+    SnapshotEndpoint["ETag snapshot/data endpoints"]
+    ClientRenderer["Lazy local JS/SVG renderer\n80-bar visible window"]
   end
 
   subgraph Octane["ALM Octane"]
@@ -78,29 +88,38 @@ flowchart LR
   Install --> GateStep
   Config --> GateStep
   Credentials --> GateStep
-  Job --> GateStep --> Request --> Runner
-  Runner --> Client
-  Client -->|"API key sign-in"| Auth
-  Client -->|"pollIntervalSeconds loop\nfetch suite child runs"| SuiteRuns
+  Job --> GateStep --> Request --> Runner --> PollWorkers
+  Job -.->|"optional progress-email wrapper"| CronEmailStep
+  CronEmailStep --> GateStep
+  CronEmailStep --> CronScheduler
+  PollWorkers --> Client --> RequestLimiter
+  Client --> TopologyCache
+  RequestLimiter -->|"API key sign-in"| Auth
+  RequestLimiter -->|"one poll\nbulk-fetch suite child runs"| SuiteRuns
   SuiteRuns --> ChildRuns
-  Client -->|"when riskHeatMap is enabled\nor criteria uses defects.*"| Defects
-  ChildRuns -->|"JSON statuses"| Client
-  Defects -->|"defect severity / priority"| Client
-  Client --> Runner
-  Runner -->|"dedupe + classify statuses"| Metrics
+  RequestLimiter -->|"when riskHeatMap is enabled\nor criteria uses defects.*"| Defects
+  ChildRuns -->|"JSON statuses"| RequestLimiter
+  Defects -->|"defect severity / priority"| RequestLimiter
+  RequestLimiter --> Client
+  Client --> PollWorkers
+  PollWorkers -->|"dedupe + classify statuses"| Metrics
   Metrics --> Criteria
   Metrics --> RiskMap
   Defects --> DefectMetrics --> Criteria
   RiskMap --> Snapshot
-  Criteria -->|"pass / fail / wait"| Runner
-  Runner -->|"publish latest snapshot"| Snapshot
-  Snapshot --> ReportAction
+  Criteria -->|"pass / fail / wait"| PollWorkers
+  PollWorkers -->|"publish latest snapshot"| Snapshot
+  Snapshot --> Artifacts
+  Artifacts -->|"small metadata only"| ReportAction
   ReportAction --> SnapshotEndpoint
-  SnapshotEndpoint -->|"snapshot JSON + HTML"| Browser
+  Artifacts --> SnapshotEndpoint
+  SnapshotEndpoint -->|"index / visible section JSON"| Browser
+  Browser --> ClientRenderer
   Browser --> Charts
   Browser --> HeatMapView
   ReportAction --> EmailStep --> Screenshot --> Email
-  Runner --> Outcome
+  CronScheduler -->|"scheduled occurrence"| Screenshot
+  PollWorkers --> Outcome
 ```
 
 The plugin is a gate, not a test trigger. It waits for suite runs that already
@@ -121,7 +140,10 @@ annotations:
 - `configs.OctaneServer`: repeatable Octane server configuration entries.
 - `controllers.OctaneSuiteGateStep`: Pipeline step named `octaneSuiteGate`.
 - `controllers.OctaneEmailReportStep`: Pipeline step named `octaneEmailReport`.
+- `controllers.OctaneCronProgressEmailStep`: block-scoped Pipeline step named
+  `octaneCronProgressEmail`.
 - `controllers.OctaneSuiteGateBuilder`: Freestyle build step named `ALM Octane Suite Gate`.
+- `listeners.OctaneProgressEmailRunListener`: final cleanup for progress-email timers.
 - `models.OctaneGateScope`: nested scope object named `octaneGateScope`.
 
 The Java sources are organized under the base package into focused folders:
@@ -250,6 +272,34 @@ Jenkins Email Extension. The comparison table preserves AST leaf order and repor
 threshold, actual value, and `OK` or `NOT OK` result. It is Pipeline-only and does not change gate
 criteria or build result unless the email step itself fails according to `onFailure`.
 
+Long-running gates can wrap `octaneSuiteGate` with cron-scheduled progress email delivery:
+
+```groovy
+octaneCronProgressEmail(
+  cron: env.PROGRESS_EMAIL_INTERVAL_CRONJOB,
+  to: 'qa-team@example.com',
+  subject: 'Octane Gate Progress ({{REMAINING_TIME}})',
+  body: 'The gate is {{GATE_RESULT}} with {{REMAINING_TIME}}. {{REPORT_SCREENSHOT}}',
+  onFailure: 'WARN'
+) {
+  octaneSuiteGate(/* gate configuration */)
+}
+```
+
+`PROGRESS_EMAIL_INTERVAL_CRONJOB` accepts a standard five-field Jenkins cron expression. Blank or
+null input disables progress emails for that run without failing the gate. Scheduled messages use
+the same report screenshot, HTML body, recipient, theme, and SMTP implementation as
+`octaneEmailReport`; their gate result is rendered as `ONGOING`.
+
+Before rendering, `PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES` (default `1`) is compared with the
+latest report timestamp. When a running report is older than that threshold, email delivery starts
+an immediate gate poll or waits for the gate's active poll, then renders the refreshed snapshot.
+This coordination remains per build, while Octane HTTP concurrency continues to use the shared
+per-server request limiter. A shared four-thread daemon pool coordinates all builds, caps active
+schedules at 256, and enforces at most one email per build every minute even for an aggressive
+expression such as `* * * * *`. The wrapper logs the interpreted schedule and first calculated
+occurrence immediately when it registers, then repeats the audit immediately before each delivery.
+
 ## Runtime Flow
 
 1. Jenkins reaches the `octaneSuiteGate` Pipeline step or Freestyle build step.
@@ -257,18 +307,29 @@ criteria or build result unless the email step itself fails according to `onFail
 3. `OctaneGateRunner` resolves the configured `OctaneServer` by `serverId`.
 4. The request supplies `sharedSpaceId` and `workspaceId` from the job.
 5. The runner resolves Jenkins credentials by `credentialsId`.
-6. The runner creates `OctaneClient` and signs in to Octane.
+6. The runner opens a polling session, creates `OctaneClient`, and signs in to Octane.
 7. The step attaches an `Octane Gate Report` action to the current build.
-8. The runner polls until the gate passes, fails, or times out.
-9. Each poll fetches suite child runs, computes metrics, and updates the report snapshot.
-10. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
-11. When `riskHeatMap` is enabled or criteria reference `defects.*`, linked defects are fetched
+8. If the gate is wrapped by `octaneCronProgressEmail`, the wrapper registers one weakly referenced
+   timer in the shared scheduler. It logs the raw cron, human-readable schedule, and first
+   occurrence when registration succeeds, then repeats that audit immediately before each progress
+   email.
+9. Jenkins Timer schedules a short one-shot wake-up. Actual HTTP and poll work runs on a
+   cancellable virtual thread, so no Timer/CPS worker is held during HTTP or poll intervals.
+10. Each poll bulk-fetches suite topology, deduplicates child IDs, computes metrics, and atomically
+   updates versioned report artifacts. A shared async client limits each server to eight requests.
+11. Optional scopes fetch either separate suite-run child runs or filtered child-run subsets.
+12. When `riskHeatMap` is enabled or criteria reference `defects.*`, linked defects are fetched
     and refreshed from the per-build defect ledger.
-12. The runner computes case-insensitive grouped and individual open-defect rates before
+13. The runner computes case-insensitive grouped and individual open-defect rates before
     `CriteriaExpression` evaluates regression, scoped, and defect metrics together.
-13. Before the step exits, the runner publishes a final snapshot so the dashboard reflects
+14. If the gate continues, the step persists its deadlines and defect ledger, then schedules only
+    the next wake-up. Controller resume recreates transient clients and starts the required poll.
+15. Before the step exits, the runner publishes a final snapshot so the dashboard reflects
     the latest pass/fail/timeout state without waiting for another poll interval.
-14. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
+16. The progress-email registration is cancelled as soon as the wrapped gate body succeeds, fails,
+    or is aborted. A run listener also removes any remaining registrations when the build completes
+    or is deleted.
+17. Jenkins continues on pass, fails on terminal gate failure, or marks unstable
     when `markUnstable` is enabled.
 
 ## Build Report
@@ -279,9 +340,11 @@ Every Pipeline and Freestyle run gets a build-side **Octane Gate Report** at:
 <build-url>/octaneSuiteGateReport/
 ```
 
-The report is backed by a persisted Jenkins `RunAction`. It is attached before
-polling starts, updated after every poll, and left on the build after pass,
-failure, unstable, timeout, or unexpected error.
+The report is backed by a Jenkins `RunAction` that persists only compact artifact metadata for new
+dense reports. Every poll atomically publishes a checksum-addressed JSON index, paged section files,
+complete JSON, and a gzip compatibility snapshot under the build directory. The historical inline
+snapshot field remains readable for archived builds, but new dense snapshots do not inflate
+`build.xml`.
 
 The report contains chart cards for regression suite runs and each scope. Cards are
 resizable and can be reordered by dragging. Two cards fit per row by default;
@@ -297,6 +360,12 @@ jagged circular edges. Each report section renders:
 - a donut chart for total Passed, Failed, Blocked, Skipped, and Running counts.
 - a vertical bar chart for the same counts per suite run, with bar height
   scaled against the suite run with the most tests in that section.
+
+Reports above 80 tester bars use the local client renderer. It initially creates only the visible
+section and at most 80 bars, then fetches previous or next windows from the authorized section
+endpoint. Off-screen cards use feature-detected CSS containment, and all bars share one delegated
+tooltip overlay. Small reports and email screenshots retain the static renderer as a compatibility
+path.
 
 The chart colors are fixed:
 
@@ -317,12 +386,14 @@ sequenceDiagram
   participant Runner as OctaneGateRunner
   participant Octane as ALM Octane
 
-  Runner->>Octane: Poll suite runs and optional defects
+  Runner->>Octane: Async bounded poll for suite runs and optional defects
   Octane-->>Runner: Latest run and defect records
-  Runner->>Action: Store updated snapshot
+  Runner->>Action: Atomically publish JSON artifact generation
   Browser->>Action: GET /octaneSuiteGateReport/snapshot
-  Action-->>Browser: JSON + rendered report-zone HTML
-  Browser->>Browser: Update secondary panels and replace report zone
+  Action-->>Browser: Compact JSON + ETag (or 304)
+  Browser->>Action: GET /octaneSuiteGateReport/data?section=...&cursor=...
+  Action-->>Browser: Visible section page + ETag
+  Browser->>Browser: Safely render/update local SVG and secondary panels
   Browser->>Browser: Evaluate one-time completion auto-flips
 ```
 
@@ -466,11 +537,13 @@ This keeps the popup focused on the most important status when a bar is mixed.
 
 ## Email Screenshot Flow
 
-`octaneEmailReport` is a post-gate Pipeline helper:
+`octaneEmailReport` is a post-gate Pipeline helper. `octaneCronProgressEmail` invokes the same
+capture and delivery path while its wrapped gate is still active:
 
 ```mermaid
 flowchart LR
   Build["Completed or running Jenkins build"]
+  Cron["Optional shared cron scheduler\nactive gate only"]
   Action["Octane Gate Report action"]
   Evaluation["Persisted criteria evaluation\nverdict + ordered comparisons"]
   Html["Temporary static HTML\ncontaining octane-report-zone"]
@@ -480,6 +553,7 @@ flowchart LR
   Mail["Jenkins Email Extension"]
 
   Build --> Action --> Evaluation
+  Cron --> Action
   Action --> Html --> Chrome --> Png
   Evaluation --> Mail
   Png --> Archive
@@ -847,15 +921,23 @@ containing API secrets are not logged.
 
 | Class | Responsibility |
 | --- | --- |
-| `actions.OctaneGateReportAction` | Per-build chart report and live snapshot holder. |
+| `actions.OctaneGateReportAction` | Per-build report metadata, authorized JSON endpoints, ETags, and legacy snapshot reader. |
 | `configs.OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
 | `configs.OctaneServer` | One configured Octane server and its validation endpoints. |
 | `controllers.OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
 | `controllers.OctaneEmailReportStep` | Pipeline `octaneEmailReport` screenshot email step. |
+| `controllers.OctaneCronProgressEmailStep` | Block-scoped Pipeline wrapper for cron progress emails. |
 | `controllers.OctaneSuiteGateBuilder` | Freestyle `ALM Octane Suite Gate` build step. |
 | `models.GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
-| `services.OctaneGateRunner` | Main gate loop, polling, metrics, criteria, and build decision. |
-| `repositories.OctaneClient` | Low-level authenticated Octane REST client. |
+| `services.OctaneGateRunner` | One-poll state machine, metrics, criteria, extended-time handling, and build decision. |
+| `services.OctaneGateExecutors` | Virtual-thread executor for cancellable poll and HTTP work. |
+| `services.OctaneCronSchedule` | Jenkins `CronTab` validation, next occurrence, and audit description. |
+| `services.OctaneProgressEmailScheduler` | Shared bounded four-thread scheduler with throttling and cleanup. |
+| `services.OctaneReportArtifactStore` | Atomic compact JSON/section and compatibility-snapshot persistence. |
+| `services.OctaneReportDataMapper` | Versioned snapshot-to-client-data schema mapper. |
+| `repositories.OctaneClient` | Authenticated bulk/paged Octane REST client using the shared async transport. |
+| `repositories.OctaneRequestCoordinator` | Fair per-server request cap and request telemetry. |
+| `repositories.OctaneSuiteTopologyCache` | Bounded TTL/LRU topology cache with per-suite single flight. |
 | `models.GateMetrics` | Regression or scoped computed run metrics. |
 | `models.DefectCriteriaMetrics` | Case-insensitive grouped/individual open-defect rates and counts. |
 | `models.OctaneDefectGroup` | Pipeline/Freestyle definition of a named defect severity group. |
@@ -869,11 +951,13 @@ containing API secrets are not logged.
 | `services.OctaneRiskHeatMapRenderer` | Renders heat-map SVG/HTML for the Status Check card. |
 | `services.HeadlessBrowserReportScreenshotService` | Captures `octane-report-zone` with Chrome/Chromium. |
 | `services.EmailExtensionOctaneReportSender` | Sends the screenshot through Jenkins Email Extension. |
+| `listeners.OctaneProgressEmailRunListener` | Cancels any remaining schedules when a run completes or is deleted. |
 
 ## Examples
 
 - `examples/Jenkinsfile`: regression and critical suite-run gate with optional heat map.
 - `examples/Jenkinsfile2`: regression-only gate, also showing the workspace/job-level setup.
+- `examples/Jenkinsfile3`: cron-scheduled ongoing reports plus the final report email.
 
 ## Verification
 
@@ -882,15 +966,19 @@ The test suite covers:
 - criteria parsing and scoped metrics
 - ID-list parsing
 - Octane authentication and cookies
+- shared async HTTP concurrency limits, bulk suite fan-out, and topology single-flight behavior
 - workspace probing
 - suite-run fallback endpoint behavior
 - multi-ID scoped query forwarding
 - suite-run-backed scoped metrics
 - Octane Gate Report chart snapshots and Jenkins build-page rendering
 - live snapshot refresh behavior
+- compact artifact publication, archived snapshot fallback, `ETag`/`304`, section paging, and the
+  exact 30-job x 500-suite x 50-child-run scale fixture
 - persistent bar popups and dominant-status popup coloring
 - risk heat-map hierarchy, scoring, and rendering
 - optional `octaneEmailReport` failure handling
+- cron parsing, five-minute throttling, blank bypass, bounded concurrent delivery, and timer cleanup
 - Pipeline result map shape
 
 Run:

@@ -139,6 +139,12 @@ public class OctaneRiskHeatMap implements Serializable {
   }
 
   public Map<String, Object> toMap() {
+    Map<String, Object> values = toSummaryMap();
+    values.put("root", root == null ? null : root.toMap());
+    return values;
+  }
+
+  public Map<String, Object> toSummaryMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("enabled", enabled);
     values.put("available", available);
@@ -149,7 +155,6 @@ public class OctaneRiskHeatMap implements Serializable {
     values.put("unlinkedOpenDefectCount", unlinkedOpenDefectCount);
     values.put("ignoredClosedDefectCount", ignoredClosedDefectCount);
     values.put("defectSeveritySummary", defectSeveritySummary.toMap());
-    values.put("root", root == null ? null : root.toMap());
     return values;
   }
 }

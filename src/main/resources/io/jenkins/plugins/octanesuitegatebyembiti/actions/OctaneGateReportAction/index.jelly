@@ -144,6 +144,7 @@
         }
         .octane-zone-focus-toggle:focus-visible,
         .octane-expand-toggle:focus-visible,
+        .octane-client-page-button:focus-visible,
         .octane-view-toggle:focus-visible,
         .octane-tester-details-toggle:focus-visible,
         .octane-exit-extended-button:focus-visible,
@@ -263,8 +264,13 @@
           width: 100%;
         }
         .octane-zone-focused .octane-timer-donut {
+          height: min(100%, 38vh, 38vw);
           max-height: min(38vh, 38vw);
           max-width: min(38vh, 38vw);
+          width: auto;
+        }
+        .octane-zone-focused .octane-timer-wrap {
+          height: 100%;
         }
         .octane-zone-focused .octane-risk-heat-map {
           height: min(100cqw, 100cqh, 38vh, 38vw);
@@ -363,6 +369,7 @@
           gap: 0.45rem;
         }
         .octane-expand-toggle,
+        .octane-client-page-button,
         .octane-view-toggle {
           align-items: center;
           appearance: none;
@@ -378,9 +385,17 @@
           width: var(--octane-control-size);
         }
         .octane-expand-toggle:hover,
+        .octane-client-page-button:hover:not(:disabled),
         .octane-view-toggle:hover {
           background: var(--panel-border-color);
           color: var(--text-color);
+        }
+        .octane-client-page-button:disabled {
+          cursor: default;
+          opacity: 0.35;
+        }
+        .octane-client-page-button[hidden] {
+          display: none;
         }
         .octane-action-icon {
           display: block;
@@ -1495,8 +1510,13 @@
           min-height: 0;
         }
         .octane-chart-card.octane-expanded .octane-timer-donut {
+          height: min(100%, 76vh, 76vw);
           max-height: min(76vh, 76vw);
           max-width: min(76vh, 76vw);
+          width: auto;
+        }
+        .octane-chart-card.octane-expanded .octane-timer-wrap {
+          height: 100%;
         }
         .octane-chart-card.octane-expanded .octane-risk-heat-map {
           height: min(100cqw, 100cqh, 76vh, 76vw);
@@ -1523,17 +1543,25 @@
         }
         .octane-timer-wrap {
           align-items: center;
+          container-name: octane-timer-display;
+          container-type: inline-size;
           display: flex;
+          flex: 1 1 auto;
+          height: 100%;
           justify-content: center;
-          min-height: 215px;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
         }
         .octane-timer-donut {
+          aspect-ratio: 1 / 1;
           display: block;
-          height: auto;
+          height: min(100%, 220px);
+          max-height: 220px;
           max-width: 220px;
           overflow: visible;
           shape-rendering: geometricPrecision;
-          width: 100%;
+          width: auto;
         }
         .octane-timer-track {
           fill: none;
@@ -1557,6 +1585,25 @@
           fill: var(--text-color-secondary);
           font-size: 0.91875rem;
           text-anchor: middle;
+        }
+        .octane-timer-unit-compact {
+          display: none;
+        }
+        @container octane-timer-display (max-width: 18rem) {
+          .octane-timer-unit-full {
+            display: none;
+          }
+          .octane-timer-unit-compact {
+            display: inline;
+          }
+        }
+        @media (max-width: 480px) {
+          .octane-timer-unit-full {
+            display: none;
+          }
+          .octane-timer-unit-compact {
+            display: inline;
+          }
         }
         .octane-donut-wrap {
           align-items: center;
@@ -2098,6 +2145,94 @@
         .theme-light .octane-tester-empty-state {
           color: #000000;
         }
+        .octane-report-zone[data-client-rendered="true"] .octane-deferred-chart-card {
+          contain: layout style paint;
+          contain-intrinsic-size: auto 360px;
+          content-visibility: auto;
+        }
+        .octane-report-zone[data-client-rendered="true"]
+            .octane-deferred-chart-card.octane-chart-expanded {
+          contain: none;
+          content-visibility: visible;
+        }
+        @supports not (content-visibility: auto) {
+          .octane-report-zone[data-client-rendered="true"] .octane-deferred-chart-card {
+            contain: layout style paint;
+          }
+        }
+        .octane-client-chart-loading {
+          align-items: center;
+          color: var(--text-color-secondary);
+          display: flex;
+          flex: 1 1 auto;
+          justify-content: center;
+          min-height: 260px;
+        }
+        .octane-client-noscript-summary {
+          color: var(--text-color-secondary);
+          padding: 1rem;
+        }
+        .octane-client-noscript-summary dl {
+          display: grid;
+          gap: 0.35rem 1rem;
+          grid-template-columns: max-content 1fr;
+          margin: 0 0 0.75rem;
+        }
+        .octane-client-noscript-summary dd,
+        .octane-client-noscript-summary dt {
+          margin: 0;
+        }
+        .octane-client-bar-content {
+          flex: 1 1 auto;
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-client-bar-chart {
+          aspect-ratio: 10 / 3;
+          display: block;
+          height: auto;
+          min-height: 260px;
+          overflow: visible;
+          width: 100%;
+        }
+        .octane-client-grid-line {
+          stroke: var(--input-border);
+          stroke-dasharray: 2 7;
+          stroke-width: 1;
+        }
+        .octane-client-axis-line {
+          stroke: var(--input-border);
+          stroke-width: 1;
+        }
+        .octane-client-axis-label,
+        .octane-client-axis-value,
+        .octane-client-overflow-label {
+          fill: #827C7B;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 12px;
+          font-weight: 400;
+          letter-spacing: 0;
+        }
+        .octane-client-axis-value {
+          text-anchor: end;
+        }
+        .octane-client-overflow-line {
+          stroke: #666;
+          stroke-dasharray: 3 4;
+          stroke-width: 2;
+        }
+        .octane-client-suite-column {
+          cursor: default;
+        }
+        .octane-client-suite-column:focus-visible .octane-client-bar-segment {
+          filter: drop-shadow(0 0 2px #4391F5);
+          outline: none;
+          stroke: #4391F5;
+          stroke-width: 2;
+        }
+        .octane-client-donut-segment {
+          shape-rendering: geometricPrecision;
+        }
         @media (min-width: 840px) {
           .octane-tester-details-body {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2263,16 +2398,15 @@
                             pathLength="100" stroke="url(#octane-timeout-gradient)"
                             stroke-dasharray="100 100" stroke-linecap="round" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
-                          <j:choose>
-                            <j:when test="${snapshot.building}">--</j:when>
-                            <j:otherwise>${snapshot.testingTimeSpentMinutes}</j:otherwise>
-                          </j:choose>
+                          --:--
                         </text>
-                        <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
-                          <j:choose>
-                            <j:when test="${snapshot.building}">minutes</j:when>
-                            <j:otherwise>${snapshot.testingTimeSpentUnit}</j:otherwise>
-                          </j:choose>
+                        <text class="octane-timer-unit octane-timer-unit-full"
+                            data-timer-unit="true" x="120" y="132.4">
+                          minutes + seconds
+                        </text>
+                        <text class="octane-timer-unit octane-timer-unit-compact"
+                            data-timer-unit-compact="true" x="120" y="132.4">
+                          m + s
                         </text>
                       </svg>
                     </div>
@@ -2887,12 +3021,12 @@
                               <div class="octane-defect-density-total">
                                 <div class="octane-defect-density-value"
                                     data-defect-density-raised-total="true">
-                                  ${snapshot.defectTrend.openedTotal}
+                                  ${snapshot.defectTrend.raisedTotal}
                                 </div>
                                 <div class="octane-defect-density-label">Defects Raised</div>
                               </div>
                               <div class="octane-defect-density-chart">
-                                <div class="octane-defect-density-axis-title">Defect Density</div>
+                                <div class="octane-defect-density-axis-title">Defects / Test</div>
                                 <div class="octane-defect-density-y-labels"
                                     data-defect-density-y-labels="true"></div>
                                 <div class="octane-defect-density-plot">
@@ -2945,8 +3079,37 @@
           </div>
 
           <div class="octane-report-zone octane-card-zone" id="octane-report-zone"
-              data-zone-key="reports">
+              data-zone-key="reports"
+              data-client-rendered="${snapshot.clientRenderedReport}"
+              data-report-data-url="data"
+              data-report-checksum="${it.reportDataChecksum}">
             <j:choose>
+              <j:when test="${snapshot.clientRenderedReport}">
+                <section class="octane-chart-card octane-report-client-placeholder"
+                    data-card-key="report-loading" aria-live="polite">
+                  <div class="octane-card-header">
+                    <div>
+                      <h2 class="octane-card-title">Suite run charts</h2>
+                      <div class="octane-muted">Loading report data...</div>
+                    </div>
+                  </div>
+                  <noscript>
+                    <div class="octane-client-noscript-summary">
+                      <dl>
+                        <dt>Total tests</dt>
+                        <dd>${snapshot.projectTestTotal}</dd>
+                        <dt>Executed tests</dt>
+                        <dd>${snapshot.executedTestCount}</dd>
+                        <dt>Passed tests</dt>
+                        <dd>${snapshot.passedTestCount}</dd>
+                        <dt>Open defects</dt>
+                        <dd>${snapshot.openDefectCount}</dd>
+                      </dl>
+                      <a href="data">Report data (JSON)</a>
+                    </div>
+                  </noscript>
+                </section>
+              </j:when>
               <j:when test="${snapshot.hasReportSections()}">
                 <j:forEach var="section" items="${snapshot.reportSections}">
                   <section class="octane-chart-card" draggable="true"
@@ -3323,6 +3486,7 @@
         <div id="octane-bar-popup-overlay" class="octane-bar-popup" role="tooltip"
             aria-hidden="true"></div>
       </div>
+      <script src="scaleReportScript"></script>
       <script>
         //<![CDATA[
         (function () {
@@ -3349,6 +3513,7 @@
             return requestFrame(callback);
           }
           var snapshotUrl = dashboard.getAttribute("data-snapshot-url") || "snapshot";
+          var snapshotEtag = "";
           var currentUpdatedAt = dashboard.getAttribute("data-current-updated-at") || "";
           var stateLabel = document.querySelector("[data-report-state-label]");
           var updatedAtLabel = document.querySelector("[data-report-updated-at]");
@@ -3725,6 +3890,9 @@
           };
           var defectTrendState = null;
           var defectTrendLoopRunning = false;
+          var defectDensityResizeObserver = null;
+          var defectDensityResizeScheduled = false;
+          var defectDensityResizeFallbackBound = false;
           function safeTrendNumber(value, fallback) {
             var parsed = Number(value);
             return isFinite(parsed) ? parsed : fallback;
@@ -3780,10 +3948,43 @@
               renderedYMaximum: -1,
               renderedDurationMillis: -1,
               renderedDensityYMaximum: -1,
-              renderedDensityDurationMillis: -1
+              renderedDensityDurationMillis: -1,
+              renderedDensityWidth: -1
             };
+            initializeDefectDensityResizeObserver();
             renderDefectTrend(currentWallTime());
             renderDefectDensity(currentWallTime());
+          }
+          function renderDefectDensityAfterResize() {
+            defectDensityResizeScheduled = false;
+            if (defectTrendState) {
+              renderDefectDensity(currentWallTime());
+            }
+          }
+          function scheduleDefectDensityResize() {
+            if (defectDensityResizeScheduled) {
+              return;
+            }
+            defectDensityResizeScheduled = true;
+            requestFrame(renderDefectDensityAfterResize);
+          }
+          function initializeDefectDensityResizeObserver() {
+            if (defectDensityResizeObserver) {
+              defectDensityResizeObserver.disconnect();
+              defectDensityResizeObserver = null;
+            }
+            var plot = dashboard.querySelector(".octane-defect-density-plot");
+            if (!plot) {
+              return;
+            }
+            if (typeof window.ResizeObserver === "function") {
+              defectDensityResizeObserver =
+                  new window.ResizeObserver(scheduleDefectDensityResize);
+              defectDensityResizeObserver.observe(plot);
+            } else if (!defectDensityResizeFallbackBound) {
+              defectDensityResizeFallbackBound = true;
+              window.addEventListener("resize", scheduleDefectDensityResize);
+            }
           }
           function defectTrendVisible() {
             var card = dashboard.querySelector('[data-card-key="progress-pass-rate"]');
@@ -3927,23 +4128,59 @@
             defectTrendState.renderedYMaximum = scale.maximum;
             defectTrendState.renderedDurationMillis = defectTrendState.durationMillis;
           }
+          /* OCTANE_DEFECT_DENSITY_MATH_START */
           function niceDefectDensityScale(maximumDensity) {
-            if (maximumDensity <= 5) {
-              return {maximum: 5, step: 1};
+            var safeMaximum = Number(maximumDensity);
+            if (!isFinite(safeMaximum) || safeMaximum <= 0) {
+              return {maximum: 1, step: 1, intervals: 1};
             }
-            var roughStep = maximumDensity / 5;
-            var magnitude = Math.pow(10, Math.floor(Math.log(roughStep) / Math.LN10));
-            var normalizedStep = roughStep / magnitude;
-            var multiplier = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 :
-                normalizedStep <= 5 ? 5 : 10;
-            var step = multiplier * magnitude;
+            var maximum = Math.ceil(safeMaximum) + 1;
+            var intervals = maximum <= 5 ? maximum : 5;
             return {
-              maximum: Math.ceil(maximumDensity / step) * step,
-              step: step
+              maximum: maximum,
+              step: maximum / intervals,
+              intervals: intervals
             };
           }
           function formatDensityAxisValue(value) {
             return trimNumber(value);
+          }
+          function defectDensityYAxisValues(scale) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            var values = [];
+            for (var tick = intervals; tick >= 0; tick -= 1) {
+              values.push(scale.step * tick);
+            }
+            return values;
+          }
+          function densityXAxisIntervalCount(plotWidth) {
+            var safeWidth = Number(plotWidth);
+            if (!isFinite(safeWidth) || safeWidth <= 0) {
+              return 4;
+            }
+            return clamp(Math.floor(safeWidth / 180), 2, 5);
+          }
+          function formatDensityClockOffset(timestampMillis, durationMillis) {
+            var date = new Date(timestampMillis);
+            if (isNaN(date.getTime())) {
+              return "";
+            }
+            var hours = String(date.getHours()).padStart(2, "0");
+            var minutes = String(date.getMinutes()).padStart(2, "0");
+            if (durationMillis <= 300000) {
+              return hours + ":" + minutes + ":" + String(date.getSeconds()).padStart(2, "0");
+            }
+            return hours + ":" + minutes;
+          }
+          function defectDensityXAxisValues(startedAt, durationMillis, plotWidth) {
+            var intervals = densityXAxisIntervalCount(plotWidth);
+            var values = [];
+            for (var tick = 0; tick <= intervals; tick += 1) {
+              values.push(
+                  formatDensityClockOffset(
+                      startedAt + durationMillis * (tick / intervals), durationMillis));
+            }
+            return values;
           }
           function densityBucketMillis(durationMillis) {
             var target = Math.max(1, Math.round(durationMillis / 10));
@@ -3989,7 +4226,7 @@
             }
             return buckets;
           }
-          function rebuildDefectDensityAxes(scale) {
+          function rebuildDefectDensityAxes(scale, plotWidth) {
             if (!defectTrendState) {
               return;
             }
@@ -4007,8 +4244,9 @@
             yLabels.textContent = "";
             xLabels.textContent = "";
             var height = DEFECT_DENSITY_BOUNDS.bottom - DEFECT_DENSITY_BOUNDS.top;
-            var width = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
-            for (var value = scale.step; value <= scale.maximum; value += scale.step) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            for (var tick = 1; tick <= intervals; tick += 1) {
+              var value = scale.step * tick;
               var y = DEFECT_DENSITY_BOUNDS.bottom - (value / scale.maximum) * height;
               grid.appendChild(createTrendSvgElement("line", {
                 "class": "octane-defect-density-grid-line",
@@ -4018,38 +4256,48 @@
                 y2: y
               }));
             }
-            for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step) {
-              yLabels.appendChild(createDensityAxisLabel(formatDensityAxisValue(yValue)));
+            var yAxisValues = defectDensityYAxisValues(scale);
+            for (var yIndex = 0; yIndex < yAxisValues.length; yIndex += 1) {
+              yLabels.appendChild(
+                  createDensityAxisLabel(formatDensityAxisValue(yAxisValues[yIndex])));
             }
-            for (var index = 0; index <= 4; index += 1) {
-              var ratio = index / 4;
-              xLabels.appendChild(
-                  createDensityAxisLabel(
-                      formatClockOffset(defectTrendState.startedAt
-                          + defectTrendState.durationMillis * ratio)));
+            var xAxisValues = defectDensityXAxisValues(
+                defectTrendState.startedAt, defectTrendState.durationMillis, plotWidth);
+            for (var index = 0; index < xAxisValues.length; index += 1) {
+              xLabels.appendChild(createDensityAxisLabel(xAxisValues[index]));
             }
             defectTrendState.renderedDensityYMaximum = scale.maximum;
             defectTrendState.renderedDensityDurationMillis = defectTrendState.durationMillis;
-            defectTrendState.renderedDensityWidth = width;
+            defectTrendState.renderedDensityWidth = plotWidth;
           }
           function densityXFor(milliseconds) {
             var width = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
+            var durationMillis = Math.max(1, defectTrendState.durationMillis);
+            var elapsedMillis = clamp(milliseconds, 0, durationMillis);
             return DEFECT_DENSITY_BOUNDS.left
-                + (milliseconds / defectTrendState.durationMillis) * width;
+                + (elapsedMillis / durationMillis) * width;
           }
           function densityYFor(value, scale) {
             var height = DEFECT_DENSITY_BOUNDS.bottom - DEFECT_DENSITY_BOUNDS.top;
-            return DEFECT_DENSITY_BOUNDS.bottom - (value / scale.maximum) * height;
+            var ratio = clamp(value / Math.max(1, scale.maximum), 0, 1);
+            return DEFECT_DENSITY_BOUNDS.bottom - ratio * height;
           }
           function defectDensityLinePath(buckets, scale) {
             if (!buckets.length) {
               return "";
             }
-            var path = "";
+            var first = buckets[0];
+            var firstY = densityYFor(first.density, scale);
+            var path = "M " + densityXFor(first.startMillis).toFixed(2)
+                + " " + firstY.toFixed(2);
             for (var index = 0; index < buckets.length; index += 1) {
-              var x = densityXFor((buckets[index].startMillis + buckets[index].endMillis) / 2);
               var y = densityYFor(buckets[index].density, scale);
-              path += (index === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
+              var startX = densityXFor(buckets[index].startMillis);
+              var endX = densityXFor(buckets[index].endMillis);
+              if (index > 0) {
+                path += " H " + startX.toFixed(2) + " V " + y.toFixed(2);
+              }
+              path += " H " + endX.toFixed(2);
             }
             return path;
           }
@@ -4057,22 +4305,26 @@
             if (!buckets.length) {
               return "";
             }
-            var firstX = densityXFor((buckets[0].startMillis + buckets[0].endMillis) / 2);
-            var lastX =
-                densityXFor(
-                    (buckets[buckets.length - 1].startMillis
-                        + buckets[buckets.length - 1].endMillis) / 2);
-            var path =
-                "M " + firstX.toFixed(2) + " " + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2);
+            var firstX = densityXFor(buckets[0].startMillis);
+            var firstY = densityYFor(buckets[0].density, scale);
+            var path = "M " + firstX.toFixed(2) + " "
+                + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2)
+                + " L " + firstX.toFixed(2) + " " + firstY.toFixed(2);
             for (var index = 0; index < buckets.length; index += 1) {
-              var x = densityXFor((buckets[index].startMillis + buckets[index].endMillis) / 2);
               var y = densityYFor(buckets[index].density, scale);
-              path += " L " + x.toFixed(2) + " " + y.toFixed(2);
+              var startX = densityXFor(buckets[index].startMillis);
+              var endX = densityXFor(buckets[index].endMillis);
+              if (index > 0) {
+                path += " H " + startX.toFixed(2) + " V " + y.toFixed(2);
+              }
+              path += " H " + endX.toFixed(2);
             }
+            var lastX = densityXFor(buckets[buckets.length - 1].endMillis);
             path += " L " + lastX.toFixed(2) + " "
                 + DEFECT_DENSITY_BOUNDS.bottom.toFixed(2) + " Z";
             return path;
           }
+          /* OCTANE_DEFECT_DENSITY_MATH_END */
           function defectTrendPath(points, property, scale) {
             if (!points.length) {
               return "";
@@ -4138,9 +4390,15 @@
               maximumDensity = Math.max(maximumDensity, buckets[index].density);
             }
             var scale = niceDefectDensityScale(maximumDensity);
+            var plot = panel.querySelector(".octane-defect-density-plot");
+            var plotWidth = plot ? plot.getBoundingClientRect().width : 0;
+            if (!plotWidth) {
+              plotWidth = DEFECT_DENSITY_BOUNDS.right - DEFECT_DENSITY_BOUNDS.left;
+            }
             if (scale.maximum !== defectTrendState.renderedDensityYMaximum
-                || defectTrendState.durationMillis !== defectTrendState.renderedDensityDurationMillis) {
-              rebuildDefectDensityAxes(scale);
+                || defectTrendState.durationMillis !== defectTrendState.renderedDensityDurationMillis
+                || Math.abs(plotWidth - defectTrendState.renderedDensityWidth) >= 24) {
+              rebuildDefectDensityAxes(scale, plotWidth);
             }
             var total = panel.querySelector("[data-defect-density-raised-total]");
             if (total) {
@@ -4211,7 +4469,8 @@
               renderedYMaximum: -1,
               renderedDurationMillis: -1,
               renderedDensityYMaximum: -1,
-              renderedDensityDurationMillis: -1
+              renderedDensityDurationMillis: -1,
+              renderedDensityWidth: -1
             };
             var latest = latestDefectTrendPoint();
             var openedTotal = panel.querySelector("[data-defect-trend-opened-total]");
@@ -4607,6 +4866,15 @@
           }
           decorateCardZones(dashboard);
           initializeFluidBarCharts(dashboard);
+          var initialClientReportZone = document.getElementById("octane-report-zone");
+          if (initialClientReportZone
+              && initialClientReportZone.getAttribute("data-client-rendered") === "true") {
+            mountClientRenderedReport(
+                initialClientReportZone,
+                initialClientReportZone.getAttribute("data-report-data-url") || "data",
+                initialClientReportZone.getAttribute("data-report-checksum") || "",
+                null);
+          }
           initializeCardViews(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
@@ -4633,8 +4901,10 @@
               card: card,
               endAt: startedAt + totalMillis,
               extendedActive: extendedActive,
+              graphic: card.querySelector(".octane-timer-donut"),
               extendedTotalMillis: Math.max(0, extendedTotalSeconds) * 1000,
               gradientStops: card.querySelectorAll("[data-timer-gradient-stop]"),
+              lastDisplayedCompactUnit: "",
               lastDisplayedUnit: "",
               lastDisplayedValue: "",
               mode: mode,
@@ -4642,6 +4912,7 @@
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
               unit: card.querySelector("[data-timer-unit]"),
+              unitCompact: card.querySelector("[data-timer-unit-compact]"),
               updatedAt: updatedAt,
               value: card.querySelector("[data-timer-value]")
             };
@@ -4668,14 +4939,94 @@
             }
             return state.totalMillis + state.extendedTotalMillis;
           }
+          /* OCTANE_TIMER_DISPLAY_START */
+          function timeoutCountdownRemainingMillis(
+              startedAt, baseTotalMillis, extendedTotalMillis, sampleTime) {
+            var totalMillis =
+                Math.max(0, baseTotalMillis) + Math.max(0, extendedTotalMillis);
+            return clamp(startedAt + totalMillis - sampleTime, 0, totalMillis);
+          }
+          function zeroPadTimerUnit(value) {
+            return value < 10 ? "0" + String(value) : String(value);
+          }
+          function timerQuantityLabel(value, singular, plural) {
+            return String(value) + " " + (value === 1 ? singular : plural);
+          }
+          function timerDisplayParts(remainingMillis) {
+            var totalSeconds = Math.max(0, Math.ceil(remainingMillis / 1000));
+            var primary;
+            var secondary;
+            var primarySingular;
+            var primaryPlural;
+            var secondarySingular;
+            var secondaryPlural;
+            var fullLabel;
+            var compactLabel;
+            if (totalSeconds >= 604800) {
+              primary = Math.floor(totalSeconds / 604800);
+              secondary = Math.floor((totalSeconds % 604800) / 86400);
+              primarySingular = "week";
+              primaryPlural = "weeks";
+              secondarySingular = "day";
+              secondaryPlural = "days";
+              fullLabel = "weeks + days";
+              compactLabel = "w + d";
+            } else if (totalSeconds >= 86400) {
+              primary = Math.floor(totalSeconds / 86400);
+              secondary = Math.floor((totalSeconds % 86400) / 3600);
+              primarySingular = "day";
+              primaryPlural = "days";
+              secondarySingular = "hour";
+              secondaryPlural = "hours";
+              fullLabel = "days + hours";
+              compactLabel = "d + h";
+            } else if (totalSeconds >= 3600) {
+              primary = Math.floor(totalSeconds / 3600);
+              secondary = Math.floor((totalSeconds % 3600) / 60);
+              primarySingular = "hour";
+              primaryPlural = "hours";
+              secondarySingular = "minute";
+              secondaryPlural = "minutes";
+              fullLabel = "hours + minutes";
+              compactLabel = "h + m";
+            } else {
+              primary = Math.floor(totalSeconds / 60);
+              secondary = totalSeconds % 60;
+              primarySingular = "minute";
+              primaryPlural = "minutes";
+              secondarySingular = "second";
+              secondaryPlural = "seconds";
+              fullLabel = "minutes + seconds";
+              compactLabel = "m + s";
+            }
+            return {
+              accessibleLabel:
+                  timerQuantityLabel(primary, primarySingular, primaryPlural)
+                  + " and "
+                  + timerQuantityLabel(secondary, secondarySingular, secondaryPlural),
+              compactLabel: compactLabel,
+              fullLabel: fullLabel,
+              value: String(primary) + ":" + zeroPadTimerUnit(secondary)
+            };
+          }
+          /* OCTANE_TIMER_DISPLAY_END */
           function timerTrackRemainingMillis(state, now) {
             if (!state.active && state.mode === "poll") {
               return 0;
             }
             var sampleTime = state.active ? now : state.updatedAt;
             var startedAt = state.endAt - state.totalMillis;
-            var trackTotalMillis = timerTrackTotalMillis(state);
-            return clamp(startedAt + trackTotalMillis - sampleTime, 0, trackTotalMillis);
+            if (state.mode === "timeout") {
+              return timeoutCountdownRemainingMillis(
+                  startedAt,
+                  state.totalMillis,
+                  state.extendedTotalMillis,
+                  sampleTime);
+            }
+            return clamp(
+                startedAt + state.totalMillis - sampleTime,
+                0,
+                state.totalMillis);
           }
           function timerColorProgress(state, now) {
             if (state.mode === "timeout") {
@@ -4693,18 +5044,23 @@
             }
             state.title.textContent = state.active ? "Testing Time Remaining" : "Testing Time";
           }
-          function fitTimerText(state, displayValue, displayUnit) {
+          function fitTimerText(state, displayValue, displayUnit, compactDisplayUnit) {
             if (!state.value || !state.unit) {
               return;
             }
             var valueLength = Math.max(1, displayValue.length);
             var unitLength = Math.max(1, displayUnit.length);
+            var compactUnitLength = Math.max(1, compactDisplayUnit.length);
             var valueSize = clamp(116 / (valueLength * 0.56), 23, 42);
             var unitSize = clamp(78 / (unitLength * 0.52), 10, 14.7);
+            var compactUnitSize = clamp(78 / (compactUnitLength * 0.52), 10, 14.7);
             var valueWeight = valueSize < 27 ? "600" : valueSize < 32 ? "650" : "700";
             state.value.style.fontSize = trimNumber(valueSize) + "px";
             state.value.style.fontWeight = valueWeight;
             state.unit.style.fontSize = trimNumber(unitSize) + "px";
+            if (state.unitCompact) {
+              state.unitCompact.style.fontSize = trimNumber(compactUnitSize) + "px";
+            }
           }
           function setTimerText(state, remaining) {
             if (!state.value || !state.unit) {
@@ -4712,36 +5068,25 @@
             }
             var displayValue;
             var displayUnit;
-            if (state.active && state.mode === "timeout" && state.extendedActive) {
-              var primaryMinutes = Math.ceil(state.totalMillis / 60000);
-              var extendedElapsed =
-                  testingTimeSpentMillis(state, currentWallTime()) - state.totalMillis;
-              var firstExtendedWindow = Math.min(
-                  60000,
-                  Math.max(1000, state.extendedTotalMillis || 60000));
-              if (extendedElapsed < firstExtendedWindow) {
-                var extendedSeconds =
-                    Math.max(1, Math.ceil((firstExtendedWindow - extendedElapsed) / 1000));
-                displayValue = String(primaryMinutes) + " + " + String(extendedSeconds);
-                displayUnit = "min + sec";
-              } else {
-                var extendedMinutes =
-                    Math.min(
-                        Math.floor(Math.max(0, extendedElapsed) / 60000),
-                        Math.ceil((state.extendedTotalMillis || 0) / 60000));
-                displayValue = String(primaryMinutes) + " + " + String(extendedMinutes);
-                displayUnit = "min + min";
+            var compactDisplayUnit;
+            if (state.mode === "timeout") {
+              var displayParts = timerDisplayParts(remaining);
+              displayValue = displayParts.value;
+              displayUnit = displayParts.fullLabel;
+              compactDisplayUnit = displayParts.compactLabel;
+              if (state.graphic) {
+                state.graphic.setAttribute(
+                    "aria-label",
+                    "Testing time remaining: " + displayParts.accessibleLabel);
               }
-            } else if (!state.active && state.mode === "timeout") {
-              var spentMinutes = Math.round(testingTimeSpentMillis(state, currentWallTime()) / 60000);
-              displayValue = String(spentMinutes);
-              displayUnit = displayValue === "1" ? "minute" : "minutes";
             } else if (remaining < 60000) {
               displayValue = String(Math.ceil(remaining / 1000));
               displayUnit = displayValue === "1" ? "second" : "seconds";
+              compactDisplayUnit = displayUnit;
             } else {
               displayValue = String(Math.ceil(remaining / 60000));
               displayUnit = displayValue === "1" ? "minute" : "minutes";
+              compactDisplayUnit = displayUnit;
             }
             if (displayValue !== state.lastDisplayedValue) {
               state.value.textContent = displayValue;
@@ -4751,7 +5096,13 @@
               state.unit.textContent = displayUnit;
               state.lastDisplayedUnit = displayUnit;
             }
-            fitTimerText(state, displayValue, displayUnit);
+            if (
+                state.unitCompact
+                && compactDisplayUnit !== state.lastDisplayedCompactUnit) {
+              state.unitCompact.textContent = compactDisplayUnit;
+              state.lastDisplayedCompactUnit = compactDisplayUnit;
+            }
+            fitTimerText(state, displayValue, displayUnit, compactDisplayUnit);
           }
           function updateTimer(state, now) {
             setTimeoutTitle(state);
@@ -4767,7 +5118,7 @@
                   remainingProgress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
             applyGradientStops(state.gradientStops, colors);
-            setTimerText(state, remaining);
+            setTimerText(state, state.mode === "timeout" ? trackRemaining : remaining);
           }
           var timers = [];
           var hasActiveTimer = false;
@@ -4838,6 +5189,7 @@
                 state.endAt = updatedAt + state.totalMillis;
                 state.card.setAttribute("data-total-seconds", String(refreshSeconds));
                 state.card.setAttribute("data-started-at", payload.updatedAt || "");
+                state.lastDisplayedCompactUnit = "";
                 state.lastDisplayedUnit = "";
                 state.lastDisplayedValue = "";
               } else if (state.mode === "timeout") {
@@ -4852,11 +5204,40 @@
                 state.card.setAttribute(
                     "data-extended-total-seconds", String(timeoutExtendedSeconds));
                 state.card.setAttribute("data-extended-active", String(state.extendedActive));
+                state.lastDisplayedCompactUnit = "";
                 state.lastDisplayedUnit = "";
                 state.lastDisplayedValue = "";
               }
               updateTimer(state, currentWallTime());
             }
+          }
+          function mountClientRenderedReport(reportZone, dataUrl, checksum, restoreState) {
+            if (!reportZone || !window.OctaneScaleReport) {
+              return Promise.resolve(false);
+            }
+            reportZone.setAttribute("data-client-rendered", "true");
+            reportZone.setAttribute("data-report-data-url", dataUrl || "data");
+            reportZone.setAttribute("data-report-checksum", checksum || "");
+            return window.OctaneScaleReport.mount(
+                reportZone, dataUrl || "data", checksum || "").then(function (rendered) {
+              decorateReportZone(reportZone);
+              decorateCardZones(reportZone);
+              if (restoreState && restoreState.expandedKey) {
+                var expandedReplacement = findCardByKey(restoreState.expandedKey);
+                if (expandedReplacement) {
+                  expandCard(expandedReplacement);
+                }
+              }
+              if (restoreState && restoreState.focusedKey) {
+                var focusedReplacement = findZoneByKey(restoreState.focusedKey);
+                if (focusedReplacement) {
+                  focusZone(focusedReplacement);
+                }
+              }
+              barPopupRefreshInProgress = false;
+              restoreBarPopupAfterRefresh(reportZone, restoreState && restoreState.popup);
+              return rendered;
+            });
           }
           function applySnapshot(payload) {
             currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
@@ -4882,15 +5263,37 @@
             updateTesterDetails(payload);
             runCompletionAutoFlips(payload);
             var reportZone = document.getElementById("octane-report-zone");
-            var updatedReportZone = htmlToElement(payload.reportZoneHtml);
-            decorateReportZone(updatedReportZone);
-            decorateCardZones(updatedReportZone);
             var expandedKey = expandedCard ? expandedCard.getAttribute("data-card-key") : "";
             var restoreReportExpansion =
                 expandedCard && reportZone && reportZone.contains(expandedCard);
             var focusedKey = focusedZone ? zoneKeyFor(focusedZone) : "";
             var restoreReportFocus = focusedZone && reportZone && focusedZone === reportZone;
             var popupRestoreState = captureBarPopupRestoreState();
+            var updatedReportZone = null;
+            if (reportZone && payload.reportZoneDeferred === true) {
+              barPopupRefreshInProgress = true;
+              if (restoreReportExpansion) {
+                removeExpandedState(expandedCard);
+                expandedCard = null;
+              }
+              if (restoreReportFocus) {
+                removeFocusedZone(focusedZone);
+                focusedZone = null;
+              }
+              mountClientRenderedReport(
+                  reportZone,
+                  payload.reportDataUrl || "data",
+                  payload.reportDataChecksum || "",
+                  {
+                    expandedKey: restoreReportExpansion ? expandedKey : "",
+                    focusedKey: restoreReportFocus ? focusedKey : "",
+                    popup: popupRestoreState
+                  });
+            } else {
+              updatedReportZone = htmlToElement(payload.reportZoneHtml);
+              decorateReportZone(updatedReportZone);
+              decorateCardZones(updatedReportZone);
+            }
             if (reportZone && updatedReportZone) {
               barPopupRefreshInProgress = true;
               if (restoreReportExpansion) {
@@ -4958,17 +5361,29 @@
               return;
             }
             liveRefresh.fetching = true;
+            var snapshotHeaders = {"Accept": "application/json"};
+            if (snapshotEtag) {
+              snapshotHeaders["If-None-Match"] = snapshotEtag;
+            }
             window.fetch(snapshotUrl, {
               cache: "no-store",
               credentials: "same-origin",
-              headers: {"Accept": "application/json"}
+              headers: snapshotHeaders
             }).then(function (response) {
+              if (response.status === 304) {
+                return null;
+              }
               if (!response.ok) {
                 throw new Error("Snapshot request failed: " + response.status);
               }
+              snapshotEtag = response.headers.get("ETag") || snapshotEtag;
               return response.json();
             }).then(function (payload) {
               liveRefresh.fetching = false;
+              if (!payload) {
+                scheduleSnapshotRetry();
+                return;
+              }
               if (isFreshSnapshot(payload)) {
                 applySnapshot(payload);
                 return;
@@ -5105,6 +5520,64 @@
           }
           function popupForColumn(column) {
             return column ? column.querySelector(".octane-bar-popup") : null;
+          }
+          function populateClientBarPopup(column) {
+            if (!barPopupOverlay || !column) {
+              return false;
+            }
+            barPopupOverlay.replaceChildren();
+            var name = document.createElement("div");
+            name.className = "octane-bar-popup-name";
+            name.textContent = column.getAttribute("data-bar-name") || "Tester";
+            barPopupOverlay.appendChild(name);
+            var metrics = [
+              statusMetricForColumn(column, "passed", "Passed"),
+              statusMetricForColumn(column, "failed", "Failed"),
+              statusMetricForColumn(column, "blocked", "Blocked"),
+              statusMetricForColumn(column, "skipped", "Skipped"),
+              statusMetricForColumn(column, "running", "Running")
+            ];
+            var total = Number(column.getAttribute("data-bar-total") || 0);
+            if (!Number.isFinite(total) || total <= 0) {
+              total = metrics.reduce(function (sum, metric) { return sum + metric.count; }, 0);
+            }
+            for (var index = 0; index < metrics.length; index += 1) {
+              var metric = metrics[index];
+              if (metric.count <= 0) {
+                continue;
+              }
+              var row = document.createElement("div");
+              row.className = "octane-bar-popup-row";
+              var swatch = document.createElement("span");
+              swatch.className = "octane-swatch";
+              swatch.style.background = metric.color;
+              var label = document.createElement("span");
+              label.className = "octane-bar-popup-label";
+              label.textContent = metric.label;
+              var value = document.createElement("span");
+              value.className = "octane-bar-popup-value";
+              value.textContent = String(metric.count);
+              var percent = document.createElement("span");
+              percent.className = "octane-bar-popup-percent";
+              percent.textContent = "(" + (total > 0 ? Math.round(metric.count * 100 / total) : 0)
+                  + "%)";
+              row.appendChild(swatch);
+              row.appendChild(label);
+              row.appendChild(value);
+              row.appendChild(percent);
+              barPopupOverlay.appendChild(row);
+            }
+            var totalRow = document.createElement("div");
+            totalRow.className = "octane-bar-popup-total";
+            var totalLabel = document.createElement("span");
+            totalLabel.textContent = "Total";
+            var totalValue = document.createElement("span");
+            totalValue.className = "octane-bar-popup-total-value";
+            totalValue.textContent = String(total);
+            totalRow.appendChild(totalLabel);
+            totalRow.appendChild(totalValue);
+            barPopupOverlay.appendChild(totalRow);
+            return true;
           }
           function cardKeyForColumn(column) {
             return column ? column.getAttribute("data-card-key") || "" : "";
@@ -5424,7 +5897,7 @@
           }
           function showBarPopup(column, point, input, restoring) {
             var source = popupForColumn(column);
-            if (!source || !barPopupOverlay) {
+            if (!barPopupOverlay || (!source && !column.hasAttribute("data-bar-name"))) {
               return;
             }
             var cardKey = cardKeyForColumn(column);
@@ -5442,7 +5915,11 @@
               positionBarPopup(barPopupOverlay, column, point, input);
               return;
             }
-            barPopupOverlay.innerHTML = source.innerHTML;
+            if (source) {
+              barPopupOverlay.innerHTML = source.innerHTML;
+            } else if (!populateClientBarPopup(column)) {
+              return;
+            }
             applyBarPopupDominantColor(column);
             if (restoring) {
               barPopupOverlay.classList.add("octane-bar-popup-restoring");
@@ -5946,7 +6423,8 @@
               return;
             }
             if (event.target.closest(
-                ".octane-expand-toggle, .octane-zone-focus-toggle, .octane-view-toggle")
+                ".octane-client-page-button, .octane-expand-toggle, "
+                + ".octane-zone-focus-toggle, .octane-view-toggle")
                 || card.classList.contains("octane-expanded")) {
               event.preventDefault();
               return;

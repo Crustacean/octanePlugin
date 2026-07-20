@@ -30,6 +30,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
+import java.io.Serializable;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -64,35 +65,98 @@ public class OctaneGateRunner {
   public GateResult run(
       GateRequest request, TaskListener listener, OctaneGateReportPublisher reportPublisher)
       throws IOException, InterruptedException {
-    validateRequest(request);
-    OctaneServer server = resolveServer(request.getServerId());
-    String sharedSpaceId = requiredWorkspaceValue("Shared space ID", request.getSharedSpaceId());
-    String workspaceId = requiredWorkspaceValue("Workspace ID", request.getWorkspaceId());
-    StandardUsernamePasswordCredentials credentials = resolveCredentials(server.getCredentialsId());
-
-    CriteriaExpression criteria = CriteriaExpression.parse(request.getCriteria());
-    StatusClassifier classifier = request.createStatusClassifier();
-    Instant primaryDeadline = clock.instant().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
-    Instant extendedDeadline =
-        primaryDeadline.plus(Duration.ofMinutes(request.getTimeoutMinutesExtended()));
-    boolean extendedTimeoutConfigured = request.getTimeoutMinutesExtended() > 0;
-    boolean extendedTimeActive = false;
-    List<String> suiteRunIds = regressionSuiteRunIdsForCriteria(request);
-    OctaneDefectLedger defectLedger = new OctaneDefectLedger();
-
-    logListener.logWaiting(listener, request, suiteRunIds);
-    reportPublisher.onWaiting(request, suiteRunIds);
-
-    try (OctaneClient client =
-        new OctaneClient(
-            server.getBaseUrl(),
-            credentials.getUsername(),
-            credentials.getPassword().getPlainText())) {
-      client.authenticate();
+    PollingState state = new PollingState(clock.instant());
+    try (PollingSession session = openSession(request, listener, reportPublisher, state)) {
       while (true) {
-        GateResult result =
-            poll(
+        PollOutcome outcome = session.pollOnce();
+        if (outcome.isComplete()) {
+          return outcome.getResult();
+        }
+        reportPublisher.awaitNextPollOrManualExit(outcome.getNextDelay());
+      }
+    }
+  }
+
+  public PollingSession openSession(
+      GateRequest request,
+      TaskListener listener,
+      OctaneGateReportPublisher reportPublisher,
+      PollingState state)
+      throws IOException, InterruptedException {
+    return new PollingSession(request, listener, reportPublisher, state);
+  }
+
+  public final class PollingSession implements AutoCloseable {
+    private final GateRequest request;
+    private final TaskListener listener;
+    private final OctaneGateReportPublisher reportPublisher;
+    private final PollingState state;
+    private final String sharedSpaceId;
+    private final String workspaceId;
+    private final CriteriaExpression criteria;
+    private final StatusClassifier classifier;
+    private final Instant primaryDeadline;
+    private final Instant extendedDeadline;
+    private final boolean extendedTimeoutConfigured;
+    private final List<String> suiteRunIds;
+    private final OctaneClient client;
+
+    private PollingSession(
+        GateRequest request,
+        TaskListener listener,
+        OctaneGateReportPublisher reportPublisher,
+        PollingState state)
+        throws IOException, InterruptedException {
+      validateRequest(request);
+      this.request = request;
+      this.listener = listener;
+      this.reportPublisher = reportPublisher;
+      this.state = state == null ? new PollingState(clock.instant()) : state;
+      OctaneServer server = resolveServer(request.getServerId());
+      sharedSpaceId = requiredWorkspaceValue("Shared space ID", request.getSharedSpaceId());
+      workspaceId = requiredWorkspaceValue("Workspace ID", request.getWorkspaceId());
+      StandardUsernamePasswordCredentials credentials =
+          resolveCredentials(server.getCredentialsId());
+      criteria = CriteriaExpression.parse(request.getCriteria());
+      classifier = request.createStatusClassifier();
+      primaryDeadline =
+          this.state.getStartedAt().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
+      extendedDeadline =
+          primaryDeadline.plus(Duration.ofMinutes(request.getTimeoutMinutesExtended()));
+      extendedTimeoutConfigured = request.getTimeoutMinutesExtended() > 0;
+      suiteRunIds = regressionSuiteRunIdsForCriteria(request);
+      if (!this.state.isWaitingPublished()) {
+        logListener.logWaiting(listener, request, suiteRunIds);
+        reportPublisher.onWaiting(request, suiteRunIds);
+        this.state.setWaitingPublished(true);
+      }
+      client =
+          new OctaneClient(
+              server.getBaseUrl(),
+              credentials.getUsername(),
+              credentials.getPassword().getPlainText());
+      client.authenticate();
+    }
+
+    public PollOutcome pollOnce() throws IOException, InterruptedException {
+      GateResult result =
+          poll(
+              client,
+              request,
+              suiteRunIds,
+              sharedSpaceId,
+              workspaceId,
+              criteria,
+              classifier,
+              listener,
+              state.getDefectLedger());
+      logListener.logPollResult(listener, result);
+      publishPollResult(reportPublisher, result, classifier, state.isExtendedTimeActive());
+      if (!extendedTimeoutConfigured && result.isPassed()) {
+        result =
+            refreshPassedResult(
                 client,
+                result,
                 request,
                 suiteRunIds,
                 sharedSpaceId,
@@ -100,60 +164,121 @@ public class OctaneGateRunner {
                 criteria,
                 classifier,
                 listener,
-                defectLedger);
-        logListener.logPollResult(listener, result);
-        publishPollResult(reportPublisher, result, classifier, extendedTimeActive);
-        if (!extendedTimeoutConfigured && result.isPassed()) {
-          result =
-              refreshPassedResult(
-                  client,
-                  result,
-                  request,
-                  suiteRunIds,
-                  sharedSpaceId,
-                  workspaceId,
-                  criteria,
-                  classifier,
-                  listener,
-                  reportPublisher,
-                  defectLedger);
-        }
-        if (!extendedTimeoutConfigured && result.isPassed()) {
-          return passGate(listener, reportPublisher, result, classifier);
-        }
-        if (!extendedTimeoutConfigured && result.isTerminal()) {
-          String message = "ALM Octane suite gate failed.";
-          reportPublisher.onFinal(failureState(request), message, result, classifier);
+                reportPublisher,
+                state.getDefectLedger());
+      }
+      if (!extendedTimeoutConfigured && result.isPassed()) {
+        return PollOutcome.complete(passGate(listener, reportPublisher, result, classifier));
+      }
+      if (!extendedTimeoutConfigured && result.isTerminal()) {
+        String message = "ALM Octane suite gate failed.";
+        reportPublisher.onFinal(failureState(request), message, result, classifier);
+        throw new GateFailedException(message, result);
+      }
+      Instant now = clock.instant();
+      if (!state.isExtendedTimeActive() && !now.isBefore(primaryDeadline)) {
+        if (!extendedTimeoutConfigured) {
+          String message = "Timed out waiting for ALM Octane suite gate.";
+          reportPublisher.onFinal(timeoutState(request), message, result, classifier);
           throw new GateFailedException(message, result);
         }
-        Instant now = clock.instant();
-        if (!extendedTimeActive && !now.isBefore(primaryDeadline)) {
-          if (!extendedTimeoutConfigured) {
-            String message = "Timed out waiting for ALM Octane suite gate.";
-            reportPublisher.onFinal(timeoutState(request), message, result, classifier);
-            throw new GateFailedException(message, result);
-          }
-          extendedTimeActive = true;
-          logListener.logExtendedTimeStarted(listener, request.getTimeoutMinutesExtended());
-          reportPublisher.onExtendedTime(result, classifier);
-        }
-        if (extendedTimeActive
-            && (reportPublisher.isManualExitRequested() || !now.isBefore(extendedDeadline))) {
-          return finishExtendedGate(
-              request,
-              listener,
-              reportPublisher,
-              result,
-              classifier,
-              reportPublisher.isManualExitRequested());
-        }
-        Duration waitDuration =
-            waitDuration(request, extendedTimeActive ? extendedDeadline : primaryDeadline);
-        if (waitDuration.isZero() || waitDuration.isNegative()) {
-          continue;
-        }
-        reportPublisher.awaitNextPollOrManualExit(waitDuration);
+        state.setExtendedTimeActive(true);
+        logListener.logExtendedTimeStarted(listener, request.getTimeoutMinutesExtended());
+        reportPublisher.onExtendedTime(result, classifier);
       }
+      if (state.isExtendedTimeActive()
+          && (reportPublisher.isManualExitRequested() || !now.isBefore(extendedDeadline))) {
+        return PollOutcome.complete(
+            finishExtendedGate(
+                request,
+                listener,
+                reportPublisher,
+                result,
+                classifier,
+                reportPublisher.isManualExitRequested()));
+      }
+      Duration delay =
+          waitDuration(request, state.isExtendedTimeActive() ? extendedDeadline : primaryDeadline);
+      return PollOutcome.continueAfter(delay);
+    }
+
+    @Override
+    public void close() throws IOException {
+      client.close();
+    }
+  }
+
+  public static final class PollingState implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private final Instant startedAt;
+    private final OctaneDefectLedger defectLedger = new OctaneDefectLedger();
+    private boolean extendedTimeActive;
+    private boolean waitingPublished;
+
+    public PollingState(Instant startedAt) {
+      this(startedAt, false);
+    }
+
+    public PollingState(Instant startedAt, boolean waitingPublished) {
+      this.startedAt = startedAt == null ? Instant.now() : startedAt;
+      this.waitingPublished = waitingPublished;
+    }
+
+    public Instant getStartedAt() {
+      return startedAt;
+    }
+
+    public OctaneDefectLedger getDefectLedger() {
+      return defectLedger;
+    }
+
+    public boolean isExtendedTimeActive() {
+      return extendedTimeActive;
+    }
+
+    private void setExtendedTimeActive(boolean extendedTimeActive) {
+      this.extendedTimeActive = extendedTimeActive;
+    }
+
+    public boolean isWaitingPublished() {
+      return waitingPublished;
+    }
+
+    private void setWaitingPublished(boolean waitingPublished) {
+      this.waitingPublished = waitingPublished;
+    }
+  }
+
+  public static final class PollOutcome {
+    private final GateResult result;
+    private final Duration nextDelay;
+    private final boolean complete;
+
+    private PollOutcome(GateResult result, Duration nextDelay, boolean complete) {
+      this.result = result;
+      this.nextDelay = nextDelay;
+      this.complete = complete;
+    }
+
+    private static PollOutcome complete(GateResult result) {
+      return new PollOutcome(result, Duration.ZERO, true);
+    }
+
+    private static PollOutcome continueAfter(Duration delay) {
+      return new PollOutcome(null, delay == null ? Duration.ZERO : delay, false);
+    }
+
+    public GateResult getResult() {
+      return result;
+    }
+
+    public Duration getNextDelay() {
+      return nextDelay;
+    }
+
+    public boolean isComplete() {
+      return complete;
     }
   }
 
@@ -519,11 +644,7 @@ public class OctaneGateRunner {
   private Map<String, List<RunRecord>> fetchSuiteChildRuns(
       OctaneClient client, String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
       throws IOException, InterruptedException {
-    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
-    for (String suiteRunId : suiteRunIds) {
-      suiteRuns.put(suiteRunId, client.fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunId));
-    }
-    return suiteRuns;
+    return client.fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunIds);
   }
 
   private List<RunRecord> flattenAndDedupeRuns(Map<String, List<RunRecord>> suiteRuns) {

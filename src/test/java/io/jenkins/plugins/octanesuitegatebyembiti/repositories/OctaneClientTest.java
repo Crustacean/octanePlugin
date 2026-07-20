@@ -14,8 +14,16 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,11 +31,16 @@ import org.junit.Test;
 public class OctaneClientTest {
   private HttpServer server;
   private String baseUrl;
+  private ExecutorService serverExecutor;
 
   @Before
   public void startServer() throws IOException {
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    serverExecutor = Executors.newCachedThreadPool();
+    server.setExecutor(serverExecutor);
     baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+    OctaneRequestCoordinator.resetForTests();
+    OctaneSuiteTopologyCache.resetForTests();
     server.start();
   }
 
@@ -35,6 +48,9 @@ public class OctaneClientTest {
   public void stopServer() {
     if (server != null) {
       server.stop(0);
+    }
+    if (serverExecutor != null) {
+      serverExecutor.shutdownNow();
     }
   }
 
@@ -290,6 +306,256 @@ public class OctaneClientTest {
       assertEquals("902", records.get(1).getId());
       assertTrue(records.get(1).isOpen());
     }
+  }
+
+  @Test
+  public void ignoresOnlyUnsupportedDefectRelationsAndKeepsSupportedResults() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/defects",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (query.contains("run EQ")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"901\",\"name\":\"linked defect\","
+                    + "\"severity\":{\"logical_name\":\"high\"},"
+                    + "\"phase\":{\"logical_name\":\"opened\"}}]}");
+          } else {
+            json(exchange, 400, "{\"error\":\"platform.unknown_field\"}");
+          }
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+    Map<String, List<RunRecord>> suiteRuns =
+        Map.of(
+            "suite-1",
+            List.of(new RunRecord("run-1", "child", "failed", "Tester", "test-1", "Test", "", "")));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<DefectRecord> defects = client.fetchLinkedDefects("1001", "2002", suiteRuns, "", 100);
+
+      assertEquals(1, defects.size());
+      assertEquals("901", defects.get(0).getId());
+    }
+  }
+
+  @Test
+  public void propagatesDefectQueryFailuresInsteadOfReturningPartialData() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/defects",
+        exchange -> json(exchange, 400, "{\"error\":\"query failed\"}"));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+    Map<String, List<RunRecord>> suiteRuns =
+        Map.of(
+            "suite-1",
+            List.of(new RunRecord("run-1", "child", "failed", "Tester", "test-1", "Test", "", "")));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      try {
+        client.fetchLinkedDefects("1001", "2002", suiteRuns, "", 100);
+      } catch (IOException e) {
+        assertTrue(e.getMessage().contains("HTTP 400"));
+        assertTrue(e.getMessage().contains("query failed"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected the failed defect query to fail the poll.");
+  }
+
+  @Test
+  public void bulkFetchesFiveHundredSuiteTopologiesWithBoundedFanoutAndCacheReuse()
+      throws Exception {
+    AtomicInteger topologyRequests = new AtomicInteger();
+    AtomicInteger childRequests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          List<String> ids = idsFromQuery(exchange);
+          boolean topology = !ids.isEmpty() && ids.get(0).startsWith("suite-");
+          if (topology) {
+            topologyRequests.incrementAndGet();
+          } else {
+            childRequests.incrementAndGet();
+          }
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < ids.size(); index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            String id = ids.get(index);
+            body.append("{\"id\":\"").append(id).append("\",\"name\":\"").append(id).append('"');
+            if (topology) {
+              body.append(",\"runs_in_suite\":[{\"id\":\"run-")
+                  .append(id.substring("suite-".length()))
+                  .append("\"}]");
+            } else {
+              body.append(",\"native_status\":{\"logical_name\":\"passed\"}");
+            }
+            body.append('}');
+          }
+          body.append("]}");
+          json(exchange, 200, body.toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+    List<String> suiteIds = new ArrayList<>();
+    for (int index = 0; index < 500; index++) {
+      suiteIds.add("suite-" + index);
+    }
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      Map<String, List<RunRecord>> first = client.fetchSuiteChildRuns("1001", "2002", suiteIds);
+      int topologyAfterFirstFetch = topologyRequests.get();
+      Map<String, List<RunRecord>> second = client.fetchSuiteChildRuns("1001", "2002", suiteIds);
+
+      assertEquals(500, first.size());
+      assertEquals("run-499", first.get("suite-499").get(0).getId());
+      assertEquals(500, second.size());
+      assertEquals(13, topologyAfterFirstFetch);
+      assertEquals(topologyAfterFirstFetch, topologyRequests.get());
+      assertEquals(26, childRequests.get());
+      assertTrue(topologyRequests.get() + childRequests.get() <= 39);
+      assertTrue(OctaneSuiteTopologyCache.metrics().hits() >= 500L);
+    }
+  }
+
+  @Test
+  public void cutsFiveHundredSuiteFiftyChildRunFanoutByMoreThanHalf() throws Exception {
+    AtomicInteger topologyRequests = new AtomicInteger();
+    AtomicInteger childRequests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          try {
+            Thread.sleep(2L);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          List<String> ids = idsFromQuery(exchange);
+          boolean topology = !ids.isEmpty() && ids.get(0).startsWith("suite-");
+          if (topology) {
+            topologyRequests.incrementAndGet();
+          } else {
+            childRequests.incrementAndGet();
+          }
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < ids.size(); index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            String id = ids.get(index);
+            body.append("{\"id\":\"").append(id).append("\",\"name\":\"").append(id).append('"');
+            if (topology) {
+              body.append(",\"runs_in_suite\":[");
+              for (int child = 0; child < 50; child++) {
+                if (child > 0) {
+                  body.append(',');
+                }
+                body.append("{\"id\":\"run-")
+                    .append(id.substring("suite-".length()))
+                    .append('-')
+                    .append(child)
+                    .append("\"}");
+              }
+              body.append(']');
+            } else {
+              body.append(",\"native_status\":{\"logical_name\":\"passed\"}");
+            }
+            body.append('}');
+          }
+          body.append("]}");
+          json(exchange, 200, body.toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+    List<String> suiteIds = new ArrayList<>();
+    for (int index = 0; index < 500; index++) {
+      suiteIds.add("suite-" + index);
+    }
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      Map<String, List<RunRecord>> runs = client.fetchSuiteChildRuns("1001", "2002", suiteIds);
+
+      assertEquals(500, runs.size());
+      assertEquals(50, runs.get("suite-499").size());
+      assertEquals(13, topologyRequests.get());
+      assertEquals(625, childRequests.get());
+      int legacySuiteAndChildRequests = 1_500;
+      int currentSuiteAndChildRequests = topologyRequests.get() + childRequests.get();
+      assertTrue(currentSuiteAndChildRequests * 2 < legacySuiteAndChildRequests);
+      System.out.printf(
+          "Octane request acceptance: suites=500 childRunsPerSuite=50 legacyRequests=%d "
+              + "currentRequests=%d%n",
+          legacySuiteAndChildRequests, currentSuiteAndChildRequests);
+    }
+  }
+
+  @Test
+  public void capsTwentyConcurrentRequestsAtEightPerServer() throws Exception {
+    AtomicInteger workspaceRequests = new AtomicInteger();
+    AtomicInteger signOutRequests = new AtomicInteger();
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          workspaceRequests.incrementAndGet();
+          try {
+            Thread.sleep(100L);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          json(exchange, 200, "{\"data\":[]}");
+        });
+    server.createContext(
+        "/authentication/sign_out",
+        exchange -> {
+          signOutRequests.incrementAndGet();
+          json(exchange, 200, "{}");
+        });
+    OctaneRequestCoordinator.resetForTests();
+    List<Future<Integer>> futures = new ArrayList<>();
+    try (ExecutorService clients = Executors.newFixedThreadPool(20)) {
+      for (int index = 0; index < 20; index++) {
+        futures.add(
+            clients.submit(
+                () -> {
+                  try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+                    return client.testWorkspaceAccess("1001", "2002");
+                  }
+                }));
+      }
+      for (Future<Integer> future : futures) {
+        assertEquals(200, future.get(10, TimeUnit.SECONDS).intValue());
+      }
+    }
+
+    OctaneRequestCoordinator.Metrics metrics = OctaneRequestCoordinator.metrics(baseUrl);
+    assertEquals(20, workspaceRequests.get());
+    assertEquals(20, signOutRequests.get());
+    assertEquals(40L, metrics.requests());
+    assertTrue(metrics.maximumInFlight() > 1);
+    assertTrue(metrics.maximumInFlight() <= OctaneRequestCoordinator.DEFAULT_MAX_IN_FLIGHT);
+    assertEquals(0, metrics.inFlight());
+    System.out.printf(
+        "Octane concurrency acceptance: requests=%d maxInFlight=%d%n",
+        metrics.requests(), metrics.maximumInFlight());
+  }
+
+  private List<String> idsFromQuery(HttpExchange exchange) {
+    String query =
+        URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+    Matcher matcher = Pattern.compile("id EQ ([^|;)\\\"]+)").matcher(query);
+    List<String> ids = new ArrayList<>();
+    while (matcher.find()) {
+      ids.add(matcher.group(1).trim());
+    }
+    return ids;
   }
 
   private void json(HttpExchange exchange, int status, String body) throws IOException {

@@ -24,6 +24,8 @@ import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreensho
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshotService;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -215,6 +217,10 @@ public class OctaneEmailReportStep extends Step {
     emailSender = new EmailExtensionOctaneReportSender();
   }
 
+  static void executeRequest(EmailRequest request, StepContext context) throws Exception {
+    new Execution(request, context).run();
+  }
+
   static String composeRecipients(String to, String cc, String bcc) {
     List<String> recipients = new ArrayList<>();
     addRecipients(recipients, "", to);
@@ -237,7 +243,7 @@ public class OctaneEmailReportStep extends Step {
     }
   }
 
-  private EmailRequest toRequest() {
+  EmailRequest toRequest() {
     return new EmailRequest(
         to,
         cc,
@@ -256,7 +262,7 @@ public class OctaneEmailReportStep extends Step {
         printDefectGroups);
   }
 
-  private static class EmailRequest implements Serializable {
+  static final class EmailRequest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final String to;
@@ -365,11 +371,12 @@ public class OctaneEmailReportStep extends Step {
         listener.getLogger().println("Octane report-zone screenshot archived successfully.");
       }
 
-      String subject = effectiveSubject(run, request.subject);
+      String remainingTime = remainingTime(action.getSnapshot(), Instant.now());
+      String subject = replaceRuntimeTokens(effectiveSubject(run, request.subject), remainingTime);
       String body =
           new OctaneEmailBodyRenderer()
               .render(
-                  request.body,
+                  replaceRuntimeTokens(request.body, remainingTime),
                   effectiveProjectName(run, request.projectName),
                   request.domainName,
                   action.getSnapshot(),
@@ -430,6 +437,51 @@ public class OctaneEmailReportStep extends Step {
 
     private String visibleRecipients(String recipients) {
       return recipients.replaceAll("bcc:[^,]+", "bcc:***");
+    }
+
+    private String replaceRuntimeTokens(String value, String remainingTime) {
+      return Util.trimToEmpty(value).replace("{{REMAINING_TIME}}", remainingTime);
+    }
+
+    private String remainingTime(
+        io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot snapshot,
+        Instant now) {
+      if (snapshot == null) {
+        return "remaining time unavailable";
+      }
+      try {
+        Instant startedAt = Instant.parse(snapshot.getStartedAt());
+        long totalSeconds =
+            (long) snapshot.getTimeoutSeconds() + snapshot.getTimeoutExtendedSeconds();
+        long elapsedSeconds = Math.max(0L, Duration.between(startedAt, now).getSeconds());
+        long remainingMinutes = (Math.max(0L, totalSeconds - elapsedSeconds) + 59L) / 60L;
+        return formatRemainingTime(remainingMinutes);
+      } catch (RuntimeException e) {
+        return "remaining time unavailable";
+      }
+    }
+
+    private String formatRemainingTime(long totalMinutes) {
+      long remainderMinutes = Math.max(0L, totalMinutes);
+      long weeks = remainderMinutes / 10_080L;
+      remainderMinutes %= 10_080L;
+      long days = remainderMinutes / 1_440L;
+      remainderMinutes %= 1_440L;
+      long hours = remainderMinutes / 60L;
+      long minutes = remainderMinutes % 60L;
+
+      List<String> parts = new ArrayList<>();
+      appendTimePart(parts, weeks, "week");
+      appendTimePart(parts, days, "day");
+      appendTimePart(parts, hours, "hour");
+      appendTimePart(parts, minutes, "minute");
+      return parts.isEmpty() ? "no time remaining" : String.join(" ", parts) + " remaining";
+    }
+
+    private void appendTimePart(List<String> parts, long value, String unit) {
+      if (value > 0L) {
+        parts.add(value + " " + unit + (value == 1L ? "" : "s"));
+      }
     }
 
     private void handleFailure(

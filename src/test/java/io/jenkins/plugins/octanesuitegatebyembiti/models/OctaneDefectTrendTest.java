@@ -59,6 +59,7 @@ public class OctaneDefectTrendTest {
 
     assertEquals("#ff6361", values.get("openedColor"));
     assertEquals("#7BE5B3", values.get("closedColor"));
+    assertEquals(2, values.get("raisedTotal"));
     assertEquals(2, values.get("openedTotal"));
     assertEquals(1, values.get("closedTotal"));
     List<?> points = (List<?>) values.get("points");
@@ -96,6 +97,54 @@ public class OctaneDefectTrendTest {
     assertEquals(0, bucket.getExecutedTests());
     assertEquals(3.0, bucket.getDensity(), 0.001);
     assertTrue(bucket.isZeroTestSpike());
+  }
+
+  @Test
+  public void keepsDensityBasedOnCumulativeRaisedDefectsWhenOpenDefectsClose() {
+    OctaneDefectTrend trend =
+        OctaneDefectTrend.start(STARTED_AT, 60_000L)
+            .append(15_000L, 80, 0, 100)
+            .append(30_000L, 120, 60, 150);
+
+    List<OctaneDefectTrend.DensityBucket> buckets = trend.getDensityBuckets();
+
+    assertEquals(80, buckets.get(0).getNewDefects());
+    assertEquals(100, buckets.get(0).getExecutedTests());
+    assertEquals(0.8, buckets.get(0).getDensity(), 0.001);
+    assertEquals(40, buckets.get(1).getNewDefects());
+    assertEquals(50, buckets.get(1).getExecutedTests());
+    assertEquals(0.8, buckets.get(1).getDensity(), 0.001);
+    assertEquals(120, trend.getRaisedTotal());
+    assertEquals(60, trend.getClosedTotal());
+  }
+
+  @Test
+  public void scalesDensityDataToThreeThousandDefectsWithoutOverflow() {
+    OctaneDefectTrend trend =
+        OctaneDefectTrend.start(STARTED_AT, 60_000L)
+            .append(15_000L, 1000, 0, 0)
+            .append(30_000L, 3000, 0, 0);
+
+    List<OctaneDefectTrend.DensityBucket> buckets = trend.getDensityBuckets();
+
+    assertEquals(1000.0, buckets.get(0).getDensity(), 0.001);
+    assertEquals(2000.0, buckets.get(1).getDensity(), 0.001);
+    assertTrue(buckets.get(0).isZeroTestSpike());
+    assertTrue(buckets.get(1).isZeroTestSpike());
+    assertEquals(3000, trend.getRaisedTotal());
+  }
+
+  @Test
+  public void returnsZeroDensityForAWindowWithoutDefects() {
+    OctaneDefectTrend trend =
+        OctaneDefectTrend.start(STARTED_AT, 60_000L).append(15_000L, 0, 0, 25);
+
+    OctaneDefectTrend.DensityBucket bucket = trend.getDensityBuckets().get(0);
+
+    assertEquals(0, bucket.getNewDefects());
+    assertEquals(25, bucket.getExecutedTests());
+    assertEquals(0.0, bucket.getDensity(), 0.001);
+    assertFalse(bucket.isZeroTestSpike());
   }
 
   @Test

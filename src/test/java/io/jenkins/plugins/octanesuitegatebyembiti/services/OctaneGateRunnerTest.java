@@ -228,6 +228,12 @@ public class OctaneGateRunnerTest {
         String sharedSpaceId, String workspaceId, String suiteRunId) {
       return runs;
     }
+
+    @Override
+    public Map<String, List<RunRecord>> fetchSuiteChildRuns(
+        String sharedSpaceId, String workspaceId, List<String> suiteRunIds) {
+      return suiteRunIds.stream().collect(java.util.stream.Collectors.toMap(id -> id, id -> runs));
+    }
   }
 
   private static class FailingOctaneClient extends OctaneClient {
@@ -238,6 +244,12 @@ public class OctaneGateRunnerTest {
     @Override
     public List<RunRecord> fetchSuiteChildRuns(
         String sharedSpaceId, String workspaceId, String suiteRunId) throws IOException {
+      throw new IOException("Octane not ready");
+    }
+
+    @Override
+    public Map<String, List<RunRecord>> fetchSuiteChildRuns(
+        String sharedSpaceId, String workspaceId, List<String> suiteRunIds) throws IOException {
       throw new IOException("Octane not ready");
     }
   }
