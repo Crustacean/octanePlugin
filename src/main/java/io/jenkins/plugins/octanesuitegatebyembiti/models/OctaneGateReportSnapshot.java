@@ -570,7 +570,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public String getTestingTimeTitle() {
-    return isBuilding() ? "Testing Time Remaining" : "Testing Time";
+    return "Testing Session Monitor";
   }
 
   public long getTestingTimeSpentMinutes() {

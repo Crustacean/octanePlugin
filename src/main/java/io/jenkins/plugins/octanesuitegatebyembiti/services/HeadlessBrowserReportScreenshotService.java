@@ -11,6 +11,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapsho
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 public class HeadlessBrowserReportScreenshotService implements OctaneReportScreenshotService {
   public static final String REPORT_EMAIL_DIR = ".octane-suite-gate/report-email";
-  public static final String SCREENSHOT_FILE_NAME = "octane-report-zone.png";
+  public static final String SCREENSHOT_FILE_NAME = "octane-report-zone.webp";
   public static final String HTML_FILE_NAME = "octane-report-zone.html";
   public static final String ATTACHMENT_PATTERN = REPORT_EMAIL_DIR + "/" + SCREENSHOT_FILE_NAME;
   static final int BROWSER_PROBE_TIMEOUT_SECONDS = 15;
@@ -101,6 +102,10 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     }
     if (!screenshotFile.exists() || screenshotFile.length() == 0) {
       throw new AbortException("Headless browser did not create " + SCREENSHOT_FILE_NAME + ".");
+    }
+    if (!hasWebpSignature(screenshotFile)) {
+      throw new AbortException(
+          "Headless browser did not encode " + SCREENSHOT_FILE_NAME + " as WebP.");
     }
     listener.getLogger().println("Octane report-zone screenshot captured successfully.");
     return new OctaneReportScreenshot(htmlFile, screenshotFile, ATTACHMENT_PATTERN);
@@ -195,10 +200,26 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     command.add("--no-default-browser-check");
     command.add("--user-data-dir=" + profileDirectory);
     command.add("--virtual-time-budget=3000");
+    command.add("--force-device-scale-factor=2");
     command.add("--window-size=" + width + "," + height);
     command.add("--screenshot=" + screenshotPath);
     command.add(reportUrl);
     return command;
+  }
+
+  boolean hasWebpSignature(FilePath screenshotFile) throws IOException, InterruptedException {
+    try (InputStream input = screenshotFile.read()) {
+      byte[] header = input.readNBytes(12);
+      return header.length == 12
+          && header[0] == 'R'
+          && header[1] == 'I'
+          && header[2] == 'F'
+          && header[3] == 'F'
+          && header[8] == 'W'
+          && header[9] == 'E'
+          && header[10] == 'B'
+          && header[11] == 'P';
+    }
   }
 
   private BrowserProbeResult probeBrowser(

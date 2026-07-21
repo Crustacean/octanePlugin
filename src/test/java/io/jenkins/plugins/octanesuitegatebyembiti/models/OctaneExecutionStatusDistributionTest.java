@@ -35,10 +35,23 @@ public class OctaneExecutionStatusDistributionTest {
             "var(--octane-status-blocked)",
             "var(--octane-status-skipped)"),
         colors(distribution.getSegments()));
-    assertEquals("40.0%", distribution.getSegments().get(0).getPercentageLabel());
+    assertEquals("40.00%", distribution.getSegments().get(0).getPercentageLabel());
     assertTrue(
         distribution.getSegments().stream()
             .allMatch(segment -> segment.getPath().startsWith("M ")));
+  }
+
+  @Test
+  public void preservesTwoDecimalPlacesForSubUnitPercentages() {
+    OctaneExecutionStatusDistribution distribution =
+        OctaneExecutionStatusDistribution.fromStatusCounts(
+            List.of(
+                status(OctaneGateStatusBucket.PASSED, 1, 2000),
+                status(OctaneGateStatusBucket.RUNNING, 1999, 2000)));
+
+    assertEquals("0.05%", distribution.getSegments().get(1).getPercentageLabel());
+    assertEquals("99.95%", distribution.getSegments().get(0).getPercentageLabel());
+    assertEquals("0.05%", status(OctaneGateStatusBucket.PASSED, 1, 2000).getPercentageLabel());
   }
 
   @Test

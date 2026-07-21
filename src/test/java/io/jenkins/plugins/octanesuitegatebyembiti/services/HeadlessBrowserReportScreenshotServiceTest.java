@@ -5,6 +5,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import org.junit.Test;
 
@@ -24,9 +26,9 @@ public class HeadlessBrowserReportScreenshotServiceTest {
   @Test
   public void exposesStableWorkspacePaths() {
     assertEquals(
-        ".octane-suite-gate/report-email/octane-report-zone.png",
+        ".octane-suite-gate/report-email/octane-report-zone.webp",
         HeadlessBrowserReportScreenshotService.ATTACHMENT_PATTERN);
-    assertTrue(HeadlessBrowserReportScreenshotService.ATTACHMENT_PATTERN.endsWith(".png"));
+    assertTrue(HeadlessBrowserReportScreenshotService.ATTACHMENT_PATTERN.endsWith(".webp"));
   }
 
   @Test
@@ -52,16 +54,34 @@ public class HeadlessBrowserReportScreenshotServiceTest {
         service.screenshotCommand(
             "chrome.exe",
             "C:\\jenkins\\chrome-profile",
-            "C:\\jenkins\\report.png",
+            "C:\\jenkins\\report.webp",
             "file:///C:/jenkins/report.html",
             1400,
             800);
 
     assertTrue(command.contains("--user-data-dir=C:\\jenkins\\chrome-profile"));
     assertTrue(command.contains("--virtual-time-budget=3000"));
+    assertTrue(command.contains("--force-device-scale-factor=2"));
     assertTrue(command.contains("--window-size=1400,800"));
-    assertTrue(command.contains("--screenshot=C:\\jenkins\\report.png"));
+    assertTrue(command.contains("--screenshot=C:\\jenkins\\report.webp"));
     assertTrue(HeadlessBrowserReportScreenshotService.SCREENSHOT_TIMEOUT_SECONDS > 0);
+  }
+
+  @Test
+  public void validatesWebpFileSignature() throws Exception {
+    HeadlessBrowserReportScreenshotService service = new HeadlessBrowserReportScreenshotService();
+    Path webp = Files.createTempFile("octane-report", ".webp");
+    Path png = Files.createTempFile("octane-report", ".png");
+    try {
+      Files.write(webp, new byte[] {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'});
+      Files.write(png, new byte[] {(byte) 0x89, 'P', 'N', 'G'});
+
+      assertTrue(service.hasWebpSignature(new hudson.FilePath(webp.toFile())));
+      assertFalse(service.hasWebpSignature(new hudson.FilePath(png.toFile())));
+    } finally {
+      Files.deleteIfExists(webp);
+      Files.deleteIfExists(png);
+    }
   }
 
   @Test

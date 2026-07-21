@@ -111,7 +111,7 @@ public class OctaneGateReportActionTest {
     assertFalse(text.contains("Last update (EAT)"));
     assertTrue(text.contains("REGRESSION Tests Status Distribution"));
     assertTrue(text.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
-    assertTrue(text.contains("Testing Time"));
+    assertTrue(text.contains("Testing Session Monitor"));
     assertFalse(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Test Metrics"));
     assertTrue(text.contains("Current Job Analytics"));
@@ -120,7 +120,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Execution Completion"));
     assertTrue(text.contains("Open Defects"));
     assertTrue(text.contains("Status Check"));
-    assertTrue(text.contains("Testing Session Timer"));
+    assertTrue(text.contains("Session Time Remaining"));
     assertTrue(text.contains("Execution Progress"));
     assertTrue(text.contains("All Testcase execution"));
     assertTrue(text.contains("All Testcase Status"));
@@ -194,7 +194,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("overflow: visible"));
     assertTrue(xml.contains("<path d=") || xml.contains("r=\"46\" fill="));
     assertTrue(xml.contains("r=\"30\""));
-    assertTrue(xml.contains(">50%</text>"));
+    assertTrue(xml.contains(">50.00%</text>"));
     assertTrue(xml.contains("border-radius: 14px"));
     assertFalse(xml.contains("border-radius: 6px"));
     assertTrue(xml.contains("contain: layout style paint"));
@@ -446,10 +446,13 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-execution-half-pie-total\" x=\"160\" y=\"146\""));
     assertTrue(xml.contains("octane-execution-half-pie-label\" x=\"160\" y=\"172\""));
     assertTrue(xml.contains("stroke-width: 24"));
-    assertTrue(xml.contains("width: min(92cqw, var(--octane-execution-height-width), 80rem)"));
-    assertTrue(xml.contains("--octane-execution-height-width: 172cqh"));
-    assertTrue(xml.contains("--octane-execution-height-width: 132cqh"));
-    assertTrue(xml.contains("font-size: clamp(0.7rem, 1.8cqw, 1.3rem)"));
+    assertTrue(xml.contains("width: min(92cqw, var(--octane-execution-content-width), 80rem)"));
+    assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) auto"));
+    assertTrue(xml.contains("function fitExecutionBreakdown"));
+    assertTrue(xml.contains("function executionBreakdownDimensions"));
+    assertTrue(xml.contains("OCTANE_EXECUTION_BREAKDOWN_MATH_START"));
+    assertTrue(xml.contains("new window.ResizeObserver(scheduleExecutionBreakdownScaling)"));
+    assertTrue(xml.contains("font-size: clamp(0.62rem, min(1.8cqw, 2.4cqh), 1.3rem)"));
     assertTrue(xml.contains("font-size: clamp(1rem, 2cqw, 1.5rem)"));
     assertTrue(xml.contains("octane-flip-face-metrics"));
     assertTrue(xml.contains("data-test-metrics-panel=\"true\""));
@@ -731,7 +734,8 @@ public class OctaneGateReportActionTest {
     assertTrue(
         xml.contains(
             "setTimerText(state, state.mode === \"timeout\" ? trackRemaining : remaining)"));
-    assertTrue(xml.contains("Testing Time Remaining"));
+    assertTrue(xml.contains("Testing Session Monitor"));
+    assertTrue(xml.contains("Session Time Remaining"));
     assertTrue(xml.contains("stroke-width: 1"));
     assertTrue(xml.contains("stroke-width: 16"));
     assertTrue(xml.contains("opacity: 1"));

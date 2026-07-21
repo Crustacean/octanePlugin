@@ -152,7 +152,7 @@ public class OctaneExecutionStatusDistribution implements Serializable {
     }
 
     public String getPercentageLabel() {
-      return String.format(Locale.ROOT, "%.1f%%", percentage);
+      return String.format(Locale.ROOT, "%.2f%%", percentage);
     }
 
     public String getPath() {

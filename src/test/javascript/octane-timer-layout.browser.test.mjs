@@ -140,7 +140,7 @@ function timerCard(index, title) {
 
 function fixtureHtml() {
   const cards = [
-    "Testing Time Remaining",
+    "Testing Session Monitor",
     "Status Check",
     "Execution Progress",
     "Execution Pass Rate"

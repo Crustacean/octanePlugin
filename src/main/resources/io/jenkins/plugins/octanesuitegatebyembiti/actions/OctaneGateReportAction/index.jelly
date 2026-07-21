@@ -551,33 +551,24 @@
           width: 100%;
         }
         .octane-execution-breakdown-content {
-          --octane-execution-height-width: 132cqh;
+          --octane-execution-chart-height: 50%;
+          --octane-execution-content-width: 80rem;
           align-items: center;
           container-type: inline-size;
           display: grid;
-          gap: clamp(0.35rem, min(1.4cqh, 1.2cqw), 0.9rem);
+          gap: clamp(0.18rem, min(1cqh, 1cqw), 0.7rem);
           grid-template-columns: minmax(0, 1fr);
-          grid-template-rows: auto auto;
+          grid-template-rows: minmax(0, 1fr) auto;
+          height: 100%;
           justify-items: center;
           max-height: 100%;
           max-width: 100%;
-          width: min(92cqw, var(--octane-execution-height-width), 80rem);
-        }
-        .octane-execution-breakdown-content[data-status-count="1"] {
-          --octane-execution-height-width: 172cqh;
-        }
-        .octane-execution-breakdown-content[data-status-count="2"] {
-          --octane-execution-height-width: 160cqh;
-        }
-        .octane-execution-breakdown-content[data-status-count="3"] {
-          --octane-execution-height-width: 150cqh;
-        }
-        .octane-execution-breakdown-content[data-status-count="4"] {
-          --octane-execution-height-width: 141cqh;
+          width: min(92cqw, var(--octane-execution-content-width), 80rem);
         }
         .octane-execution-half-pie-wrap {
           align-items: center;
           display: flex;
+          height: var(--octane-execution-chart-height);
           justify-content: center;
           min-height: 0;
           min-width: 0;
@@ -586,12 +577,12 @@
         .octane-execution-half-pie {
           aspect-ratio: 2 / 1;
           display: block;
-          height: auto;
+          height: 100%;
           max-height: 100%;
           max-width: 100%;
           overflow: visible;
           shape-rendering: geometricPrecision;
-          width: 100%;
+          width: auto;
         }
         .octane-chart-card[data-card-key="progress-execution"].octane-expanded
           .octane-card-title,
@@ -630,7 +621,7 @@
         .octane-execution-breakdown-list {
           box-sizing: border-box;
           display: grid;
-          gap: clamp(0.18rem, 0.72cqw, 0.55rem);
+          gap: clamp(0.12rem, min(0.72cqw, 0.8cqh), 0.55rem);
           max-width: 100%;
           min-width: 0;
           padding-inline: clamp(0.35rem, 4cqw, 3rem);
@@ -641,7 +632,7 @@
           color: var(--text-color);
           display: grid;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
-          font-size: clamp(0.7rem, 1.8cqw, 1.3rem);
+          font-size: clamp(0.62rem, min(1.8cqw, 2.4cqh), 1.3rem);
           font-weight: 600;
           gap: clamp(0.4rem, 1cqw, 0.75rem);
           grid-template-columns: clamp(0.55rem, 1.15cqw, 0.9rem) minmax(0, 1fr) max-content;
@@ -2374,7 +2365,7 @@
                       <h2 class="octane-card-title" data-timeout-title="true">
                         ${snapshot.testingTimeTitle}
                       </h2>
-                      <div class="octane-muted">Testing Session Timer</div>
+                      <div class="octane-muted">Session Time Remaining</div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
@@ -3873,6 +3864,88 @@
             var panel = dashboard.querySelector("[data-execution-breakdown-panel]");
             if (panel) {
               panel.innerHTML = payload.executionStatusDistributionHtml;
+              initializeExecutionBreakdownScaling(panel);
+            }
+          }
+          var executionBreakdownResizeObserver = null;
+          var executionBreakdownResizeScheduled = false;
+          var executionBreakdownResizeFallbackBound = false;
+          var executionBreakdownRoots = [];
+          /* OCTANE_EXECUTION_BREAKDOWN_MATH_START */
+          function executionBreakdownDimensions(
+              availableHeight, availableWidth, listHeight, gap) {
+            var chartHeight = Math.max(
+                0, Math.floor(availableHeight - listHeight - gap));
+            return {
+              chartHeight: chartHeight,
+              contentWidth: Math.max(
+                  0, Math.min(availableWidth * 0.92, chartHeight * 2, 1280))
+            };
+          }
+          /* OCTANE_EXECUTION_BREAKDOWN_MATH_END */
+          function fitExecutionBreakdown(root) {
+            var breakdown = root.querySelector
+                ? root.querySelector(".octane-execution-breakdown")
+                : null;
+            var content = breakdown
+                ? breakdown.querySelector(".octane-execution-breakdown-content")
+                : null;
+            var list = content
+                ? content.querySelector(".octane-execution-breakdown-list")
+                : null;
+            if (!breakdown || !content || !list) {
+              return;
+            }
+            var availableHeight = Math.max(0, breakdown.clientHeight);
+            var availableWidth = Math.max(0, breakdown.clientWidth);
+            if (availableHeight <= 0 || availableWidth <= 0) {
+              return;
+            }
+            var contentStyle = window.getComputedStyle(content);
+            var gap = parseFloat(contentStyle.rowGap || contentStyle.gap || "0") || 0;
+            var listHeight = Math.ceil(list.scrollHeight);
+            var dimensions = executionBreakdownDimensions(
+                availableHeight, availableWidth, listHeight, gap);
+            content.style.setProperty(
+                "--octane-execution-chart-height", dimensions.chartHeight + "px");
+            content.style.setProperty(
+                "--octane-execution-content-width", dimensions.contentWidth + "px");
+          }
+          function fitAllExecutionBreakdowns() {
+            executionBreakdownResizeScheduled = false;
+            for (var index = 0; index < executionBreakdownRoots.length; index += 1) {
+              fitExecutionBreakdown(executionBreakdownRoots[index]);
+            }
+          }
+          function scheduleExecutionBreakdownScaling() {
+            if (executionBreakdownResizeScheduled) {
+              return;
+            }
+            executionBreakdownResizeScheduled = true;
+            requestFrame(fitAllExecutionBreakdowns);
+          }
+          function initializeExecutionBreakdownScaling(root) {
+            if (executionBreakdownResizeObserver) {
+              executionBreakdownResizeObserver.disconnect();
+              executionBreakdownResizeObserver = null;
+            }
+            executionBreakdownRoots = root && root.querySelectorAll
+                ? Array.prototype.slice.call(
+                    root.querySelectorAll("[data-execution-breakdown-panel]"))
+                : [];
+            if (root && root.matches && root.matches("[data-execution-breakdown-panel]")) {
+              executionBreakdownRoots.unshift(root);
+            }
+            scheduleExecutionBreakdownScaling();
+            if (typeof window.ResizeObserver === "function") {
+              executionBreakdownResizeObserver =
+                  new window.ResizeObserver(scheduleExecutionBreakdownScaling);
+              for (var index = 0; index < executionBreakdownRoots.length; index += 1) {
+                executionBreakdownResizeObserver.observe(executionBreakdownRoots[index]);
+              }
+            } else if (!executionBreakdownResizeFallbackBound) {
+              executionBreakdownResizeFallbackBound = true;
+              window.addEventListener("resize", scheduleExecutionBreakdownScaling);
             }
           }
           var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -4876,6 +4949,7 @@
                 null);
           }
           initializeCardViews(dashboard);
+          initializeExecutionBreakdownScaling(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
           scheduleDefectTrendAnimation();
@@ -5042,7 +5116,7 @@
             if (state.mode !== "timeout" || !state.title) {
               return;
             }
-            state.title.textContent = state.active ? "Testing Time Remaining" : "Testing Time";
+            state.title.textContent = "Testing Session Monitor";
           }
           function fitTimerText(state, displayValue, displayUnit, compactDisplayUnit) {
             if (!state.value || !state.unit) {
@@ -5322,6 +5396,7 @@
                 }
               }
               initializeFluidBarCharts(updatedReportZone);
+              initializeExecutionBreakdownScaling(dashboard);
               requestFrame(function () {
                 barPopupRefreshInProgress = false;
                 restoreBarPopupAfterRefresh(updatedReportZone, popupRestoreState);
@@ -6151,6 +6226,7 @@
             card.setAttribute("draggable", "true");
             setExpandButtonState(card, false);
             scheduleFluidBarCharts();
+            scheduleExecutionBreakdownScaling();
           }
           function findCardByKey(key) {
             if (!key) {
@@ -6206,6 +6282,7 @@
             restoreZoneFocusButton(zone);
             setZoneButtonState(zone, false);
             scheduleFluidBarCharts();
+            scheduleExecutionBreakdownScaling();
           }
           function findZoneByKey(key) {
             if (!key) {
