@@ -13,6 +13,9 @@ import java.util.Set;
 
 public class CriteriaExpression implements Serializable {
   private static final long serialVersionUID = 1L;
+  static final int MAX_EXPRESSION_LENGTH = 8_192;
+  static final int MAX_TOKENS = 1_024;
+  static final int MAX_NESTING_DEPTH = 64;
 
   private final Node root;
   private final Set<String> metricReferences;
@@ -66,6 +69,10 @@ public class CriteriaExpression implements Serializable {
     if (value.isEmpty()) {
       throw new CriteriaException("Criteria expression is required.");
     }
+    if (value.length() > MAX_EXPRESSION_LENGTH) {
+      throw new CriteriaException(
+          "Criteria expression exceeds the " + MAX_EXPRESSION_LENGTH + " character limit.");
+    }
 
     List<Token> tokens = new ArrayList<>();
     int index = 0;
@@ -118,6 +125,10 @@ public class CriteriaExpression implements Serializable {
         }
       } else {
         throw new CriteriaException("Unexpected character in criteria: " + character);
+      }
+      if (tokens.size() > MAX_TOKENS) {
+        throw new CriteriaException(
+            "Criteria expression exceeds the " + MAX_TOKENS + " token limit.");
       }
     }
     tokens.add(new Token(TokenType.END, "", 0.0));
@@ -230,6 +241,7 @@ public class CriteriaExpression implements Serializable {
   private static class Parser {
     private final List<Token> tokens;
     private int position;
+    private int nestingDepth;
 
     Parser(List<Token> tokens) {
       this.tokens = tokens;
@@ -256,9 +268,18 @@ public class CriteriaExpression implements Serializable {
     private Node parseFactor() {
       if (peek().type == TokenType.LEFT_PAREN) {
         advance();
-        Node node = parseExpression();
-        expect(TokenType.RIGHT_PAREN);
-        return node;
+        nestingDepth++;
+        if (nestingDepth > MAX_NESTING_DEPTH) {
+          throw new CriteriaException(
+              "Criteria expression exceeds the " + MAX_NESTING_DEPTH + " level nesting limit.");
+        }
+        try {
+          Node node = parseExpression();
+          expect(TokenType.RIGHT_PAREN);
+          return node;
+        } finally {
+          nestingDepth--;
+        }
       }
       return parseComparison();
     }

@@ -11,6 +11,7 @@ import java.util.Map;
 
 public class GateResult implements Serializable {
   private static final long serialVersionUID = 1L;
+  static final int PIPELINE_DETAIL_LIMIT = 10_000;
 
   private final String suiteRunId;
   private final String criteria;
@@ -223,14 +224,20 @@ public class GateResult implements Serializable {
 
     Map<String, Object> scopes = new LinkedHashMap<>();
     Map<String, Object> scopeDetails = new LinkedHashMap<>();
+    int perScopeDetailLimit =
+        scopedResults.isEmpty() ? 0 : Math.max(1, PIPELINE_DETAIL_LIMIT / scopedResults.size());
     for (Map.Entry<String, GateScopeResult> entry : scopedResults.entrySet()) {
       scopes.put(entry.getKey(), entry.getValue().getMetrics().toMap());
-      scopeDetails.put(entry.getKey(), entry.getValue().toMap());
+      scopeDetails.put(entry.getKey(), entry.getValue().toMap(perScopeDetailLimit));
     }
     result.put("scopes", scopes);
     result.put("scopeDetails", scopeDetails);
-    result.put("runs", toRunMaps(runs));
-    result.put("suiteRuns", toSuiteRunMaps(suiteRuns));
+    result.put("runCount", runs.size());
+    result.put("suiteRunCount", suiteRuns.size());
+    result.put("detailsTruncated", runs.size() > PIPELINE_DETAIL_LIMIT);
+    result.put("runs", toRunMaps(runs, PIPELINE_DETAIL_LIMIT));
+    result.put(
+        "suiteRuns", runs.size() > PIPELINE_DETAIL_LIMIT ? Map.of() : toSuiteRunMaps(suiteRuns));
     result.put("riskHeatMap", riskHeatMap.toMap());
     result.put("defects", getDefectMetrics().toMap());
     result.put("criteriaEvaluation", getCriteriaEvaluation().toMap());
@@ -258,9 +265,14 @@ public class GateResult implements Serializable {
   }
 
   private static List<Map<String, Object>> toRunMaps(List<RunRecord> runs) {
+    return toRunMaps(runs, Integer.MAX_VALUE);
+  }
+
+  private static List<Map<String, Object>> toRunMaps(List<RunRecord> runs, int limit) {
     List<Map<String, Object>> runMaps = new ArrayList<>();
-    for (RunRecord run : runs) {
-      runMaps.add(run.toMap());
+    int end = Math.min(runs.size(), Math.max(0, limit));
+    for (int index = 0; index < end; index++) {
+      runMaps.add(runs.get(index).toMap());
     }
     return runMaps;
   }

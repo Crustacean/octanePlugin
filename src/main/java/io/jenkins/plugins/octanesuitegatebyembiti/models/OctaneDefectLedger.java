@@ -11,6 +11,7 @@ import java.util.Map;
 
 public class OctaneDefectLedger implements Serializable {
   private static final long serialVersionUID = 1L;
+  public static final int MAXIMUM_DEFECTS = GateRequest.MAX_RISK_HEAT_MAP_DEFECTS;
   private final Map<String, DefectRecord> defectsById = new LinkedHashMap<>();
 
   public void merge(Collection<DefectRecord> defects) {
@@ -21,12 +22,18 @@ public class OctaneDefectLedger implements Serializable {
       if (defect == null || Util.isBlank(defect.getId())) {
         continue;
       }
-      defectsById.put(defect.getId(), defect);
+      if (defectsById.containsKey(defect.getId()) || defectsById.size() < MAXIMUM_DEFECTS) {
+        defectsById.put(defect.getId(), defect);
+      }
     }
   }
 
   public boolean isEmpty() {
     return defectsById.isEmpty();
+  }
+
+  public boolean isAtCapacity() {
+    return defectsById.size() >= MAXIMUM_DEFECTS;
   }
 
   public List<String> getDefectIds() {

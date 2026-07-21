@@ -42,9 +42,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import jenkins.model.Jenkins;
 
 public class OctaneGateRunner {
+  private static final Pattern OCTANE_NUMERIC_ID = Pattern.compile("[0-9]{1,18}");
+  private static final int MAX_SCOPES = 100;
+  private static final int MAX_DEFECT_GROUPS = 100;
   private final Clock clock;
   private final OctaneGateLogListener logListener;
 
@@ -506,6 +510,14 @@ public class OctaneGateRunner {
               request.getRiskHeatMapDefectQuery(),
               request.getRiskHeatMapMaxDefects());
       defectLedger.merge(defects);
+      if (defectLedger.isAtCapacity()) {
+        listener
+            .getLogger()
+            .println(
+                "Octane defect history reached its safety limit of "
+                    + OctaneDefectLedger.MAXIMUM_DEFECTS
+                    + " unique defects; existing defect states will continue to refresh.");
+      }
       refreshKnownDefects(
           client,
           sharedSpaceId,
@@ -708,8 +720,25 @@ public class OctaneGateRunner {
     if (Util.isBlank(request.getServerId())) {
       throw new AbortException("Octane server ID is required.");
     }
-    if (request.getSuiteRunIds().isEmpty()) {
+    List<String> requestedSuiteRunIds = request.getSuiteRunIds();
+    if (requestedSuiteRunIds.isEmpty()) {
       throw new AbortException("At least one Octane suite run ID is required.");
+    }
+    if (requestedSuiteRunIds.size() > GateRequest.MAX_SUITE_RUN_IDS) {
+      throw new AbortException(
+          "At most " + GateRequest.MAX_SUITE_RUN_IDS + " Octane suite run IDs are supported.");
+    }
+    validateNumericId("Shared space ID", request.getSharedSpaceId());
+    validateNumericId("Workspace ID", request.getWorkspaceId());
+    for (String suiteRunId : requestedSuiteRunIds) {
+      validateNumericId("Suite run ID", suiteRunId);
+    }
+    if (request.getScopes().size() > MAX_SCOPES) {
+      throw new AbortException("At most " + MAX_SCOPES + " Octane scopes are supported.");
+    }
+    if (request.getDefectGroups().size() > MAX_DEFECT_GROUPS) {
+      throw new AbortException(
+          "At most " + MAX_DEFECT_GROUPS + " Octane defect groups are supported.");
     }
     for (OctaneGateScope scope : request.getScopes()) {
       validateScope(scope);
@@ -751,6 +780,27 @@ public class OctaneGateRunner {
           "Octane scope '"
               + scope.getName()
               + "' must define either suite run ID(s) or an Octane query, not both.");
+    }
+    if (scope.getSuiteRunIds().size() > GateRequest.MAX_SUITE_RUN_IDS) {
+      throw new AbortException(
+          "Octane scope '"
+              + scope.getName()
+              + "' exceeds the "
+              + GateRequest.MAX_SUITE_RUN_IDS
+              + " suite run ID limit.");
+    }
+    for (String suiteRunId : scope.getSuiteRunIds()) {
+      validateNumericId("Suite run ID", suiteRunId);
+    }
+  }
+
+  private void validateNumericId(String label, String value) throws AbortException {
+    String id = Util.trimToEmpty(value);
+    if (id.isEmpty()) {
+      return;
+    }
+    if (!OCTANE_NUMERIC_ID.matcher(id).matches()) {
+      throw new AbortException(label + " must contain 1 to 18 digits.");
     }
   }
 

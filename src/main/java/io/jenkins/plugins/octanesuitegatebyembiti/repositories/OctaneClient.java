@@ -4,13 +4,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import hudson.AbortException;
+import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -26,12 +29,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 public class OctaneClient implements AutoCloseable {
   private static final int PAGE_SIZE = 200;
   private static final int QUERY_CHUNK_SIZE = 40;
   private static final int MAX_ATTEMPTS = 3;
   private static final int RESPONSE_BODY_LIMIT = 1_000;
+  static final int MAX_JSON_RESPONSE_BYTES = 16 * 1024 * 1024;
+  private static final Pattern SAFE_ENTITY_ID = Pattern.compile("[A-Za-z0-9_-]{1,128}");
+  private static final Pattern SENSITIVE_RESPONSE_VALUE =
+      Pattern.compile(
+          "(?i)(\\\"(?:client_secret|password|token|access_token|refresh_token|authorization)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")");
   private static final String TECH_PREVIEW_HEADER = "ALM-OCTANE-TECH-PREVIEW";
   private static final String RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
@@ -57,7 +66,7 @@ public class OctaneClient implements AutoCloseable {
 
   public OctaneClient(HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
     this.httpClient = httpClient;
-    this.baseUrl = Util.trimTrailingSlash(baseUrl);
+    this.baseUrl = OctaneServerUrl.normalize(baseUrl);
     this.clientId = clientId;
     this.clientSecret = clientSecret;
   }
@@ -69,10 +78,11 @@ public class OctaneClient implements AutoCloseable {
 
     HttpRequest request =
         HttpRequest.newBuilder(URI.create(baseUrl + "/authentication/sign_in"))
+            .timeout(Duration.ofSeconds(60))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
             .build();
-    HttpResponse<String> response = send(request, HttpResponse.BodyHandlers.ofString());
+    StringResponse response = sendForString(request);
     if (response.statusCode() != 200) {
       throw new AbortException(
           "ALM Octane authentication failed with HTTP "
@@ -81,7 +91,7 @@ public class OctaneClient implements AutoCloseable {
               + request.uri()
               + responseBodyMessage(response.body()));
     }
-    rememberCookies(response);
+    rememberCookies(response.headers());
   }
 
   public List<RunRecord> fetchSuiteChildRuns(
@@ -194,7 +204,7 @@ public class OctaneClient implements AutoCloseable {
     List<String> clauses = new ArrayList<>();
     for (String defectId : defectIds) {
       if (!Util.isBlank(defectId)) {
-        clauses.add("id EQ " + defectId);
+        clauses.add("id EQ " + safeEntityId(defectId));
       }
     }
     if (clauses.isEmpty()) {
@@ -250,7 +260,7 @@ public class OctaneClient implements AutoCloseable {
 
   private JsonNode fetchSuiteRun(String sharedSpaceId, String workspaceId, String suiteRunId)
       throws IOException, InterruptedException {
-    String query = "id EQ " + suiteRunId;
+    String query = "id EQ " + safeEntityId(suiteRunId);
     String path =
         workspacePath(sharedSpaceId, workspaceId)
             + "/runs?"
@@ -385,9 +395,10 @@ public class OctaneClient implements AutoCloseable {
       query = "(" + query + ");(" + scopeQuery + ")";
     }
 
-    List<RunRecord> records = new ArrayList<>();
+    Set<String> requestedIds = new LinkedHashSet<>(runIds);
+    Map<String, RunRecord> recordsById = new LinkedHashMap<>();
     int offset = 0;
-    while (true) {
+    while (recordsById.size() < requestedIds.size()) {
       String path =
           workspacePath(sharedSpaceId, workspaceId)
               + "/runs?"
@@ -403,21 +414,25 @@ public class OctaneClient implements AutoCloseable {
       if (!data.isArray() || data.isEmpty()) {
         break;
       }
+      int previousSize = recordsById.size();
       for (JsonNode node : data) {
-        records.add(parseRun(node));
+        RunRecord record = parseRun(node);
+        if (requestedIds.contains(record.getId())) {
+          recordsById.putIfAbsent(record.getId(), record);
+        }
       }
-      if (data.size() < PAGE_SIZE) {
+      if (data.size() < PAGE_SIZE || recordsById.size() == previousSize) {
         break;
       }
       offset += PAGE_SIZE;
     }
-    return records;
+    return new ArrayList<>(recordsById.values());
   }
 
   private String buildIdQuery(List<String> runIds) {
     List<String> clauses = new ArrayList<>();
     for (String runId : runIds) {
-      clauses.add("id EQ " + runId);
+      clauses.add("id EQ " + safeEntityId(runId));
     }
     return String.join("||", clauses);
   }
@@ -487,7 +502,7 @@ public class OctaneClient implements AutoCloseable {
   private List<String> buildRelationClauses(String relationField, Set<String> relatedIds) {
     List<String> clauses = new ArrayList<>();
     for (String relatedId : relatedIds) {
-      clauses.add(relationField + " EQ {id EQ " + relatedId + "}");
+      clauses.add(relationField + " EQ {id EQ " + safeEntityId(relatedId) + "}");
     }
     return clauses;
   }
@@ -562,8 +577,7 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private JsonNode getJson(String path) throws IOException, InterruptedException {
-    HttpResponse<String> response =
-        sendWithRetry(() -> requestBuilder(baseUrl + path).GET().build());
+    StringResponse response = sendWithRetry(() -> requestBuilder(baseUrl + path).GET().build());
     try {
       return objectMapper.readTree(response.body());
     } catch (IOException e) {
@@ -575,23 +589,23 @@ public class OctaneClient implements AutoCloseable {
     }
   }
 
-  private HttpResponse<String> sendWithRetry(RequestFactory requestFactory)
+  private StringResponse sendWithRetry(RequestFactory requestFactory)
       throws IOException, InterruptedException {
     IOException lastException = null;
     HttpRequest lastRequest = null;
-    HttpResponse<String> lastResponse = null;
+    StringResponse lastResponse = null;
     for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       HttpRequest request = requestFactory.create();
       lastRequest = request;
-      HttpResponse<String> response;
+      StringResponse response;
       try {
-        response = send(request, HttpResponse.BodyHandlers.ofString());
+        response = sendForString(request);
       } catch (IOException e) {
         lastException = e;
         pauseBeforeRetry(attempt, null);
         continue;
       }
-      rememberCookies(response);
+      rememberCookies(response.headers());
       if (response.statusCode() == 401 && attempt == 1) {
         authenticate();
         continue;
@@ -632,7 +646,28 @@ public class OctaneClient implements AutoCloseable {
     return OctaneRequestCoordinator.send(baseUrl, httpClient, request, bodyHandler);
   }
 
-  private AbortException requestFailure(HttpRequest request, HttpResponse<String> response) {
+  private StringResponse sendForString(HttpRequest request)
+      throws IOException, InterruptedException {
+    HttpResponse<InputStream> response = send(request, HttpResponse.BodyHandlers.ofInputStream());
+    try (InputStream input = response.body()) {
+      byte[] bytes = input.readNBytes(MAX_JSON_RESPONSE_BYTES + 1);
+      if (bytes.length > MAX_JSON_RESPONSE_BYTES) {
+        throw new IOException(
+            "ALM Octane response exceeded the "
+                + MAX_JSON_RESPONSE_BYTES
+                + " byte safety limit for "
+                + request.uri()
+                + ".");
+      }
+      return new StringResponse(
+          response.statusCode(),
+          response.request(),
+          response.headers(),
+          new String(bytes, StandardCharsets.UTF_8));
+    }
+  }
+
+  private AbortException requestFailure(HttpRequest request, StringResponse response) {
     return new AbortException(
         "ALM Octane request failed with HTTP "
             + response.statusCode()
@@ -645,7 +680,8 @@ public class OctaneClient implements AutoCloseable {
     if (body == null || body.isBlank()) {
       return ". Response body: <empty>";
     }
-    String normalized = body.replaceAll("\\s+", " ").trim();
+    String normalized =
+        SENSITIVE_RESPONSE_VALUE.matcher(body).replaceAll("$1***$2").replaceAll("\\s+", " ").trim();
     if (normalized.length() > RESPONSE_BODY_LIMIT) {
       normalized = normalized.substring(0, RESPONSE_BODY_LIMIT) + "...";
     }
@@ -653,7 +689,11 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private void rememberCookies(HttpResponse<?> response) {
-    List<String> cookies = response.headers().allValues("Set-Cookie");
+    rememberCookies(response.headers());
+  }
+
+  private void rememberCookies(HttpHeaders headers) {
+    List<String> cookies = headers.allValues("Set-Cookie");
     if (cookies.isEmpty()) {
       return;
     }
@@ -677,7 +717,7 @@ public class OctaneClient implements AutoCloseable {
     }
   }
 
-  private void pauseBeforeRetry(int attempt, HttpResponse<?> response) throws InterruptedException {
+  private void pauseBeforeRetry(int attempt, StringResponse response) throws InterruptedException {
     if (attempt >= MAX_ATTEMPTS) {
       return;
     }
@@ -687,7 +727,7 @@ public class OctaneClient implements AutoCloseable {
     Thread.sleep(Math.max(retryAfterMillis, exponentialMillis + jitterMillis));
   }
 
-  private long retryAfterMillis(HttpResponse<?> response) {
+  private long retryAfterMillis(StringResponse response) {
     if (response == null) {
       return 0L;
     }
@@ -725,6 +765,14 @@ public class OctaneClient implements AutoCloseable {
 
   private String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
+  }
+
+  private String safeEntityId(String value) {
+    String id = Util.trimToEmpty(value);
+    if (!SAFE_ENTITY_ID.matcher(id).matches()) {
+      throw new IllegalArgumentException("ALM Octane returned an unsafe entity ID.");
+    }
+    return id;
   }
 
   private RunRecord parseRun(JsonNode node) {
@@ -873,6 +921,9 @@ public class OctaneClient implements AutoCloseable {
   private interface RequestFactory {
     HttpRequest create();
   }
+
+  private record StringResponse(
+      int statusCode, HttpRequest request, HttpHeaders headers, String body) {}
 
   private static final class EntityReference {
     private static final EntityReference EMPTY = new EntityReference("", "");

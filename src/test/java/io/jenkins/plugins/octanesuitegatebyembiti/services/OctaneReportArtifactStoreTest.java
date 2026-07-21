@@ -2,13 +2,22 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.time.Instant;
+import java.util.zip.GZIPOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -41,5 +50,31 @@ public class OctaneReportArtifactStoreTest {
                 .toPath()
                 .resolve(metadata.getArtifactDirectory())
                 .resolve(OctaneReportArtifactStore.RESULTS_FILE)));
+  }
+
+  @Test
+  public void rejectsUnexpectedClassesInPersistedSnapshotArtifact() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    String relativeDirectory = OctaneReportArtifactStore.ROOT_DIRECTORY + "/malicious";
+    Path directory = build.getRootDir().toPath().resolve(relativeDirectory);
+    Files.createDirectories(directory);
+    Path snapshotPath = directory.resolve(OctaneReportArtifactStore.SNAPSHOT_FILE);
+    try (ObjectOutputStream output =
+        new ObjectOutputStream(
+            new GZIPOutputStream(
+                new BufferedOutputStream(
+                    Files.newOutputStream(snapshotPath, StandardOpenOption.CREATE_NEW))))) {
+      output.writeObject(new File("unexpected-class"));
+    }
+    OctaneReportArtifactMetadata metadata =
+        new OctaneReportArtifactMetadata(
+            1, relativeDirectory, "malicious", Instant.now().toString(), 1L, 0, false, false);
+
+    IOException failure =
+        assertThrows(
+            IOException.class, () -> new OctaneReportArtifactStore().loadSnapshot(build, metadata));
+
+    assertTrue(failure.getMessage().contains("filter status: REJECTED"));
   }
 }

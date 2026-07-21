@@ -615,8 +615,16 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     public FormValidation doCheckSuiteRunId(@QueryParameter String value) {
-      if (Util.splitIdList(value).isEmpty()) {
+      List<String> ids = Util.splitIdList(value);
+      if (ids.isEmpty()) {
         return FormValidation.error("At least one suite run ID is required.");
+      }
+      if (ids.size() > GateRequest.MAX_SUITE_RUN_IDS) {
+        return FormValidation.error(
+            "At most " + GateRequest.MAX_SUITE_RUN_IDS + " suite run IDs are supported.");
+      }
+      if (ids.stream().anyMatch(id -> !id.matches("[0-9]{1,18}"))) {
+        return FormValidation.error("Suite run IDs must contain 1 to 18 digits.");
       }
       return FormValidation.ok();
     }
@@ -639,15 +647,15 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     public FormValidation doCheckPollIntervalSeconds(@QueryParameter String value) {
-      return checkPositiveInteger("Poll interval", value);
+      return checkBoundedInteger("Poll interval", value, 1, GateRequest.MAX_POLL_INTERVAL_SECONDS);
     }
 
     public FormValidation doCheckTimeoutMinutes(@QueryParameter String value) {
-      return checkPositiveInteger("Timeout", value);
+      return checkBoundedInteger("Timeout", value, 1, GateRequest.MAX_TIMEOUT_MINUTES);
     }
 
     public FormValidation doCheckTimeoutMinutesExtended(@QueryParameter String value) {
-      return checkNonNegativeInteger("Extended timeout", value);
+      return checkBoundedInteger("Extended timeout", value, 0, GateRequest.MAX_TIMEOUT_MINUTES);
     }
 
     public FormValidation doCheckBasePassrateFigure(@QueryParameter String value) {
@@ -659,36 +667,27 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {
-      return checkPositiveInteger("Risk heat map max defects", value);
+      return checkBoundedInteger(
+          "Risk heat map max defects", value, 1, GateRequest.MAX_RISK_HEAT_MAP_DEFECTS);
     }
 
     private FormValidation checkRequiredNumber(String label, String value) {
       if (Util.isBlank(value)) {
         return FormValidation.error(label + " is required.");
       }
-      try {
-        Long.parseLong(value);
+      if (value.matches("[0-9]{1,18}")) {
         return FormValidation.ok();
-      } catch (NumberFormatException e) {
-        return FormValidation.error(label + " must be numeric.");
       }
+      return FormValidation.error(label + " must contain 1 to 18 digits.");
     }
 
-    private FormValidation checkPositiveInteger(String label, String value) {
+    private FormValidation checkBoundedInteger(
+        String label, String value, int minimum, int maximum) {
       try {
-        if (Integer.parseInt(value) <= 0) {
-          return FormValidation.error(label + " must be greater than zero.");
-        }
-        return FormValidation.ok();
-      } catch (NumberFormatException e) {
-        return FormValidation.error(label + " must be a number.");
-      }
-    }
-
-    private FormValidation checkNonNegativeInteger(String label, String value) {
-      try {
-        if (Integer.parseInt(value) < 0) {
-          return FormValidation.error(label + " must be zero or greater.");
+        int parsed = Integer.parseInt(value);
+        if (parsed < minimum || parsed > maximum) {
+          return FormValidation.error(
+              label + " must be between " + minimum + " and " + maximum + ".");
         }
         return FormValidation.ok();
       } catch (NumberFormatException e) {

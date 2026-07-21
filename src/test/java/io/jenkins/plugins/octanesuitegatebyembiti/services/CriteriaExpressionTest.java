@@ -247,6 +247,19 @@ public class CriteriaExpressionTest {
     CriteriaExpression.parse("passRate >=");
   }
 
+  @Test(expected = CriteriaException.class)
+  public void rejectsOversizedCriteriaExpressions() {
+    CriteriaExpression.parse("passRate == 100 AND ".repeat(500) + "passRate == 100");
+  }
+
+  @Test(expected = CriteriaException.class)
+  public void rejectsExcessivelyNestedCriteriaExpressions() {
+    CriteriaExpression.parse(
+        "(".repeat(CriteriaExpression.MAX_NESTING_DEPTH + 1)
+            + "passRate == 100"
+            + ")".repeat(CriteriaExpression.MAX_NESTING_DEPTH + 1));
+  }
+
   @Test
   public void handlesZeroRunRates() {
     MetricsContext context = context(List.of());

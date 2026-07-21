@@ -90,5 +90,8 @@ public class HeadlessBrowserReportScreenshotServiceTest {
         1640, HeadlessBrowserReportScreenshotService.estimateViewportHeightForCards(4, 600));
     assertEquals(
         880, HeadlessBrowserReportScreenshotService.estimateViewportHeightForCards(4, 1400));
+    assertEquals(
+        HeadlessBrowserReportScreenshotService.MAX_SCREENSHOT_HEIGHT,
+        HeadlessBrowserReportScreenshotService.estimateViewportHeightForCards(10_000, 1400));
   }
 }

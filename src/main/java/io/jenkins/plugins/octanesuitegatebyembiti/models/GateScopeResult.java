@@ -81,6 +81,10 @@ public class GateScopeResult implements Serializable {
   }
 
   public Map<String, Object> toMap() {
+    return toMap(Integer.MAX_VALUE);
+  }
+
+  Map<String, Object> toMap(int detailLimit) {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("name", name);
     values.put("query", query);
@@ -89,16 +93,21 @@ public class GateScopeResult implements Serializable {
     values.put("suiteRunIds", suiteRunIds);
     values.put("metrics", metrics.toMap());
 
-    List<String> runIds = new ArrayList<>(runs.size());
-    List<Map<String, Object>> runMaps = new ArrayList<>(runs.size());
-    for (RunRecord run : runs) {
+    int safeLimit = Math.max(0, detailLimit);
+    int detailCount = Math.min(runs.size(), safeLimit);
+    List<String> runIds = new ArrayList<>(detailCount);
+    List<Map<String, Object>> runMaps = new ArrayList<>(detailCount);
+    for (int index = 0; index < detailCount; index++) {
+      RunRecord run = runs.get(index);
       RunRecord nonNullRun = Objects.requireNonNull(run);
       runIds.add(nonNullRun.getId());
       runMaps.add(nonNullRun.toMap());
     }
     values.put("runIds", runIds);
     values.put("runs", runMaps);
-    values.put("suiteRuns", toSuiteRunMaps(suiteRuns));
+    values.put("runCount", runs.size());
+    values.put("detailsTruncated", runs.size() > safeLimit);
+    values.put("suiteRuns", runs.size() > safeLimit ? Map.of() : toSuiteRunMaps(suiteRuns));
     return values;
   }
 

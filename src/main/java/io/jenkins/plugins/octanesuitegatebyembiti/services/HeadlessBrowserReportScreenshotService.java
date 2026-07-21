@@ -7,6 +7,7 @@ import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
+import io.jenkins.plugins.octanesuitegatebyembiti.controllers.OctaneEmailReportStep;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.ByteArrayOutputStream;
@@ -26,6 +27,8 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
   public static final String ATTACHMENT_PATTERN = REPORT_EMAIL_DIR + "/" + SCREENSHOT_FILE_NAME;
   static final int BROWSER_PROBE_TIMEOUT_SECONDS = 15;
   static final int SCREENSHOT_TIMEOUT_SECONDS = 60;
+  static final int MAX_SCREENSHOT_HEIGHT = 16_384;
+  private static final int MAX_BROWSER_PROBE_OUTPUT_BYTES = 64 * 1024;
 
   private static final List<String> BROWSER_CANDIDATES =
       List.of("chromium", "chromium-browser", "google-chrome", "google-chrome-stable");
@@ -57,7 +60,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     FilePath screenshotFile = outputDirectory.child(SCREENSHOT_FILE_NAME);
 
     OctaneGateReportSnapshot snapshot = action.getSnapshot();
-    int width = Math.max(320, viewportWidth);
+    int width = Math.min(OctaneEmailReportStep.MAX_VIEWPORT_WIDTH, Math.max(320, viewportWidth));
     htmlFile.write(renderer.render(snapshot, theme, width), StandardCharsets.UTF_8.name());
 
     FilePath browserProfileDirectory = outputDirectory.child("chrome-profile");
@@ -224,7 +227,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
 
   private BrowserProbeResult probeBrowser(
       String browser, String profileDirectory, Launcher launcher) throws InterruptedException {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    ByteArrayOutputStream output = new BoundedByteArrayOutputStream(MAX_BROWSER_PROBE_OUTPUT_BYTES);
     try {
       Proc process =
           launcher
@@ -294,7 +297,31 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     int columns =
         viewportWidth <= OctaneReportZoneHtmlRenderer.EMAIL_SINGLE_COLUMN_BREAKPOINT_PX ? 1 : 2;
     int rows = Math.max(1, (cardCount + columns - 1) / columns);
-    return Math.max(800, 120 + rows * 380);
+    return Math.min(MAX_SCREENSHOT_HEIGHT, Math.max(800, 120 + rows * 380));
+  }
+
+  private static final class BoundedByteArrayOutputStream extends ByteArrayOutputStream {
+    private final int maximumBytes;
+
+    private BoundedByteArrayOutputStream(int maximumBytes) {
+      super(Math.min(maximumBytes, 8192));
+      this.maximumBytes = maximumBytes;
+    }
+
+    @Override
+    public synchronized void write(int value) {
+      if (count < maximumBytes) {
+        super.write(value);
+      }
+    }
+
+    @Override
+    public synchronized void write(byte[] buffer, int offset, int length) {
+      int accepted = Math.min(length, maximumBytes - count);
+      if (accepted > 0) {
+        super.write(buffer, offset, accepted);
+      }
+    }
   }
 
   private record BrowserProbeResult(

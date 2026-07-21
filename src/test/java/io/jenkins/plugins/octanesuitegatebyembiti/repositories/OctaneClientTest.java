@@ -98,6 +98,91 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void rejectsUnsafeEntityIdsBeforeBuildingOctaneQueries() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      try {
+        client.fetchSuiteChildRuns("1001", "2002", "55) OR (id GT 0");
+      } catch (IllegalArgumentException e) {
+        assertTrue(e.getMessage().contains("unsafe entity ID"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected an unsafe entity ID to be rejected.");
+  }
+
+  @Test
+  public void stopsPaginationWhenAFullPageMakesNoRequestedIdProgress() throws Exception {
+    AtomicInteger requests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          requests.incrementAndGet();
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < 200; index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            body.append("{\"id\":\"unrelated-")
+                .append(index)
+                .append("\",\"native_status\":{\"logical_name\":\"passed\"}}");
+          }
+          body.append("]}");
+          json(exchange, 200, body.toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      assertTrue(client.fetchScopedRuns("1001", "2002", List.of("101"), "").isEmpty());
+      assertEquals(1, requests.get());
+    }
+  }
+
+  @Test
+  public void boundsJsonResponseBodies() throws Exception {
+    server.createContext(
+        "/authentication/sign_in",
+        exchange -> json(exchange, 200, "x".repeat(OctaneClient.MAX_JSON_RESPONSE_BYTES + 1)));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      try {
+        client.authenticate();
+      } catch (IOException e) {
+        assertTrue(e.getMessage().contains("byte safety limit"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected an oversized response body to be rejected.");
+  }
+
+  @Test
+  public void redactsSensitiveValuesFromOctaneFailureMessages() throws Exception {
+    server.createContext(
+        "/authentication/sign_in",
+        exchange ->
+            json(
+                exchange,
+                401,
+                "{\"client_secret\":\"server-echoed-secret\",\"message\":\"denied\"}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "request-secret")) {
+      try {
+        client.authenticate();
+      } catch (AbortException e) {
+        assertFalse(e.getMessage().contains("server-echoed-secret"));
+        assertTrue(e.getMessage().contains("***"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected authentication to fail.");
+  }
+
+  @Test
   public void reAuthenticatesOnceAfterUnauthorizedResponse() throws Exception {
     AtomicInteger authCount = new AtomicInteger();
     AtomicInteger runCount = new AtomicInteger();

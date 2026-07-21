@@ -15,6 +15,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportArtifactS
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,19 +38,21 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private transient Run<?, ?> run;
   // Kept under its historical field name so reports saved by older plugin versions still load.
   // New publications clear it before Run.save() and persist only artifactMetadata.
-  private OctaneGateReportSnapshot snapshot;
-  private transient OctaneGateReportSnapshot snapshotCache = OctaneGateReportSnapshot.empty();
-  private OctaneReportArtifactMetadata artifactMetadata = OctaneReportArtifactMetadata.empty();
-  private int refreshSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
-  private int timeoutSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES * 60;
-  private int timeoutExtendedSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED * 60;
-  private int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
-  private int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
-  private String startedAt = Instant.now().toString();
+  private volatile OctaneGateReportSnapshot snapshot;
+  private transient volatile OctaneGateReportSnapshot snapshotCache =
+      OctaneGateReportSnapshot.empty();
+  private volatile OctaneReportArtifactMetadata artifactMetadata =
+      OctaneReportArtifactMetadata.empty();
+  private volatile int refreshSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
+  private volatile int timeoutSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES * 60;
+  private volatile int timeoutExtendedSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED * 60;
+  private volatile int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
+  private volatile int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
+  private volatile String startedAt = Instant.now().toString();
   private volatile boolean manualExitRequested;
-  private transient Object manualExitLock = new Object();
+  private transient volatile Object manualExitLock = new Object();
   private transient Runnable manualExitCallback;
-  private transient Object refreshLock = new Object();
+  private transient volatile Object refreshLock = new Object();
   private transient RefreshCallback refreshCallback;
 
   public static OctaneGateReportAction attachTo(Run<?, ?> run, GateRequest request) {
@@ -163,24 +166,24 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     publishSnapshot(withPreviousCycleMetrics(errorSnapshot));
   }
 
-  public synchronized OctaneGateReportSnapshot getSnapshot() {
+  public OctaneGateReportSnapshot getSnapshot() {
     OctaneGateReportSnapshot current = currentSnapshot();
     return current == null ? OctaneGateReportSnapshot.empty() : current;
   }
 
-  public synchronized int getRefreshSeconds() {
+  public int getRefreshSeconds() {
     return getSnapshot().getRefreshSeconds();
   }
 
-  public synchronized boolean isAutoRefresh() {
+  public boolean isAutoRefresh() {
     return getSnapshot().isBuilding();
   }
 
-  public synchronized String getReportDataChecksum() {
+  public String getReportDataChecksum() {
     return artifactMetadata == null ? "" : artifactMetadata.getChecksum();
   }
 
-  public synchronized int getReportDataSchemaVersion() {
+  public int getReportDataSchemaVersion() {
     return artifactMetadata == null ? 0 : artifactMetadata.getSchemaVersion();
   }
 
@@ -193,8 +196,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     return rootUrl == null ? buildPath : rootUrl + buildPath;
   }
 
-  public synchronized void doSnapshot(StaplerRequest2 request, StaplerResponse2 response)
-      throws IOException {
+  public void doSnapshot(StaplerRequest2 request, StaplerResponse2 response) throws IOException {
     checkReadPermission();
     String etag = currentEtag();
     if (etagMatches(request, etag)) {
@@ -248,7 +250,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     response.getWriter().print(payload.toString());
   }
 
-  public synchronized void doData(
+  public void doData(
       StaplerRequest2 request,
       StaplerResponse2 response,
       @QueryParameter String section,
@@ -307,9 +309,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   @RequirePOST
   public HttpResponse doExitOctaneAndContinue() {
-    if (run != null) {
-      run.getACL().checkPermission(Run.UPDATE);
-    }
+    requireRun().getACL().checkPermission(Run.UPDATE);
     Runnable callback = null;
     synchronized (manualExitLock()) {
       OctaneGateReportSnapshot current = currentSnapshot();
@@ -461,9 +461,16 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   private void checkReadPermission() {
-    if (run != null) {
-      run.getACL().checkPermission(Item.READ);
+    requireRun().getACL().checkPermission(Item.READ);
+  }
+
+  private Run<?, ?> requireRun() {
+    Run<?, ?> currentRun = run;
+    if (currentRun == null) {
+      Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+      throw new IllegalStateException("Octane report is not attached to a Jenkins build.");
     }
+    return currentRun;
   }
 
   private String currentEtag() {
@@ -504,17 +511,40 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   private Object manualExitLock() {
-    if (manualExitLock == null) {
-      manualExitLock = new Object();
+    Object current = manualExitLock;
+    if (current == null) {
+      synchronized (this) {
+        current = manualExitLock;
+        if (current == null) {
+          current = new Object();
+          manualExitLock = current;
+        }
+      }
     }
-    return manualExitLock;
+    return current;
   }
 
   private Object refreshLock() {
-    if (refreshLock == null) {
-      refreshLock = new Object();
+    Object current = refreshLock;
+    if (current == null) {
+      synchronized (this) {
+        current = refreshLock;
+        if (current == null) {
+          current = new Object();
+          refreshLock = current;
+        }
+      }
     }
-    return refreshLock;
+    return current;
+  }
+
+  private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+    input.defaultReadObject();
+    snapshotCache = null;
+    manualExitLock = new Object();
+    manualExitCallback = null;
+    refreshLock = new Object();
+    refreshCallback = null;
   }
 
   private Duration nonNegative(Duration duration) {

@@ -1,7 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
@@ -19,6 +18,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.EmailExtensionOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.HeadlessBrowserReportScreenshotService;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailBodyRenderer;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailDeliveryCoordinator;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshotService;
@@ -39,11 +39,9 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
-@SuppressFBWarnings(
-    value = "MS_SHOULD_BE_FINAL",
-    justification = "Tests replace these collaborators without invoking real browsers or SMTP.")
 public class OctaneEmailReportStep extends Step {
   static final int DEFAULT_VIEWPORT_WIDTH = 1400;
+  public static final int MAX_VIEWPORT_WIDTH = 3840;
 
   private static OctaneReportScreenshotService screenshotService =
       new HeadlessBrowserReportScreenshotService();
@@ -179,7 +177,7 @@ public class OctaneEmailReportStep extends Step {
 
   @DataBoundSetter
   public void setViewportWidth(int viewportWidth) {
-    this.viewportWidth = Math.max(320, viewportWidth);
+    this.viewportWidth = Math.min(MAX_VIEWPORT_WIDTH, Math.max(320, viewportWidth));
   }
 
   public boolean isArchiveScreenshot() {
@@ -343,6 +341,14 @@ public class OctaneEmailReportStep extends Step {
 
     private void sendReport(Run<?, ?> run, TaskListener listener) throws Exception {
       FilePath workspace = getContext().get(FilePath.class);
+      try (OctaneEmailDeliveryCoordinator.Lease ignored =
+          OctaneEmailDeliveryCoordinator.acquire(run, workspace)) {
+        sendReportLocked(run, listener, workspace);
+      }
+    }
+
+    private void sendReportLocked(Run<?, ?> run, TaskListener listener, FilePath workspace)
+        throws Exception {
       Launcher launcher = getContext().get(Launcher.class);
       EnvVars envVars = envVars();
       OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
@@ -589,8 +595,10 @@ public class OctaneEmailReportStep extends Step {
 
     public FormValidation doCheckViewportWidth(@QueryParameter String value) {
       try {
-        if (Integer.parseInt(value) < 320) {
-          return FormValidation.error("Viewport width must be at least 320.");
+        int width = Integer.parseInt(value);
+        if (width < 320 || width > MAX_VIEWPORT_WIDTH) {
+          return FormValidation.error(
+              "Viewport width must be between 320 and " + MAX_VIEWPORT_WIDTH + ".");
         }
         return FormValidation.ok();
       } catch (NumberFormatException e) {

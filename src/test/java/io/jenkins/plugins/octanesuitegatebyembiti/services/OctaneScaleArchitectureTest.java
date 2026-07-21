@@ -25,6 +25,27 @@ public class OctaneScaleArchitectureTest {
   private static final int CHILD_RUNS_PER_SUITE = 50;
 
   @Test(timeout = 60_000L)
+  public void mapsSevenHundredSuitesWithOneHundredFiftyChildrenToBoundedArtifacts()
+      throws Exception {
+    int suites = 700;
+    int childrenPerSuite = 150;
+    GateResult result = OctaneScaleTestFixture.result(100, suites, childrenPerSuite);
+    OctaneGateReportSnapshot snapshot = OctaneScaleTestFixture.snapshot(result);
+    OctaneReportDataMapper.ReportData data = new OctaneReportDataMapper().map(snapshot);
+    ObjectMapper mapper = new ObjectMapper();
+    int indexBytes = mapper.writeValueAsBytes(data.index()).length;
+    int completeBytes = mapper.writeValueAsBytes(data.complete()).length;
+
+    assertEquals(105_000, result.getRuns().size());
+    assertEquals(
+        suites,
+        data.sections().stream().mapToInt(section -> ((List<?>) section.get("bars")).size()).sum());
+    assertTrue("initial index must stay below 250 KB", indexBytes < 250_000);
+    assertTrue("complete JSON must stay below 5 MB", completeBytes < 5_000_000);
+    assertEquals(true, result.toPipelineMap().get("detailsTruncated"));
+  }
+
+  @Test(timeout = 60_000L)
   public void mapsThirtyConcurrentDenseJobsToBoundedClientArtifacts() throws Exception {
     CountDownLatch ready = new CountDownLatch(JOBS);
     CountDownLatch start = new CountDownLatch(1);

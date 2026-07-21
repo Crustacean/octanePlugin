@@ -27,6 +27,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender {
+  private static final int MAX_CAPTURED_OUTPUT_BYTES = 256 * 1024;
   private static final List<String> FAILURE_MARKERS =
       List.of(
           "Failed after second try sending email",
@@ -221,7 +222,8 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
     static EmailOutputCapture create(StepContext context) throws IOException, InterruptedException {
       TaskListener originalListener = context.get(TaskListener.class);
       Charset charset = originalListener.getCharset();
-      ByteArrayOutputStream capturedOutput = new ByteArrayOutputStream();
+      ByteArrayOutputStream capturedOutput =
+          new BoundedByteArrayOutputStream(MAX_CAPTURED_OUTPUT_BYTES);
       OutputStream teeOutput = new TeeOutputStream(originalListener.getLogger(), capturedOutput);
       TaskListener trackingListener = new StreamTaskListener(teeOutput, charset);
       return new EmailOutputCapture(
@@ -234,6 +236,30 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
 
     String getOutput() {
       return output.toString(charset);
+    }
+  }
+
+  private static final class BoundedByteArrayOutputStream extends ByteArrayOutputStream {
+    private final int maximumBytes;
+
+    private BoundedByteArrayOutputStream(int maximumBytes) {
+      super(Math.min(maximumBytes, 8192));
+      this.maximumBytes = maximumBytes;
+    }
+
+    @Override
+    public synchronized void write(int value) {
+      if (count < maximumBytes) {
+        super.write(value);
+      }
+    }
+
+    @Override
+    public synchronized void write(byte[] buffer, int offset, int length) {
+      int accepted = Math.min(length, maximumBytes - count);
+      if (accepted > 0) {
+        super.write(buffer, offset, accepted);
+      }
     }
   }
 
