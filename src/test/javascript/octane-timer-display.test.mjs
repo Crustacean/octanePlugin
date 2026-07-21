@@ -24,6 +24,7 @@ const context = {
 vm.runInNewContext(
     `${timerDisplaySource}
 this.timeoutCountdownRemainingMillis = timeoutCountdownRemainingMillis;
+this.timerSampleTimeMillis = timerSampleTimeMillis;
 this.timerDisplayParts = timerDisplayParts;`,
     context);
 
@@ -86,6 +87,12 @@ test("counts down one continuous base plus extended timeout window", () => {
   assert.equal(
       context.timeoutCountdownRemainingMillis(0, 120 * minute, 0, 120 * minute),
       0);
+});
+
+test("freezes the testing timer at the accepted manual-exit instant", () => {
+  assert.equal(context.timerSampleTimeMillis(true, 1000, 4500, 9000), 4500);
+  assert.equal(context.timerSampleTimeMillis(true, 1000, 0, 9000), 9000);
+  assert.equal(context.timerSampleTimeMillis(false, 1000, 0, 9000), 1000);
 });
 
 test("renders full and compact labels with component and mobile breakpoints", () => {

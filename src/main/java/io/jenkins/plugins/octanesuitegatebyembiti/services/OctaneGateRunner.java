@@ -143,6 +143,7 @@ public class OctaneGateRunner {
     }
 
     public PollOutcome pollOnce() throws IOException, InterruptedException {
+      logManualExitFinalizingIfNeeded();
       GateResult result =
           poll(
               client,
@@ -192,6 +193,7 @@ public class OctaneGateRunner {
       }
       if (state.isExtendedTimeActive()
           && (reportPublisher.isManualExitRequested() || !now.isBefore(extendedDeadline))) {
+        logManualExitFinalizingIfNeeded();
         return PollOutcome.complete(
             finishExtendedGate(
                 request,
@@ -206,6 +208,14 @@ public class OctaneGateRunner {
       return PollOutcome.continueAfter(delay);
     }
 
+    private void logManualExitFinalizingIfNeeded() {
+      if (state.isExtendedTimeActive()
+          && reportPublisher.isManualExitRequested()
+          && state.markManualExitFinalizingLogged()) {
+        logListener.logManualExitRequested(listener);
+      }
+    }
+
     @Override
     public void close() throws IOException {
       client.close();
@@ -218,6 +228,7 @@ public class OctaneGateRunner {
     private final Instant startedAt;
     private final OctaneDefectLedger defectLedger = new OctaneDefectLedger();
     private boolean extendedTimeActive;
+    private boolean manualExitFinalizingLogged;
     private boolean waitingPublished;
 
     public PollingState(Instant startedAt) {
@@ -243,6 +254,14 @@ public class OctaneGateRunner {
 
     private void setExtendedTimeActive(boolean extendedTimeActive) {
       this.extendedTimeActive = extendedTimeActive;
+    }
+
+    private synchronized boolean markManualExitFinalizingLogged() {
+      if (manualExitFinalizingLogged) {
+        return false;
+      }
+      manualExitFinalizingLogged = true;
+      return true;
     }
 
     public boolean isWaitingPublished() {
@@ -317,9 +336,7 @@ public class OctaneGateRunner {
       StatusClassifier classifier,
       boolean manualExitRequested)
       throws GateFailedException {
-    if (manualExitRequested) {
-      logListener.logManualExitRequested(listener);
-    } else {
+    if (!manualExitRequested) {
       logListener.logExtendedTimeExpired(listener);
     }
     if (result.isPassed()) {

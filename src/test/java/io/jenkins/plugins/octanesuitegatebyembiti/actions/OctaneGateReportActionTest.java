@@ -29,9 +29,18 @@ import org.htmlunit.html.HtmlPage;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 public class OctaneGateReportActionTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
+
+  @Test
+  public void manualExitEndpointRemainsPostOnly() throws Exception {
+    assertNotNull(
+        OctaneGateReportAction.class
+            .getMethod("doExitOctaneAndContinue")
+            .getAnnotation(RequirePOST.class));
+  }
 
   @Test
   public void refreshesOnlyWhenRunningSnapshotIsOlderThanThreshold() throws Exception {
@@ -646,6 +655,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-extended-active=\"false\""));
     assertTrue(xml.contains("data-extended-time=\"false\""));
     assertTrue(xml.contains("data-manual-exit-requested=\"false\""));
+    assertTrue(xml.contains("data-manual-exit-requested-at-millis=\"0\""));
     assertTrue(xml.contains("data-exit-extended-form=\"true\""));
     assertTrue(xml.contains("data-visible=\"false\""));
     assertTrue(xml.contains("Exit Octane and Continue"));
@@ -969,6 +979,7 @@ public class OctaneGateReportActionTest {
     assertEquals(0, payload.getInt("timeoutExtendedSeconds"));
     assertFalse(payload.getBoolean("extendedTime"));
     assertFalse(payload.getBoolean("manualExitRequested"));
+    assertEquals(0L, payload.getLong("manualExitRequestedAtMillis"));
     assertEquals("100%", payload.getString("executionProgressText"));
     assertEquals(50.0, payload.getDouble("passRateProgress"), 0.001);
     assertEquals("50%", payload.getString("passRateProgressText"));
@@ -1036,6 +1047,59 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Exit Octane and Continue"));
     assertFalse(xml.contains("Extended time is active"));
     assertFalse(xml.contains("The latest Octane data will still be checked before continuing"));
+  }
+
+  @Test
+  public void manualExitFreezesAtFirstRequestAndRendersPendingFinalization() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setTimeoutMinutesExtended(10);
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    action.onExtendedTime(result(), classifier());
+    AtomicInteger callbacks = new AtomicInteger();
+    action.setManualExitCallback(callbacks::incrementAndGet);
+    long beforeRequest = System.currentTimeMillis();
+
+    action.doExitOctaneAndContinue();
+
+    long requestedAt = action.getManualExitRequestedAtMillis();
+    assertTrue(action.isManualExitRequested());
+    assertTrue(action.isManualExitPending());
+    assertFalse(action.isExtendedExitAvailable());
+    assertTrue(requestedAt >= beforeRequest);
+    assertTrue(requestedAt <= System.currentTimeMillis());
+    assertEquals(1, callbacks.get());
+
+    action.doExitOctaneAndContinue();
+    assertEquals(requestedAt, action.getManualExitRequestedAtMillis());
+    assertEquals(1, callbacks.get());
+
+    HtmlPage page = jenkins.createWebClient().getPage(build, OctaneGateReportAction.URL_NAME);
+    HtmlElement control = page.getFirstByXPath("//*[@data-exit-extended-form='true']");
+    HtmlElement command = page.getFirstByXPath("//*[@data-exit-extended-command='true']");
+    HtmlElement status = page.getFirstByXPath("//*[@data-exit-finalizing-status='true']");
+    HtmlElement dashboard = page.getHtmlElementById("octane-dashboard");
+    assertEquals("true", control.getAttribute("data-visible"));
+    assertEquals("false", command.getAttribute("data-visible"));
+    assertEquals("true", status.getAttribute("data-visible"));
+    assertTrue(status.asNormalizedText().contains("Finalizing..."));
+    assertEquals(
+        String.valueOf(requestedAt),
+        dashboard.getAttribute("data-manual-exit-requested-at-millis"));
+
+    Page jsonPage =
+        jenkins
+            .createWebClient()
+            .getPage(
+                jenkins
+                    .getURL()
+                    .toURI()
+                    .resolve(build.getUrl() + OctaneGateReportAction.URL_NAME + "/snapshot")
+                    .toURL());
+    JSONObject payload = JSONObject.fromObject(jsonPage.getWebResponse().getContentAsString());
+    assertTrue(payload.getBoolean("manualExitRequested"));
+    assertEquals(requestedAt, payload.getLong("manualExitRequestedAtMillis"));
   }
 
   private void assertBarPopupInteractions(HtmlPage page) {

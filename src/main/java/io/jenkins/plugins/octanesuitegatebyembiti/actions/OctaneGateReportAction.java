@@ -50,6 +50,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private volatile int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
   private volatile String startedAt = Instant.now().toString();
   private volatile boolean manualExitRequested;
+  private volatile long manualExitRequestedAtMillis;
   private transient volatile Object manualExitLock = new Object();
   private transient Runnable manualExitCallback;
   private transient volatile Object refreshLock = new Object();
@@ -228,6 +229,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("timeoutExtendedSeconds", safeSnapshot.getTimeoutExtendedSeconds());
     payload.put("extendedTime", safeSnapshot.isExtendedTime());
     payload.put("manualExitRequested", isManualExitRequested());
+    payload.put("manualExitRequestedAtMillis", getManualExitRequestedAtMillis());
     payload.put("riskHeatMapEnabled", safeSnapshot.isRiskHeatMapEnabled());
     payload.put("riskHeatMapHtml", safeSnapshot.getRiskHeatMapHtml());
     payload.put(
@@ -313,8 +315,9 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     Runnable callback = null;
     synchronized (manualExitLock()) {
       OctaneGateReportSnapshot current = currentSnapshot();
-      if (current != null && current.isExtendedTime()) {
+      if (current != null && current.isExtendedTime() && !manualExitRequested) {
         manualExitRequested = true;
+        manualExitRequestedAtMillis = System.currentTimeMillis();
         manualExitLock().notifyAll();
         callback = manualExitCallback;
       }
@@ -382,6 +385,27 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   @Override
   public synchronized boolean isManualExitRequested() {
     return manualExitRequested;
+  }
+
+  public long getManualExitRequestedAtMillis() {
+    return manualExitRequestedAtMillis;
+  }
+
+  public boolean isManualExitPending() {
+    OctaneGateReportSnapshot current = currentSnapshot();
+    return manualExitRequested && current != null && current.isBuilding();
+  }
+
+  public boolean isExtendedExitAvailable() {
+    OctaneGateReportSnapshot current = currentSnapshot();
+    return !manualExitRequested
+        && current != null
+        && current.isBuilding()
+        && current.isExtendedTime();
+  }
+
+  public boolean isExtendedExitControlVisible() {
+    return isExtendedExitAvailable() || isManualExitPending();
   }
 
   @Override
@@ -508,6 +532,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     baseExecutionFigure = request.getBaseExecutionFigure();
     startedAt = Instant.now().toString();
     manualExitRequested = false;
+    manualExitRequestedAtMillis = 0L;
   }
 
   private Object manualExitLock() {

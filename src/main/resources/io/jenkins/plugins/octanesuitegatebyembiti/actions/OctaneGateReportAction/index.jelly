@@ -107,6 +107,14 @@
         .octane-exit-extended-form[data-visible="false"] {
           display: none;
         }
+        .octane-exit-extended-command[data-visible="false"],
+        .octane-exit-finalizing-status[data-visible="false"] {
+          display: none;
+        }
+        .octane-exit-finalizing-status {
+          color: var(--text-color-secondary);
+          font-weight: 500;
+        }
         .octane-timer-zone,
         .octane-report-zone {
           align-items: stretch;
@@ -2279,13 +2287,21 @@
         </p>
         <p data-report-message="true">${snapshot.message}</p>
           <div class="octane-exit-extended-form" data-exit-extended-form="true"
-            data-visible="${snapshot.extendedTime}">
+            data-visible="${it.extendedExitControlVisible}">
             <f:form method="post" action="exitOctaneAndContinue">
-              <button class="jenkins-button jenkins-button--primary octane-exit-extended-button"
-                  type="submit">
-                Exit Octane and Continue
-              </button>
+              <span class="octane-exit-extended-command"
+                  data-exit-extended-command="true"
+                  data-visible="${it.extendedExitAvailable}">
+                <button class="jenkins-button jenkins-button--primary octane-exit-extended-button"
+                    type="submit">
+                  Exit Octane and Continue
+                </button>
+              </span>
             </f:form>
+            <span class="octane-exit-finalizing-status" data-exit-finalizing-status="true"
+                data-visible="${it.manualExitPending}" role="status" aria-live="polite">
+              Finalizing...
+            </span>
           </div>
         <j:if test="${snapshot.hasCriteria()}">
           <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
@@ -2296,6 +2312,7 @@
             data-report-building="${snapshot.building}"
             data-extended-time="${snapshot.extendedTime}"
             data-manual-exit-requested="${it.manualExitRequested}"
+            data-manual-exit-requested-at-millis="${it.manualExitRequestedAtMillis}"
             data-snapshot-url="snapshot">
           <div id="octane-reorder-status" class="octane-visually-hidden"
               aria-live="polite" aria-atomic="true"></div>
@@ -3513,6 +3530,11 @@
           var liveUpdateTitle = dashboard.querySelector("[data-live-update-title]");
           var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
           var exitExtendedForm = document.querySelector("[data-exit-extended-form]");
+          var exitExtendedCommand = document.querySelector("[data-exit-extended-command]");
+          var exitExtendedSubmitForm = exitExtendedCommand
+              ? exitExtendedCommand.closest("form")
+              : null;
+          var exitFinalizingStatus = document.querySelector("[data-exit-finalizing-status]");
           var reorderStatus = document.getElementById("octane-reorder-status");
           var liveRefresh = {
             fetching: false,
@@ -3624,9 +3646,17 @@
               liveUpdateStatus.textContent = isLastUpdated === true ? "" : message || "";
             }
           }
-          function setExtendedExitVisibility(extendedTime) {
+          function setExtendedExitVisibility(extendedTime, manualExit, building) {
+            var pending = manualExit === true && building === true;
+            var available = extendedTime === true && building === true && !pending;
             if (exitExtendedForm) {
-              exitExtendedForm.setAttribute("data-visible", String(extendedTime === true));
+              exitExtendedForm.setAttribute("data-visible", String(available || pending));
+            }
+            if (exitExtendedCommand) {
+              exitExtendedCommand.setAttribute("data-visible", String(available));
+            }
+            if (exitFinalizingStatus) {
+              exitFinalizingStatus.setAttribute("data-visible", String(pending));
             }
           }
           function htmlToElement(html) {
@@ -4581,6 +4611,8 @@
               extendedTime: dashboard.getAttribute("data-extended-time") === "true",
               manualExitRequested:
                   dashboard.getAttribute("data-manual-exit-requested") === "true",
+              manualExitRequestedAtMillis: Number(
+                  dashboard.getAttribute("data-manual-exit-requested-at-millis") || 0),
               executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
               sampleTimeMillis: currentWallTime(),
               startedAt: timeoutCard ? timeoutCard.getAttribute("data-started-at") || "" : "",
@@ -4603,6 +4635,16 @@
           }
           function manualExitRequested(payload) {
             return payload && payload.manualExitRequested === true;
+          }
+          function manualExitTimeMillis(payload, fallback) {
+            var requestedAt = Number(
+                payload && payload.manualExitRequestedAtMillis
+                    ? payload.manualExitRequestedAtMillis
+                    : 0);
+            if (manualExitRequested(payload) && isFinite(requestedAt) && requestedAt > 0) {
+              return requestedAt;
+            }
+            return manualExitRequested(payload) ? Math.max(0, fallback || 0) : 0;
           }
           function timeoutSampleTimeMillis(payload) {
             if (payload && payload.building !== true) {
@@ -4982,6 +5024,12 @@
               lastDisplayedUnit: "",
               lastDisplayedValue: "",
               mode: mode,
+              manualExitRequestedAtMillis:
+                  mode === "timeout"
+                      ? Number(
+                          dashboard.getAttribute(
+                              "data-manual-exit-requested-at-millis") || 0)
+                      : 0,
               progressCircle: card.querySelector("[data-timer-progress]"),
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
@@ -4991,6 +5039,13 @@
               value: card.querySelector("[data-timer-value]")
             };
           }
+          function timerStateSampleTime(state, now) {
+            return timerSampleTimeMillis(
+                state.active,
+                state.updatedAt,
+                state.manualExitRequestedAtMillis,
+                now);
+          }
           function remainingMillis(state, now) {
             if (!state.active && state.mode === "poll") {
               return 0;
@@ -4998,11 +5053,11 @@
             if (state.mode === "timeout" && state.extendedActive) {
               return 0;
             }
-            var sampleTime = state.active ? now : state.updatedAt;
+            var sampleTime = timerStateSampleTime(state, now);
             return clamp(state.endAt - sampleTime, 0, state.totalMillis);
           }
           function testingTimeSpentMillis(state, now) {
-            var sampleTime = state.active ? now : state.updatedAt;
+            var sampleTime = timerStateSampleTime(state, now);
             var elapsed = sampleTime - (state.endAt - state.totalMillis);
             var maximum = state.totalMillis + (state.extendedTotalMillis || 0);
             return clamp(elapsed, 0, maximum);
@@ -5014,6 +5069,9 @@
             return state.totalMillis + state.extendedTotalMillis;
           }
           /* OCTANE_TIMER_DISPLAY_START */
+          function timerSampleTimeMillis(active, updatedAt, manualExitAt, now) {
+            return manualExitAt > 0 ? manualExitAt : active ? now : updatedAt;
+          }
           function timeoutCountdownRemainingMillis(
               startedAt, baseTotalMillis, extendedTotalMillis, sampleTime) {
             var totalMillis =
@@ -5088,7 +5146,7 @@
             if (!state.active && state.mode === "poll") {
               return 0;
             }
-            var sampleTime = state.active ? now : state.updatedAt;
+            var sampleTime = timerStateSampleTime(state, now);
             var startedAt = state.endAt - state.totalMillis;
             if (state.mode === "timeout") {
               return timeoutCountdownRemainingMillis(
@@ -5235,7 +5293,14 @@
             if (!payload) {
               return false;
             }
-            return payload.updatedAt !== currentUpdatedAt || payload.building === false;
+            return payload.updatedAt !== currentUpdatedAt
+                || payload.building === false
+                || payload.manualExitRequested
+                    !== (dashboard.getAttribute("data-manual-exit-requested") === "true")
+                || Number(payload.manualExitRequestedAtMillis || 0)
+                    !== Number(
+                        dashboard.getAttribute(
+                            "data-manual-exit-requested-at-millis") || 0);
           }
           function resetPollTimer(payload) {
             var updatedAt = parseTimestamp(payload.updatedAt);
@@ -5256,6 +5321,10 @@
               state.active = payload.building === true;
               state.updatedAt = updatedAt;
               state.extendedActive = payload.extendedTime === true && state.mode === "timeout";
+              if (state.mode === "timeout") {
+                state.manualExitRequestedAtMillis = manualExitTimeMillis(
+                    payload, state.manualExitRequestedAtMillis);
+              }
               state.card.setAttribute("data-active", String(state.active));
               state.card.setAttribute("data-updated-at", payload.updatedAt || "");
               if (state.mode === "poll") {
@@ -5320,7 +5389,16 @@
             dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
             dashboard.setAttribute(
                 "data-manual-exit-requested", String(payload.manualExitRequested === true));
-            setExtendedExitVisibility(payload.extendedTime === true);
+            dashboard.setAttribute(
+                "data-manual-exit-requested-at-millis",
+                String(payload.manualExitRequestedAtMillis || 0));
+            dashboard.setAttribute(
+                "aria-busy",
+                String(payload.manualExitRequested === true && payload.building === true));
+            setExtendedExitVisibility(
+                payload.extendedTime === true,
+                payload.manualExitRequested === true,
+                payload.building === true);
             if (stateLabel) {
               stateLabel.textContent = payload.stateLabel || "";
             }
@@ -5423,7 +5501,9 @@
             liveRefresh.waiting = false;
             resetPollTimer(payload);
             setLiveUpdateStatus(
-                payload.building === true
+                payload.manualExitRequested === true && payload.building === true
+                    ? "Finalizing..."
+                    : payload.building === true
                     ? "+" + (waitedMillis / 1000).toFixed(1) + "s"
                     : formatLastUpdatedStatus(payload),
                 payload.building !== true);
@@ -5523,6 +5603,23 @@
           }
           if (timers.length > 0) {
             scheduleTimerAnimation();
+          }
+          if (exitExtendedSubmitForm) {
+            exitExtendedSubmitForm.addEventListener("submit", function () {
+              var requestedAt = currentWallTime();
+              dashboard.setAttribute("data-manual-exit-requested", "true");
+              dashboard.setAttribute(
+                  "data-manual-exit-requested-at-millis", String(requestedAt));
+              dashboard.setAttribute("aria-busy", "true");
+              setExtendedExitVisibility(true, true, true);
+              for (var index = 0; index < timers.length; index += 1) {
+                if (timers[index].mode === "timeout") {
+                  timers[index].manualExitRequestedAtMillis = requestedAt;
+                  updateTimer(timers[index], requestedAt);
+                }
+              }
+              setLiveUpdateStatus("Finalizing...", false);
+            });
           }
           fetchRiskHeatMapSnapshot();
           function updateExecutionProgress(card) {
