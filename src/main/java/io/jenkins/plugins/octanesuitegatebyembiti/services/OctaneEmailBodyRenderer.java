@@ -378,7 +378,7 @@ public class OctaneEmailBodyRenderer {
   private void appendDefectAnalysisTables(StringBuilder html, OctaneGateReportSnapshot snapshot) {
     DefectCriteriaMetrics metrics =
         snapshot == null
-            ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), java.util.List.of())
+            ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
             : snapshot.getDefectMetrics();
     html.append(
         "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "

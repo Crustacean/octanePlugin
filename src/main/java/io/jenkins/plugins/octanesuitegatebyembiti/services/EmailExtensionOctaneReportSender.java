@@ -239,30 +239,6 @@ public class EmailExtensionOctaneReportSender implements OctaneEmailReportSender
     }
   }
 
-  private static final class BoundedByteArrayOutputStream extends ByteArrayOutputStream {
-    private final int maximumBytes;
-
-    private BoundedByteArrayOutputStream(int maximumBytes) {
-      super(Math.min(maximumBytes, 8192));
-      this.maximumBytes = maximumBytes;
-    }
-
-    @Override
-    public synchronized void write(int value) {
-      if (count < maximumBytes) {
-        super.write(value);
-      }
-    }
-
-    @Override
-    public synchronized void write(byte[] buffer, int offset, int length) {
-      int accepted = Math.min(length, maximumBytes - count);
-      if (accepted > 0) {
-        super.write(buffer, offset, accepted);
-      }
-    }
-  }
-
   private static final class TeeOutputStream extends OutputStream {
     private final OutputStream first;
     private final OutputStream second;

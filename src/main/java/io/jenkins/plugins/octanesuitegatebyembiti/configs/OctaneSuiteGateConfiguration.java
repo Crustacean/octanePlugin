@@ -21,7 +21,7 @@ public class OctaneSuiteGateConfiguration extends GlobalConfiguration {
   }
 
   public static OctaneSuiteGateConfiguration get() {
-    return GlobalConfiguration.all().get(OctaneSuiteGateConfiguration.class);
+    return all().get(OctaneSuiteGateConfiguration.class);
   }
 
   @Override

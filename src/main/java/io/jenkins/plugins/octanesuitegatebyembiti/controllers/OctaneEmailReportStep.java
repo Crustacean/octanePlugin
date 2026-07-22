@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
@@ -39,7 +38,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
-public class OctaneEmailReportStep extends Step {
+public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
   static final int DEFAULT_VIEWPORT_WIDTH = 1400;
   public static final int MAX_VIEWPORT_WIDTH = 3840;
 
@@ -47,155 +46,15 @@ public class OctaneEmailReportStep extends Step {
       new HeadlessBrowserReportScreenshotService();
   private static OctaneEmailReportSender emailSender = new EmailExtensionOctaneReportSender();
 
-  private final String to;
-  private String cc = "";
-  private String bcc = "";
-  private String subject = "";
-  private String body = "";
-  private String projectName = "";
-  private String domainName = "";
-  private String from = "";
-  private String replyTo = "";
-  private String onFailure = OctaneEmailFailureMode.UNSTABLE.name();
-  private String browserPath = "";
-  private String theme = OctaneReportTheme.LIGHT.name();
-  private int viewportWidth = DEFAULT_VIEWPORT_WIDTH;
-  private boolean archiveScreenshot = true;
-  private boolean printDefectGroups;
-
   @DataBoundConstructor
   public OctaneEmailReportStep(String to) {
-    this.to = Util.trimToEmpty(to);
-  }
-
-  public String getTo() {
-    return to;
-  }
-
-  public String getCc() {
-    return cc;
+    super(to, OctaneEmailFailureMode.UNSTABLE, true);
   }
 
   @DataBoundSetter
-  public void setCc(String cc) {
-    this.cc = Util.trimToEmpty(cc);
-  }
-
-  public String getBcc() {
-    return bcc;
-  }
-
-  @DataBoundSetter
-  public void setBcc(String bcc) {
-    this.bcc = Util.trimToEmpty(bcc);
-  }
-
-  public String getSubject() {
-    return subject;
-  }
-
-  @DataBoundSetter
-  public void setSubject(String subject) {
-    this.subject = Util.trimToEmpty(subject);
-  }
-
-  public String getBody() {
-    return body;
-  }
-
-  @DataBoundSetter
-  public void setBody(String body) {
-    this.body = Util.trimToEmpty(body);
-  }
-
-  public String getProjectName() {
-    return projectName;
-  }
-
-  @DataBoundSetter
-  public void setProjectName(String projectName) {
-    this.projectName = Util.trimToEmpty(projectName);
-  }
-
-  public String getDomainName() {
-    return domainName;
-  }
-
-  @DataBoundSetter
-  public void setDomainName(String domainName) {
-    this.domainName = Util.trimToEmpty(domainName);
-  }
-
-  public String getFrom() {
-    return from;
-  }
-
-  @DataBoundSetter
-  public void setFrom(String from) {
-    this.from = Util.trimToEmpty(from);
-  }
-
-  public String getReplyTo() {
-    return replyTo;
-  }
-
-  @DataBoundSetter
-  public void setReplyTo(String replyTo) {
-    this.replyTo = Util.trimToEmpty(replyTo);
-  }
-
-  public String getOnFailure() {
-    return onFailure;
-  }
-
-  @DataBoundSetter
-  public void setOnFailure(String onFailure) {
-    this.onFailure = OctaneEmailFailureMode.normalize(onFailure);
-  }
-
-  public String getBrowserPath() {
-    return browserPath;
-  }
-
-  @DataBoundSetter
-  public void setBrowserPath(String browserPath) {
-    this.browserPath = Util.trimToEmpty(browserPath);
-  }
-
-  public String getTheme() {
-    return theme;
-  }
-
-  @DataBoundSetter
-  public void setTheme(String theme) {
-    this.theme = OctaneReportTheme.normalize(theme);
-  }
-
-  public int getViewportWidth() {
-    return viewportWidth;
-  }
-
-  @DataBoundSetter
+  @Override
   public void setViewportWidth(int viewportWidth) {
-    this.viewportWidth = Math.min(MAX_VIEWPORT_WIDTH, Math.max(320, viewportWidth));
-  }
-
-  public boolean isArchiveScreenshot() {
-    return archiveScreenshot;
-  }
-
-  @DataBoundSetter
-  public void setArchiveScreenshot(boolean archiveScreenshot) {
-    this.archiveScreenshot = archiveScreenshot;
-  }
-
-  public boolean isPrintDefectGroups() {
-    return printDefectGroups;
-  }
-
-  @DataBoundSetter
-  public void setPrintDefectGroups(boolean printDefectGroups) {
-    this.printDefectGroups = printDefectGroups;
+    super.setViewportWidth(Math.min(MAX_VIEWPORT_WIDTH, viewportWidth));
   }
 
   @Override
@@ -239,25 +98,6 @@ public class OctaneEmailReportStep extends Step {
       }
       recipients.add(prefix.isEmpty() ? cleanRecipient : prefix + ":" + cleanRecipient);
     }
-  }
-
-  EmailRequest toRequest() {
-    return new EmailRequest(
-        to,
-        cc,
-        bcc,
-        subject,
-        body,
-        projectName,
-        domainName,
-        from,
-        replyTo,
-        onFailure,
-        browserPath,
-        theme,
-        viewportWidth,
-        archiveScreenshot,
-        printDefectGroups);
   }
 
   static final class EmailRequest implements Serializable {

@@ -300,30 +300,6 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     return Math.min(MAX_SCREENSHOT_HEIGHT, Math.max(800, 120 + rows * 380));
   }
 
-  private static final class BoundedByteArrayOutputStream extends ByteArrayOutputStream {
-    private final int maximumBytes;
-
-    private BoundedByteArrayOutputStream(int maximumBytes) {
-      super(Math.min(maximumBytes, 8192));
-      this.maximumBytes = maximumBytes;
-    }
-
-    @Override
-    public synchronized void write(int value) {
-      if (count < maximumBytes) {
-        super.write(value);
-      }
-    }
-
-    @Override
-    public synchronized void write(byte[] buffer, int offset, int length) {
-      int accepted = Math.min(length, maximumBytes - count);
-      if (accepted > 0) {
-        super.write(buffer, offset, accepted);
-      }
-    }
-  }
-
   private record BrowserProbeResult(
       boolean successful, boolean timedOut, int exitCode, String output) {}
 }

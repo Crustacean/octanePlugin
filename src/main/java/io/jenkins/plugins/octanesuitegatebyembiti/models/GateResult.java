@@ -255,8 +255,7 @@ public class GateResult implements Serializable {
     return scopedResults;
   }
 
-  private static Map<String, List<RunRecord>> copySuiteRuns(
-      Map<String, List<RunRecord>> suiteRuns) {
+  static Map<String, List<RunRecord>> copySuiteRuns(Map<String, List<RunRecord>> suiteRuns) {
     Map<String, List<RunRecord>> copy = new LinkedHashMap<>();
     for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
       copy.put(entry.getKey(), List.copyOf(entry.getValue()));
@@ -264,7 +263,7 @@ public class GateResult implements Serializable {
     return copy;
   }
 
-  private static List<Map<String, Object>> toRunMaps(List<RunRecord> runs) {
+  static List<Map<String, Object>> toRunMaps(List<RunRecord> runs) {
     return toRunMaps(runs, Integer.MAX_VALUE);
   }
 
@@ -277,7 +276,7 @@ public class GateResult implements Serializable {
     return runMaps;
   }
 
-  private static Map<String, Object> toSuiteRunMaps(Map<String, List<RunRecord>> suiteRuns) {
+  static Map<String, Object> toSuiteRunMaps(Map<String, List<RunRecord>> suiteRuns) {
     Map<String, Object> suiteRunMaps = new LinkedHashMap<>();
     for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
       suiteRunMaps.put(entry.getKey(), toRunMaps(entry.getValue()));
