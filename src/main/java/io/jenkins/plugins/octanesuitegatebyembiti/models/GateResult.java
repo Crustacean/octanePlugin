@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
@@ -23,6 +24,7 @@ public class GateResult implements Serializable {
   private final Map<String, GateScopeResult> scopedResults;
   private final OctaneRiskHeatMap riskHeatMap;
   private final DefectCriteriaMetrics defectMetrics;
+  private final List<DefectRecord> defects;
   private final CriteriaEvaluation criteriaEvaluation;
   private final Instant polledAt;
 
@@ -135,6 +137,36 @@ public class GateResult implements Serializable {
       DefectCriteriaMetrics defectMetrics,
       CriteriaEvaluation criteriaEvaluation,
       Instant polledAt) {
+    this(
+        suiteRunId,
+        criteria,
+        passed,
+        terminal,
+        metrics,
+        runs,
+        suiteRuns,
+        scopedResults,
+        riskHeatMap,
+        defectMetrics,
+        List.of(),
+        criteriaEvaluation,
+        polledAt);
+  }
+
+  public GateResult(
+      String suiteRunId,
+      String criteria,
+      boolean passed,
+      boolean terminal,
+      GateMetrics metrics,
+      List<RunRecord> runs,
+      Map<String, List<RunRecord>> suiteRuns,
+      Map<String, GateScopeResult> scopedResults,
+      OctaneRiskHeatMap riskHeatMap,
+      DefectCriteriaMetrics defectMetrics,
+      List<DefectRecord> defects,
+      CriteriaEvaluation criteriaEvaluation,
+      Instant polledAt) {
     this.suiteRunId = suiteRunId;
     this.criteria = criteria;
     this.passed = passed;
@@ -148,6 +180,7 @@ public class GateResult implements Serializable {
         defectMetrics == null
             ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
             : defectMetrics;
+    this.defects = defects == null ? List.of() : List.copyOf(defects);
     this.criteriaEvaluation =
         criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
     this.polledAt = polledAt;
@@ -205,6 +238,10 @@ public class GateResult implements Serializable {
     return defectMetrics == null
         ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
         : defectMetrics;
+  }
+
+  public List<DefectRecord> getDefects() {
+    return defects == null ? List.of() : defects;
   }
 
   public CriteriaEvaluation getCriteriaEvaluation() {

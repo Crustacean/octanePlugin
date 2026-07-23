@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {spawn, spawnSync} from "node:child_process";
-import {readFileSync} from "node:fs";
+import {existsSync, readFileSync} from "node:fs";
 import {createServer} from "node:net";
 import test from "node:test";
 
@@ -17,6 +17,10 @@ const viewports = [
   {height: 900, name: "desktop", width: 1440},
   {height: 1440, name: "wide", width: 2560}
 ];
+const snapGeckodriver = "/snap/firefox/current/usr/lib/firefox/geckodriver";
+const geckodriverExecutable = existsSync(snapGeckodriver)
+    ? snapGeckodriver
+    : "geckodriver";
 
 function executableAvailable(name) {
   return spawnSync("sh", ["-c", `command -v ${name}`], {stdio: "ignore"}).status === 0;
@@ -75,7 +79,7 @@ async function withFirefox(callback) {
   const port = await availablePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const driver = spawn(
-      "geckodriver",
+      geckodriverExecutable,
       ["--host", "127.0.0.1", "--port", String(port), "--log", "fatal"],
       {detached: true, stdio: "ignore"});
   let sessionId = "";
@@ -101,9 +105,9 @@ async function withFirefox(callback) {
       ]);
     }
     try {
-      process.kill(-driver.pid, "SIGKILL");
+      driver.kill("SIGKILL");
     } catch (error) {
-      // The browser process group already exited after deleting the session.
+      // The driver already exited after deleting the session.
     }
     driver.unref();
   }
@@ -138,6 +142,170 @@ function timerCard(index, title) {
     </section>`;
 }
 
+function managementCard(index, title) {
+  const categoryNavigation = index === 2
+      ? `<div class="octane-card-actions">
+          <div class="octane-management-failure-tab-nav"
+              data-management-failure-tab-nav="true"
+              role="group" aria-label="Defect group filters">
+            <button class="octane-management-category-scroll" type="button"
+                data-management-category-scroll="-1" data-visible="true"
+                aria-label="Scroll defect groups left">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M12.5 4.5L7 10l5.5 5.5"></path>
+              </svg>
+            </button>
+            <div class="octane-management-failure-switcher"
+                data-management-failure-switcher="true">
+              ${[
+                "All",
+                "Environment Configuration",
+                "Automation Framework",
+                "Data Quality",
+                "API Contract",
+                "Infrastructure",
+                "Product Defect",
+                "Third Party"
+              ].map((category, categoryIndex) => `
+                <button class="octane-management-category-toggle" type="button"
+                    aria-pressed="${categoryIndex === 0}">
+                  ${category}
+                </button>`).join("")}
+            </div>
+            <button class="octane-management-category-scroll" type="button"
+                data-management-category-scroll="1" data-visible="true"
+                aria-label="Scroll defect groups right">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M7.5 4.5L13 10l-5.5 5.5"></path>
+              </svg>
+            </button>
+          </div>
+        </div>`
+      : "";
+  const chart = index === 2
+      ? `<div class="octane-management-failure-layout">
+          <div class="octane-management-plot-layout
+              octane-management-failure-axis-layout">
+            <div class="octane-management-y-axis-title">Defects</div>
+            <div class="octane-management-y-labels">
+              <span>10</span><span>5</span><span>0</span>
+            </div>
+            <div class="octane-management-failure-chart">
+              ${Array.from({length: 8}, (_, category) => `
+                <button class="octane-management-failure-group" type="button">
+                  <span class="octane-management-failure-bars">
+                    <span class="octane-management-failure-bar"
+                        style="--octane-bar-color: #FF453A;
+                            --octane-bar-size: ${30 + category * 5}%"></span>
+                    <span class="octane-management-failure-bar"
+                        style="--octane-bar-color: #34C759;
+                            --octane-bar-size: ${20 + category * 4}%"></span>
+                  </span>
+                  <span class="octane-management-failure-label">
+                    Long dynamic failure category ${category + 1}
+                  </span>
+                </button>`).join("")}
+            </div>
+          </div>
+          <div class="octane-management-defect-detail-panel">
+            <ul class="octane-management-defect-list">
+              ${["Critical", "Very High", "High", "Medium", "Low", "Unspecified"]
+                .map((severity, defect) => `
+                  <li class="octane-management-defect-row">
+                    <span class="octane-management-defect-id">#D-${defect + 1000}</span>
+                    <span class="octane-management-defect-description">
+                      Checkout payment authorization failed for a long regional account name
+                    </span>
+                    <span class="octane-management-defect-pills">
+                      <span class="octane-management-defect-pill"
+                          style="--octane-pill-color: #FF453A">Open</span>
+                      <span class="octane-management-defect-pill"
+                          style="--octane-pill-color: #9D1D34">${severity}</span>
+                    </span>
+                  </li>`).join("")}
+            </ul>
+          </div>
+        </div>`
+      : index === 3
+        ? `<div class="octane-management-metrics-grid">
+            <article class="octane-management-metric-tile octane-management-tone-bad">
+              <h3 class="octane-management-metric-title">Defect Compliance</h3>
+              <div class="octane-management-metric-value">12 open</div>
+              <div class="octane-management-metric-detail">2 / 7 defect criteria met</div>
+            </article>
+            <article class="octane-management-metric-tile octane-management-tone-bad">
+              <h3 class="octane-management-metric-title">Open vs Closed</h3>
+              <div class="octane-management-metric-value">12 open</div>
+              <div class="octane-management-metric-detail">18 closed</div>
+            </article>
+            <article class="octane-management-metric-tile octane-management-tone-neutral">
+              <h3 class="octane-management-metric-title">Top 5 Testers (Volume)</h3>
+              <div class="octane-management-metric-value">5 testers</div>
+              <div class="octane-management-metric-detail">3 below 80% execution</div>
+              <ul class="octane-management-metric-items">
+                <li><span>Tester Alpha</span><strong>100%</strong></li>
+                <li><span>Tester Beta</span><strong>80%</strong></li>
+                <li><span>Tester Gamma</span><strong>70%</strong></li>
+                <li><span>Tester Delta</span><strong>60%</strong></li>
+                <li><span>Tester Epsilon</span><strong>50%</strong></li>
+              </ul>
+            </article>
+            <article class="octane-management-metric-tile octane-management-tone-bad">
+              <h3 class="octane-management-metric-title">Top 5 Testers (Defects)</h3>
+              <div class="octane-management-metric-value">12 open</div>
+              <div class="octane-management-metric-detail">Highest open workload</div>
+              <ul class="octane-management-metric-items">
+                <li><span>Tester Alpha</span><strong>5</strong></li>
+                <li><span>Tester Beta</span><strong>3</strong></li>
+                <li><span>Tester Gamma</span><strong>2</strong></li>
+                <li><span>Tester Delta</span><strong>1</strong></li>
+                <li><span>Tester Epsilon</span><strong>1</strong></li>
+              </ul>
+            </article>
+          </div>`
+        : `<div class="octane-management-chart">
+          <div class="octane-management-plot-layout">
+            <div class="octane-management-y-axis-title">Tests Executed</div>
+            <div class="octane-management-y-labels">
+              <span>10</span><span>5</span><span>0</span>
+            </div>
+            <div class="octane-management-state-bars">
+              ${Array.from({length: 10}, (_, part) => `
+                <div class="octane-management-state-column">
+                  <span class="octane-management-state-segment"
+                      style="--octane-segment-color: #34C759;
+                          --octane-segment-size: ${20 + part * 6}%"></span>
+                </div>`).join("")}
+            </div>
+            <div class="octane-management-x-labels">
+              <span>Start</span><span>Middle</span><span>End</span>
+            </div>
+          </div>
+        </div>`;
+  return `
+    <section class="octane-chart-card octane-test-management-card"
+        data-card-key="test-management-${index}">
+      <div class="octane-card-header">
+        <div class="octane-management-header-copy">
+          <h2 class="octane-card-title">${title}</h2>
+          <div class="octane-management-subtitle-line">
+            <div class="octane-management-legend">
+              <span class="octane-management-legend-item">
+                <span class="octane-management-legend-swatch"
+                    style="--octane-legend-color: #34C759"></span>
+                <span>Responsive series</span>
+              </span>
+            </div>
+          </div>
+        </div>
+        ${categoryNavigation}
+      </div>
+      <div class="octane-management-card-body">
+        ${chart}
+      </div>
+    </section>`;
+}
+
 function fixtureHtml() {
   const cards = [
     "Testing Session Monitor",
@@ -145,6 +313,12 @@ function fixtureHtml() {
     "Execution Progress",
     "Execution Pass Rate"
   ].map((title, index) => timerCard(index, title)).join("");
+  const managementCards = [
+    "Testing Against Schedule",
+    "Execution per Sprint Parts",
+    "Test Failure Analysis",
+    "Testing Metrics"
+  ].map((title, index) => managementCard(index, title)).join("");
   return `<!doctype html>
     <html lang="en">
       <head>
@@ -168,6 +342,10 @@ function fixtureHtml() {
         <main class="octane-dashboard" id="octane-dashboard">
           <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone">
             ${cards}
+          </div>
+          <div class="octane-test-management-zone octane-card-zone"
+              id="octane-test-management-zone">
+            ${managementCards}
           </div>
         </main>
       </body>
@@ -234,7 +412,7 @@ async function setMode(driver, mode, expandedIndex = 0) {
 async function graphMetrics(driver) {
   const result = await executeAfterPaint(driver, `
     return Array.prototype.map.call(
-        document.querySelectorAll(".octane-chart-card"),
+        document.querySelectorAll("#octane-timer-zone .octane-chart-card"),
         function (card) {
           var body = card.querySelector(".octane-flip-face-body");
           var graph = card.querySelector(".octane-timer-donut");
@@ -271,6 +449,227 @@ async function graphMetrics(driver) {
   return result.value;
 }
 
+async function normalZoneMetrics(driver) {
+  const result = await executeAfterPaint(driver, `
+    function metricsFor(zoneId) {
+      var zone = document.getElementById(zoneId);
+      var zoneRect = zone.getBoundingClientRect();
+      return {
+        cardHeights: Array.prototype.map.call(
+            zone.querySelectorAll(":scope > .octane-chart-card"),
+            function (card) {
+              return card.getBoundingClientRect().height;
+            }),
+        height: zoneRect.height
+      };
+    }
+    return {
+      management: metricsFor("octane-test-management-zone"),
+      timer: metricsFor("octane-timer-zone")
+    };`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  assert.ok(result.duration < 500, `Zone layout took ${result.duration.toFixed(1)}ms`);
+  return result.value;
+}
+
+async function constrainedManagementBarMetrics(driver) {
+  const result = await executeAfterPaint(driver, `
+    var state = document.querySelector(".octane-management-state-bars");
+    var failure = document.querySelector(".octane-management-failure-chart");
+    state.style.width = "72px";
+    state.style.maxWidth = "72px";
+    state.style.justifySelf = "start";
+    failure.style.width = "72px";
+    failure.style.maxWidth = "72px";
+    failure.style.justifySelf = "start";
+    var label = failure.querySelector(".octane-management-failure-label");
+    var labelStyle = getComputedStyle(label);
+    var failureRect = failure.getBoundingClientRect();
+    var failureGroup = failure.querySelector(".octane-management-failure-group");
+    var failureGroupRect = failureGroup.getBoundingClientRect();
+    var failureGroupStyle = getComputedStyle(failureGroup);
+    var failureGridRows = failureGroupStyle.gridTemplateRows.trim().split(" ");
+    var failureAxisRow = parseFloat(failureGridRows[failureGridRows.length - 1]);
+    var failureBarsRect = failureGroup
+        .querySelector(".octane-management-failure-bars")
+        .getBoundingClientRect();
+    var failureLabelRect = label.getBoundingClientRect();
+    return {
+      failureAxisY: failureRect.bottom - failureAxisRow,
+      failureAxisRow: failureAxisRow,
+      failureBarBottoms: Array.prototype.map.call(
+          failure.querySelectorAll(".octane-management-failure-bar"),
+          function (bar) { return bar.getBoundingClientRect().bottom; }),
+      failureBarWidths: Array.prototype.map.call(
+          failure.querySelectorAll(".octane-management-failure-bar"),
+          function (bar) { return bar.getBoundingClientRect().width; }),
+      failureClientWidth: failure.clientWidth,
+      failureGridRows: failureGroupStyle.gridTemplateRows,
+      failureGroupBottom: failureGroupRect.bottom,
+      failureGroupHeight: failureGroupRect.height,
+      failureLabelBottom: failureLabelRect.bottom,
+      failureLabelHeight: failureLabelRect.height,
+      failurePlotBottom: failureBarsRect.bottom,
+      failureScrollWidth: failure.scrollWidth,
+      labelClientWidth: label.clientWidth,
+      labelOverflow: labelStyle.overflow,
+      labelScrollWidth: label.scrollWidth,
+      labelTextOverflow: labelStyle.textOverflow,
+      labelWhiteSpace: labelStyle.whiteSpace,
+      stateBarWidths: Array.prototype.map.call(
+          state.querySelectorAll(".octane-management-state-column"),
+          function (bar) { return bar.getBoundingClientRect().width; }),
+      stateClientWidth: state.clientWidth,
+      stateScrollWidth: state.scrollWidth
+    };`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function managementAxisSpacingMetrics(driver) {
+  const result = await executeAfterPaint(driver, `
+    var rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    var legacyPlotOffset = (1.15 + 1.9 + (0.04 * 2)) * rootFontSize;
+    return Array.prototype.map.call(
+        document.querySelectorAll(
+            "#octane-test-management-zone .octane-management-plot-layout"),
+        function (layout) {
+          var title = layout.querySelector(".octane-management-y-axis-title");
+          var labels = layout.querySelector(".octane-management-y-labels");
+          var plot = layout.querySelector(
+              ".octane-management-svg-wrap, .octane-management-state-bars, "
+              + ".octane-management-failure-chart");
+          var layoutRect = layout.getBoundingClientRect();
+          var plotRect = plot.getBoundingClientRect();
+          var style = getComputedStyle(layout);
+          return {
+            columnGap: parseFloat(style.columnGap),
+            gridColumns: style.gridTemplateColumns,
+            labelWidth: labels.getBoundingClientRect().width,
+            plotGain: legacyPlotOffset - (plotRect.left - layoutRect.left),
+            plotWidth: plotRect.width,
+            titleWidth: title.getBoundingClientRect().width
+          };
+        });`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function compactManagementMetricLayout(driver) {
+  const result = await executeAfterPaint(driver, `
+    return Array.prototype.map.call(
+        document.querySelectorAll(".octane-management-metric-tile"),
+        function (tile) {
+          var tileRect = tile.getBoundingClientRect();
+          var descendants = tile.querySelectorAll(
+              ".octane-management-metric-title, .octane-management-metric-value, "
+              + ".octane-management-metric-detail, .octane-management-metric-items");
+          var withinTile = Array.prototype.every.call(descendants, function (element) {
+            var rect = element.getBoundingClientRect();
+            return rect.left >= tileRect.left - 1
+                && rect.right <= tileRect.right + 1
+                && rect.top >= tileRect.top - 1
+                && rect.bottom <= tileRect.bottom + 1;
+          });
+          var value = tile.querySelector(".octane-management-metric-value");
+          return {
+            height: tileRect.height,
+            valueFontSize: parseFloat(getComputedStyle(value).fontSize),
+            width: tileRect.width,
+            withinTile: withinTile
+          };
+        });`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function managementDefectListLayout(driver) {
+  const result = await executeAfterPaint(driver, `
+    var card = document.querySelector(
+        '[data-card-key="test-management-2"]');
+    card.classList.add("octane-expanded");
+    var rows = card.querySelectorAll(".octane-management-defect-row");
+    var metrics = Array.prototype.map.call(rows, function (row) {
+      var identifier = row.querySelector(".octane-management-defect-id");
+      var description = row.querySelector(".octane-management-defect-description");
+      var pills = row.querySelectorAll(".octane-management-defect-pill");
+      var rowRect = row.getBoundingClientRect();
+      var idRect = identifier.getBoundingClientRect();
+      var descriptionRect = description.getBoundingClientRect();
+      var pillRects = Array.prototype.map.call(
+          pills, function (pill) { return pill.getBoundingClientRect(); });
+      return {
+        columns: getComputedStyle(row).gridTemplateColumns.trim().split(" ").length,
+        descriptionAfterId: descriptionRect.left >= idRect.right - 1,
+        descriptionBeforePills:
+            descriptionRect.right <= pillRects[0].left + 1,
+        pillWidths: pillRects.map(function (rect) { return rect.width; }),
+        rowContainsContent:
+            idRect.left >= rowRect.left - 1
+            && descriptionRect.left >= rowRect.left - 1
+            && pillRects[pillRects.length - 1].right <= rowRect.right + 1,
+        rowOverflow: row.scrollWidth - row.clientWidth
+      };
+    });
+    card.classList.remove("octane-expanded");
+    return metrics;`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function managementCategoryNavigationLayout(driver) {
+  const result = await executeAfterPaint(driver, `
+    var card = document.querySelector('[data-card-key="test-management-2"]');
+    card.classList.add("octane-expanded");
+    var header = card.querySelector(".octane-card-header");
+    var navigation = card.querySelector("[data-management-failure-tab-nav]");
+    var switcher = card.querySelector("[data-management-failure-switcher]");
+    var arrows = navigation.querySelectorAll("[data-management-category-scroll]");
+    var buttons = switcher.querySelectorAll(".octane-management-category-toggle");
+    var headerRect = header.getBoundingClientRect();
+    var navigationRect = navigation.getBoundingClientRect();
+    var buttonRects = Array.prototype.map.call(
+        buttons, function (button) { return button.getBoundingClientRect(); });
+    var firstTop = buttonRects[0].top;
+    switcher.style.scrollBehavior = "auto";
+    switcher.scrollLeft = 0;
+    var before = switcher.scrollLeft;
+    switcher.scrollLeft = switcher.scrollWidth;
+    var after = switcher.scrollLeft;
+    var metrics = {
+      arrowSizes: Array.prototype.map.call(arrows, function (arrow) {
+        var rect = arrow.getBoundingClientRect();
+        return {height: rect.height, width: rect.width};
+      }),
+      headerContainsNavigation:
+          navigationRect.left >= headerRect.left - 1
+          && navigationRect.right <= headerRect.right + 1,
+      navigationHeight: navigationRect.height,
+      oneLine: buttonRects.every(function (rect) {
+        return Math.abs(rect.top - firstTop) <= 1;
+      }),
+      overflow: switcher.scrollWidth > switcher.clientWidth,
+      scrolled: after > before,
+      switcherHeight: switcher.getBoundingClientRect().height
+    };
+    card.classList.remove("octane-expanded");
+    return metrics;`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
 function assertVisibleGraphs(metrics, label, minimumSize = 24) {
   assert.equal(metrics.length, 4, `${label}: all four timer graphs must render`);
   for (const [index, metric] of metrics.entries()) {
@@ -289,7 +688,9 @@ function assertVisibleGraphs(metrics, label, minimumSize = 24) {
   }
 }
 
-const browserAvailable = executableAvailable("geckodriver") && executableAvailable("firefox");
+const browserAvailable =
+    (existsSync(snapGeckodriver) || executableAvailable("geckodriver"))
+    && executableAvailable("firefox");
 
 test(
     "all timer graphs render and scale in normal, focused, and expanded modes",
@@ -310,6 +711,112 @@ test(
           await setMode(driver, "normal");
           const normal = await graphMetrics(driver);
           assertVisibleGraphs(normal, `${viewport.name} normal`);
+          const zones = await normalZoneMetrics(driver);
+          assert.ok(
+              Math.abs(zones.timer.height - zones.management.height) <= 1,
+              `${viewport.name}: timer and management zones differ: ${JSON.stringify(zones)}`);
+          assert.deepEqual(
+              zones.timer.cardHeights.map(Math.round),
+              zones.management.cardHeights.map(Math.round),
+              `${viewport.name}: timer and management card rows must match`);
+          assert.ok(
+              zones.management.cardHeights.every(height => Math.abs(height - 280) <= 1),
+              `${viewport.name}: management cards must remain at 280px in normal mode`);
+          const barMetrics = await constrainedManagementBarMetrics(driver);
+          assert.ok(
+              barMetrics.stateBarWidths.every(width => width >= 8 && width <= 100),
+              `${viewport.name}: state bar width escaped bounds: ${JSON.stringify(barMetrics)}`);
+          assert.ok(
+              barMetrics.failureBarWidths.every(width => width >= 8 && width <= 100),
+              `${viewport.name}: failure bar width escaped bounds: ${JSON.stringify(barMetrics)}`);
+          assert.ok(
+              barMetrics.failureBarBottoms.every(
+                  bottom => Math.abs(bottom - barMetrics.failureAxisY) <= 1),
+              `${viewport.name}: failure bars are not anchored above the x-axis: `
+                  + JSON.stringify(barMetrics));
+          assert.ok(
+              barMetrics.stateScrollWidth > barMetrics.stateClientWidth,
+              `${viewport.name}: state x-axis did not overflow cleanly`);
+          assert.ok(
+              barMetrics.failureScrollWidth > barMetrics.failureClientWidth,
+              `${viewport.name}: failure x-axis did not overflow cleanly`);
+          assert.equal(barMetrics.labelOverflow, "hidden");
+          assert.equal(barMetrics.labelTextOverflow, "ellipsis");
+          assert.equal(barMetrics.labelWhiteSpace, "nowrap");
+          assert.ok(barMetrics.labelScrollWidth > barMetrics.labelClientWidth);
+          const axisMetrics = await managementAxisSpacingMetrics(driver);
+          assert.equal(axisMetrics.length, 3);
+          assert.ok(
+              axisMetrics.every(metric => Math.abs(metric.columnGap - 1.44) <= 0.2),
+              `${viewport.name}: management axis gap differs from tester progress: `
+                  + JSON.stringify(axisMetrics));
+          assert.ok(
+              axisMetrics.every(metric => metric.gridColumns.split(" ").length === 3),
+              `${viewport.name}: management axis grid lost its three tracks: `
+                  + JSON.stringify(axisMetrics));
+          assert.ok(
+              axisMetrics.every(metric => metric.labelWidth < 30.4),
+              `${viewport.name}: tick labels retained the old 1.9rem reservation: `
+                  + JSON.stringify(axisMetrics));
+          assert.ok(
+              axisMetrics.every(metric => metric.plotGain >= 6),
+              `${viewport.name}: plot did not absorb the reclaimed axis width: `
+                  + JSON.stringify(axisMetrics));
+          if (viewport.name === "compact") {
+            const metricTiles = await compactManagementMetricLayout(driver);
+            assert.equal(metricTiles.length, 4);
+            assert.ok(
+                metricTiles.every(metric => metric.withinTile),
+                `Compact metric content crossed a quadrant: ${JSON.stringify(metricTiles)}`);
+            assert.ok(
+                metricTiles.every(metric => metric.valueFontSize <= 21.6),
+                `Compact metric value text did not scale down: ${JSON.stringify(metricTiles)}`);
+          }
+          const defectRows = await managementDefectListLayout(driver);
+          assert.equal(defectRows.length, 6);
+          assert.ok(
+              defectRows.every(row => row.columns === 3),
+              `${viewport.name}: defect rows lost their three-column layout: `
+                  + JSON.stringify(defectRows));
+          assert.ok(
+              defectRows.every(
+                  row => row.descriptionAfterId && row.descriptionBeforePills),
+              `${viewport.name}: defect text crossed a column boundary: `
+                  + JSON.stringify(defectRows));
+          assert.ok(
+              defectRows.every(row => row.rowContainsContent && row.rowOverflow <= 1),
+              `${viewport.name}: defect content escaped its row: ${JSON.stringify(defectRows)}`);
+          const pillWidths = defectRows.flatMap(row => row.pillWidths);
+          assert.ok(
+              Math.max(...pillWidths) - Math.min(...pillWidths) <= 1,
+              `${viewport.name}: defect pills are not uniform: ${JSON.stringify(pillWidths)}`);
+          const categoryNavigation = await managementCategoryNavigationLayout(driver);
+          assert.equal(
+              categoryNavigation.overflow,
+              true,
+              `${viewport.name}: defect group strip did not overflow`);
+          assert.equal(
+              categoryNavigation.oneLine,
+              true,
+              `${viewport.name}: defect group tabs wrapped: ${JSON.stringify(categoryNavigation)}`);
+          assert.equal(
+              categoryNavigation.scrolled,
+              true,
+              `${viewport.name}: defect group strip did not scroll`);
+          assert.equal(
+              categoryNavigation.headerContainsNavigation,
+              true,
+              `${viewport.name}: defect group controls escaped the top bar`);
+          assert.ok(
+              categoryNavigation.navigationHeight
+                  <= categoryNavigation.switcherHeight + 2,
+              `${viewport.name}: defect group arrows distorted the top bar: `
+                  + JSON.stringify(categoryNavigation));
+          assert.ok(
+              categoryNavigation.arrowSizes.every(
+                  size => size.width <= 20 && size.height <= 20),
+              `${viewport.name}: defect group arrows are oversized: `
+                  + JSON.stringify(categoryNavigation));
           for (const metric of normal) {
             assert.ok(
                 metric.graphWidth <= 221,

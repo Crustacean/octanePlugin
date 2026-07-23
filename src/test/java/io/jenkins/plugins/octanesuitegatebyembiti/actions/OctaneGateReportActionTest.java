@@ -137,6 +137,30 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Execution Pass Rate"));
     assertTrue(text.contains("Execution Defect Rate"));
     assertTrue(text.contains("Defect Arrival vs. Resolution Trend Analysis"));
+    assertFalse(text.contains("Burn-down Chart"));
+    assertTrue(text.contains("Testing Against Schedule"));
+    assertTrue(text.contains("Total Test cases"));
+    assertFalse(text.contains("Current Execution State"));
+    assertTrue(text.contains("Execution per Sprint Parts"));
+    assertTrue(text.contains("Tests Executed"));
+    assertTrue(text.contains("Test Failure Analysis"));
+    assertFalse(text.contains("Defect Root-Cause Breakdown"));
+    assertTrue(text.contains("Defects"));
+    assertTrue(text.contains("Testing Metrics"));
+    assertTrue(text.contains("QA Health & Compliance"));
+    assertTrue(
+        xml.indexOf("id=\"octane-test-management-zone\"")
+            < xml.indexOf("id=\"octane-report-zone\""));
+    assertTrue(xml.contains("data-zone-key=\"test-management\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-burndown\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-current-state\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-failures\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-metrics\""));
+    assertTrue(xml.contains("data-management-failure-switcher=\"true\""));
+    assertTrue(xml.contains("data-management-defect-list=\"true\""));
+    assertTrue(xml.contains("function updateTestManagement(payload)"));
+    assertTrue(xml.contains("window.OctaneTestManagement.mount"));
+    assertTrue(xml.contains("window.OctaneTestManagement.update"));
     assertFalse(text.contains("Defect Volumes"));
     assertTrue(text.contains("Volume"));
     assertTrue(text.contains("Density"));
@@ -582,7 +606,15 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("octane-x-axis-labels"));
     assertFalse(xml.contains("octane-axis-label-column"));
     assertTrue(xml.contains("overflow-x: hidden"));
-    assertFalse(xml.contains("overflow-x: auto"));
+    assertTrue(
+        xml.contains(
+            ".octane-management-state-bars {\n"
+                + "          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);"));
+    assertTrue(
+        xml.contains(
+            ".octane-management-failure-chart {\n"
+                + "          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);"));
+    assertTrue(xml.contains("overflow-x: auto"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
     assertFalse(xml.contains(".octane-zone-focused .octane-suite-column"));
     assertFalse(xml.contains(".octane-chart-card.octane-expanded .octane-suite-column"));
@@ -1001,6 +1033,13 @@ public class OctaneGateReportActionTest {
     assertEquals("#ff6361", payload.getJSONObject("defectTrend").getString("openedColor"));
     assertEquals("#7BE5B3", payload.getJSONObject("defectTrend").getString("closedColor"));
     assertTrue(payload.getJSONObject("defectTrend").getJSONArray("densityBuckets").size() >= 1);
+    assertTrue(payload.containsKey("testManagement"));
+    assertEquals(
+        0, payload.getJSONObject("testManagement").getJSONArray("failureCategories").size());
+    assertEquals(4, payload.getJSONObject("testManagement").getJSONArray("metrics").size());
+    assertTrue(payload.getJSONObject("testManagement").getJSONArray("points").size() >= 1);
+    assertEquals(
+        10, payload.getJSONObject("testManagement").getJSONArray("executionIntervals").size());
     assertTrue(
         payload
             .getJSONObject("defectTrend")

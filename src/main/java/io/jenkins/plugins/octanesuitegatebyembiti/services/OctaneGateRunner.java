@@ -130,6 +130,7 @@ public class OctaneGateRunner {
       extendedTimeoutConfigured = request.getTimeoutMinutesExtended() > 0;
       suiteRunIds = regressionSuiteRunIdsForCriteria(request);
       if (!this.state.isWaitingPublished()) {
+        logListener.logLookupContext(listener, sharedSpaceId, workspaceId);
         logListener.logWaiting(listener, request, suiteRunIds);
         reportPublisher.onWaiting(request, suiteRunIds);
         this.state.setWaitingPublished(true);
@@ -485,6 +486,7 @@ public class OctaneGateRunner {
         scopedResults,
         defectPollResult.reportHeatMap,
         defectMetrics,
+        defectPollResult.defects,
         criteriaEvaluation,
         clock.instant());
   }
@@ -550,7 +552,8 @@ public class OctaneGateRunner {
       }
       return new DefectPollResult(
           request.isRiskHeatMap() ? heatMap : OctaneRiskHeatMap.disabled(),
-          heatMap.getDefectSeveritySummary());
+          heatMap.getDefectSeveritySummary(),
+          defectLedger.getDefects());
     } catch (IOException e) {
       if (defectCriteriaRequired) {
         listener
@@ -565,7 +568,8 @@ public class OctaneGateRunner {
           .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
       return new DefectPollResult(
           OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage()),
-          OctaneDefectSeveritySummary.empty());
+          OctaneDefectSeveritySummary.empty(),
+          defectLedger.getDefects());
     }
   }
 
@@ -864,16 +868,20 @@ public class OctaneGateRunner {
   private static class DefectPollResult {
     private final OctaneRiskHeatMap reportHeatMap;
     private final OctaneDefectSeveritySummary severitySummary;
+    private final List<DefectRecord> defects;
 
     private DefectPollResult(
-        OctaneRiskHeatMap reportHeatMap, OctaneDefectSeveritySummary severitySummary) {
+        OctaneRiskHeatMap reportHeatMap,
+        OctaneDefectSeveritySummary severitySummary,
+        List<DefectRecord> defects) {
       this.reportHeatMap = reportHeatMap;
       this.severitySummary = severitySummary;
+      this.defects = defects == null ? List.of() : List.copyOf(defects);
     }
 
     private static DefectPollResult empty() {
       return new DefectPollResult(
-          OctaneRiskHeatMap.disabled(), OctaneDefectSeveritySummary.empty());
+          OctaneRiskHeatMap.disabled(), OctaneDefectSeveritySummary.empty(), List.of());
     }
   }
 }

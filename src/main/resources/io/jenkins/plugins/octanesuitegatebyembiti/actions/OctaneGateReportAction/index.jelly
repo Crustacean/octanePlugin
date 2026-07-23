@@ -35,6 +35,7 @@
           --octane-color-bad: #FF3B30;
           --octane-color-good: #34C759;
           --octane-color-neutral: #007AFF;
+          --octane-color-on-emphasis: #000000;
           --octane-color-warn: #FFCC00;
           --octane-status-blocked: #FF9500;
           --octane-status-failed: #FF3B30;
@@ -116,6 +117,7 @@
           font-weight: 500;
         }
         .octane-timer-zone,
+        .octane-test-management-zone,
         .octane-report-zone {
           align-items: stretch;
           border: 1px solid var(--background);
@@ -1540,6 +1542,14 @@
           min-width: 280px;
           width: calc(25% - 0.75rem);
         }
+        .octane-timer-zone:not(.octane-zone-focused)
+          > .octane-timer-card:not(.octane-expanded),
+        .octane-test-management-zone:not(.octane-zone-focused)
+          > .octane-test-management-card:not(.octane-expanded) {
+          height: 280px;
+          max-height: 280px;
+          min-height: 280px;
+        }
         .octane-timer-wrap {
           align-items: center;
           container-name: octane-timer-display;
@@ -2232,6 +2242,691 @@
         .octane-client-donut-segment {
           shape-rendering: geometricPrecision;
         }
+        .octane-test-management-zone.octane-zone-focused {
+          background: var(--background);
+          border-color: #4391F5;
+          border-radius: 14px;
+          box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
+          box-sizing: border-box;
+          display: grid;
+          gap: 1rem;
+          grid-auto-rows: minmax(0, 1fr);
+          grid-auto-flow: row;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          height: auto;
+          inset: 1rem;
+          max-height: none;
+          max-width: none;
+          overflow: hidden;
+          padding: 1rem;
+          position: fixed;
+          width: auto;
+          z-index: 9999;
+        }
+        .octane-test-management-zone.octane-zone-focused
+          > .octane-chart-card:nth-of-type(3) {
+          grid-column: 1;
+          grid-row: 2;
+        }
+        .octane-test-management-zone.octane-zone-focused
+          > .octane-chart-card:nth-of-type(4) {
+          grid-column: 2;
+          grid-row: 2;
+        }
+        .octane-test-management-card {
+          display: flex;
+          flex: 1 1 calc(25% - 0.75rem);
+          flex-direction: column;
+          min-height: 280px;
+          min-width: 280px;
+          position: relative;
+          width: calc(25% - 0.75rem);
+        }
+        .octane-test-management-card > .octane-card-header {
+          flex: 0 0 auto;
+        }
+        .octane-management-header-copy {
+          display: grid;
+          gap: 0.2rem;
+          min-width: 0;
+        }
+        .octane-management-subtitle-line {
+          align-items: center;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 0.25rem clamp(0.45rem, 1.8cqi, 0.85rem);
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          overscroll-behavior-inline: contain;
+          scrollbar-width: none;
+        }
+        .octane-management-subtitle-line::-webkit-scrollbar {
+          display: none;
+        }
+        .octane-management-card-body {
+          display: flex;
+          flex: 1 1 auto;
+          height: 100%;
+          max-height: 100%;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+        }
+        .octane-management-chart {
+          container-type: inline-size;
+          display: grid;
+          flex: 1 1 auto;
+          gap: clamp(0.3rem, 1.4cqi, 0.65rem);
+          grid-template-rows: minmax(0, 1fr);
+          height: 100%;
+          max-height: 100%;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-management-legend {
+          align-items: center;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 0.3rem clamp(0.45rem, 2cqi, 0.9rem);
+          min-height: 1rem;
+          width: max-content;
+        }
+        .octane-management-legend-item {
+          align-items: center;
+          color: var(--text-color-secondary);
+          display: inline-flex;
+          font-size: clamp(0.58rem, 2.2cqi, 0.78rem);
+          font-weight: 500;
+          gap: 0.3rem;
+          white-space: nowrap;
+        }
+        .octane-management-legend-swatch {
+          background: var(--octane-legend-color);
+          display: inline-block;
+          height: 0.62rem;
+          width: 0.62rem;
+        }
+        .octane-management-plot-layout {
+          --octane-management-axis-gap: 0.09rem;
+          column-gap: var(--octane-management-axis-gap);
+          display: grid;
+          grid-template-columns:
+            1.35rem max-content minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) 1.25rem;
+          height: 100%;
+          max-height: 100%;
+          min-height: 0;
+          min-width: 0;
+          row-gap: 0;
+        }
+        .octane-management-y-axis-title {
+          align-self: center;
+          color: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, 1.8cqi, 0.75rem);
+          font-weight: 400;
+          grid-column: 1;
+          grid-row: 1;
+          justify-self: center;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          writing-mode: vertical-rl;
+        }
+        .octane-management-y-labels {
+          color: var(--text-color-secondary);
+          display: flex;
+          flex-direction: column;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, 1.8cqi, 0.75rem);
+          font-weight: 400;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          line-height: 1;
+          padding: 0 0 0.1rem;
+          text-align: right;
+        }
+        .octane-management-svg-wrap {
+          grid-column: 3;
+          grid-row: 1;
+          min-height: 0;
+          min-width: 0;
+          position: relative;
+        }
+        .octane-management-svg {
+          display: block;
+          height: 100%;
+          min-height: 8rem;
+          overflow: visible;
+          width: 100%;
+        }
+        .octane-management-grid-line {
+          stroke: var(--input-border);
+          stroke-dasharray: 3 7;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-management-line {
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: clamp(2px, 0.35cqi, 4px);
+        }
+        .octane-management-line-planned {
+          stroke-dasharray: 7 5;
+        }
+        .octane-management-x-labels {
+          color: var(--text-color-secondary);
+          display: flex;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.56rem, 1.75cqi, 0.72rem);
+          font-weight: 400;
+          grid-column: 3;
+          grid-row: 2;
+          justify-content: space-between;
+          line-height: 1.1;
+          padding-top: 0.25rem;
+        }
+        .octane-management-state-bars {
+          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);
+          --octane-management-bar-width: clamp(8px, 4cqw, 100px);
+          align-items: end;
+          background-image:
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
+          background-position: left 0, left 25%, left 50%, left 75%;
+          background-repeat: repeat-x;
+          background-size: 9px 1px;
+          border-bottom: 1px solid var(--input-border);
+          display: flex;
+          gap: var(--octane-management-bar-gap);
+          grid-column: 3;
+          grid-row: 1;
+          justify-content: safe center;
+          min-height: 0;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          overscroll-behavior-inline: contain;
+          padding: 0 clamp(0.15rem, 0.8cqi, 0.4rem);
+          scrollbar-width: thin;
+        }
+        .octane-management-state-column {
+          display: flex;
+          flex: 0 0 var(--octane-management-bar-width);
+          flex-direction: column-reverse;
+          height: 100%;
+          justify-content: flex-start;
+          max-width: 100px;
+          min-width: 8px;
+          width: var(--octane-management-bar-width);
+        }
+        .octane-management-state-segment {
+          background: var(--octane-segment-color);
+          display: block;
+          flex: 0 0 var(--octane-segment-size);
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-management-failure-layout {
+          display: grid;
+          flex: 1 1 auto;
+          gap: clamp(0.35rem, 1.5cqi, 0.7rem);
+          grid-template-rows: minmax(0, 1fr);
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-management-failure-axis-layout {
+          --octane-management-failure-axis-row: 1.65rem;
+          min-height: 0;
+        }
+        .octane-management-failure-axis-layout > .octane-management-y-labels {
+          padding-bottom: var(--octane-management-failure-axis-row);
+        }
+        .octane-management-failure-chart {
+          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);
+          --octane-management-bar-width: clamp(8px, 4cqw, 100px);
+          align-items: end;
+          display: flex;
+          gap: var(--octane-management-bar-gap);
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          justify-content: safe center;
+          min-height: 0;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          overscroll-behavior-inline: contain;
+          padding: 0 clamp(0.2rem, 1cqi, 0.5rem);
+          position: relative;
+          scrollbar-width: none;
+        }
+        .octane-management-failure-chart::-webkit-scrollbar {
+          display: none;
+        }
+        .octane-management-failure-chart::before {
+          background-image:
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
+          background-position: left 0, left 25%, left 50%, left 75%;
+          background-repeat: repeat-x;
+          background-size: 9px 1px;
+          bottom: var(--octane-management-failure-axis-row);
+          content: "";
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          top: 0;
+        }
+        .octane-management-failure-chart::after {
+          background: var(--input-border);
+          bottom: calc(var(--octane-management-failure-axis-row) - 1px);
+          content: "";
+          height: 1px;
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+        }
+        .octane-management-failure-group {
+          align-items: stretch;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          color: inherit;
+          cursor: pointer;
+          display: grid;
+          flex: 0 0 calc(
+            var(--octane-management-bar-width)
+            + var(--octane-management-bar-width)
+            + var(--octane-management-bar-gap));
+          gap: 0;
+          grid-template-rows:
+            minmax(0, 1fr) var(--octane-management-failure-axis-row);
+          height: 100%;
+          max-width: calc(100px + 100px + var(--octane-management-bar-gap));
+          min-width: calc(8px + 8px + var(--octane-management-bar-gap));
+          padding: 0;
+          position: relative;
+          width: calc(
+            var(--octane-management-bar-width)
+            + var(--octane-management-bar-width)
+            + var(--octane-management-bar-gap));
+          z-index: 1;
+        }
+        .octane-management-failure-group:focus-visible {
+          outline: 3px solid #4391F5;
+          outline-offset: 3px;
+        }
+        .octane-management-failure-bars {
+          align-items: end;
+          display: flex;
+          gap: var(--octane-management-bar-gap);
+          grid-row: 1;
+          justify-content: center;
+          min-height: 0;
+        }
+        .octane-management-failure-bar {
+          background: var(--octane-bar-color);
+          display: block;
+          flex: 0 0 var(--octane-management-bar-width);
+          height: var(--octane-bar-size);
+          max-width: 100px;
+          min-height: 2px;
+          min-width: 8px;
+          width: var(--octane-management-bar-width);
+        }
+        .octane-management-failure-label {
+          align-self: center;
+          box-sizing: border-box;
+          color: var(--text-color-secondary);
+          display: block;
+          font-size: clamp(0.52rem, 2cqi, 0.72rem);
+          grid-row: 2;
+          line-height: 1.15;
+          max-width: 100%;
+          min-height: 1.15em;
+          overflow: hidden;
+          padding-top: 0.3rem;
+          text-align: center;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-management-failure-tab-nav,
+        .octane-management-defect-detail-panel {
+          display: none;
+        }
+        .octane-chart-card.octane-expanded .octane-management-failure-layout {
+          grid-template-columns: minmax(15rem, 0.8fr) minmax(20rem, 1.2fr);
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .octane-chart-card.octane-expanded .octane-management-failure-axis-layout {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        .octane-chart-card.octane-expanded .octane-management-defect-detail-panel {
+          container-name: octane-management-defects;
+          container-type: inline-size;
+          display: flex;
+          flex-direction: column;
+          gap: 0.65rem;
+          grid-column: 2;
+          grid-row: 1;
+          min-height: 0;
+        }
+        .octane-chart-card.octane-expanded .octane-management-failure-tab-nav {
+          align-items: center;
+          display: grid;
+          flex: 0 1 min(60cqw, 42rem);
+          gap: 0.2rem;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          inline-size: min(60cqw, 42rem);
+          max-width: min(60cqw, 42rem);
+          min-width: 0;
+        }
+        .octane-management-failure-switcher {
+          align-items: center;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 0.25rem;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          overscroll-behavior-inline: contain;
+          scroll-behavior: smooth;
+          scrollbar-width: none;
+        }
+        .octane-management-failure-switcher::-webkit-scrollbar {
+          display: none;
+        }
+        .octane-management-category-scroll {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 3px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: none;
+          height: var(--octane-control-size);
+          justify-content: center;
+          padding: 0;
+          width: var(--octane-control-size);
+        }
+        .octane-management-category-scroll[data-visible="true"] {
+          display: inline-flex;
+        }
+        .octane-management-category-scroll:hover:not(:disabled) {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-management-category-scroll:disabled {
+          cursor: default;
+          opacity: 0.3;
+        }
+        .octane-management-category-scroll:focus-visible {
+          outline: 2px solid #4391F5;
+          outline-offset: 2px;
+        }
+        .octane-management-category-scroll svg {
+          fill: none;
+          height: 0.82rem;
+          stroke: currentColor;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 2;
+          width: 0.82rem;
+        }
+        .octane-management-category-toggle {
+          appearance: none;
+          background: var(--panel-border-color);
+          border: 1px solid var(--input-border);
+          border-radius: 999px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          flex: 0 0 auto;
+          font: inherit;
+          font-size: clamp(0.64rem, 1.4vw, 0.82rem);
+          padding: 0.3rem 0.7rem;
+          white-space: nowrap;
+        }
+        .octane-management-category-toggle[aria-pressed="true"] {
+          background: var(--octane-color-neutral);
+          border-color: var(--octane-color-neutral);
+          color: var(--octane-color-on-emphasis);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .octane-management-failure-switcher {
+            scroll-behavior: auto;
+          }
+        }
+        .octane-management-defect-list {
+          --octane-management-pill-width:
+            clamp(6.25rem, calc(11ch + 1.5rem), 8.5rem);
+          display: grid;
+          gap: 0;
+          list-style: none;
+          margin: 0;
+          min-height: 0;
+          overflow: auto;
+          padding: 0;
+        }
+        .octane-management-defect-row {
+          align-items: center;
+          border-bottom: 1px solid var(--input-border);
+          display: grid;
+          gap: clamp(0.4rem, 1.5cqi, 0.75rem);
+          grid-template-columns:
+            minmax(3.5rem, max-content) minmax(0, 1fr) max-content;
+          min-width: 0;
+          padding: clamp(0.5rem, 1.7cqi, 0.7rem) 0.2rem;
+        }
+        .octane-management-defect-empty {
+          border-bottom: 1px solid var(--input-border);
+          padding: 0.65rem 0.2rem;
+        }
+        .octane-management-defect-id {
+          color: var(--text-color);
+          font-size: clamp(0.6rem, 1.8cqi, 0.78rem);
+          font-weight: 700;
+          min-width: 0;
+          white-space: nowrap;
+        }
+        .octane-management-defect-description {
+          font-size: clamp(0.6rem, 1.8cqi, 0.78rem);
+          line-height: 1.35;
+          min-width: 0;
+          overflow-wrap: anywhere;
+        }
+        .octane-management-defect-pills {
+          display: grid;
+          gap: 0.35rem;
+          grid-template-columns:
+            repeat(2, var(--octane-management-pill-width));
+          justify-content: end;
+          min-width: 0;
+        }
+        .octane-management-defect-pill {
+          align-items: center;
+          background: var(--octane-pill-color);
+          border-radius: 9999px;
+          box-sizing: border-box;
+          color: var(--octane-pill-text-color, #ffffff);
+          display: inline-flex;
+          font-size: clamp(0.58rem, 2cqi, 0.74rem);
+          font-weight: 600;
+          inline-size: var(--octane-management-pill-width);
+          justify-content: center;
+          line-height: 1.2;
+          max-inline-size: 8.5rem;
+          min-inline-size: 6.25rem;
+          overflow-wrap: anywhere;
+          padding:
+            clamp(0.25rem, 1cqi, 0.4rem)
+            clamp(0.4rem, 1.5cqi, 0.75rem);
+          text-align: center;
+          white-space: nowrap;
+        }
+        @container octane-management-defects (max-width: 32rem) {
+          .octane-management-defect-list {
+            --octane-management-pill-width:
+              clamp(5.25rem, calc(11ch + 1rem), 6.5rem);
+          }
+          .octane-management-defect-row {
+            gap: clamp(0.3rem, 1cqi, 0.5rem);
+            grid-template-columns:
+              minmax(3rem, max-content) minmax(0, 1fr) max-content;
+          }
+          .octane-management-defect-pill {
+            font-size: clamp(0.54rem, 1.8cqi, 0.66rem);
+            max-inline-size: 6.5rem;
+            min-inline-size: 5.25rem;
+          }
+        }
+        @container octane-management-defects (max-width: 22rem) {
+          .octane-management-defect-list {
+            --octane-management-pill-width:
+              clamp(4.5rem, calc(11ch + 0.65rem), 5.25rem);
+          }
+          .octane-management-defect-row {
+            grid-template-columns:
+              minmax(2.65rem, max-content) minmax(0, 1fr) max-content;
+          }
+          .octane-management-defect-id,
+          .octane-management-defect-description {
+            font-size: clamp(0.5rem, 1.7cqi, 0.62rem);
+          }
+          .octane-management-defect-pill {
+            font-size: clamp(0.5rem, 1.7cqi, 0.6rem);
+            max-inline-size: 5.25rem;
+            min-inline-size: 4.5rem;
+            padding-inline: clamp(0.25rem, 1cqi, 0.45rem);
+          }
+        }
+        .octane-management-metrics-grid {
+          container-name: octane-management-metrics;
+          container-type: size;
+          display: grid;
+          flex: 1 1 auto;
+          gap: 1px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-rows: repeat(2, minmax(0, 1fr));
+          min-height: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-management-metric-tile {
+          background: var(--panel-border-color);
+          border: 1px solid var(--input-border);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          padding: clamp(0.45rem, 2.2cqi, 0.9rem);
+        }
+        .octane-management-metric-tile:nth-child(3) {
+          border-bottom-left-radius: 14px;
+        }
+        .octane-management-metric-tile:nth-child(4) {
+          border-bottom-right-radius: 14px;
+        }
+        .octane-management-tone-good {
+          background: var(--octane-color-good);
+          color: var(--octane-color-on-emphasis);
+        }
+        .octane-management-tone-bad {
+          background: var(--octane-color-bad);
+          color: var(--octane-color-on-emphasis);
+        }
+        .octane-management-tone-neutral {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-management-metric-title {
+          font-size: clamp(0.62rem, 2.2cqi, 0.82rem);
+          font-weight: 600;
+          margin: 0 0 0.25rem;
+        }
+        .octane-management-metric-value {
+          font-size: clamp(1rem, 5cqi, 2rem);
+          font-weight: 700;
+          line-height: 1.05;
+          max-width: 100%;
+          overflow-wrap: anywhere;
+        }
+        .octane-management-metric-detail {
+          font-size: clamp(0.58rem, 2cqi, 0.78rem);
+          font-weight: 500;
+          margin-top: 0.2rem;
+        }
+        .octane-management-metric-items {
+          display: grid;
+          font-size: clamp(0.54rem, 1.8cqi, 0.72rem);
+          gap: 0.12rem;
+          list-style: none;
+          margin: 0.35rem 0 0;
+          padding: 0;
+        }
+        .octane-management-metric-items li {
+          display: flex;
+          gap: 0.4rem;
+          justify-content: space-between;
+          min-width: 0;
+        }
+        .octane-management-metric-items span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        @container octane-management-metrics
+          (max-width: 20rem) or (max-height: 14rem) {
+          .octane-management-metric-tile {
+            padding: clamp(0.22rem, 1.8cqi, 0.45rem);
+          }
+          .octane-management-metric-title {
+            font-size: clamp(0.5rem, min(4cqi, 4.8cqh), 0.68rem);
+            line-height: 1.08;
+            margin-bottom: 0.12rem;
+            overflow-wrap: anywhere;
+          }
+          .octane-management-metric-value {
+            font-size: clamp(0.72rem, min(7cqi, 8cqh), 1.35rem);
+            line-height: 1;
+          }
+          .octane-management-metric-detail {
+            font-size: clamp(0.46rem, min(3.4cqi, 4.2cqh), 0.66rem);
+            line-height: 1.08;
+            margin-top: 0.1rem;
+            overflow-wrap: anywhere;
+          }
+          .octane-management-metric-items {
+            font-size: clamp(0.44rem, min(3cqi, 3.5cqh), 0.62rem);
+            gap: 0;
+            line-height: 1.05;
+            margin-top: 0.16rem;
+          }
+        }
+        @container octane-management-metrics
+          (max-width: 15rem) or (max-height: 10rem) {
+          .octane-management-metric-title {
+            font-size: clamp(0.44rem, 4cqi, 0.58rem);
+          }
+          .octane-management-metric-value {
+            font-size: clamp(0.64rem, min(6.5cqi, 7cqh), 1rem);
+          }
+          .octane-management-metric-detail,
+          .octane-management-metric-items {
+            font-size: clamp(0.42rem, 2.9cqi, 0.54rem);
+          }
+        }
         @media (min-width: 840px) {
           .octane-tester-details-body {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2262,8 +2957,15 @@
           .octane-timer-zone.octane-zone-focused {
             grid-template-columns: minmax(0, 1fr);
           }
+          .octane-test-management-zone.octane-zone-focused {
+            grid-template-columns: minmax(0, 1fr);
+          }
           .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
           .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4),
+          .octane-test-management-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(3),
+          .octane-test-management-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(4),
           .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
           .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {
             grid-column: auto;
@@ -2272,6 +2974,18 @@
           .octane-timer-card {
             flex-basis: 100%;
             width: 100%;
+          }
+          .octane-chart-card.octane-expanded .octane-management-failure-layout {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: minmax(8rem, 0.8fr) minmax(0, 1.2fr);
+          }
+          .octane-chart-card.octane-expanded .octane-management-failure-axis-layout {
+            grid-column: 1;
+            grid-row: 1;
+          }
+          .octane-chart-card.octane-expanded .octane-management-defect-detail-panel {
+            grid-column: 1;
+            grid-row: 2;
           }
           .octane-donut-wrap {
             justify-content: center;
@@ -3086,6 +3800,248 @@
             </section>
           </div>
 
+          <div class="octane-test-management-zone octane-card-zone"
+              id="octane-test-management-zone" data-zone-key="test-management"
+              data-test-management-json="${it.testManagementJson}">
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-burndown">
+              <div class="octane-card-header">
+                <div class="octane-management-header-copy">
+                  <h2 class="octane-card-title">Testing Against Schedule</h2>
+                  <div class="octane-management-subtitle-line">
+                    <div class="octane-management-legend"
+                        data-management-legend="true"></div>
+                  </div>
+                </div>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-chart" data-management-burndown="true">
+                  <div class="octane-management-plot-layout">
+                    <div class="octane-management-y-axis-title">Total Test cases</div>
+                    <div class="octane-management-y-labels"
+                        data-management-y-labels="true"></div>
+                    <div class="octane-management-svg-wrap">
+                      <svg class="octane-management-svg" viewBox="0 0 1000 380"
+                          preserveAspectRatio="none" role="img"
+                          aria-label="Planned, executed, and passed tests over the gate timeline">
+                      </svg>
+                    </div>
+                    <div class="octane-management-x-labels"
+                        data-management-x-labels="true"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-current-state">
+              <div class="octane-card-header">
+                <div class="octane-management-header-copy">
+                  <h2 class="octane-card-title">Execution per Sprint Parts</h2>
+                  <div class="octane-management-subtitle-line">
+                    <div class="octane-management-legend"
+                        data-management-legend="true"></div>
+                  </div>
+                </div>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-chart" data-management-state="true">
+                  <div class="octane-management-plot-layout">
+                    <div class="octane-management-y-axis-title">Tests Executed</div>
+                    <div class="octane-management-y-labels"
+                        data-management-y-labels="true"></div>
+                    <div class="octane-management-state-bars"
+                        data-management-state-bars="true" role="img"
+                        aria-label="Execution statuses across ten equal sprint parts"></div>
+                    <div class="octane-management-x-labels"
+                        data-management-x-labels="true"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-failures">
+              <div class="octane-card-header">
+                <div class="octane-management-header-copy">
+                  <h2 class="octane-card-title">Test Failure Analysis</h2>
+                  <div class="octane-management-subtitle-line">
+                    <div class="octane-management-legend"
+                        data-management-legend="true"></div>
+                  </div>
+                </div>
+                <div class="octane-card-actions">
+                  <div class="octane-management-failure-tab-nav"
+                      data-management-failure-tab-nav="true"
+                      role="group" aria-label="Defect group filters">
+                    <button class="octane-management-category-scroll" type="button"
+                        data-management-category-scroll="-1" data-visible="false"
+                        aria-label="Scroll defect groups left"
+                        aria-controls="octane-management-failure-tabs">
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="M12.5 4.5L7 10l5.5 5.5" />
+                      </svg>
+                    </button>
+                    <div class="octane-management-failure-switcher"
+                        id="octane-management-failure-tabs"
+                        data-management-failure-switcher="true"
+                        data-selected-category="all"></div>
+                    <button class="octane-management-category-scroll" type="button"
+                        data-management-category-scroll="1" data-visible="false"
+                        aria-label="Scroll defect groups right"
+                        aria-controls="octane-management-failure-tabs">
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="M7.5 4.5L13 10l-5.5 5.5" />
+                      </svg>
+                    </button>
+                  </div>
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-failure-layout"
+                    data-management-failures="true">
+                  <div class="octane-management-plot-layout
+                      octane-management-failure-axis-layout">
+                    <div class="octane-management-y-axis-title">Defects</div>
+                    <div class="octane-management-y-labels"
+                        data-management-y-labels="true"></div>
+                    <div class="octane-management-failure-chart"
+                        data-management-failure-bars="true" role="img"
+                        aria-label="Open and closed defects grouped by root cause"></div>
+                  </div>
+                  <div class="octane-management-defect-detail-panel">
+                    <ul class="octane-management-defect-list"
+                        data-management-defect-list="true"></ul>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-metrics">
+              <div class="octane-card-header">
+                <div>
+                  <h2 class="octane-card-title">Testing Metrics</h2>
+                  <div class="octane-muted">QA Health &amp; Compliance</div>
+                </div>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-metrics-grid"
+                    data-management-metrics="true"></div>
+              </div>
+            </section>
+          </div>
+
           <div class="octane-report-zone octane-card-zone" id="octane-report-zone"
               data-zone-key="reports"
               data-client-rendered="${snapshot.clientRenderedReport}"
@@ -3495,6 +4451,7 @@
             aria-hidden="true"></div>
       </div>
       <script src="scaleReportScript"></script>
+      <script src="testManagementScript"></script>
       <script>
         //<![CDATA[
         (function () {
@@ -4760,6 +5717,9 @@
             if (zone.id === "octane-report-zone") {
               return "reports";
             }
+            if (zone.id === "octane-test-management-zone") {
+              return "test-management";
+            }
             return "";
           }
           function decorateCardZones(root) {
@@ -4767,11 +5727,14 @@
               return;
             }
             var zones = [];
-            if (root.id === "octane-timer-zone" || root.id === "octane-report-zone") {
+            if (root.id === "octane-timer-zone"
+                || root.id === "octane-test-management-zone"
+                || root.id === "octane-report-zone") {
               zones.push(root);
             }
             var nestedZones = root.querySelectorAll
-                ? root.querySelectorAll("#octane-timer-zone, #octane-report-zone")
+                ? root.querySelectorAll(
+                    "#octane-timer-zone, #octane-test-management-zone, #octane-report-zone")
                 : [];
             for (var nestedIndex = 0; nestedIndex < nestedZones.length; nestedIndex += 1) {
               zones.push(nestedZones[nestedIndex]);
@@ -4980,6 +5943,43 @@
             }
           }
           decorateCardZones(dashboard);
+          var testManagementZone = document.getElementById("octane-test-management-zone");
+          function initialTestManagementPayload() {
+            if (!testManagementZone) {
+              return {};
+            }
+            try {
+              return JSON.parse(
+                  testManagementZone.getAttribute("data-test-management-json") || "{}");
+            } catch (error) {
+              return {};
+            }
+          }
+          function expandFailureCategory(categoryBar) {
+            var card = categoryBar
+                ? categoryBar.closest(".octane-chart-card")
+                : dashboard.querySelector('[data-card-key="test-management-failures"]');
+            if (card) {
+              expandCard(card);
+            }
+          }
+          function initializeTestManagement() {
+            if (!testManagementZone || !window.OctaneTestManagement) {
+              return;
+            }
+            window.OctaneTestManagement.mount(
+                testManagementZone,
+                initialTestManagementPayload(),
+                {onCategorySelect: expandFailureCategory});
+          }
+          function updateTestManagement(payload) {
+            if (!testManagementZone || !window.OctaneTestManagement
+                || !payload || !payload.testManagement) {
+              return;
+            }
+            window.OctaneTestManagement.update(testManagementZone, payload.testManagement);
+          }
+          initializeTestManagement();
           initializeFluidBarCharts(dashboard);
           var initialClientReportZone = document.getElementById("octane-report-zone");
           if (initialClientReportZone
@@ -5412,6 +6412,7 @@
             updateTestMetrics(payload);
             updateExecutionStatusDistribution(payload);
             updateDefectTrend(payload);
+            updateTestManagement(payload);
             updateTesterDetails(payload);
             runCompletionAutoFlips(payload);
             var reportZone = document.getElementById("octane-report-zone");
@@ -5569,6 +6570,7 @@
               updateTestMetrics(payload);
               updateExecutionStatusDistribution(payload);
               updateDefectTrend(payload);
+              updateTestManagement(payload);
               runCompletionAutoFlips(payload);
             }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
@@ -6462,7 +7464,8 @@
             if (!button) {
               return;
             }
-            var zone = button.closest(".octane-timer-zone, .octane-report-zone");
+            var zone = button.closest(
+                ".octane-timer-zone, .octane-test-management-zone, .octane-report-zone");
             event.preventDefault();
             event.stopPropagation();
             if (zone && zone.classList.contains("octane-zone-focused")) {

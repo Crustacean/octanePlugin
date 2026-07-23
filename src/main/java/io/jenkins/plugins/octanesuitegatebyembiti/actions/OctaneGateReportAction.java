@@ -10,6 +10,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectTrend;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestManagementAnalytics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportArtifactStore;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
@@ -184,6 +185,10 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     return artifactMetadata == null ? "" : artifactMetadata.getChecksum();
   }
 
+  public String getTestManagementJson() {
+    return JSONObject.fromObject(getSnapshot().getTestManagement().toMap()).toString();
+  }
+
   public int getReportDataSchemaVersion() {
     return artifactMetadata == null ? 0 : artifactMetadata.getSchemaVersion();
   }
@@ -224,6 +229,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("testMetricsHtml", safeSnapshot.getTestMetricsHtml());
     payload.put("testMetrics", safeSnapshot.getTestMetrics().toMap());
     payload.put("defectTrend", safeSnapshot.getDefectTrend().toMap());
+    payload.put("testManagement", safeSnapshot.getTestManagement().toMap());
     payload.put("refreshSeconds", safeSnapshot.getRefreshSeconds());
     payload.put("timeoutSeconds", safeSnapshot.getTimeoutSeconds());
     payload.put("timeoutExtendedSeconds", safeSnapshot.getTimeoutExtendedSeconds());
@@ -300,6 +306,21 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
         OctaneGateReportAction.class.getResourceAsStream("/js/octane-scale-report.js")) {
       if (script == null) {
         response.sendError(404, "The Octane scale report renderer is unavailable.");
+        return;
+      }
+      response.setContentType("text/javascript;charset=UTF-8");
+      response.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+      response.setHeader("X-Content-Type-Options", "nosniff");
+      script.transferTo(response.getOutputStream());
+    }
+  }
+
+  public void doTestManagementScript(StaplerResponse2 response) throws IOException {
+    checkReadPermission();
+    try (InputStream script =
+        OctaneGateReportAction.class.getResourceAsStream("/js/octane-test-management.js")) {
+      if (script == null) {
+        response.sendError(404, "The Octane test-management renderer is unavailable.");
         return;
       }
       response.setContentType("text/javascript;charset=UTF-8");
@@ -611,6 +632,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   private OctaneGateReportSnapshot withLiveReportData(OctaneGateReportSnapshot current) {
     OctaneDefectTrend trend = current.getDefectTrend();
+    OctaneTestManagementAnalytics testManagement = current.getTestManagement();
     OctaneGateReportSnapshot previous = currentSnapshot();
     if (previous != null) {
       trend =
@@ -618,8 +640,10 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
               .getDefectTrend()
               .append(
                   current.getUpdatedAt(), current.getRiskHeatMap(), current.getExecutedTestCount());
+      testManagement = previous.getTestManagement().appendLatest(testManagement);
     }
-    return withPreviousCycleMetrics(current.withDefectTrend(trend));
+    return withPreviousCycleMetrics(
+        current.withDefectTrend(trend).withTestManagement(testManagement));
   }
 
   private OctaneGateReportSnapshot previousCompletedSnapshot() {

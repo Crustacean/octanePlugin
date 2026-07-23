@@ -291,7 +291,7 @@ public class OctaneClient implements AutoCloseable {
     try {
       node = getJson(fallbackPath);
     } catch (IOException e) {
-      if (isNotFound(e) || isNotFound(runsLookupFailure)) {
+      if (isNotFound(e)) {
         throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
       }
       if (runsLookupFailure != null) {

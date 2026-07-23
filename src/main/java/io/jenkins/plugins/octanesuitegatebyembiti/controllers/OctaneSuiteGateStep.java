@@ -655,6 +655,9 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     public FormValidation doCheckTimeoutMinutesExtended(@QueryParameter String value) {
+      if (Util.isBlank(value)) {
+        return FormValidation.ok();
+      }
       return checkBoundedInteger("Extended timeout", value, 0, GateRequest.MAX_TIMEOUT_MINUTES);
     }
 
