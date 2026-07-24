@@ -205,10 +205,34 @@ test("scales testing metric typography inside compact quadrant containers", () =
       /\.octane-management-metrics-grid\s*\{[^}]*container-name: octane-management-metrics;[^}]*container-type: size;/s);
   assert.match(
       jelly,
-      /@container octane-management-metrics\s*\(max-width: 20rem\) or \(max-height: 14rem\)[\s\S]*?\.octane-management-metric-value\s*\{[^}]*font-size: clamp\(0\.72rem, min\(7cqi, 8cqh\), 1\.35rem\)/s);
+      /@container octane-management-metrics\s*\(max-width: 20rem\) or \(max-height: 14rem\)[\s\S]*?\.octane-management-metric-tile\s*\{[^}]*padding: clamp\(2px, 1\.8cqi, 0\.45rem\);[^}]*text-align: center;/s);
   assert.match(
       jelly,
-      /@container octane-management-metrics\s*\(max-width: 15rem\) or \(max-height: 10rem\)[\s\S]*?\.octane-management-metric-value\s*\{[^}]*font-size: clamp\(0\.64rem, min\(6\.5cqi, 7cqh\), 1rem\)/s);
+      /@container octane-management-metrics\s*\(max-width: 20rem\) or \(max-height: 14rem\)[\s\S]*?\.octane-management-metric-title\s*\{[^}]*font-size: clamp\(0\.46rem, min\(3\.6cqi, 4\.2cqh\), 0\.62rem\);[^}]*font-weight: 400;/s);
+  assert.match(
+      jelly,
+      /@container octane-management-metrics\s*\(max-width: 20rem\) or \(max-height: 14rem\)[\s\S]*?\.octane-management-metric-value\s*\{[^}]*font-size: clamp\(0\.64rem, min\(6\.2cqi, 7cqh\), 1\.15rem\);[^}]*font-weight: 400;/s);
+  assert.match(
+      jelly,
+      /@container octane-management-metrics\s*\(max-width: 15rem\) or \(max-height: 10rem\)[\s\S]*?\.octane-management-metric-value\s*\{[^}]*font-size: clamp\(0\.56rem, min\(5\.5cqi, 6cqh\), 0\.88rem\)/s);
+});
+
+test("clips every metric quadrant and keeps tester rows on one line", () => {
+  assert.match(
+      jelly,
+      /\.octane-management-metric-tile\s*\{[^}]*overflow: hidden;[^}]*padding: clamp\(2px, 2\.2cqi, 0\.9rem\);/s);
+  assert.match(
+      source,
+      /tile\.setAttribute\(\s*"data-management-metric-key",\s*String\(metric\.key \|\| ""\)\.trim\(\)\.toLowerCase\(\)\);/s);
+  assert.match(
+      jelly,
+      /\.octane-management-metric-tile\[data-management-metric-key="tester-volume"\][\s\S]*?\.octane-management-metric-items li,[\s\S]*?data-management-metric-key="tester-defects"[\s\S]*?\.octane-management-metric-items li\s*\{[^}]*flex-wrap: nowrap;[^}]*overflow: hidden;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-metric-tile\[data-management-metric-key="tester-volume"\][\s\S]*?\.octane-management-metric-items span,[\s\S]*?data-management-metric-key="tester-defects"[\s\S]*?\.octane-management-metric-items span\s*\{[^}]*flex: 1 1 auto;[^}]*min-width: 0;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-metric-items span\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*text-wrap: nowrap;[^}]*white-space: nowrap;/s);
 });
 
 test("normalizes and renders human-readable defect status and severity pills", () => {

@@ -2874,7 +2874,8 @@
           justify-content: center;
           min-height: 0;
           min-width: 0;
-          padding: clamp(0.45rem, 2.2cqi, 0.9rem);
+          overflow: hidden;
+          padding: clamp(2px, 2.2cqi, 0.9rem);
         }
         .octane-management-metric-tile:nth-child(3) {
           border-bottom-left-radius: 14px;
@@ -2928,47 +2929,89 @@
         .octane-management-metric-items span {
           overflow: hidden;
           text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items {
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items li,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items li {
+          align-items: baseline;
+          flex-wrap: nowrap;
+          overflow: hidden;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items span,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items span {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items strong,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items strong {
+          flex: 0 0 auto;
+          text-wrap: nowrap;
           white-space: nowrap;
         }
         @container octane-management-metrics
           (max-width: 20rem) or (max-height: 14rem) {
           .octane-management-metric-tile {
-            padding: clamp(0.22rem, 1.8cqi, 0.45rem);
+            padding: clamp(2px, 1.8cqi, 0.45rem);
+            text-align: center;
           }
           .octane-management-metric-title {
-            font-size: clamp(0.5rem, min(4cqi, 4.8cqh), 0.68rem);
+            font-size: clamp(0.46rem, min(3.6cqi, 4.2cqh), 0.62rem);
+            font-weight: 400;
             line-height: 1.08;
             margin-bottom: 0.12rem;
             overflow-wrap: anywhere;
           }
           .octane-management-metric-value {
-            font-size: clamp(0.72rem, min(7cqi, 8cqh), 1.35rem);
+            font-size: clamp(0.64rem, min(6.2cqi, 7cqh), 1.15rem);
+            font-weight: 400;
             line-height: 1;
           }
           .octane-management-metric-detail {
-            font-size: clamp(0.46rem, min(3.4cqi, 4.2cqh), 0.66rem);
+            font-size: clamp(0.43rem, min(3cqi, 3.6cqh), 0.58rem);
+            font-weight: 400;
             line-height: 1.08;
             margin-top: 0.1rem;
             overflow-wrap: anywhere;
           }
           .octane-management-metric-items {
-            font-size: clamp(0.44rem, min(3cqi, 3.5cqh), 0.62rem);
+            font-size: clamp(0.42rem, min(2.7cqi, 3.1cqh), 0.56rem);
+            font-weight: 400;
             gap: 0;
             line-height: 1.05;
             margin-top: 0.16rem;
+            text-align: start;
+          }
+          .octane-management-metric-items strong {
+            font-weight: 400;
           }
         }
         @container octane-management-metrics
           (max-width: 15rem) or (max-height: 10rem) {
           .octane-management-metric-title {
-            font-size: clamp(0.44rem, 4cqi, 0.58rem);
+            font-size: clamp(0.4rem, 3.4cqi, 0.52rem);
           }
           .octane-management-metric-value {
-            font-size: clamp(0.64rem, min(6.5cqi, 7cqh), 1rem);
+            font-size: clamp(0.56rem, min(5.5cqi, 6cqh), 0.88rem);
           }
           .octane-management-metric-detail,
           .octane-management-metric-items {
-            font-size: clamp(0.42rem, 2.9cqi, 0.54rem);
+            font-size: clamp(0.38rem, 2.5cqi, 0.49rem);
           }
         }
         @media (min-width: 840px) {

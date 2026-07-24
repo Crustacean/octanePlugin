@@ -238,25 +238,27 @@ function managementCard(index, title) {
               <div class="octane-management-metric-value">12 open</div>
               <div class="octane-management-metric-detail">18 closed</div>
             </article>
-            <article class="octane-management-metric-tile octane-management-tone-neutral">
+            <article class="octane-management-metric-tile octane-management-tone-neutral"
+                data-management-metric-key="tester-volume">
               <h3 class="octane-management-metric-title">Top 5 Testers (Volume)</h3>
               <div class="octane-management-metric-value">5 testers</div>
               <div class="octane-management-metric-detail">3 below 80% execution</div>
               <ul class="octane-management-metric-items">
-                <li><span>Tester Alpha</span><strong>100%</strong></li>
-                <li><span>Tester Beta</span><strong>80%</strong></li>
+                <li><span>tester.alpha.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>100%</strong></li>
+                <li><span>tester.beta.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>80%</strong></li>
                 <li><span>Tester Gamma</span><strong>70%</strong></li>
                 <li><span>Tester Delta</span><strong>60%</strong></li>
                 <li><span>Tester Epsilon</span><strong>50%</strong></li>
               </ul>
             </article>
-            <article class="octane-management-metric-tile octane-management-tone-bad">
+            <article class="octane-management-metric-tile octane-management-tone-bad"
+                data-management-metric-key="tester-defects">
               <h3 class="octane-management-metric-title">Top 5 Testers (Defects)</h3>
               <div class="octane-management-metric-value">12 open</div>
               <div class="octane-management-metric-detail">Highest open workload</div>
               <ul class="octane-management-metric-items">
-                <li><span>Tester Alpha</span><strong>5</strong></li>
-                <li><span>Tester Beta</span><strong>3</strong></li>
+                <li><span>tester.alpha.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>5</strong></li>
+                <li><span>tester.beta.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>3</strong></li>
                 <li><span>Tester Gamma</span><strong>2</strong></li>
                 <li><span>Tester Delta</span><strong>1</strong></li>
                 <li><span>Tester Epsilon</span><strong>1</strong></li>
@@ -567,6 +569,7 @@ async function compactManagementMetricLayout(driver) {
         document.querySelectorAll(".octane-management-metric-tile"),
         function (tile) {
           var tileRect = tile.getBoundingClientRect();
+          var tileStyle = getComputedStyle(tile);
           var descendants = tile.querySelectorAll(
               ".octane-management-metric-title, .octane-management-metric-value, "
               + ".octane-management-metric-detail, .octane-management-metric-items");
@@ -577,10 +580,40 @@ async function compactManagementMetricLayout(driver) {
                 && rect.top >= tileRect.top - 1
                 && rect.bottom <= tileRect.bottom + 1;
           });
+          var title = tile.querySelector(".octane-management-metric-title");
           var value = tile.querySelector(".octane-management-metric-value");
+          var rows = Array.prototype.map.call(
+              tile.querySelectorAll(".octane-management-metric-items li"),
+              function (row) {
+                var label = row.querySelector("span");
+                var itemValue = row.querySelector("strong");
+                var rowStyle = getComputedStyle(row);
+                var labelStyle = getComputedStyle(label);
+                var labelRect = label.getBoundingClientRect();
+                var valueRect = itemValue.getBoundingClientRect();
+                return {
+                  flexWrap: rowStyle.flexWrap,
+                  labelOverflow: labelStyle.overflow,
+                  labelTextOverflow: labelStyle.textOverflow,
+                  labelWhiteSpace: labelStyle.whiteSpace,
+                  labelIsTruncated: label.scrollWidth > label.clientWidth,
+                  valueInline: Math.abs(labelRect.top - valueRect.top) <= 1
+                };
+              });
           return {
             height: tileRect.height,
+            key: tile.getAttribute("data-management-metric-key") || "",
+            overflow: tileStyle.overflow,
+            paddingBottom: parseFloat(tileStyle.paddingBottom),
+            paddingLeft: parseFloat(tileStyle.paddingLeft),
+            paddingRight: parseFloat(tileStyle.paddingRight),
+            paddingTop: parseFloat(tileStyle.paddingTop),
+            rows: rows,
+            titleFontWeight: getComputedStyle(title).fontWeight,
+            titleTextAlign: getComputedStyle(title).textAlign,
             valueFontSize: parseFloat(getComputedStyle(value).fontSize),
+            valueFontWeight: getComputedStyle(value).fontWeight,
+            valueTextAlign: getComputedStyle(value).textAlign,
             width: tileRect.width,
             withinTile: withinTile
           };
@@ -771,6 +804,41 @@ test(
             assert.ok(
                 metricTiles.every(metric => metric.valueFontSize <= 21.6),
                 `Compact metric value text did not scale down: ${JSON.stringify(metricTiles)}`);
+            assert.ok(
+                metricTiles.every(metric => metric.overflow === "hidden"),
+                `Compact metric quadrants do not clip overflow: ${JSON.stringify(metricTiles)}`);
+            assert.ok(
+                metricTiles.every(metric =>
+                  Math.min(
+                      metric.paddingTop,
+                      metric.paddingRight,
+                      metric.paddingBottom,
+                      metric.paddingLeft) >= 2),
+                `Compact metric padding dropped below 2px: ${JSON.stringify(metricTiles)}`);
+            assert.ok(
+                metricTiles.every(metric =>
+                  metric.titleTextAlign === "center"
+                    && metric.valueTextAlign === "center"
+                    && metric.titleFontWeight === "400"
+                    && metric.valueFontWeight === "400"),
+                `Compact metric typography did not center and normalize: `
+                    + JSON.stringify(metricTiles));
+            const testerRows = metricTiles
+                .filter(metric =>
+                  metric.key === "tester-volume" || metric.key === "tester-defects")
+                .flatMap(metric => metric.rows);
+            assert.ok(testerRows.length > 0);
+            assert.ok(
+                testerRows.every(row =>
+                  row.flexWrap === "nowrap"
+                    && row.labelOverflow === "hidden"
+                    && row.labelTextOverflow === "ellipsis"
+                    && row.labelWhiteSpace === "nowrap"
+                    && row.valueInline),
+                `Tester metric rows wrapped or escaped: ${JSON.stringify(testerRows)}`);
+            assert.ok(
+                testerRows.some(row => row.labelIsTruncated),
+                `Tester metric ellipsis was not exercised: ${JSON.stringify(testerRows)}`);
           }
           const defectRows = await managementDefectListLayout(driver);
           assert.equal(defectRows.length, 6);

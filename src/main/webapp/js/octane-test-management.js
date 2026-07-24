@@ -735,6 +735,9 @@
       var tile = createElement(
           "article",
           "octane-management-metric-tile octane-management-tone-" + (metric.tone || "neutral"));
+      tile.setAttribute(
+          "data-management-metric-key",
+          String(metric.key || "").trim().toLowerCase());
       var title = createElement("h3", "octane-management-metric-title");
       title.textContent = metric.title || "";
       var value = createElement("div", "octane-management-metric-value");
