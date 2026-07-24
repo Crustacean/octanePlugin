@@ -208,22 +208,32 @@ function managementCard(index, title) {
             </div>
           </div>
           <div class="octane-management-defect-detail-panel">
-            <ul class="octane-management-defect-list">
+            <div class="octane-management-defect-list" role="table">
+              <div class="octane-management-defect-header" role="row">
+                ${["Defect ID", "Defect Description", "Status", "Severity"]
+                  .map((label, column) => `
+                    <div class="octane-management-defect-header-cell" role="columnheader"
+                        ${column === 0 ? 'aria-sort="ascending"' : ""}>
+                      <button class="octane-management-defect-sort" type="button">
+                        <span class="octane-management-defect-sort-label">${label}</span>
+                        <span class="octane-management-defect-sort-indicator"
+                            aria-hidden="true"></span>
+                      </button>
+                    </div>`).join("")}
+              </div>
               ${["Critical", "Very High", "High", "Medium", "Low", "Unspecified"]
                 .map((severity, defect) => `
-                  <li class="octane-management-defect-row">
+                  <div class="octane-management-defect-row" role="row">
                     <span class="octane-management-defect-id">#D-${defect + 1000}</span>
                     <span class="octane-management-defect-description">
                       Checkout payment authorization failed for a long regional account name
                     </span>
-                    <span class="octane-management-defect-pills">
-                      <span class="octane-management-defect-pill"
-                          style="--octane-pill-color: #FF453A">Open</span>
-                      <span class="octane-management-defect-pill"
-                          style="--octane-pill-color: #9D1D34">${severity}</span>
-                    </span>
-                  </li>`).join("")}
-            </ul>
+                    <span class="octane-management-defect-pill"
+                        style="--octane-pill-color: #FF453A">Open</span>
+                    <span class="octane-management-defect-pill"
+                        style="--octane-pill-color: #9D1D34">${severity}</span>
+                  </div>`).join("")}
+            </div>
           </div>
         </div>`
       : index === 3
@@ -660,6 +670,55 @@ async function managementDefectListLayout(driver) {
   return result.value;
 }
 
+async function managementDefectHeaderLayout(driver) {
+  const result = await executeAfterPaint(driver, `
+    var card = document.querySelector(
+        '[data-card-key="test-management-2"]');
+    card.classList.add("octane-expanded");
+    var header = card.querySelector(".octane-management-defect-header");
+    var row = card.querySelector(".octane-management-defect-row");
+    var headerCells = header.querySelectorAll(
+        ".octane-management-defect-header-cell");
+    var rowCells = row.children;
+    var aligned = Array.prototype.every.call(
+        headerCells,
+        function (cell, index) {
+          var headerRect = cell.getBoundingClientRect();
+          var rowRect = rowCells[index].getBoundingClientRect();
+          return Math.abs(headerRect.left - rowRect.left) <= 1
+              && Math.abs(headerRect.width - rowRect.width) <= 1;
+        });
+    var activeIndicator = headerCells[0].querySelector(
+        ".octane-management-defect-sort-indicator");
+    var inactiveIndicator = headerCells[1].querySelector(
+        ".octane-management-defect-sort-indicator");
+    var headerRects = Array.prototype.map.call(headerCells, function (cell) {
+      var rect = cell.getBoundingClientRect();
+      return {left: rect.left, width: rect.width};
+    });
+    var rowRects = Array.prototype.map.call(rowCells, function (cell) {
+      var rect = cell.getBoundingClientRect();
+      return {left: rect.left, width: rect.width};
+    });
+    var metrics = {
+      activeArrowMoreVisible:
+          Number(getComputedStyle(activeIndicator).opacity)
+              > Number(getComputedStyle(inactiveIndicator).opacity),
+      activeSort: headerCells[0].getAttribute("aria-sort"),
+      aligned: aligned,
+      columns: getComputedStyle(header).gridTemplateColumns.trim().split(" ").length,
+      headerRects: headerRects,
+      position: getComputedStyle(header).position,
+      rowRects: rowRects
+    };
+    card.classList.remove("octane-expanded");
+    return metrics;`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
 async function managementCategoryNavigationLayout(driver) {
   const result = await executeAfterPaint(driver, `
     var card = document.querySelector('[data-card-key="test-management-2"]');
@@ -843,8 +902,8 @@ test(
           const defectRows = await managementDefectListLayout(driver);
           assert.equal(defectRows.length, 6);
           assert.ok(
-              defectRows.every(row => row.columns === 3),
-              `${viewport.name}: defect rows lost their three-column layout: `
+              defectRows.every(row => row.columns === 4),
+              `${viewport.name}: defect rows lost their four-column layout: `
                   + JSON.stringify(defectRows));
           assert.ok(
               defectRows.every(
@@ -858,6 +917,16 @@ test(
           assert.ok(
               Math.max(...pillWidths) - Math.min(...pillWidths) <= 1,
               `${viewport.name}: defect pills are not uniform: ${JSON.stringify(pillWidths)}`);
+          const defectHeader = await managementDefectHeaderLayout(driver);
+          assert.equal(defectHeader.activeArrowMoreVisible, true);
+          assert.equal(defectHeader.activeSort, "ascending");
+          assert.equal(defectHeader.columns, 4);
+          assert.equal(defectHeader.position, "sticky");
+          assert.equal(
+              defectHeader.aligned,
+              true,
+              `${viewport.name}: defect sort columns are misaligned: `
+                  + JSON.stringify(defectHeader));
           const categoryNavigation = await managementCategoryNavigationLayout(driver);
           assert.equal(
               categoryNavigation.overflow,

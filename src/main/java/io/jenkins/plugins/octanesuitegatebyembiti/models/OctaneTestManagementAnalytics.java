@@ -503,7 +503,13 @@ public final class OctaneTestManagementAnalytics implements Serializable {
               .map(type -> DefectDetail.canonicalSeverity(type))
               .min(Comparator.comparingInt(severity -> DefectDetail.severityRank(severity)))
               .orElse("Unspecified");
-      SeverityPresentation presentation = new SeverityPresentation(label, colorSeverity);
+      int sortRank =
+          group.getNormalizedTypes().stream()
+              .map(type -> DefectDetail.canonicalSeverity(type))
+              .mapToInt(severity -> DefectDetail.sortingSeverityRank(severity))
+              .min()
+              .orElse(DefectDetail.sortingSeverityRank("Unspecified"));
+      SeverityPresentation presentation = new SeverityPresentation(label, colorSeverity, sortRank);
       for (String type : group.getNormalizedTypes()) {
         presentations.putIfAbsent(type, presentation);
       }
@@ -1064,10 +1070,12 @@ public final class OctaneTestManagementAnalytics implements Serializable {
   private static final class SeverityPresentation {
     private final String label;
     private final String colorSeverity;
+    private final int sortRank;
 
-    private SeverityPresentation(String label, String colorSeverity) {
+    private SeverityPresentation(String label, String colorSeverity, int sortRank) {
       this.label = label;
       this.colorSeverity = colorSeverity;
+      this.sortRank = sortRank;
     }
   }
 
@@ -1079,6 +1087,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     private final String severity;
     private final String severityLabel;
     private final String severityColorKey;
+    private final int severitySortRank;
     private final String status;
     private final String category;
     private final boolean open;
@@ -1089,6 +1098,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
         String severity,
         String severityLabel,
         String severityColorKey,
+        int severitySortRank,
         String status,
         String category,
         boolean open) {
@@ -1097,6 +1107,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       this.severity = severity;
       this.severityLabel = severityLabel;
       this.severityColorKey = severityColorKey;
+      this.severitySortRank = severitySortRank;
       this.status = status;
       this.category = category;
       this.open = open;
@@ -1111,13 +1122,15 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       String normalizedSeverity = OctaneDefectSeveritySummary.normalizeOpenType(severity);
       SeverityPresentation presentation =
           severityPresentations.getOrDefault(
-              normalizedSeverity, new SeverityPresentation(severity, severity));
+              normalizedSeverity,
+              new SeverityPresentation(severity, severity, sortingSeverityRank(severity)));
       return new DefectDetail(
           defect.getId(),
           Util.isBlank(defect.getName()) ? "Defect " + defect.getId() : defect.getName(),
           severity,
           presentation.label,
           presentation.colorSeverity,
+          presentation.sortRank,
           open ? "Open" : "Closed",
           category,
           open);
@@ -1141,6 +1154,10 @@ public final class OctaneTestManagementAnalytics implements Serializable {
 
     public String getSeverityColorKey() {
       return Util.isBlank(severityColorKey) ? severity : severityColorKey;
+    }
+
+    public int getSeveritySortRank() {
+      return severitySortRank;
     }
 
     public String getStatus() {
@@ -1170,6 +1187,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       values.put("severity", severity);
       values.put("severityLabel", getSeverityLabel());
       values.put("severityColorKey", getSeverityColorKey());
+      values.put("severitySortRank", getSeveritySortRank());
       values.put("status", status);
       values.put("phase", status);
       values.put("category", category);
@@ -1234,6 +1252,23 @@ public final class OctaneTestManagementAnalytics implements Serializable {
         case "Medium":
           return 4;
         case "Low":
+          return 5;
+        default:
+          return 6;
+      }
+    }
+
+    private static int sortingSeverityRank(String severity) {
+      switch (canonicalSeverity(severity)) {
+        case "Critical":
+          return 1;
+        case "Very High":
+          return 2;
+        case "High":
+          return 3;
+        case "Low":
+          return 4;
+        case "Medium":
           return 5;
         default:
           return 6;

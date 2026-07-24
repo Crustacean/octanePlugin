@@ -244,6 +244,10 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals("Critical", details.get("d4").getSeverityColorKey());
     assertEquals("Medium", details.get("d5").getSeverityColorKey());
     assertEquals("Medium", details.get("d6").getSeverityColorKey());
+    assertEquals(1, details.get("d1").getSeveritySortRank());
+    assertEquals(1, details.get("d4").getSeveritySortRank());
+    assertEquals(4, details.get("d5").getSeveritySortRank());
+    assertEquals(4, details.get("d6").getSeveritySortRank());
     assertEquals("#FF3B30", details.get("d1").getSeverityColor());
     assertEquals("#FF3B30", details.get("d4").getSeverityColor());
     assertEquals("#AF52DE", details.get("d5").getSeverityColor());
@@ -251,6 +255,8 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals("Major", defectMap(analytics, "d1").get("severityLabel"));
     assertEquals("Critical", defectMap(analytics, "d4").get("severityColorKey"));
     assertEquals("Medium", defectMap(analytics, "d6").get("severityColorKey"));
+    assertEquals(1, defectMap(analytics, "d4").get("severitySortRank"));
+    assertEquals(4, defectMap(analytics, "d6").get("severitySortRank"));
   }
 
   @Test
@@ -272,6 +278,8 @@ public class OctaneTestManagementAnalyticsTest {
 
     assertEquals("Major", details.get("d1").getSeverityLabel());
     assertEquals("Medium", details.get("d2").getSeverityLabel());
+    assertEquals(1, details.get("d1").getSeveritySortRank());
+    assertEquals(5, details.get("d2").getSeveritySortRank());
     assertEquals("#FF3B30", details.get("d1").getSeverityColor());
     assertEquals("#AF52DE", details.get("d2").getSeverityColor());
   }

@@ -56,6 +56,12 @@
     unspecified: "--octane-severity-unspecified",
     veryhigh: "--octane-severity-very-high"
   };
+  var DEFECT_SORT_COLUMNS = [
+    {key: "id", label: "Defect ID"},
+    {key: "description", label: "Defect Description"},
+    {key: "status", label: "Status"},
+    {key: "severity", label: "Severity"}
+  ];
 
   function finiteNumber(value, fallback) {
     var number = Number(value);
@@ -134,6 +140,139 @@
         .match(/closed|fixed|done|resolved|rejected/)
         ? "Closed"
         : "Open";
+  }
+
+  function naturalDefectIdCompare(left, right) {
+    return String(left && left.id || "").localeCompare(
+        String(right && right.id || ""),
+        undefined,
+        {numeric: true, sensitivity: "base"});
+  }
+
+  function descriptionInitial(defect) {
+    var description = String(defect && defect.description || "").trim();
+    var firstWord = description.split(/\s+/, 1)[0] || "";
+    return firstWord.charAt(0).toLocaleLowerCase();
+  }
+
+  function defectSeveritySortRank(defect) {
+    var configuredRank = Number(defect && defect.severitySortRank);
+    if (Number.isFinite(configuredRank) && configuredRank > 0) {
+      return configuredRank;
+    }
+    switch (canonicalSeverity(defect && defect.severity)) {
+      case "Critical":
+        return 1;
+      case "Very High":
+        return 2;
+      case "High":
+        return 3;
+      case "Low":
+        return 4;
+      case "Medium":
+        return 5;
+      default:
+        return 6;
+    }
+  }
+
+  function compareFailureDefects(left, right, column) {
+    switch (column) {
+      case "description":
+        return descriptionInitial(left).localeCompare(descriptionInitial(right));
+      case "status":
+        return (canonicalStatus(left) === "Open" ? 0 : 1)
+            - (canonicalStatus(right) === "Open" ? 0 : 1);
+      case "severity":
+        return defectSeveritySortRank(left) - defectSeveritySortRank(right);
+      default:
+        return naturalDefectIdCompare(left, right);
+    }
+  }
+
+  function sortFailureDefects(defects, column, direction) {
+    var sortColumn = DEFECT_SORT_COLUMNS.some(function (candidate) {
+      return candidate.key === column;
+    }) ? column : "id";
+    var multiplier = direction === "descending" ? -1 : 1;
+    return array(defects)
+        .map(function (defect, index) {
+          return {defect: defect, index: index};
+        })
+        .sort(function (left, right) {
+          var comparison =
+              compareFailureDefects(left.defect, right.defect, sortColumn);
+          return comparison === 0
+              ? left.index - right.index
+              : comparison * multiplier;
+        })
+        .map(function (entry) {
+          return entry.defect;
+        });
+  }
+
+  function defectSortState(table) {
+    var column = table.getAttribute("data-sort-column") || "id";
+    var direction = table.getAttribute("data-sort-direction") || "ascending";
+    return {
+      column: DEFECT_SORT_COLUMNS.some(function (candidate) {
+        return candidate.key === column;
+      }) ? column : "id",
+      direction: direction === "descending" ? "descending" : "ascending"
+    };
+  }
+
+  function renderDefectTableHeader(table, state) {
+    var header = createElement("div", "octane-management-defect-header");
+    header.setAttribute("role", "row");
+    DEFECT_SORT_COLUMNS.forEach(function (column) {
+      var cell = createElement("div", "octane-management-defect-header-cell");
+      cell.setAttribute("role", "columnheader");
+      if (column.key === state.column) {
+        cell.setAttribute("aria-sort", state.direction);
+      }
+      var button = createElement("button", "octane-management-defect-sort");
+      button.type = "button";
+      button.setAttribute("data-management-defect-sort", column.key);
+      button.setAttribute(
+          "aria-label",
+          "Sort by "
+              + column.label
+              + (column.key === state.column
+                ? ", currently " + state.direction
+                : ""));
+      var label = createElement("span", "octane-management-defect-sort-label");
+      label.textContent = column.label;
+      var indicator = createElement(
+          "span", "octane-management-defect-sort-indicator");
+      indicator.setAttribute("aria-hidden", "true");
+      button.appendChild(label);
+      button.appendChild(indicator);
+      cell.appendChild(button);
+      header.appendChild(cell);
+    });
+    table.appendChild(header);
+  }
+
+  function updateDefectSort(zone, button) {
+    var table = zone.querySelector("[data-management-defect-list]");
+    if (!table) {
+      return;
+    }
+    var state = defectSortState(table);
+    var column = button.getAttribute("data-management-defect-sort") || "id";
+    var direction =
+        state.column === column && state.direction === "ascending"
+        ? "descending"
+        : "ascending";
+    table.setAttribute("data-sort-column", column);
+    table.setAttribute("data-sort-direction", direction);
+    renderFailureDetails(zone);
+    var active = table.querySelector(
+        '[data-management-defect-sort="' + column + '"]');
+    if (active) {
+      active.focus({preventScroll: true});
+    }
   }
 
   function severityColor(severity, zone) {
@@ -702,23 +841,39 @@
         defects = defects.concat(array(entry.defects));
       }
     });
+    var sortState = defectSortState(list);
+    list.setAttribute("data-sort-column", sortState.column);
+    list.setAttribute("data-sort-direction", sortState.direction);
+    defects = sortFailureDefects(defects, sortState.column, sortState.direction);
     clear(list);
+    renderDefectTableHeader(list, sortState);
+    list.setAttribute("aria-rowcount", String(defects.length + 1));
     if (!defects.length) {
-      var empty = createElement("li", "octane-management-defect-empty");
-      empty.textContent = "No defects in this category.";
+      var empty = createElement("div", "octane-management-defect-empty");
+      empty.setAttribute("role", "row");
+      var emptyCell = createElement("span");
+      emptyCell.setAttribute("role", "cell");
+      emptyCell.setAttribute("aria-colspan", "4");
+      emptyCell.textContent = "No defects in this category.";
+      empty.appendChild(emptyCell);
       list.appendChild(empty);
       return;
     }
     defects.forEach(function (defect) {
-      var row = createElement("li", "octane-management-defect-row");
+      var row = createElement("div", "octane-management-defect-row");
+      row.setAttribute("role", "row");
       var identifier = createElement("span", "octane-management-defect-id");
+      identifier.setAttribute("role", "cell");
       identifier.textContent = defect.id ? "#" + defect.id : "N/A";
       var description = createElement("span", "octane-management-defect-description");
+      description.setAttribute("role", "cell");
       description.textContent = defect.description || "Defect";
-      var pills = createElement("span", "octane-management-defect-pills");
       var statusLabel = canonicalStatus(defect);
       var severityLabel = displayedSeverity(defect);
-      var status = createElement("span", "octane-management-defect-pill");
+      var status = createElement(
+          "span",
+          "octane-management-defect-pill octane-management-defect-status");
+      status.setAttribute("role", "cell");
       status.style.setProperty(
           "--octane-pill-color",
           statusLabel === "Open" ? colors.open : colors.closed);
@@ -726,7 +881,10 @@
           "--octane-pill-text-color", emphasisTextColor(zone));
       status.textContent = statusLabel;
       status.setAttribute("aria-label", "Status: " + statusLabel);
-      var severity = createElement("span", "octane-management-defect-pill");
+      var severity = createElement(
+          "span",
+          "octane-management-defect-pill octane-management-defect-severity");
+      severity.setAttribute("role", "cell");
       severity.style.setProperty(
           "--octane-pill-color",
           severityColor(
@@ -736,11 +894,10 @@
           "--octane-pill-text-color", emphasisTextColor(zone));
       severity.textContent = severityLabel;
       severity.setAttribute("aria-label", "Severity: " + severityLabel);
-      pills.appendChild(status);
-      pills.appendChild(severity);
       row.appendChild(identifier);
       row.appendChild(description);
-      row.appendChild(pills);
+      row.appendChild(status);
+      row.appendChild(severity);
       list.appendChild(row);
     });
   }
@@ -820,6 +977,11 @@
     }
     zone.setAttribute("data-management-events-bound", "true");
     zone.addEventListener("click", function (event) {
+      var defectSort = event.target.closest("[data-management-defect-sort]");
+      if (defectSort && zone.contains(defectSort)) {
+        updateDefectSort(zone, defectSort);
+        return;
+      }
       var categoryScroll = event.target.closest("[data-management-category-scroll]");
       if (categoryScroll && zone.contains(categoryScroll)) {
         scrollCategorySwitcher(categoryScroll);
@@ -867,6 +1029,7 @@
     render: render,
     revealFailureCategory: scheduleFailureCategoryReveal,
     setSelectedCategory: setSelectedCategory,
+    sortFailureDefects: sortFailureDefects,
     update: update
   };
 })(window);

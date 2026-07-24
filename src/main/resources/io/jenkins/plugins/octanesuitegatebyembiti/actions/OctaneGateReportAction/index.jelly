@@ -2794,29 +2794,107 @@
           }
         }
         .octane-management-defect-list {
+          --octane-management-defect-id-width:
+            clamp(4rem, 13cqi, 6rem);
           --octane-management-pill-width:
             clamp(6.25rem, calc(11ch + 1.5rem), 8.5rem);
-          display: grid;
-          gap: 0;
-          list-style: none;
+          --octane-management-defect-columns:
+            var(--octane-management-defect-id-width) minmax(0, 1fr)
+            repeat(2, var(--octane-management-pill-width));
+          display: block;
+          flex: 1 1 auto;
           margin: 0;
           min-height: 0;
           overflow: auto;
           padding: 0;
         }
+        .octane-management-defect-header,
         .octane-management-defect-row {
           align-items: center;
-          border-bottom: 1px solid var(--input-border);
           display: grid;
           gap: clamp(0.4rem, 1.5cqi, 0.75rem);
-          grid-template-columns:
-            minmax(3.5rem, max-content) minmax(0, 1fr) max-content;
+          grid-template-columns: var(--octane-management-defect-columns);
           min-width: 0;
+        }
+        .octane-management-defect-header {
+          background: var(--background, var(--octane-card-background));
+          border-bottom: 1px solid var(--input-border);
+          inset-block-start: 0;
+          padding: 0.3rem 0.2rem;
+          position: sticky;
+          z-index: 2;
+        }
+        .octane-management-defect-row {
+          border-bottom: 1px solid var(--input-border);
           padding: clamp(0.5rem, 1.7cqi, 0.7rem) 0.2rem;
         }
         .octane-management-defect-empty {
           border-bottom: 1px solid var(--input-border);
           padding: 0.65rem 0.2rem;
+        }
+        .octane-management-defect-header-cell {
+          min-width: 0;
+        }
+        .octane-management-defect-sort {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: flex;
+          font: inherit;
+          font-size: clamp(0.6188rem, 1.8785cqi, 0.7956rem);
+          font-weight: 600;
+          gap: 0.25rem;
+          justify-content: flex-start;
+          min-width: 0;
+          padding: 0.2rem 0;
+          text-align: start;
+          width: 100%;
+        }
+        .octane-management-defect-header-cell:nth-child(n + 3)
+            .octane-management-defect-sort {
+          justify-content: center;
+        }
+        .octane-management-defect-sort:focus-visible {
+          outline: 2px solid var(--focus-input-border);
+          outline-offset: 2px;
+        }
+        .octane-management-defect-sort-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-management-defect-sort-indicator {
+          color: var(--text-color-secondary);
+          flex: 0 0 auto;
+          opacity: 0.42;
+        }
+        .octane-management-defect-sort-indicator::before {
+          content: "\2195";
+        }
+        .octane-management-defect-header-cell[aria-sort="ascending"]
+            .octane-management-defect-sort,
+        .octane-management-defect-header-cell[aria-sort="descending"]
+            .octane-management-defect-sort {
+          color: var(--text-color);
+        }
+        .octane-management-defect-header-cell[aria-sort="ascending"]
+            .octane-management-defect-sort-indicator,
+        .octane-management-defect-header-cell[aria-sort="descending"]
+            .octane-management-defect-sort-indicator {
+          color: currentColor;
+          opacity: 1;
+        }
+        .octane-management-defect-header-cell[aria-sort="ascending"]
+            .octane-management-defect-sort-indicator::before {
+          content: "\2191";
+        }
+        .octane-management-defect-header-cell[aria-sort="descending"]
+            .octane-management-defect-sort-indicator::before {
+          content: "\2193";
         }
         .octane-management-defect-id {
           color: var(--text-color);
@@ -2831,14 +2909,6 @@
           min-width: 0;
           overflow-wrap: anywhere;
         }
-        .octane-management-defect-pills {
-          display: grid;
-          gap: 0.35rem;
-          grid-template-columns:
-            repeat(2, var(--octane-management-pill-width));
-          justify-content: end;
-          min-width: 0;
-        }
         .octane-management-defect-pill {
           align-items: center;
           background: var(--octane-pill-color);
@@ -2848,7 +2918,7 @@
           display: inline-flex;
           font-size: clamp(0.58rem, 2cqi, 0.74rem);
           font-weight: 600;
-          inline-size: var(--octane-management-pill-width);
+          inline-size: 100%;
           justify-content: center;
           line-height: 1.2;
           max-inline-size: 8.5rem;
@@ -2865,10 +2935,9 @@
             --octane-management-pill-width:
               clamp(5.25rem, calc(11ch + 1rem), 6.5rem);
           }
+          .octane-management-defect-header,
           .octane-management-defect-row {
             gap: clamp(0.3rem, 1cqi, 0.5rem);
-            grid-template-columns:
-              minmax(3rem, max-content) minmax(0, 1fr) max-content;
           }
           .octane-management-defect-pill {
             font-size: clamp(0.54rem, 1.8cqi, 0.66rem);
@@ -2880,10 +2949,6 @@
           .octane-management-defect-list {
             --octane-management-pill-width:
               clamp(4.5rem, calc(11ch + 0.65rem), 5.25rem);
-          }
-          .octane-management-defect-row {
-            grid-template-columns:
-              minmax(2.65rem, max-content) minmax(0, 1fr) max-content;
           }
           .octane-management-defect-id,
           .octane-management-defect-description {
@@ -4121,8 +4186,11 @@
                         aria-label="Open and closed defects grouped by root cause"></div>
                   </div>
                   <div class="octane-management-defect-detail-panel">
-                    <ul class="octane-management-defect-list"
-                        data-management-defect-list="true"></ul>
+                    <div class="octane-management-defect-list"
+                        data-management-defect-list="true"
+                        data-sort-column="id" data-sort-direction="ascending"
+                        role="table" aria-colcount="4"
+                        aria-label="Failure Analysis defects"></div>
                   </div>
                 </div>
               </div>

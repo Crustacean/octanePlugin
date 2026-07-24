@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 
 const source = readFileSync(
     "src/main/webapp/js/octane-test-management.js",
@@ -9,6 +10,10 @@ const jelly = readFileSync(
     "src/main/resources/io/jenkins/plugins/octanesuitegatebyembiti/actions/"
         + "OctaneGateReportAction/index.jelly",
     "utf8");
+const context = {window: {}};
+vm.runInNewContext(source, context);
+const sortFailureDefects =
+    context.window.OctaneTestManagement.sortFailureDefects;
 
 test("renders ten discrete execution intervals in bottom-up status order", () => {
   assert.match(
@@ -272,6 +277,93 @@ test("normalizes and renders human-readable defect status and severity pills", (
       /severity\.setAttribute\("aria-label", "Severity: " \+ severityLabel\)/);
 });
 
+test("sorts defect ids naturally and reverses the active column", () => {
+  const defects = [
+    {id: "DEF-10"},
+    {id: "DEF-2"},
+    {id: "ABC-1"}
+  ];
+  assert.deepEqual(
+      Array.from(sortFailureDefects(defects, "id", "ascending"), defect => defect.id),
+      ["ABC-1", "DEF-2", "DEF-10"]);
+  assert.deepEqual(
+      Array.from(sortFailureDefects(defects, "id", "descending"), defect => defect.id),
+      ["DEF-10", "DEF-2", "ABC-1"]);
+});
+
+test("sorts descriptions by the first letter of their first word", () => {
+  const defects = [
+    {id: "1", description: "Zulu checkout"},
+    {id: "2", description: "  alpha transfer"},
+    {id: "3", description: "Beta payment"}
+  ];
+  assert.deepEqual(
+      Array.from(
+          sortFailureDefects(defects, "description", "ascending"),
+          defect => defect.id),
+      ["2", "3", "1"]);
+});
+
+test("groups open before closed defects and reverses on descending", () => {
+  const defects = [
+    {id: "closed", open: false},
+    {id: "open", open: true}
+  ];
+  assert.deepEqual(
+      Array.from(sortFailureDefects(defects, "status", "ascending"), defect => defect.id),
+      ["open", "closed"]);
+  assert.deepEqual(
+      Array.from(sortFailureDefects(defects, "status", "descending"), defect => defect.id),
+      ["closed", "open"]);
+});
+
+test("sorts individual and grouped severities by configured weight", () => {
+  const defects = [
+    {id: "medium", severity: "Medium", severitySortRank: 5},
+    {id: "minor", severity: "Medium", severityLabel: "Minor", severitySortRank: 4},
+    {id: "unspecified", severity: "Unspecified", severitySortRank: 6},
+    {id: "major", severity: "High", severityLabel: "Major", severitySortRank: 1},
+    {id: "very-high", severity: "Very High", severitySortRank: 2},
+    {id: "high", severity: "High", severitySortRank: 3}
+  ];
+  assert.deepEqual(
+      Array.from(
+          sortFailureDefects(defects, "severity", "ascending"),
+          defect => defect.id),
+      ["major", "very-high", "high", "minor", "medium", "unspecified"]);
+});
+
+test("renders an accessible sticky four-column sort header with persistent state", () => {
+  assert.match(source, /DEFECT_SORT_COLUMNS = \[/);
+  assert.match(source, /\{key: "id", label: "Defect ID"\}/);
+  assert.match(source, /data-sort-column/);
+  assert.match(source, /data-sort-direction/);
+  assert.match(source, /cell\.setAttribute\("aria-sort", state\.direction\)/);
+  assert.match(source, /data-management-defect-sort/);
+  assert.match(source, /renderDefectTableHeader\(list, sortState\)/);
+  assert.match(
+      source,
+      /state\.column === column && state\.direction === "ascending"[\s\S]*?\? "descending"[\s\S]*?: "ascending"/);
+  assert.match(
+      jelly,
+      /data-sort-column="id" data-sort-direction="ascending"[\s\S]*?role="table" aria-colcount="4"/);
+  assert.match(
+      jelly,
+      /\.octane-management-defect-header\s*\{[^}]*position: sticky;[^}]*z-index: 2;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-defect-sort\s*\{[^}]*font-size: clamp\(0\.6188rem, 1\.8785cqi, 0\.7956rem\);/s);
+  assert.match(
+      jelly,
+      /\.octane-management-defect-sort-indicator::before\s*\{[^}]*content: "\\2195";/s);
+  assert.match(
+      jelly,
+      /\[aria-sort="ascending"\][\s\S]*?\.octane-management-defect-sort-indicator::before\s*\{[^}]*content: "\\2191";/s);
+  assert.match(
+      jelly,
+      /\[aria-sort="descending"\][\s\S]*?\.octane-management-defect-sort-indicator::before\s*\{[^}]*content: "\\2193";/s);
+});
+
 test("resolves semantic chart and metric colors from the active theme", () => {
   assert.match(source, /blocked: "--octane-status-blocked"/);
   assert.match(source, /closed: "--octane-color-good"/);
@@ -329,23 +421,26 @@ test("coalesces repeated polling updates into one connected-frame render", () =>
       /function update\(zone, payload\)[\s\S]*?zone\.__octaneTestManagementPayload = payload \|\| \{\};[\s\S]*?scheduleRender\(zone\);/);
 });
 
-test("keeps defect ids, descriptions, and uniform pills in explicit columns", () => {
+test("keeps defect ids, descriptions, status, and severity in aligned columns", () => {
   assert.match(source, /octane-management-defect-id/);
   assert.match(
       source,
-      /row\.appendChild\(identifier\);\s*row\.appendChild\(description\);\s*row\.appendChild\(pills\)/s);
+      /row\.appendChild\(identifier\);\s*row\.appendChild\(description\);\s*row\.appendChild\(status\);\s*row\.appendChild\(severity\)/s);
   assert.match(
       jelly,
-      /\.octane-management-defect-row\s*\{[^}]*display: grid;[^}]*grid-template-columns:\s*minmax\(3\.5rem, max-content\) minmax\(0, 1fr\) max-content;/s);
+      /\.octane-management-defect-header,[\s\S]*?\.octane-management-defect-row\s*\{[^}]*display: grid;[^}]*grid-template-columns: var\(--octane-management-defect-columns\);/s);
   assert.match(
       jelly,
       /--octane-management-pill-width:\s*clamp\(6\.25rem, calc\(11ch \+ 1\.5rem\), 8\.5rem\)/s);
   assert.match(
       jelly,
-      /\.octane-management-defect-pills\s*\{[^}]*grid-template-columns:\s*repeat\(2, var\(--octane-management-pill-width\)\)/s);
+      /--octane-management-defect-id-width:\s*clamp\(4rem, 13cqi, 6rem\)/s);
   assert.match(
       jelly,
-      /\.octane-management-defect-pill\s*\{[^}]*inline-size: var\(--octane-management-pill-width\)[^}]*text-align: center;/s);
+      /--octane-management-defect-columns:\s*var\(--octane-management-defect-id-width\) minmax\(0, 1fr\)\s*repeat\(2, var\(--octane-management-pill-width\)\)/s);
+  assert.match(
+      jelly,
+      /\.octane-management-defect-pill\s*\{[^}]*inline-size: 100%[^}]*text-align: center;/s);
   assert.match(
       jelly,
       /@container octane-management-defects \(max-width: 32rem\)/);
