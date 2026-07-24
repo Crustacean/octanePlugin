@@ -242,7 +242,21 @@ public class OctaneReportZoneHtmlRenderer {
           font-size: 4.5px;
           font-weight: 700;
           pointer-events: none;
-          text-anchor: middle;
+        }
+        .octane-donut-segment {
+          stroke: var(--octane-card-background);
+          stroke-width: 2px;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-donut-callout-line {
+          fill: none;
+          pointer-events: none;
+          stroke: var(--octane-muted-text);
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-donut-label-callout {
+          font-weight: 600;
         }
         .octane-donut-hole {
           fill: var(--octane-card-background);
@@ -618,6 +632,9 @@ public class OctaneReportZoneHtmlRenderer {
     }
     html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"30\" />\n");
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
+      renderSliceCallout(html, slice);
+    }
+    for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSliceLabel(html, slice);
     }
     html.append("</svg>\n");
@@ -646,7 +663,7 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("</title></circle>\n");
       return;
     }
-    html.append("<path d=\"");
+    html.append("<path class=\"octane-donut-segment\" d=\"");
     html.append(escapeAttribute(slice.getPath()));
     html.append("\" fill=\"");
     html.append(escapeAttribute(slice.getColor()));
@@ -656,13 +673,36 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderSliceLabel(StringBuilder html, OctaneGatePieSlice slice) {
-    html.append("<text class=\"octane-donut-label\" x=\"");
+    html.append("<text class=\"octane-donut-label");
+    if (slice.isCallout()) {
+      html.append(" octane-donut-label-callout");
+    }
+    html.append("\" data-label-mode=\"");
+    html.append(slice.isCallout() ? "callout" : "radial");
+    html.append("\" x=\"");
     html.append(escapeAttribute(slice.getLabelX()));
     html.append("\" y=\"");
     html.append(escapeAttribute(slice.getLabelY()));
-    html.append("\" dominant-baseline=\"central\">");
+    html.append("\" dominant-baseline=\"central\" text-anchor=\"");
+    html.append(escapeAttribute(slice.getTextAnchor()));
+    html.append("\">");
     html.append(escapeHtml(slice.getPercentageLabel()));
     html.append("</text>\n");
+  }
+
+  private void renderSliceCallout(StringBuilder html, OctaneGatePieSlice slice) {
+    if (!slice.isCallout()) {
+      return;
+    }
+    html.append("<line class=\"octane-donut-callout-line\" aria-hidden=\"true\" x1=\"");
+    html.append(escapeAttribute(slice.getLeaderStartX()));
+    html.append("\" y1=\"");
+    html.append(escapeAttribute(slice.getLeaderStartY()));
+    html.append("\" x2=\"");
+    html.append(escapeAttribute(slice.getLeaderEndX()));
+    html.append("\" y2=\"");
+    html.append(escapeAttribute(slice.getLeaderEndY()));
+    html.append("\" />\n");
   }
 
   private void renderSuiteRunCard(

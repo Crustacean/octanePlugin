@@ -1658,7 +1658,21 @@
           font-size: 0.28rem;
           font-weight: 700;
           pointer-events: none;
-          text-anchor: middle;
+        }
+        .octane-donut-segment {
+          stroke: var(--background);
+          stroke-width: 2px;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-donut-callout-line {
+          fill: none;
+          pointer-events: none;
+          stroke: var(--text-color-secondary);
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-donut-label-callout {
+          font-weight: 600;
         }
         .octane-donut-hole {
           fill: var(--background);
@@ -4226,7 +4240,8 @@
                               </circle>
                             </j:when>
                             <j:otherwise>
-                              <path d="${slice.path}" fill="${slice.color}">
+                              <path class="octane-donut-segment" d="${slice.path}"
+                                  fill="${slice.color}">
                                 <title>${slice.title}</title>
                               </path>
                             </j:otherwise>
@@ -4234,10 +4249,29 @@
                         </j:forEach>
                         <circle class="octane-donut-hole" cx="50" cy="50" r="30" />
                         <j:forEach var="slice" items="${section.pieSlices}">
-                          <text class="octane-donut-label" x="${slice.labelX}"
-                              y="${slice.labelY}" dominant-baseline="central">
-                            ${slice.percentageLabel}
-                          </text>
+                          <j:if test="${slice.callout}">
+                            <line class="octane-donut-callout-line" aria-hidden="true"
+                                x1="${slice.leaderStartX}" y1="${slice.leaderStartY}"
+                                x2="${slice.leaderEndX}" y2="${slice.leaderEndY}" />
+                          </j:if>
+                        </j:forEach>
+                        <j:forEach var="slice" items="${section.pieSlices}">
+                          <j:choose>
+                            <j:when test="${slice.callout}">
+                              <text class="octane-donut-label octane-donut-label-callout"
+                                  data-label-mode="callout" x="${slice.labelX}" y="${slice.labelY}"
+                                  dominant-baseline="central" text-anchor="${slice.textAnchor}">
+                                ${slice.percentageLabel}
+                              </text>
+                            </j:when>
+                            <j:otherwise>
+                              <text class="octane-donut-label" data-label-mode="radial"
+                                  x="${slice.labelX}" y="${slice.labelY}"
+                                  dominant-baseline="central" text-anchor="${slice.textAnchor}">
+                                ${slice.percentageLabel}
+                              </text>
+                            </j:otherwise>
+                          </j:choose>
                         </j:forEach>
                       </svg>
                     </div>

@@ -14,6 +14,15 @@
   var MIN_BAR_SLOT_PX = 10;
   var OVERFLOW_WIDTH_PX = 24;
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+  var DONUT_CENTER = 50;
+  var DONUT_RADIUS = 46;
+  var DONUT_LABEL_RADIUS = 52;
+  var DONUT_CALLOUT_ORIGIN_RADIUS = 38;
+  var DONUT_CALLOUT_LABEL_X = 104;
+  var DONUT_CALLOUT_MIN_Y = -2;
+  var DONUT_CALLOUT_MAX_Y = 102;
+  var DONUT_CALLOUT_GAP = 8;
+  var DONUT_THIN_SLICE_PERCENTAGE = 5;
   var mountedZones = typeof WeakMap === "function" ? new WeakMap() : null;
 
   function computeVisibleBarCount(width, totalBars) {
@@ -56,6 +65,141 @@
     text.textContent = String(value);
     parent.appendChild(text);
     return text;
+  }
+
+  function donutPoint(angle, radius) {
+    var radians = angle * Math.PI / 180;
+    return {
+      x: DONUT_CENTER + radius * Math.cos(radians),
+      y: DONUT_CENTER + radius * Math.sin(radians)
+    };
+  }
+
+  function donutNumber(value) {
+    return Number(value).toFixed(3);
+  }
+
+  function donutPath(startAngle, endAngle) {
+    var start = donutPoint(startAngle, DONUT_RADIUS);
+    var end = donutPoint(endAngle, DONUT_RADIUS);
+    var largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    return "M " + donutNumber(DONUT_CENTER) + " " + donutNumber(DONUT_CENTER)
+        + " L " + donutNumber(start.x) + " " + donutNumber(start.y)
+        + " A " + donutNumber(DONUT_RADIUS) + " " + donutNumber(DONUT_RADIUS)
+        + " 0 " + largeArc + " 1 " + donutNumber(end.x) + " " + donutNumber(end.y)
+        + " Z";
+  }
+
+  function donutLabelsOverlap(left, right) {
+    var leftWidth = Math.max(8, left.percentageLabel.length * 2.45);
+    var rightWidth = Math.max(8, right.percentageLabel.length * 2.45);
+    return Math.abs(left.labelX - right.labelX) < (leftWidth + rightWidth) / 2 + 1
+        && Math.abs(left.labelY - right.labelY) < 5;
+  }
+
+  function distributeDonutCallouts(placements) {
+    placements.sort(function (left, right) {
+      return left.y - right.y;
+    });
+    var nextY = DONUT_CALLOUT_MIN_Y;
+    placements.forEach(function (placement) {
+      placement.y = Math.max(placement.y, nextY);
+      nextY = placement.y + DONUT_CALLOUT_GAP;
+    });
+    if (placements.length === 0) {
+      return;
+    }
+    var overflow = placements[placements.length - 1].y - DONUT_CALLOUT_MAX_Y;
+    if (overflow > 0) {
+      placements.forEach(function (placement) {
+        placement.y -= overflow;
+      });
+    }
+    for (var index = placements.length - 2; index >= 0; index -= 1) {
+      placements[index].y = Math.min(
+          placements[index].y,
+          placements[index + 1].y - DONUT_CALLOUT_GAP);
+    }
+    var underflow = DONUT_CALLOUT_MIN_Y - placements[0].y;
+    if (underflow > 0) {
+      placements.forEach(function (placement) {
+        placement.y += underflow;
+      });
+    }
+  }
+
+  function computeDonutLabelLayout(statuses, total) {
+    var safeTotal = Math.max(0, Number(total) || 0);
+    if (safeTotal === 0) {
+      return [];
+    }
+    var angle = -90;
+    var slices = [];
+    (statuses || []).forEach(function (status) {
+      var count = Math.max(0, Number(status.count) || 0);
+      if (count === 0) {
+        return;
+      }
+      var percentage = count * 100 / safeTotal;
+      var endAngle = angle + 360 * percentage / 100;
+      var middleAngle = (angle + endAngle) / 2;
+      var labelPoint = donutPoint(middleAngle, DONUT_LABEL_RADIUS);
+      slices.push({
+        callout: percentage < DONUT_THIN_SLICE_PERCENTAGE,
+        endAngle: endAngle,
+        fullCircle: percentage >= 99.999999,
+        labelX: labelPoint.x,
+        labelY: labelPoint.y,
+        middleAngle: middleAngle,
+        path: percentage >= 99.999999 ? "" : donutPath(angle, endAngle),
+        percentage: percentage,
+        percentageLabel: status.percentageLabel || percentage.toFixed(2) + "%",
+        status: status,
+        textAnchor: "middle"
+      });
+      angle = endAngle;
+    });
+    for (var left = 0; left < slices.length; left += 1) {
+      for (var right = left + 1; right < slices.length; right += 1) {
+        if (donutLabelsOverlap(slices[left], slices[right])) {
+          slices[left].callout = true;
+          slices[right].callout = true;
+        }
+      }
+    }
+
+    var leftPlacements = [];
+    var rightPlacements = [];
+    slices.forEach(function (slice, index) {
+      if (!slice.callout) {
+        return;
+      }
+      var placement = {index: index, y: slice.labelY};
+      if (Math.cos(slice.middleAngle * Math.PI / 180) < 0) {
+        leftPlacements.push(placement);
+      } else {
+        rightPlacements.push(placement);
+      }
+    });
+    distributeDonutCallouts(leftPlacements);
+    distributeDonutCallouts(rightPlacements);
+
+    function applyCallouts(placements, rightSide) {
+      placements.forEach(function (placement) {
+        var slice = slices[placement.index];
+        var leaderStart = donutPoint(slice.middleAngle, DONUT_CALLOUT_ORIGIN_RADIUS);
+        slice.labelX = rightSide ? DONUT_CALLOUT_LABEL_X : 100 - DONUT_CALLOUT_LABEL_X;
+        slice.labelY = placement.y;
+        slice.leaderStartX = leaderStart.x;
+        slice.leaderStartY = leaderStart.y;
+        slice.leaderEndX = slice.labelX;
+        slice.leaderEndY = slice.labelY;
+        slice.textAnchor = rightSide ? "start" : "end";
+      });
+    }
+    applyCallouts(leftPlacements, false);
+    applyCallouts(rightPlacements, true);
+    return slices;
   }
 
   function createCardActions() {
@@ -159,34 +303,54 @@
     svg.setAttribute("viewBox", "-10 -10 120 120");
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", section.distributionTitle);
-    var circumference = 2 * Math.PI * 46;
-    var offset = 0;
-    (section.totals || []).forEach(function (status) {
-      if (Number(status.count) <= 0 || Number(section.metrics.total) <= 0) {
-        return;
+    var slices = computeDonutLabelLayout(
+        section.totals || [], section.metrics && section.metrics.total);
+    slices.forEach(function (slice) {
+      var graphic = createSvgElement(
+          slice.fullCircle ? "circle" : "path",
+          slice.fullCircle ? "" : "octane-donut-segment");
+      if (slice.fullCircle) {
+        graphic.setAttribute("cx", "50");
+        graphic.setAttribute("cy", "50");
+        graphic.setAttribute("r", "46");
+      } else {
+        graphic.setAttribute("d", slice.path);
       }
-      var circle = createSvgElement("circle", "octane-client-donut-segment");
-      var length = circumference * Number(status.count) / Number(section.metrics.total);
-      circle.setAttribute("cx", "50");
-      circle.setAttribute("cy", "50");
-      circle.setAttribute("r", "46");
-      circle.setAttribute("fill", "none");
-      circle.setAttribute("stroke", status.color);
-      circle.setAttribute("stroke-width", "32");
-      circle.setAttribute("stroke-dasharray", length + " " + (circumference - length));
-      circle.setAttribute("stroke-dashoffset", String(-offset));
-      circle.setAttribute("transform", "rotate(-90 50 50)");
+      graphic.setAttribute("fill", slice.status.color);
       var title = createSvgElement("title", "");
-      title.textContent = status.label + ": " + status.count + " (" + status.percentageLabel + ")";
-      circle.appendChild(title);
-      svg.appendChild(circle);
-      offset += length;
+      title.textContent = slice.status.label + ": " + slice.status.count
+          + " (" + slice.percentageLabel + ")";
+      graphic.appendChild(title);
+      svg.appendChild(graphic);
     });
     var hole = createSvgElement("circle", "octane-donut-hole");
     hole.setAttribute("cx", "50");
     hole.setAttribute("cy", "50");
     hole.setAttribute("r", "30");
     svg.appendChild(hole);
+    slices.forEach(function (slice) {
+      if (!slice.callout) {
+        return;
+      }
+      var line = createSvgElement("line", "octane-donut-callout-line");
+      line.setAttribute("aria-hidden", "true");
+      line.setAttribute("x1", donutNumber(slice.leaderStartX));
+      line.setAttribute("y1", donutNumber(slice.leaderStartY));
+      line.setAttribute("x2", donutNumber(slice.leaderEndX));
+      line.setAttribute("y2", donutNumber(slice.leaderEndY));
+      svg.appendChild(line);
+    });
+    slices.forEach(function (slice) {
+      var label = appendSvgText(
+          svg,
+          "octane-donut-label" + (slice.callout ? " octane-donut-label-callout" : ""),
+          slice.percentageLabel,
+          donutNumber(slice.labelX),
+          donutNumber(slice.labelY));
+      label.setAttribute("data-label-mode", slice.callout ? "callout" : "radial");
+      label.setAttribute("dominant-baseline", "central");
+      label.setAttribute("text-anchor", slice.textAnchor);
+    });
     wrap.appendChild(svg);
     parts.card.appendChild(wrap);
     parts.card.appendChild(distributionTable(section));
@@ -615,6 +779,7 @@
   return {
     MAX_VISIBLE_BARS: MAX_VISIBLE_BARS,
     OVERFLOW_WIDTH_PX: OVERFLOW_WIDTH_PX,
+    computeDonutLabelLayout: computeDonutLabelLayout,
     computeVisibleBarCount: computeVisibleBarCount,
     mount: mount
   };

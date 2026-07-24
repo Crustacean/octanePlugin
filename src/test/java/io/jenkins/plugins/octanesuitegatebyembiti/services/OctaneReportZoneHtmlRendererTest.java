@@ -158,6 +158,23 @@ public class OctaneReportZoneHtmlRendererTest {
   }
 
   @Test
+  public void rendersLeaderLinesForThinDistributionSlices() {
+    OctaneGateReportSnapshot snapshot = thinSliceSnapshot();
+
+    String html = new OctaneReportZoneHtmlRenderer().render(snapshot);
+
+    assertEquals(5, occurrences(html, "class=\"octane-donut-segment\""));
+    assertEquals(4, occurrences(html, "class=\"octane-donut-callout-line\""));
+    assertEquals(4, occurrences(html, "data-label-mode=\"callout\""));
+    assertEquals(1, occurrences(html, "data-label-mode=\"radial\""));
+    assertTrue(html.contains(".octane-donut-segment {"));
+    assertTrue(html.contains("stroke: var(--octane-card-background)"));
+    assertTrue(html.contains("stroke-width: 2px"));
+    assertTrue(html.contains("vector-effect: non-scaling-stroke"));
+    assertTrue(html.contains("text-anchor=\"end\""));
+  }
+
+  @Test
   public void truncatesDenseEmailChartsWithoutTruncatingLiveRefreshData() {
     OctaneGateReportSnapshot snapshot = denseSnapshot(205);
     OctaneReportZoneHtmlRenderer renderer = new OctaneReportZoneHtmlRenderer();
@@ -452,6 +469,36 @@ public class OctaneReportZoneHtmlRendererTest {
             Instant.parse("2026-05-15T00:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(
         OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot thinSliceSnapshot() {
+    List<RunRecord> runs = new ArrayList<>();
+    addRuns(runs, "passed", 90);
+    addRuns(runs, "failed", 4);
+    addRuns(runs, "blocked", 3);
+    addRuns(runs, "skipped", 2);
+    addRuns(runs, "running", 1);
+    GateResult result =
+        new GateResult(
+            "thin-slices",
+            "regressions.executionRate >= 90",
+            true,
+            true,
+            new GateMetrics(100, 99, 90, 7, 2, 1),
+            runs,
+            Map.of("thin-slices", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private void addRuns(List<RunRecord> runs, String status, int count) {
+    int start = runs.size();
+    for (int index = 0; index < count; index++) {
+      String id = Integer.toString(start + index + 1);
+      runs.add(new RunRecord(id, status + " " + id, status, "Tester"));
+    }
   }
 
   private int occurrences(String value, String needle) {

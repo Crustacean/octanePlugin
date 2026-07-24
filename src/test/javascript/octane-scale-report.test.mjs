@@ -35,3 +35,47 @@ test("preserves SVG text proportions across responsive layouts", () => {
   assert.match(source, /preserveAspectRatio", "xMidYMid meet"/);
   assert.doesNotMatch(source, /preserveAspectRatio", "none"/);
 });
+
+test("moves thin donut labels to collision-free callouts", () => {
+  const slices = renderer.computeDonutLabelLayout(
+      [
+        {count: 90, label: "Passed", percentageLabel: "90.00%"},
+        {count: 4, label: "Failed", percentageLabel: "4.00%"},
+        {count: 3, label: "Blocked", percentageLabel: "3.00%"},
+        {count: 2, label: "Skipped", percentageLabel: "2.00%"},
+        {count: 1, label: "Running", percentageLabel: "1.00%"}
+      ],
+      100);
+
+  assert.equal(slices.length, 5);
+  assert.equal(slices[0].callout, false);
+  assert.equal(slices[0].textAnchor, "middle");
+  for (const slice of slices.slice(1)) {
+    assert.equal(slice.callout, true);
+    assert.ok(Math.abs(slice.labelX - 50) > 46);
+    assert.equal(slice.leaderEndX, slice.labelX);
+    assert.equal(slice.leaderEndY, slice.labelY);
+    assert.ok(
+        Math.abs(Math.hypot(slice.leaderStartX - 50, slice.leaderStartY - 50) - 38)
+          < 0.001);
+  }
+  for (const anchor of ["start", "end"]) {
+    const positions = slices
+        .filter(slice => slice.callout && slice.textAnchor === anchor)
+        .map(slice => slice.labelY)
+        .sort((left, right) => left - right);
+    for (let index = 1; index < positions.length; index += 1) {
+      assert.ok(positions[index] - positions[index - 1] >= 8);
+    }
+  }
+});
+
+test("renders leader lines only for offset donut labels", () => {
+  assert.match(source, /createSvgElement\("line", "octane-donut-callout-line"\)/);
+  assert.match(source, /data-label-mode", slice\.callout \? "callout" : "radial"/);
+  assert.match(source, /if \(!slice\.callout\) \{\s*return;\s*\}/);
+});
+
+test("applies the shared gap class only to segmented donut wedges", () => {
+  assert.match(source, /slice\.fullCircle \? "" : "octane-donut-segment"/);
+});

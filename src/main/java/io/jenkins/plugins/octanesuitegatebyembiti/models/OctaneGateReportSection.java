@@ -289,7 +289,7 @@ public class OctaneGateReportSection implements Serializable {
       slices.add(new OctaneGatePieSlice(nonNullStatus, angle, nextAngle));
       angle = nextAngle;
     }
-    return slices;
+    return OctaneGatePieSlice.layoutLabels(slices);
   }
 
   private static int maxSuiteRunTotal(List<OctaneGateSuiteRunChart> suiteRunCharts) {
