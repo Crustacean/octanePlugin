@@ -44,7 +44,8 @@ public class OctaneScaleReportActionTest {
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
     GateRequest request = new GateRequest("octane-prod", "suite-0");
     OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
-    action.onPoll(ScaleReportFixture.result(0, 500, 1), ScaleReportFixture.classifier());
+    int suiteCount = 701;
+    action.onPoll(ScaleReportFixture.result(0, suiteCount, 1), ScaleReportFixture.classifier());
 
     long buildXmlBytes = Files.size(build.getRootDir().toPath().resolve("build.xml"));
     assertTrue(buildXmlBytes < 100_000L);
@@ -82,7 +83,7 @@ public class OctaneScaleReportActionTest {
     Page index = jenkins.createWebClient().getPage(dataUrl);
     long indexBytes = index.getWebResponse().getContentLength();
     assertTrue(indexBytes < 250_000L);
-    assertTrue(index.getWebResponse().getContentAsString().contains("\"barCount\":500"));
+    assertTrue(index.getWebResponse().getContentAsString().contains("\"barCount\":" + suiteCount));
     String dataEtag = index.getWebResponse().getResponseHeaderValue("ETag");
     assertNotNull(dataEtag);
     WebRequest unchangedDataRequest = new WebRequest(dataUrl);
@@ -93,12 +94,23 @@ public class OctaneScaleReportActionTest {
     URL sectionUrl = reportUri.resolve("data?section=0&cursor=0&limit=80").toURL();
     Page section = jenkins.createWebClient().getPage(sectionUrl);
     String sectionJson = section.getWebResponse().getContentAsString();
-    assertTrue(sectionJson.contains("\"totalBars\":500"));
+    assertTrue(sectionJson.contains("\"totalBars\":" + suiteCount));
     assertTrue(sectionJson.contains("\"nextCursor\":80"));
 
-    URL nextSectionUrl = reportUri.resolve("data?section=0&cursor=80&limit=80").toURL();
-    Page nextSection = jenkins.createWebClient().getPage(nextSectionUrl);
-    assertTrue(nextSection.getWebResponse().getContentAsString().contains("\"cursor\":80"));
+    int cursor = 0;
+    int pages = 0;
+    while (cursor >= 0) {
+      URL pageUrl = reportUri.resolve("data?section=0&cursor=" + cursor + "&limit=80").toURL();
+      String pageJson =
+          jenkins.createWebClient().getPage(pageUrl).getWebResponse().getContentAsString();
+      assertTrue(pageJson.contains("\"cursor\":" + cursor));
+      java.util.regex.Matcher nextCursor =
+          Pattern.compile("\"nextCursor\":(-?\\d+)").matcher(pageJson);
+      assertTrue(nextCursor.find());
+      cursor = Integer.parseInt(nextCursor.group(1));
+      pages++;
+    }
+    assertEquals(9, pages);
     System.out.printf(
         "Octane report acceptance: buildXmlBytes=%d initialDomNodes=%d indexBytes=%d%n",
         buildXmlBytes, domNodes, indexBytes);

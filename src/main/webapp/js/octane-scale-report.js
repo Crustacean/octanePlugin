@@ -293,16 +293,20 @@
         + encodeURIComponent(limit);
   }
 
-  function fetchJson(url, checksum) {
+  function fetchJson(url, checksum, signal) {
     var headers = {Accept: "application/json"};
     if (checksum) {
       headers["If-None-Match"] = '"' + checksum + '"';
     }
-    return window.fetch(url, {
+    var options = {
       cache: "no-store",
       credentials: "same-origin",
       headers: headers
-    }).then(function (response) {
+    };
+    if (signal) {
+      options.signal = signal;
+    }
+    return window.fetch(url, options).then(function (response) {
       if (response.status === 304) {
         return null;
       }
@@ -311,6 +315,24 @@
       }
       return response.json();
     });
+  }
+
+  function createRequestController() {
+    return typeof AbortController === "function" ? new AbortController() : null;
+  }
+
+  function signalFor(controller) {
+    return controller ? controller.signal : null;
+  }
+
+  function abortRequest(controller) {
+    if (controller) {
+      controller.abort();
+    }
+  }
+
+  function isAbortError(error) {
+    return Boolean(error && error.name === "AbortError");
   }
 
   function statusByKey(bar, key) {
@@ -486,29 +508,41 @@
     var currentCursor = 0;
     var currentPage = null;
     var loadingRequest = false;
+    var pendingCursor = null;
+    var requestController = null;
     var requestGeneration = 0;
     function load(cursor) {
       var limit = computeVisibleBarCount(parts.card.clientWidth || 700, section.barCount);
       var safeCursor = Math.max(0, Number(cursor) || 0);
-      if (loadingRequest
-          || (limit === lastLimit
+      if (loadingRequest) {
+        pendingCursor = safeCursor;
+        return;
+      }
+      if (limit === lastLimit
               && safeCursor === currentCursor
-              && parts.card.hasAttribute("data-octane-loaded"))) {
+              && parts.card.hasAttribute("data-octane-loaded")) {
         return;
       }
       loadingRequest = true;
+      pendingCursor = null;
       var generation = ++requestGeneration;
+      requestController = createRequestController();
       parts.card.setAttribute("aria-busy", "true");
       previous.disabled = true;
       next.disabled = true;
-      fetchJson(buildSectionUrl(state.dataUrl, section.id, safeCursor, limit), "")
+      fetchJson(
+              buildSectionUrl(state.dataUrl, section.id, safeCursor, limit),
+              "",
+              signalFor(requestController))
           .then(function (page) {
             if (generation !== requestGeneration || !parts.card.isConnected) {
               return;
             }
             loadingRequest = false;
+            requestController = null;
             parts.card.setAttribute("aria-busy", "false");
             if (!page) {
+              loadPending();
               return;
             }
             lastLimit = limit;
@@ -517,19 +551,33 @@
             loading.remove();
             renderBarChart(parts.card, section, page);
             updatePageControls();
+            loadPending();
           })
-          .catch(function () {
+          .catch(function (error) {
             if (generation !== requestGeneration || !parts.card.isConnected) {
               return;
             }
             loadingRequest = false;
+            requestController = null;
             parts.card.setAttribute("aria-busy", "false");
+            if (isAbortError(error)) {
+              return;
+            }
             if (!loading.isConnected) {
               parts.card.appendChild(loading);
             }
             loading.textContent = "Chart data is temporarily unavailable.";
             updatePageControls();
+            loadPending();
           });
+    }
+    function loadPending() {
+      if (pendingCursor == null) {
+        return;
+      }
+      var cursor = pendingCursor;
+      pendingCursor = null;
+      load(cursor);
     }
     function updatePageControls() {
       var total = currentPage ? Math.max(0, Number(currentPage.totalBars) || 0) : 0;
@@ -584,6 +632,12 @@
         resizeObserver.disconnect();
       });
     }
+    trackCleanup(state, function () {
+      pendingCursor = null;
+      requestGeneration++;
+      abortRequest(requestController);
+      requestController = null;
+    });
     return parts.card;
   }
 
@@ -636,44 +690,72 @@
     zone.setAttribute("data-report-client-ready", "true");
   }
 
+  function stateForZone(zone, dataUrl) {
+    var state = mountedZones ? mountedZones.get(zone) : zone.__octaneScaleState;
+    if (state) {
+      return state;
+    }
+    state = {
+      checksum: "",
+      cleanups: [],
+      controller: null,
+      dataUrl: dataUrl,
+      generation: 0,
+      promise: null
+    };
+    if (mountedZones) {
+      mountedZones.set(zone, state);
+    } else {
+      zone.__octaneScaleState = state;
+    }
+    return state;
+  }
+
+  function completeMount(zone, payload, state, generation) {
+    if (generation !== state.generation) {
+      return false;
+    }
+    if (payload) {
+      renderIndex(zone, payload, state);
+    }
+    state.controller = null;
+    zone.setAttribute("aria-busy", "false");
+    return true;
+  }
+
+  function failMount(zone, state, generation, error) {
+    if (generation !== state.generation) {
+      return false;
+    }
+    state.controller = null;
+    zone.setAttribute("aria-busy", "false");
+    if (isAbortError(error)) {
+      return false;
+    }
+    zone.setAttribute("data-report-client-error", "true");
+    return false;
+  }
+
   function mount(zone, dataUrl, checksum) {
     if (!zone || !dataUrl || typeof window === "undefined" || !window.fetch) {
       return Promise.resolve(false);
     }
-    var state = mountedZones ? mountedZones.get(zone) : zone.__octaneScaleState;
-    if (!state) {
-      state = {checksum: "", cleanups: [], dataUrl: dataUrl, generation: 0, promise: null};
-      if (mountedZones) {
-        mountedZones.set(zone, state);
-      } else {
-        zone.__octaneScaleState = state;
-      }
-    }
+    var state = stateForZone(zone, dataUrl);
     state.dataUrl = dataUrl;
     if (state.promise && state.checksum === checksum) {
       return state.promise;
     }
+    abortRequest(state.controller);
+    state.controller = createRequestController();
     state.checksum = checksum || "";
     var generation = ++state.generation;
     zone.setAttribute("aria-busy", "true");
-    state.promise = fetchJson(dataUrl, "")
+    state.promise = fetchJson(dataUrl, "", signalFor(state.controller))
         .then(function (payload) {
-          if (generation !== state.generation) {
-            return false;
-          }
-          if (payload) {
-            renderIndex(zone, payload, state);
-          }
-          zone.setAttribute("aria-busy", "false");
-          return true;
+          return completeMount(zone, payload, state, generation);
         })
-        .catch(function () {
-          if (generation !== state.generation) {
-            return false;
-          }
-          zone.setAttribute("aria-busy", "false");
-          zone.setAttribute("data-report-client-error", "true");
-          return false;
+        .catch(function (error) {
+          return failMount(zone, state, generation, error);
         });
     if (typeof window !== "undefined") {
       window.__octaneReportReady = state.promise;

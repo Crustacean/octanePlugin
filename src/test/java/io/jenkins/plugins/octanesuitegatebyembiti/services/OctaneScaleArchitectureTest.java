@@ -25,9 +25,9 @@ public class OctaneScaleArchitectureTest {
   private static final int CHILD_RUNS_PER_SUITE = 50;
 
   @Test(timeout = 60_000L)
-  public void mapsSevenHundredSuitesWithOneHundredFiftyChildrenToBoundedArtifacts()
+  public void mapsMoreThanSevenHundredSuitesWithOneHundredFiftyChildrenToBoundedArtifacts()
       throws Exception {
-    int suites = 700;
+    int suites = 701;
     int childrenPerSuite = 150;
     GateResult result = OctaneScaleTestFixture.result(100, suites, childrenPerSuite);
     OctaneGateReportSnapshot snapshot = OctaneScaleTestFixture.snapshot(result);
@@ -36,7 +36,7 @@ public class OctaneScaleArchitectureTest {
     int indexBytes = mapper.writeValueAsBytes(data.index()).length;
     int completeBytes = mapper.writeValueAsBytes(data.complete()).length;
 
-    assertEquals(105_000, result.getRuns().size());
+    assertEquals(105_150, result.getRuns().size());
     assertEquals(
         suites,
         data.sections().stream().mapToInt(section -> ((List<?>) section.get("bars")).size()).sum());

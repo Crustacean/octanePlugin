@@ -287,16 +287,23 @@ test("resolves semantic chart and metric colors from the active theme", () => {
   assert.match(source, /medium: "--octane-severity-medium"/);
   assert.match(source, /unspecified: "--octane-severity-unspecified"/);
   [
-    ["--octane-severity-critical", "#FF3B30", "#FF453A"],
-    ["--octane-severity-very-high", "#FFCC00", "#FFD60A"],
-    ["--octane-severity-high", "#FF9500", "#FF9F0A"],
+    ["--octane-system-red", "#FF3B30", "#FF453A"],
+    ["--octane-system-yellow", "#FFCC00", "#FFD60A"],
+    ["--octane-system-orange", "#FF9500", "#FF9F0A"],
     ["--octane-severity-low", "#5AC8FA", "#64D2FF"],
-    ["--octane-severity-medium", "#AF52DE", "#BF5AF2"],
-    ["--octane-severity-unspecified", "#8E8E93", "#8E8E93"]
+    ["--octane-system-purple", "#AF52DE", "#BF5AF2"],
+    ["--octane-system-gray", "#8E8E93", "#8E8E93"]
   ].forEach(([property, light, dark]) => {
     assert.match(jelly, new RegExp(`${property}: ${light}`));
-    assert.match(jelly, new RegExp(`${property}: ${dark}`));
+    if (light !== dark) {
+      assert.match(jelly, new RegExp(`${property}: ${dark}`));
+    }
   });
+  assert.match(jelly, /--octane-severity-critical: var\(--octane-system-red\)/);
+  assert.match(jelly, /--octane-severity-very-high: var\(--octane-system-yellow\)/);
+  assert.match(jelly, /--octane-severity-high: var\(--octane-system-orange\)/);
+  assert.match(jelly, /--octane-severity-medium: var\(--octane-system-purple\)/);
+  assert.match(jelly, /--octane-severity-unspecified: var\(--octane-system-gray\)/);
   assert.match(
       jelly,
       /\.octane-management-tone-good\s*\{[^}]*background: var\(--octane-color-good\);[^}]*color: var\(--octane-color-on-emphasis\);/s);
@@ -309,6 +316,17 @@ test("resolves semantic chart and metric colors from the active theme", () => {
   assert.doesNotMatch(
       jelly,
       /\.octane-management-tone-(?:good|bad)\s*\{[^}]*(?:#34C759|#FF3B30|#ffffff)/s);
+});
+
+test("coalesces repeated polling updates into one connected-frame render", () => {
+  assert.match(source, /function scheduleRender\(zone\)/);
+  assert.match(source, /zone\.__octaneTestManagementRenderFrame != null/);
+  assert.match(source, /global\.requestAnimationFrame\.bind\(global\)/);
+  assert.match(source, /return global\.setTimeout\(callback, 16\)/);
+  assert.match(source, /zone\.isConnected !== false/);
+  assert.match(
+      source,
+      /function update\(zone, payload\)[\s\S]*?zone\.__octaneTestManagementPayload = payload \|\| \{\};[\s\S]*?scheduleRender\(zone\);/);
 });
 
 test("keeps defect ids, descriptions, and uniform pills in explicit columns", () => {

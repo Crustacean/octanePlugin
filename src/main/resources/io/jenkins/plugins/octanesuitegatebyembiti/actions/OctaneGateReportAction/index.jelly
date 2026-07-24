@@ -32,22 +32,29 @@
           text-transform: uppercase;
         }
         .octane-dashboard {
-          --octane-color-bad: #FF3B30;
-          --octane-color-good: #34C759;
-          --octane-color-neutral: #007AFF;
+          --octane-system-blue: #007AFF;
+          --octane-system-gray: #8E8E93;
+          --octane-system-green: #34C759;
+          --octane-system-orange: #FF9500;
+          --octane-system-purple: #AF52DE;
+          --octane-system-red: #FF3B30;
+          --octane-system-yellow: #FFCC00;
+          --octane-color-bad: var(--octane-system-red);
+          --octane-color-good: var(--octane-system-green);
+          --octane-color-neutral: var(--octane-system-blue);
           --octane-color-on-emphasis: #000000;
-          --octane-color-warn: #FFCC00;
-          --octane-severity-critical: #FF3B30;
-          --octane-severity-high: #FF9500;
+          --octane-color-warn: var(--octane-system-yellow);
+          --octane-severity-critical: var(--octane-system-red);
+          --octane-severity-high: var(--octane-system-orange);
           --octane-severity-low: #5AC8FA;
-          --octane-severity-medium: #AF52DE;
-          --octane-severity-unspecified: #8E8E93;
-          --octane-severity-very-high: #FFCC00;
-          --octane-status-blocked: #FF9500;
-          --octane-status-failed: #FF3B30;
-          --octane-status-no-run: #8E8E93;
-          --octane-status-passed: #34C759;
-          --octane-status-skipped: #AF52DE;
+          --octane-severity-medium: var(--octane-system-purple);
+          --octane-severity-unspecified: var(--octane-system-gray);
+          --octane-severity-very-high: var(--octane-system-yellow);
+          --octane-status-blocked: var(--octane-system-orange);
+          --octane-status-failed: var(--octane-system-red);
+          --octane-status-no-run: var(--octane-system-gray);
+          --octane-status-passed: var(--octane-system-green);
+          --octane-status-skipped: var(--octane-system-purple);
           align-items: stretch;
           display: flex;
           flex-wrap: wrap;
@@ -56,21 +63,13 @@
         }
         @media (prefers-color-scheme: dark) {
           .octane-dashboard {
-            --octane-color-bad: #FF453A;
-            --octane-color-good: #30D158;
-            --octane-color-neutral: #0A84FF;
-            --octane-color-warn: #FFD60A;
-            --octane-severity-critical: #FF453A;
-            --octane-severity-high: #FF9F0A;
+            --octane-system-blue: #0A84FF;
+            --octane-system-green: #30D158;
+            --octane-system-orange: #FF9F0A;
+            --octane-system-purple: #BF5AF2;
+            --octane-system-red: #FF453A;
+            --octane-system-yellow: #FFD60A;
             --octane-severity-low: #64D2FF;
-            --octane-severity-medium: #BF5AF2;
-            --octane-severity-unspecified: #8E8E93;
-            --octane-severity-very-high: #FFD60A;
-            --octane-status-blocked: #FF9F0A;
-            --octane-status-failed: #FF453A;
-            --octane-status-no-run: #8E8E93;
-            --octane-status-passed: #30D158;
-            --octane-status-skipped: #BF5AF2;
           }
         }
         html[data-theme="dark"] .octane-dashboard,
@@ -78,42 +77,26 @@
         [data-color-mode="dark"] .octane-dashboard,
         .jenkins-theme-dark .octane-dashboard,
         .theme-dark .octane-dashboard {
-          --octane-color-bad: #FF453A;
-          --octane-color-good: #30D158;
-          --octane-color-neutral: #0A84FF;
-          --octane-color-warn: #FFD60A;
-          --octane-severity-critical: #FF453A;
-          --octane-severity-high: #FF9F0A;
+          --octane-system-blue: #0A84FF;
+          --octane-system-green: #30D158;
+          --octane-system-orange: #FF9F0A;
+          --octane-system-purple: #BF5AF2;
+          --octane-system-red: #FF453A;
+          --octane-system-yellow: #FFD60A;
           --octane-severity-low: #64D2FF;
-          --octane-severity-medium: #BF5AF2;
-          --octane-severity-unspecified: #8E8E93;
-          --octane-severity-very-high: #FFD60A;
-          --octane-status-blocked: #FF9F0A;
-          --octane-status-failed: #FF453A;
-          --octane-status-no-run: #8E8E93;
-          --octane-status-passed: #30D158;
-          --octane-status-skipped: #BF5AF2;
         }
         html[data-theme="light"] .octane-dashboard,
         body[data-theme="light"] .octane-dashboard,
         [data-color-mode="light"] .octane-dashboard,
         .jenkins-theme-light .octane-dashboard,
         .theme-light .octane-dashboard {
-          --octane-color-bad: #FF3B30;
-          --octane-color-good: #34C759;
-          --octane-color-neutral: #007AFF;
-          --octane-color-warn: #FFCC00;
-          --octane-severity-critical: #FF3B30;
-          --octane-severity-high: #FF9500;
+          --octane-system-blue: #007AFF;
+          --octane-system-green: #34C759;
+          --octane-system-orange: #FF9500;
+          --octane-system-purple: #AF52DE;
+          --octane-system-red: #FF3B30;
+          --octane-system-yellow: #FFCC00;
           --octane-severity-low: #5AC8FA;
-          --octane-severity-medium: #AF52DE;
-          --octane-severity-unspecified: #8E8E93;
-          --octane-severity-very-high: #FFCC00;
-          --octane-status-blocked: #FF9500;
-          --octane-status-failed: #FF3B30;
-          --octane-status-no-run: #8E8E93;
-          --octane-status-passed: #34C759;
-          --octane-status-skipped: #AF52DE;
         }
         .octane-exit-extended-form {
           align-items: center;

@@ -69,109 +69,96 @@ final class OctaneCronSchedule implements OctaneProgressEmailScheduler.Schedule 
   }
 
   private String describe(String[] fields) {
-    String minute = fields[0];
-    String hour = fields[1];
-    String dayOfMonth = fields[2];
-    String month = fields[3];
-    String dayOfWeek = fields[4];
-
-    if (allWildcards(fields)) {
+    if (matches(fields, "\\*", "\\*", "\\*", "\\*", "\\*")) {
       return "Every minute.";
     }
-    if (minute.matches("\\*/\\d+")
-        && "*".equals(hour)
-        && "*".equals(dayOfMonth)
-        && "*".equals(month)
-        && "*".equals(dayOfWeek)) {
-      int step = Integer.parseInt(minute.substring(2));
-      return "Every " + step + " minutes.";
-    }
-    if ("*".equals(minute)
-        && "*".equals(hour)
-        && "*".equals(dayOfMonth)
-        && "*".equals(month)
-        && dayOfWeek.matches("\\d-\\d")) {
-      String[] range = dayOfWeek.split("-");
-      return "Every minute on every day-of-week from "
-          + dayName(range[0])
-          + " through "
-          + dayName(range[1])
-          + ".";
-    }
-    if (isNumber(minute)
-        && hour.matches("\\d+-\\d+/\\d+")
-        && "*".equals(dayOfMonth)
-        && "*".equals(month)
-        && "*".equals(dayOfWeek)) {
-      String[] rangeAndStep = hour.split("/");
-      String[] range = rangeAndStep[0].split("-");
-      int step = Integer.parseInt(rangeAndStep[1]);
-      return "At minute "
-          + minute
-          + " past every "
-          + ordinal(step)
-          + " hour from "
-          + range[0]
-          + " through "
-          + range[1]
-          + ".";
-    }
-    if (isNumber(minute)
-        && "*".equals(hour)
-        && "*".equals(dayOfMonth)
-        && "*".equals(month)
-        && dayOfWeek.matches("\\d-\\d")) {
-      String[] range = dayOfWeek.split("-");
-      return "At minute "
-          + minute
-          + " on every day-of-week from "
-          + dayName(range[0])
-          + " through "
-          + dayName(range[1])
-          + ".";
-    }
-    if (isNumber(minute)
-        && isNumber(hour)
-        && "*".equals(dayOfMonth)
-        && "*".equals(month)
-        && "*".equals(dayOfWeek)) {
-      return String.format(
-          Locale.ENGLISH,
-          "At %02d:%02d every day.",
-          Integer.parseInt(hour),
-          Integer.parseInt(minute));
-    }
-    if (isNumber(minute)
-        && "*".equals(hour)
-        && "*".equals(dayOfMonth)
-        && "*".equals(month)
-        && "*".equals(dayOfWeek)) {
-      return "At minute " + minute + " past every hour.";
+    String description = describeKnownSchedule(fields);
+    if (description != null) {
+      return description;
     }
     return "According to cron fields: minute "
-        + minute
+        + fields[0]
         + ", hour "
-        + hour
+        + fields[1]
         + ", day-of-month "
-        + dayOfMonth
+        + fields[2]
         + ", month "
-        + month
+        + fields[3]
         + ", and day-of-week "
-        + dayOfWeek
+        + fields[4]
         + ".";
   }
 
-  private boolean allWildcards(String[] fields) {
-    for (String field : fields) {
-      if (!"*".equals(field)) {
+  private String describeKnownSchedule(String[] fields) {
+    if (matches(fields, "\\*/\\d+", "\\*", "\\*", "\\*", "\\*")) {
+      return "Every " + Integer.parseInt(fields[0].substring(2)) + " minutes.";
+    }
+    if (matches(fields, "\\*", "\\*", "\\*", "\\*", "\\d-\\d")) {
+      return everyMinuteOnDayRange(fields[4]);
+    }
+    if (matches(fields, "\\d+", "\\d+-\\d+/\\d+", "\\*", "\\*", "\\*")) {
+      return minuteAcrossHourRange(fields[0], fields[1]);
+    }
+    if (matches(fields, "\\d+", "\\*", "\\*", "\\*", "\\d-\\d")) {
+      return minuteOnDayRange(fields[0], fields[4]);
+    }
+    if (matches(fields, "\\d+", "\\d+", "\\*", "\\*", "\\*")) {
+      return String.format(
+          Locale.ENGLISH,
+          "At %02d:%02d every day.",
+          Integer.parseInt(fields[1]),
+          Integer.parseInt(fields[0]));
+    }
+    if (matches(fields, "\\d+", "\\*", "\\*", "\\*", "\\*")) {
+      return "At minute " + fields[0] + " past every hour.";
+    }
+    return null;
+  }
+
+  private boolean matches(String[] fields, String... patterns) {
+    if (fields.length != patterns.length) {
+      return false;
+    }
+    for (int index = 0; index < fields.length; index++) {
+      if (!fields[index].matches(patterns[index])) {
         return false;
       }
     }
     return true;
   }
 
-  private boolean isNumber(String value) {
-    return value.matches("\\d+");
+  private String everyMinuteOnDayRange(String dayRange) {
+    String[] range = dayRange.split("-");
+    return "Every minute on every day-of-week from "
+        + dayName(range[0])
+        + " through "
+        + dayName(range[1])
+        + ".";
+  }
+
+  private String minuteAcrossHourRange(String minute, String hourRange) {
+    String[] rangeAndStep = hourRange.split("/");
+    String[] range = rangeAndStep[0].split("-");
+    return "At minute "
+        + minute
+        + " past every "
+        + ordinal(Integer.parseInt(rangeAndStep[1]))
+        + " hour from "
+        + range[0]
+        + " through "
+        + range[1]
+        + ".";
+  }
+
+  private String minuteOnDayRange(String minute, String dayRange) {
+    String[] range = dayRange.split("-");
+    return "At minute "
+        + minute
+        + " on every day-of-week from "
+        + dayName(range[0])
+        + " through "
+        + dayName(range[1])
+        + ".";
   }
 
   private String dayName(String value) {

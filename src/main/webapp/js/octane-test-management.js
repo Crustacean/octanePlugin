@@ -2,16 +2,25 @@
   "use strict";
 
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+  var SYSTEM_COLORS = {
+    blue: "#4391F5",
+    gray: "#8E8E93",
+    green: "#30D158",
+    lightGreen: "#34C759",
+    orange: "#FF9F0A",
+    purple: "#BF5AF2",
+    red: "#FF453A"
+  };
   var DEFAULT_COLORS = {
-    blocked: "#FF9F0A",
-    closed: "#34C759",
-    executed: "#4391F5",
-    failed: "#FF453A",
-    inProgress: "#4391F5",
-    open: "#FF453A",
-    passed: "#30D158",
-    planned: "#8E8E93",
-    skipped: "#BF5AF2"
+    blocked: SYSTEM_COLORS.orange,
+    closed: SYSTEM_COLORS.lightGreen,
+    executed: SYSTEM_COLORS.blue,
+    failed: SYSTEM_COLORS.red,
+    inProgress: SYSTEM_COLORS.blue,
+    open: SYSTEM_COLORS.red,
+    passed: SYSTEM_COLORS.green,
+    planned: SYSTEM_COLORS.gray,
+    skipped: SYSTEM_COLORS.purple
   };
   var THEME_COLOR_PROPERTIES = {
     blocked: "--octane-status-blocked",
@@ -788,6 +797,23 @@
     renderMetrics(zone, payload);
   }
 
+  function scheduleRender(zone) {
+    if (!zone || zone.__octaneTestManagementRenderFrame != null) {
+      return;
+    }
+    var renderOnFrame = typeof global.requestAnimationFrame === "function"
+        ? global.requestAnimationFrame.bind(global)
+        : function (callback) {
+          return global.setTimeout(callback, 16);
+        };
+    zone.__octaneTestManagementRenderFrame = renderOnFrame(function () {
+      zone.__octaneTestManagementRenderFrame = null;
+      if (zone.isConnected !== false) {
+        render(zone);
+      }
+    });
+  }
+
   function bindInteractions(zone) {
     if (!zone || zone.getAttribute("data-management-events-bound") === "true") {
       return;
@@ -833,7 +859,7 @@
       return;
     }
     zone.__octaneTestManagementPayload = payload || {};
-    render(zone);
+    scheduleRender(zone);
   }
 
   global.OctaneTestManagement = {

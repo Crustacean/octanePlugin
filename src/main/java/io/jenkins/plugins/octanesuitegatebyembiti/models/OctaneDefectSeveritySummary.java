@@ -73,19 +73,9 @@ public class OctaneDefectSeveritySummary implements Serializable {
       return empty();
     }
 
-    int critical = 0;
-    int veryHigh = 0;
-    int high = 0;
-    int medium = 0;
-    int low = 0;
-    int unspecified = 0;
+    int[] openCounts = new int[Severity.values().length];
+    int[] closedCounts = new int[Severity.values().length];
     int closed = 0;
-    int closedCritical = 0;
-    int closedVeryHigh = 0;
-    int closedHigh = 0;
-    int closedMedium = 0;
-    int closedLow = 0;
-    int closedUnspecified = 0;
     Set<String> seenDefectIds = new LinkedHashSet<>();
     for (DefectRecord defect : defects) {
       String key = defectKey(defect);
@@ -95,50 +85,25 @@ public class OctaneDefectSeveritySummary implements Serializable {
       Severity severity = Severity.from(defect);
       if (!defect.isOpen()) {
         closed++;
-        if (severity == Severity.CRITICAL) {
-          closedCritical++;
-        } else if (severity == Severity.VERY_HIGH) {
-          closedVeryHigh++;
-        } else if (severity == Severity.HIGH) {
-          closedHigh++;
-        } else if (severity == Severity.MEDIUM) {
-          closedMedium++;
-        } else if (severity == Severity.LOW) {
-          closedLow++;
-        } else {
-          closedUnspecified++;
-        }
-        continue;
-      }
-
-      if (severity == Severity.CRITICAL) {
-        critical++;
-      } else if (severity == Severity.VERY_HIGH) {
-        veryHigh++;
-      } else if (severity == Severity.HIGH) {
-        high++;
-      } else if (severity == Severity.MEDIUM) {
-        medium++;
-      } else if (severity == Severity.LOW) {
-        low++;
+        closedCounts[severity.ordinal()]++;
       } else {
-        unspecified++;
+        openCounts[severity.ordinal()]++;
       }
     }
     return new OctaneDefectSeveritySummary(
-        critical,
-        veryHigh,
-        high,
-        medium,
-        low,
-        unspecified,
+        openCounts[Severity.CRITICAL.ordinal()],
+        openCounts[Severity.VERY_HIGH.ordinal()],
+        openCounts[Severity.HIGH.ordinal()],
+        openCounts[Severity.MEDIUM.ordinal()],
+        openCounts[Severity.LOW.ordinal()],
+        openCounts[Severity.UNSPECIFIED.ordinal()],
         closed,
-        closedCritical,
-        closedVeryHigh,
-        closedHigh,
-        closedMedium,
-        closedLow,
-        closedUnspecified);
+        closedCounts[Severity.CRITICAL.ordinal()],
+        closedCounts[Severity.VERY_HIGH.ordinal()],
+        closedCounts[Severity.HIGH.ordinal()],
+        closedCounts[Severity.MEDIUM.ordinal()],
+        closedCounts[Severity.LOW.ordinal()],
+        closedCounts[Severity.UNSPECIFIED.ordinal()]);
   }
 
   public int getCritical() {

@@ -261,6 +261,33 @@ public class CriteriaExpressionTest {
   }
 
   @Test
+  public void acceptsTheMaximumSupportedNestingDepth() {
+    String expression =
+        "(".repeat(CriteriaExpression.MAX_NESTING_DEPTH)
+            + "passRate == 100"
+            + ")".repeat(CriteriaExpression.MAX_NESTING_DEPTH);
+
+    assertTrue(
+        CriteriaExpression.parse(expression)
+            .evaluate(new MetricsContext(new GateMetrics(1, 1, 1, 0, 0, 0), Map.of())));
+  }
+
+  @Test
+  public void acceptsTheTokenBoundaryAndRejectsTheNextEquivalencePartition() {
+    String accepted = String.join(" AND ", java.util.Collections.nCopies(256, "passRate >= 0"));
+    String rejected = String.join(" AND ", java.util.Collections.nCopies(257, "passRate >= 0"));
+    MetricsContext context = new MetricsContext(new GateMetrics(1, 1, 1, 0, 0, 0), Map.of());
+
+    assertTrue(CriteriaExpression.parse(accepted).evaluate(context));
+    try {
+      CriteriaExpression.parse(rejected);
+      throw new AssertionError("Expected the criteria token limit to be enforced.");
+    } catch (CriteriaException expected) {
+      assertTrue(expected.getMessage().contains("token limit"));
+    }
+  }
+
+  @Test
   public void handlesZeroRunRates() {
     MetricsContext context = context(List.of());
 

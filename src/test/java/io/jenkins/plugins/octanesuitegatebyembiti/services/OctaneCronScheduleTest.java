@@ -70,6 +70,16 @@ public class OctaneCronScheduleTest {
     assertEquals("Every minute.", schedule.description());
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void rejectsBlankCronExpression() {
+    new OctaneCronSchedule("  ");
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void rejectsCronExpressionWithMoreThanFiveFields() {
+    new OctaneCronSchedule("* * * * * *");
+  }
+
   private Instant at(int year, int month, int day, int hour, int minute) {
     return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, CONTROLLER_ZONE).toInstant();
   }

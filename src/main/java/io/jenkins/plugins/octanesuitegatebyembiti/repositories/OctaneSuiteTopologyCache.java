@@ -28,10 +28,15 @@ final class OctaneSuiteTopologyCache {
   static Map<String, List<String>> getAll(
       String namespace, Collection<String> suiteRunIds, Loader loader)
       throws IOException, InterruptedException {
+    return getAll(namespace, suiteRunIds, loader, System.nanoTime());
+  }
+
+  static Map<String, List<String>> getAll(
+      String namespace, Collection<String> suiteRunIds, Loader loader, long now)
+      throws IOException, InterruptedException {
     Map<String, List<String>> result = new LinkedHashMap<>();
     Map<Key, CompletableFuture<List<String>>> pending = new LinkedHashMap<>();
     Map<Key, CompletableFuture<List<String>>> owned = new LinkedHashMap<>();
-    long now = System.nanoTime();
     for (String suiteRunId : suiteRunIds) {
       Key key = new Key(namespace, suiteRunId);
       Entry cached = cachedEntry(key, now);
@@ -57,7 +62,7 @@ final class OctaneSuiteTopologyCache {
     }
 
     if (!owned.isEmpty()) {
-      loadOwned(loader, owned);
+      loadOwned(loader, owned, now);
     }
     for (Map.Entry<Key, CompletableFuture<List<String>>> entry : pending.entrySet()) {
       result.put(entry.getKey().suiteRunId, await(entry.getValue()));
@@ -102,12 +107,13 @@ final class OctaneSuiteTopologyCache {
     }
   }
 
-  private static void loadOwned(Loader loader, Map<Key, CompletableFuture<List<String>>> owned)
+  private static void loadOwned(
+      Loader loader, Map<Key, CompletableFuture<List<String>>> owned, long loadedAt)
       throws IOException, InterruptedException {
     List<String> ids = owned.keySet().stream().map(key -> key.suiteRunId()).toList();
     try {
       Map<String, List<String>> loaded = loader.load(ids);
-      long expiry = System.nanoTime() + ACTIVE_TTL.toNanos();
+      long expiry = loadedAt + ACTIVE_TTL.toNanos();
       synchronized (CACHE) {
         for (Map.Entry<Key, CompletableFuture<List<String>>> entry : owned.entrySet()) {
           List<String> runIds =
