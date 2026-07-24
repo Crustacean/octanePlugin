@@ -16,13 +16,6 @@
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
   var DONUT_CENTER = 50;
   var DONUT_RADIUS = 46;
-  var DONUT_LABEL_RADIUS = 52;
-  var DONUT_CALLOUT_ORIGIN_RADIUS = 38;
-  var DONUT_CALLOUT_LABEL_X = 104;
-  var DONUT_CALLOUT_MIN_Y = -2;
-  var DONUT_CALLOUT_MAX_Y = 102;
-  var DONUT_CALLOUT_GAP = 8;
-  var DONUT_THIN_SLICE_PERCENTAGE = 5;
   var mountedZones = typeof WeakMap === "function" ? new WeakMap() : null;
 
   function computeVisibleBarCount(width, totalBars) {
@@ -90,45 +83,7 @@
         + " Z";
   }
 
-  function donutLabelsOverlap(left, right) {
-    var leftWidth = Math.max(8, left.percentageLabel.length * 2.45);
-    var rightWidth = Math.max(8, right.percentageLabel.length * 2.45);
-    return Math.abs(left.labelX - right.labelX) < (leftWidth + rightWidth) / 2 + 1
-        && Math.abs(left.labelY - right.labelY) < 5;
-  }
-
-  function distributeDonutCallouts(placements) {
-    placements.sort(function (left, right) {
-      return left.y - right.y;
-    });
-    var nextY = DONUT_CALLOUT_MIN_Y;
-    placements.forEach(function (placement) {
-      placement.y = Math.max(placement.y, nextY);
-      nextY = placement.y + DONUT_CALLOUT_GAP;
-    });
-    if (placements.length === 0) {
-      return;
-    }
-    var overflow = placements[placements.length - 1].y - DONUT_CALLOUT_MAX_Y;
-    if (overflow > 0) {
-      placements.forEach(function (placement) {
-        placement.y -= overflow;
-      });
-    }
-    for (var index = placements.length - 2; index >= 0; index -= 1) {
-      placements[index].y = Math.min(
-          placements[index].y,
-          placements[index + 1].y - DONUT_CALLOUT_GAP);
-    }
-    var underflow = DONUT_CALLOUT_MIN_Y - placements[0].y;
-    if (underflow > 0) {
-      placements.forEach(function (placement) {
-        placement.y += underflow;
-      });
-    }
-  }
-
-  function computeDonutLabelLayout(statuses, total) {
+  function computeDonutSlices(statuses, total) {
     var safeTotal = Math.max(0, Number(total) || 0);
     if (safeTotal === 0) {
       return [];
@@ -142,63 +97,15 @@
       }
       var percentage = count * 100 / safeTotal;
       var endAngle = angle + 360 * percentage / 100;
-      var middleAngle = (angle + endAngle) / 2;
-      var labelPoint = donutPoint(middleAngle, DONUT_LABEL_RADIUS);
       slices.push({
-        callout: percentage < DONUT_THIN_SLICE_PERCENTAGE,
-        endAngle: endAngle,
         fullCircle: percentage >= 99.999999,
-        labelX: labelPoint.x,
-        labelY: labelPoint.y,
-        middleAngle: middleAngle,
         path: percentage >= 99.999999 ? "" : donutPath(angle, endAngle),
         percentage: percentage,
         percentageLabel: status.percentageLabel || percentage.toFixed(2) + "%",
-        status: status,
-        textAnchor: "middle"
+        status: status
       });
       angle = endAngle;
     });
-    for (var left = 0; left < slices.length; left += 1) {
-      for (var right = left + 1; right < slices.length; right += 1) {
-        if (donutLabelsOverlap(slices[left], slices[right])) {
-          slices[left].callout = true;
-          slices[right].callout = true;
-        }
-      }
-    }
-
-    var leftPlacements = [];
-    var rightPlacements = [];
-    slices.forEach(function (slice, index) {
-      if (!slice.callout) {
-        return;
-      }
-      var placement = {index: index, y: slice.labelY};
-      if (Math.cos(slice.middleAngle * Math.PI / 180) < 0) {
-        leftPlacements.push(placement);
-      } else {
-        rightPlacements.push(placement);
-      }
-    });
-    distributeDonutCallouts(leftPlacements);
-    distributeDonutCallouts(rightPlacements);
-
-    function applyCallouts(placements, rightSide) {
-      placements.forEach(function (placement) {
-        var slice = slices[placement.index];
-        var leaderStart = donutPoint(slice.middleAngle, DONUT_CALLOUT_ORIGIN_RADIUS);
-        slice.labelX = rightSide ? DONUT_CALLOUT_LABEL_X : 100 - DONUT_CALLOUT_LABEL_X;
-        slice.labelY = placement.y;
-        slice.leaderStartX = leaderStart.x;
-        slice.leaderStartY = leaderStart.y;
-        slice.leaderEndX = slice.labelX;
-        slice.leaderEndY = slice.labelY;
-        slice.textAnchor = rightSide ? "start" : "end";
-      });
-    }
-    applyCallouts(leftPlacements, false);
-    applyCallouts(rightPlacements, true);
     return slices;
   }
 
@@ -269,16 +176,13 @@
     return {actions: actions, card: card, heading: heading};
   }
 
-  function appendLegend(heading, section, barChart) {
-    var metadata = createElement(
-        "div", barChart ? "octane-suite-chart-meta" : "octane-distribution-meta");
+  function appendBarLegend(heading, section) {
+    var metadata = createElement("div", "octane-suite-chart-meta");
     appendText(
         metadata,
         "span",
         "octane-total-label",
-        barChart
-            ? "Total Suiteruns: " + section.suiteRunCount
-            : "Total: " + section.metrics.total);
+        "Total Suiteruns: " + section.suiteRunCount);
     var legend = createElement("div", "octane-legend");
     (section.totals || []).forEach(function (status) {
       if (Number(status.count) <= 0) {
@@ -297,14 +201,21 @@
 
   function renderDistribution(section) {
     var parts = createCard(section, "distribution");
-    appendLegend(parts.heading, section, false);
+    var total = section.metrics && section.metrics.total;
+    appendText(
+        parts.heading,
+        "div",
+        "octane-muted octane-distribution-subtitle",
+        "Total test cases: " + total);
+    var graph = createElement("div", "octane-chart-inner octane-donut-graph");
+    var layout = createElement("div", "octane-donut-layout");
     var wrap = createElement("div", "octane-donut-wrap");
     var svg = createSvgElement("svg", "octane-donut octane-client-donut");
-    svg.setAttribute("viewBox", "-10 -10 120 120");
+    svg.setAttribute("viewBox", "3 3 94 94");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", section.distributionTitle);
-    var slices = computeDonutLabelLayout(
-        section.totals || [], section.metrics && section.metrics.total);
+    var slices = computeDonutSlices(section.totals || [], total);
     slices.forEach(function (slice) {
       var graphic = createSvgElement(
           slice.fullCircle ? "circle" : "path",
@@ -326,39 +237,25 @@
     var hole = createSvgElement("circle", "octane-donut-hole");
     hole.setAttribute("cx", "50");
     hole.setAttribute("cy", "50");
-    hole.setAttribute("r", "30");
+    hole.setAttribute("r", "29");
     svg.appendChild(hole);
-    slices.forEach(function (slice) {
-      if (!slice.callout) {
-        return;
-      }
-      var line = createSvgElement("line", "octane-donut-callout-line");
-      line.setAttribute("aria-hidden", "true");
-      line.setAttribute("x1", donutNumber(slice.leaderStartX));
-      line.setAttribute("y1", donutNumber(slice.leaderStartY));
-      line.setAttribute("x2", donutNumber(slice.leaderEndX));
-      line.setAttribute("y2", donutNumber(slice.leaderEndY));
-      svg.appendChild(line);
-    });
-    slices.forEach(function (slice) {
-      var label = appendSvgText(
-          svg,
-          "octane-donut-label" + (slice.callout ? " octane-donut-label-callout" : ""),
-          slice.percentageLabel,
-          donutNumber(slice.labelX),
-          donutNumber(slice.labelY));
-      label.setAttribute("data-label-mode", slice.callout ? "callout" : "radial");
-      label.setAttribute("dominant-baseline", "central");
-      label.setAttribute("text-anchor", slice.textAnchor);
-    });
+    var value = appendSvgText(svg, "octane-donut-center-value", total, "50", "46");
+    value.setAttribute("dominant-baseline", "central");
+    value.setAttribute("text-anchor", "middle");
+    var label = appendSvgText(
+        svg, "octane-donut-center-label", "Total test cases", "50", "57");
+    label.setAttribute("dominant-baseline", "central");
+    label.setAttribute("text-anchor", "middle");
     wrap.appendChild(svg);
-    parts.card.appendChild(wrap);
-    parts.card.appendChild(distributionTable(section));
+    layout.appendChild(wrap);
+    layout.appendChild(distributionLegend(section));
+    graph.appendChild(layout);
+    parts.card.appendChild(graph);
     return parts.card;
   }
 
-  function distributionTable(section) {
-    var table = createElement("table", "octane-chart-data-summary octane-visually-hidden");
+  function distributionLegend(section) {
+    var table = createElement("table", "octane-donut-legend");
     appendText(table, "caption", "", section.distributionTitle);
     var body = createElement("tbody", "");
     (section.totals || []).forEach(function (status) {
@@ -366,10 +263,18 @@
         return;
       }
       var row = createElement("tr", "");
-      var label = appendText(row, "th", "", status.label);
-      label.setAttribute("scope", "row");
-      appendText(row, "td", "", status.count);
-      appendText(row, "td", "", status.percentageLabel);
+      var statusCell = createElement("th", "octane-donut-legend-status");
+      statusCell.setAttribute("scope", "row");
+      var statusLabel = createElement("span", "octane-donut-legend-label");
+      var swatch = createElement("span", "octane-swatch");
+      swatch.style.background = status.color;
+      swatch.setAttribute("aria-hidden", "true");
+      statusLabel.appendChild(swatch);
+      appendText(statusLabel, "span", "", status.label);
+      statusCell.appendChild(statusLabel);
+      row.appendChild(statusCell);
+      appendText(
+          row, "td", "octane-donut-legend-percentage", status.percentageLabel);
       body.appendChild(row);
     });
     table.appendChild(body);
@@ -438,7 +343,7 @@
     if (old) {
       old.remove();
     }
-    var content = createElement("div", "octane-client-bar-content");
+    var content = createElement("div", "octane-chart-inner octane-client-bar-content");
     content.setAttribute("data-client-bar-content", "true");
     var svg = createSvgElement("svg", "octane-client-bar-chart");
     svg.setAttribute("viewBox", "0 0 1000 300");
@@ -566,7 +471,7 @@
 
   function renderBarCard(section, state) {
     var parts = createCard(section, "bars");
-    appendLegend(parts.heading, section, true);
+    appendBarLegend(parts.heading, section);
     var pageStatus = createElement("span", "octane-visually-hidden");
     pageStatus.setAttribute("aria-live", "polite");
     parts.heading.appendChild(pageStatus);
@@ -779,7 +684,7 @@
   return {
     MAX_VISIBLE_BARS: MAX_VISIBLE_BARS,
     OVERFLOW_WIDTH_PX: OVERFLOW_WIDTH_PX,
-    computeDonutLabelLayout: computeDonutLabelLayout,
+    computeDonutSlices: computeDonutSlices,
     computeVisibleBarCount: computeVisibleBarCount,
     mount: mount
   };

@@ -263,7 +263,6 @@
         .octane-report-zone.octane-zone-focused .octane-card-title {
           font-size: clamp(0.66rem, 2.6cqw, 0.85rem);
         }
-        .octane-zone-focused .octane-distribution-meta,
         .octane-zone-focused .octane-suite-chart-meta {
           gap: 0.2rem 0.45rem;
         }
@@ -286,16 +285,12 @@
         .octane-zone-focused .octane-timer-wrap,
         .octane-zone-focused .octane-flip-viewport,
         .octane-zone-focused .octane-flip-face-body,
-        .octane-zone-focused .octane-donut-wrap,
-        .octane-zone-focused .octane-bar-graph {
+        .octane-zone-focused .octane-chart-inner {
           flex: 1 1 auto;
           min-height: 0;
         }
-        .octane-zone-focused .octane-donut-wrap {
-          box-sizing: border-box;
-          overflow: visible;
-          padding: clamp(0.25rem, 1vh, 0.75rem) clamp(0.5rem, 1.2vw, 1.5rem);
-          width: 100%;
+        .octane-zone-focused .octane-donut-graph {
+          height: auto;
         }
         .octane-zone-focused .octane-timer-donut {
           height: min(100%, 38vh, 38vw);
@@ -311,12 +306,6 @@
           max-height: min(38vh, 38vw);
           max-width: min(38vh, 38vw);
           width: min(100cqw, 100cqh, 38vh, 38vw);
-        }
-        .octane-zone-focused .octane-donut {
-          height: 100%;
-          max-height: 100%;
-          max-width: 100%;
-          width: 100%;
         }
         .octane-zone-focused .octane-bar-graph {
           --octane-axis-label-row: clamp(1.05rem, 2vh, 1.7rem);
@@ -1529,10 +1518,12 @@
         .octane-chart-card.octane-expanded .octane-timer-wrap,
         .octane-chart-card.octane-expanded .octane-flip-viewport,
         .octane-chart-card.octane-expanded .octane-flip-face-body,
-        .octane-chart-card.octane-expanded .octane-donut-wrap,
-        .octane-chart-card.octane-expanded .octane-bar-graph {
+        .octane-chart-card.octane-expanded .octane-chart-inner {
           flex: 1 1 auto;
           min-height: 0;
+        }
+        .octane-chart-card.octane-expanded .octane-donut-graph {
+          height: auto;
         }
         .octane-chart-card.octane-expanded .octane-timer-donut {
           height: min(100%, 76vh, 76vw);
@@ -1548,10 +1539,6 @@
           max-height: min(76vh, 76vw);
           max-width: min(76vh, 76vw);
           width: min(100cqw, 100cqh, 76vh, 76vw);
-        }
-        .octane-chart-card.octane-expanded .octane-donut {
-          max-height: min(72vh, 72vw);
-          max-width: min(72vh, 72vw);
         }
         .octane-chart-card.octane-expanded .octane-bar-graph {
           --octane-axis-label-row: 1.7rem;
@@ -1638,51 +1625,112 @@
             display: inline;
           }
         }
+        .octane-chart-inner {
+          box-sizing: border-box;
+          margin-top: 1rem;
+          width: 100%;
+        }
+        .octane-donut-graph {
+          --octane-axis-label-row: 1.7rem;
+          height: calc(260px + var(--octane-axis-label-row));
+          min-height: 0;
+          overflow: hidden;
+          padding: 0;
+        }
+        .octane-donut-layout {
+          align-items: center;
+          display: grid;
+          gap: clamp(0.5rem, 3cqw, 1.5rem);
+          grid-template-columns: minmax(0, 1fr) max-content;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          padding: 0;
+          width: 100%;
+        }
         .octane-donut-wrap {
           align-items: center;
+          box-sizing: border-box;
           display: flex;
-          gap: 0.75rem;
+          height: 100%;
           justify-content: center;
-          padding: 0.75rem 1.5rem;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          padding: 5px;
+          width: 100%;
         }
         .octane-donut {
           display: block;
-          height: auto;
-          justify-self: center;
-          max-width: 280px;
-          overflow: visible;
+          height: 100%;
+          max-height: none;
+          max-width: none;
+          overflow: hidden;
+          shape-rendering: geometricPrecision;
           width: 100%;
         }
-        .octane-donut-label {
+        .octane-donut-center-value {
           fill: var(--text-color);
-          font-size: 0.28rem;
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 0.72rem;
           font-weight: 700;
           pointer-events: none;
         }
-        .octane-donut-segment {
-          stroke: var(--background);
-          stroke-width: 2px;
-          vector-effect: non-scaling-stroke;
-        }
-        .octane-donut-callout-line {
-          fill: none;
+        .octane-donut-center-label {
+          fill: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 0.2875rem;
+          font-weight: 500;
           pointer-events: none;
-          stroke: var(--text-color-secondary);
-          stroke-width: 1;
-          vector-effect: non-scaling-stroke;
         }
-        .octane-donut-label-callout {
-          font-weight: 600;
+        .octane-donut-segment {
+          stroke: none;
         }
         .octane-donut-hole {
           fill: var(--background);
         }
-        .octane-distribution-meta {
+        .octane-donut-legend {
+          border-collapse: collapse;
+          color: var(--text-color);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.62rem, 2.1cqw, 0.9rem);
+          font-variant-numeric: tabular-nums;
+          justify-self: center;
+          line-height: 1.2;
+          width: auto;
+        }
+        .octane-donut-legend caption {
+          border: 0;
+          clip-path: inset(50%);
+          height: 1px;
+          overflow: hidden;
+          position: absolute;
+          white-space: nowrap;
+          width: 1px;
+        }
+        .octane-donut-legend th,
+        .octane-donut-legend td {
+          border: 0;
+          padding-block: clamp(0.16rem, 0.7cqw, 0.36rem);
+          white-space: nowrap;
+        }
+        .octane-donut-legend-status {
+          font-weight: 600;
+          padding-inline: 0 clamp(0.5rem, 2.2cqw, 1.5625rem);
+          text-align: left;
+        }
+        .octane-donut-legend-label {
           align-items: center;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.35rem 0.75rem;
-          margin-top: 0.25rem;
+          display: inline-flex;
+          gap: clamp(0.3rem, 1cqw, 0.48rem);
+        }
+        .octane-donut-legend-label .octane-swatch {
+          flex: 0 0 auto;
+        }
+        .octane-donut-legend-percentage {
+          font-weight: 600;
+          padding-inline: 0;
+          text-align: right;
         }
         .octane-total-label {
           color: var(--text-color-secondary);
@@ -1703,14 +1751,11 @@
         }
         .octane-bar-graph {
           --octane-axis-label-row: 1.7rem;
-          box-sizing: border-box;
           column-gap: 0.09rem;
           display: grid;
           grid-template-columns: 1.35rem max-content minmax(0, 1fr);
           grid-template-rows: 260px var(--octane-axis-label-row);
-          margin-top: 1rem;
           row-gap: 0;
-          width: 100%;
         }
         .octane-y-axis-label {
           align-self: center;
@@ -4182,19 +4227,8 @@
                     <div class="octane-card-header">
                       <div>
                         <h2 class="octane-card-title">${section.statusDistributionTitle}</h2>
-                        <div class="octane-distribution-meta">
-                          <span class="octane-total-label">Total: ${section.metrics.total}</span>
-                          <div class="octane-legend">
-                            <j:forEach var="status" items="${section.totals}">
-                              <j:if test="${status.count > 0}">
-                                <div class="octane-legend-row">
-                                  <span class="octane-swatch"
-                                      style="background: ${status.color};"></span>
-                                  <span>${status.label}</span>
-                                </div>
-                              </j:if>
-                            </j:forEach>
-                          </div>
+                        <div class="octane-muted octane-distribution-subtitle">
+                          Total test cases: ${section.metrics.total}
                         </div>
                       </div>
                       <div class="octane-card-actions">
@@ -4228,74 +4262,63 @@
                         </button>
                       </div>
                     </div>
-                    <div class="octane-donut-wrap">
-                      <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
-                          aria-label="${section.statusDistributionTitle}">
-                        <title>${section.statusDistributionTitle}</title>
-                        <j:forEach var="slice" items="${section.pieSlices}">
-                          <j:choose>
-                            <j:when test="${slice.fullCircle}">
-                              <circle cx="50" cy="50" r="46" fill="${slice.color}">
-                                <title>${slice.title}</title>
-                              </circle>
-                            </j:when>
-                            <j:otherwise>
-                              <path class="octane-donut-segment" d="${slice.path}"
-                                  fill="${slice.color}">
-                                <title>${slice.title}</title>
-                              </path>
-                            </j:otherwise>
-                          </j:choose>
-                        </j:forEach>
-                        <circle class="octane-donut-hole" cx="50" cy="50" r="30" />
-                        <j:forEach var="slice" items="${section.pieSlices}">
-                          <j:if test="${slice.callout}">
-                            <line class="octane-donut-callout-line" aria-hidden="true"
-                                x1="${slice.leaderStartX}" y1="${slice.leaderStartY}"
-                                x2="${slice.leaderEndX}" y2="${slice.leaderEndY}" />
-                          </j:if>
-                        </j:forEach>
-                        <j:forEach var="slice" items="${section.pieSlices}">
-                          <j:choose>
-                            <j:when test="${slice.callout}">
-                              <text class="octane-donut-label octane-donut-label-callout"
-                                  data-label-mode="callout" x="${slice.labelX}" y="${slice.labelY}"
-                                  dominant-baseline="central" text-anchor="${slice.textAnchor}">
-                                ${slice.percentageLabel}
-                              </text>
-                            </j:when>
-                            <j:otherwise>
-                              <text class="octane-donut-label" data-label-mode="radial"
-                                  x="${slice.labelX}" y="${slice.labelY}"
-                                  dominant-baseline="central" text-anchor="${slice.textAnchor}">
-                                ${slice.percentageLabel}
-                              </text>
-                            </j:otherwise>
-                          </j:choose>
-                        </j:forEach>
-                      </svg>
+                    <div class="octane-chart-inner octane-donut-graph">
+                      <div class="octane-donut-layout">
+                        <div class="octane-donut-wrap">
+                          <svg class="octane-donut" viewBox="3 3 94 94"
+                              preserveAspectRatio="xMidYMid meet" role="img"
+                              aria-label="${section.statusDistributionTitle}">
+                            <title>${section.statusDistributionTitle}</title>
+                            <j:forEach var="slice" items="${section.pieSlices}">
+                              <j:choose>
+                                <j:when test="${slice.fullCircle}">
+                                  <circle cx="50" cy="50" r="46" fill="${slice.color}">
+                                    <title>${slice.title}</title>
+                                  </circle>
+                                </j:when>
+                                <j:otherwise>
+                                  <path class="octane-donut-segment" d="${slice.path}"
+                                      fill="${slice.color}">
+                                    <title>${slice.title}</title>
+                                  </path>
+                                </j:otherwise>
+                              </j:choose>
+                            </j:forEach>
+                            <circle class="octane-donut-hole" cx="50" cy="50" r="29" />
+                            <text class="octane-donut-center-value" x="50" y="46"
+                                dominant-baseline="central" text-anchor="middle">
+                              ${section.metrics.total}
+                            </text>
+                            <text class="octane-donut-center-label" x="50" y="57"
+                                dominant-baseline="central" text-anchor="middle">
+                              Total test cases
+                            </text>
+                          </svg>
+                        </div>
+                        <table class="octane-donut-legend">
+                          <caption>${section.statusDistributionTitle}</caption>
+                          <tbody>
+                            <j:forEach var="status" items="${section.totals}">
+                              <j:if test="${status.count > 0}">
+                                <tr>
+                                  <th class="octane-donut-legend-status" scope="row">
+                                    <span class="octane-donut-legend-label">
+                                      <span class="octane-swatch"
+                                          style="background: ${status.color};"
+                                          aria-hidden="true"></span>
+                                      <span>${status.label}</span>
+                                    </span>
+                                  </th>
+                                  <td class="octane-donut-legend-percentage">
+                                    ${status.percentageLabel}
+                                  </td>
+                                </tr>
+                              </j:if>
+                            </j:forEach>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <table class="octane-chart-data-summary octane-visually-hidden">
-                      <caption>${section.statusDistributionTitle}</caption>
-                      <thead>
-                        <tr>
-                          <th scope="col">Status</th>
-                          <th scope="col">Count</th>
-                          <th scope="col">Percent</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <j:forEach var="status" items="${section.totals}">
-                          <j:if test="${status.count > 0}">
-                            <tr>
-                              <th scope="row">${status.label}</th>
-                              <td>${status.count}</td>
-                              <td>${status.percentageLabel}</td>
-                            </tr>
-                          </j:if>
-                        </j:forEach>
-                      </tbody>
-                    </table>
                   </section>
 
                   <section class="octane-chart-card" draggable="true"
@@ -4351,7 +4374,7 @@
                         </button>
                       </div>
                     </div>
-                    <div class="octane-bar-graph">
+                    <div class="octane-chart-inner octane-bar-graph">
                       <div class="octane-y-axis-label">Test Runs</div>
                       <div class="octane-y-axis-scale">
                         <j:forEach var="tick" items="${section.yAxisTicks}">

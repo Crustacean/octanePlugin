@@ -133,7 +133,7 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
-  public void donutPercentageLabelsFitInsideChartViewport() {
+  public void donutSlicesUseBoundedGeometryWithoutExternalLabelCoordinates() {
     Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
     suiteRuns.put(
         "edge-labels",
@@ -156,12 +156,8 @@ public class OctaneGateReportSnapshotTest {
     OctaneGateReportSection regressions = snapshot.getSections().get(0);
     assertEquals(2, regressions.getPieSlices().size());
     for (OctaneGatePieSlice slice : regressions.getPieSlices()) {
-      double x = Double.parseDouble(slice.getLabelX());
-      double y = Double.parseDouble(slice.getLabelY());
-      assertTrue(
-          "label text should stay inside donut viewport", x - 8.0 >= -10.0 && x + 8.0 <= 110.0);
-      assertTrue(
-          "label text should stay inside donut viewport", y - 4.0 >= -10.0 && y + 4.0 <= 110.0);
+      assertFalse(slice.isFullCircle());
+      assertTrue(slice.getPath().contains("46.000 46.000"));
     }
   }
 
