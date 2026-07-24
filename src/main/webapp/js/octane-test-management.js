@@ -547,6 +547,82 @@
       : "smooth";
   }
 
+  function categoryElement(container, attributeName, category) {
+    if (!container) {
+      return null;
+    }
+    var elements = container.querySelectorAll("[" + attributeName + "]");
+    for (var index = 0; index < elements.length; index += 1) {
+      if (elements[index].getAttribute(attributeName) === category) {
+        return elements[index];
+      }
+    }
+    return null;
+  }
+
+  function scrollHorizontalItemIntoView(container, item) {
+    if (!container || !item || container.scrollWidth <= container.clientWidth + 1) {
+      return;
+    }
+    var containerBounds = container.getBoundingClientRect();
+    var itemBounds = item.getBoundingClientRect();
+    var nextScrollLeft = container.scrollLeft;
+    if (itemBounds.left < containerBounds.left) {
+      nextScrollLeft -= containerBounds.left - itemBounds.left;
+    } else if (itemBounds.right > containerBounds.right) {
+      nextScrollLeft += itemBounds.right - containerBounds.right;
+    }
+    nextScrollLeft = Math.max(
+        0,
+        Math.min(nextScrollLeft, container.scrollWidth - container.clientWidth));
+    if (Math.abs(nextScrollLeft - container.scrollLeft) <= 1) {
+      return;
+    }
+    if (typeof container.scrollTo === "function") {
+      container.scrollTo({behavior: "auto", left: nextScrollLeft});
+    } else {
+      container.scrollLeft = nextScrollLeft;
+    }
+  }
+
+  function revealFailureCategory(zone, category) {
+    if (!zone || !category) {
+      return;
+    }
+    var card = zone.querySelector('[data-card-key="test-management-failures"]');
+    if (!card || !card.classList.contains("octane-expanded")) {
+      return;
+    }
+    var chart = card.querySelector("[data-management-failure-bars]");
+    var switcher = card.querySelector("[data-management-failure-switcher]");
+    scrollHorizontalItemIntoView(
+        chart,
+        categoryElement(chart, "data-management-category", category));
+    scrollHorizontalItemIntoView(
+        switcher,
+        categoryElement(switcher, "data-management-category-filter", category));
+    scheduleCategoryScrollControls(switcher);
+  }
+
+  function scheduleFailureCategoryReveal(zone, category) {
+    if (!zone || !category) {
+      return;
+    }
+    if (zone.__octaneFailureCategoryRevealFrame
+        && typeof global.cancelAnimationFrame === "function") {
+      global.cancelAnimationFrame(zone.__octaneFailureCategoryRevealFrame);
+    }
+    if (typeof global.requestAnimationFrame !== "function") {
+      revealFailureCategory(zone, category);
+      return;
+    }
+    zone.__octaneFailureCategoryRevealFrame =
+        global.requestAnimationFrame(function () {
+          zone.__octaneFailureCategoryRevealFrame = null;
+          revealFailureCategory(zone, category);
+        });
+  }
+
   function scrollCategorySwitcher(button) {
     var navigation = button
       ? button.closest("[data-management-failure-tab-nav]")
@@ -749,6 +825,7 @@
   global.OctaneTestManagement = {
     mount: mount,
     render: render,
+    revealFailureCategory: scheduleFailureCategoryReveal,
     setSelectedCategory: setSelectedCategory,
     update: update
   };

@@ -34,6 +34,34 @@ test("renders dynamic failure clusters and keeps a valid category selected", () 
   assert.match(source, /__octaneTestManagementOnCategorySelect/);
 });
 
+test("reveals the clicked failure bar and matching tab after individual focus opens", () => {
+  assert.match(
+      jelly,
+      /function expandFailureCategory\(categoryBar, category\)\s*\{[\s\S]*?expandCard\(card\);[\s\S]*?OctaneTestManagement\.revealFailureCategory\(\s*testManagementZone, category\);/);
+  assert.match(source, /function scheduleFailureCategoryReveal\(zone, category\)/);
+  assert.match(source, /global\.requestAnimationFrame\(function \(\) \{/);
+  assert.match(source, /function revealFailureCategory\(zone, category\)/);
+  assert.match(
+      source,
+      /card\.classList\.contains\("octane-expanded"\)/);
+  assert.match(
+      source,
+      /categoryElement\(chart, "data-management-category", category\)/);
+  assert.match(
+      source,
+      /categoryElement\(switcher, "data-management-category-filter", category\)/);
+  assert.equal(
+      (source.match(/scrollHorizontalItemIntoView\(/g) || []).length >= 3,
+      true);
+  assert.match(source, /container\.scrollWidth <= container\.clientWidth \+ 1/);
+  assert.match(
+      source,
+      /container\.scrollTo\(\{behavior: "auto", left: nextScrollLeft\}\)/);
+  assert.match(
+      source,
+      /revealFailureCategory: scheduleFailureCategoryReveal/);
+});
+
 test("keeps focused defect groups on one line with conditional scroll controls", () => {
   assert.match(jelly, /data-management-failure-tab-nav="true"/);
   assert.match(jelly, /data-management-category-scroll="-1"/);

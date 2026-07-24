@@ -5999,12 +5999,14 @@
               return {};
             }
           }
-          function expandFailureCategory(categoryBar) {
+          function expandFailureCategory(categoryBar, category) {
             var card = categoryBar
                 ? categoryBar.closest(".octane-chart-card")
                 : dashboard.querySelector('[data-card-key="test-management-failures"]');
             if (card) {
               expandCard(card);
+              window.OctaneTestManagement.revealFailureCategory(
+                  testManagementZone, category);
             }
           }
           function initializeTestManagement() {
