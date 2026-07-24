@@ -1,14 +1,12 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import hudson.model.Run;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
@@ -22,12 +20,19 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 public final class OctaneReportArtifactStore {
   static final String ROOT_DIRECTORY = "octane-suite-gate";
   static final String INDEX_FILE = "octane-index.json";
   static final String RESULTS_FILE = "octane-results.json";
   static final String SNAPSHOT_FILE = "octane-snapshot.bin.gz";
+  static final long MAX_ARTIFACT_BYTES = 64L * 1024L * 1024L;
+  private static final long MAX_DESERIALIZED_REFERENCES = 1_000_000L;
+  private static final long MAX_ARRAY_LENGTH = 1_000_000L;
+  private static final long MAX_DESERIALIZATION_DEPTH = 64L;
 
   private final ObjectMapper objectMapper;
   private final OctaneReportDataMapper dataMapper;
@@ -92,9 +97,11 @@ public final class OctaneReportArtifactStore {
     if (!Files.isRegularFile(path)) {
       return null;
     }
+    verifyArtifactSize(path);
     try (ObjectInputStream input =
         new ObjectInputStream(
             new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path))))) {
+      input.setObjectInputFilter(OctaneReportArtifactStore::filterSnapshotObject);
       Object value = input.readObject();
       if (value instanceof OctaneGateReportSnapshot reportSnapshot) {
         return reportSnapshot;
@@ -155,7 +162,43 @@ public final class OctaneReportArtifactStore {
     if (!path.startsWith(directory) || !Files.isRegularFile(path)) {
       throw new IOException("Octane report data is incomplete for this build.");
     }
+    verifyArtifactSize(path);
     return Files.readAllBytes(path);
+  }
+
+  private static ObjectInputFilter.Status filterSnapshotObject(ObjectInputFilter.FilterInfo info) {
+    if (info.depth() > MAX_DESERIALIZATION_DEPTH
+        || info.references() > MAX_DESERIALIZED_REFERENCES
+        || info.streamBytes() > MAX_ARTIFACT_BYTES
+        || (info.arrayLength() >= 0 && info.arrayLength() > MAX_ARRAY_LENGTH)) {
+      return ObjectInputFilter.Status.REJECTED;
+    }
+    Class<?> serialClass = info.serialClass();
+    if (serialClass == null) {
+      return ObjectInputFilter.Status.UNDECIDED;
+    }
+    while (serialClass.isArray()) {
+      serialClass = serialClass.getComponentType();
+    }
+    if (serialClass.isPrimitive()) {
+      return ObjectInputFilter.Status.ALLOWED;
+    }
+    String className = serialClass.getName();
+    if (className.startsWith("io.jenkins.plugins.octanesuitegatebyembiti.models.")
+        || className.startsWith("io.jenkins.plugins.octanesuitegatebyembiti.entities.")
+        || className.startsWith("java.lang.")
+        || className.startsWith("java.time.")
+        || className.startsWith("java.util.")) {
+      return ObjectInputFilter.Status.ALLOWED;
+    }
+    return ObjectInputFilter.Status.REJECTED;
+  }
+
+  private void verifyArtifactSize(Path path) throws IOException {
+    if (Files.size(path) > MAX_ARTIFACT_BYTES) {
+      throw new IOException(
+          "Octane report artifact exceeds the " + MAX_ARTIFACT_BYTES + " byte safety limit.");
+    }
   }
 
   private Path artifactDirectory(Run<?, ?> run, OctaneReportArtifactMetadata metadata) {

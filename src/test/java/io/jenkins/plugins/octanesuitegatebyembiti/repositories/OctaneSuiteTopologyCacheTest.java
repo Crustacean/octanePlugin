@@ -84,6 +84,74 @@ public class OctaneSuiteTopologyCacheTest {
     }
   }
 
+  @Test
+  public void expiresAtTheThirtySecondBoundaryWithoutServingStaleTopology() throws Exception {
+    AtomicInteger loads = new AtomicInteger();
+    long loadedAt = 1_000L;
+
+    Map<String, List<String>> initial =
+        OctaneSuiteTopologyCache.getAll(
+            "server/workspace",
+            List.of("suite-1"),
+            ids -> {
+              loads.incrementAndGet();
+              return Map.of("suite-1", List.of("run-1"));
+            },
+            loadedAt);
+    Map<String, List<String>> beforeExpiry =
+        OctaneSuiteTopologyCache.getAll(
+            "server/workspace",
+            List.of("suite-1"),
+            ids -> {
+              throw new AssertionError("A topology entry before its TTL must be reused.");
+            },
+            loadedAt + OctaneSuiteTopologyCache.ACTIVE_TTL.toNanos() - 1L);
+    Map<String, List<String>> atExpiry =
+        OctaneSuiteTopologyCache.getAll(
+            "server/workspace",
+            List.of("suite-1"),
+            ids -> {
+              loads.incrementAndGet();
+              return Map.of("suite-1", List.of("run-2"));
+            },
+            loadedAt + OctaneSuiteTopologyCache.ACTIVE_TTL.toNanos());
+
+    assertEquals(List.of("run-1"), initial.get("suite-1"));
+    assertEquals(List.of("run-1"), beforeExpiry.get("suite-1"));
+    assertEquals(List.of("run-2"), atExpiry.get("suite-1"));
+    assertEquals(2, loads.get());
+    assertEquals(1L, OctaneSuiteTopologyCache.metrics().hits());
+    assertEquals(2L, OctaneSuiteTopologyCache.metrics().misses());
+  }
+
+  @Test
+  public void isolatesIdenticalSuiteIdsByServerWorkspaceNamespace() throws Exception {
+    AtomicInteger loads = new AtomicInteger();
+
+    Map<String, List<String>> first =
+        OctaneSuiteTopologyCache.getAll(
+            "server-a/workspace-1",
+            List.of("suite-1"),
+            ids -> {
+              loads.incrementAndGet();
+              return Map.of("suite-1", List.of("run-a"));
+            },
+            1_000L);
+    Map<String, List<String>> second =
+        OctaneSuiteTopologyCache.getAll(
+            "server-b/workspace-1",
+            List.of("suite-1"),
+            ids -> {
+              loads.incrementAndGet();
+              return Map.of("suite-1", List.of("run-b"));
+            },
+            1_000L);
+
+    assertEquals(List.of("run-a"), first.get("suite-1"));
+    assertEquals(List.of("run-b"), second.get("suite-1"));
+    assertEquals(2, loads.get());
+  }
+
   private Map<String, List<String>> loadAfterBarrier(
       String suiteId,
       String runId,

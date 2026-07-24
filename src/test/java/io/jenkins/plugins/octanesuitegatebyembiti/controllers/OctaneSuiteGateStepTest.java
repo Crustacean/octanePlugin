@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import static org.junit.Assert.assertEquals;
 
+import hudson.util.FormValidation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import java.util.List;
@@ -55,5 +56,15 @@ public class OctaneSuiteGateStepTest {
 
     assertEquals(84, builder.getBasePassrateFigure());
     assertEquals(93, builder.getBaseExecutionFigure());
+  }
+
+  @Test
+  public void extendedTimeoutValidationAcceptsBlankOrZero() {
+    OctaneSuiteGateStep.DescriptorImpl descriptor = new OctaneSuiteGateStep.DescriptorImpl();
+
+    assertEquals(FormValidation.Kind.OK, descriptor.doCheckTimeoutMinutesExtended("").kind);
+    assertEquals(FormValidation.Kind.OK, descriptor.doCheckTimeoutMinutesExtended(" ").kind);
+    assertEquals(FormValidation.Kind.OK, descriptor.doCheckTimeoutMinutesExtended("0").kind);
+    assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckTimeoutMinutesExtended("-1").kind);
   }
 }

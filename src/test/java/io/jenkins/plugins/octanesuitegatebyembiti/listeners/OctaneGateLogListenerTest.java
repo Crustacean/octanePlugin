@@ -32,6 +32,7 @@ public class OctaneGateLogListenerTest {
     criticalScope.setSuiteRunId("450306");
     request.setScopes(List.of(criticalScope));
 
+    logListener.logLookupContext(listener, "1001", "2002");
     logListener.logWaiting(listener, request, request.getSuiteRunIds());
     logListener.logPollResult(listener, resultWithCriticalScope());
     logListener.logPollResult(listener, resultWithCriticalScope());
@@ -44,6 +45,7 @@ public class OctaneGateLogListenerTest {
     String criticalMetrics =
         "Critical suite runs: execution 100.00%, pass 100.00%, total 2, executed 2,"
             + " passed 2, failed 0, skipped 0, running 0.";
+    assertTrue(log.contains("ALM Octane lookup context: shared space 1001, workspace 2002."));
     assertTrue(log.contains("Waiting for ALM Octane suite run(s)"));
     assertTrue(log.contains("Regressions suite runs: 450312, 450309"));
     assertTrue(log.contains("Critical suite runs: 450306"));

@@ -16,6 +16,10 @@ public class GateRequest implements Serializable {
   public static final int DEFAULT_BASE_PASSRATE_FIGURE = 95;
   public static final int DEFAULT_BASE_EXECUTION_FIGURE = 100;
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
+  public static final int MAX_POLL_INTERVAL_SECONDS = 3600;
+  public static final int MAX_TIMEOUT_MINUTES = 10_080;
+  public static final int MAX_RISK_HEAT_MAP_DEFECTS = 10_000;
+  public static final int MAX_SUITE_RUN_IDS = 1_000;
 
   private final String serverId;
   private final String suiteRunId;
@@ -101,7 +105,8 @@ public class GateRequest implements Serializable {
   }
 
   public void setPollIntervalSeconds(int pollIntervalSeconds) {
-    this.pollIntervalSeconds = Math.max(1, pollIntervalSeconds);
+    this.pollIntervalSeconds =
+        Math.min(MAX_POLL_INTERVAL_SECONDS, Math.max(1, pollIntervalSeconds));
   }
 
   public int getTimeoutMinutes() {
@@ -109,7 +114,7 @@ public class GateRequest implements Serializable {
   }
 
   public void setTimeoutMinutes(int timeoutMinutes) {
-    this.timeoutMinutes = Math.max(1, timeoutMinutes);
+    this.timeoutMinutes = Math.min(MAX_TIMEOUT_MINUTES, Math.max(1, timeoutMinutes));
   }
 
   public int getTimeoutMinutesExtended() {
@@ -117,7 +122,8 @@ public class GateRequest implements Serializable {
   }
 
   public void setTimeoutMinutesExtended(int timeoutMinutesExtended) {
-    this.timeoutMinutesExtended = Math.max(0, timeoutMinutesExtended);
+    this.timeoutMinutesExtended =
+        Math.min(MAX_TIMEOUT_MINUTES, Math.max(0, timeoutMinutesExtended));
   }
 
   public int getBasePassrateFigure() {
@@ -165,7 +171,8 @@ public class GateRequest implements Serializable {
   }
 
   public void setRiskHeatMapMaxDefects(int riskHeatMapMaxDefects) {
-    this.riskHeatMapMaxDefects = Math.max(1, riskHeatMapMaxDefects);
+    this.riskHeatMapMaxDefects =
+        Math.min(MAX_RISK_HEAT_MAP_DEFECTS, Math.max(1, riskHeatMapMaxDefects));
   }
 
   public String getPassedStatuses() {

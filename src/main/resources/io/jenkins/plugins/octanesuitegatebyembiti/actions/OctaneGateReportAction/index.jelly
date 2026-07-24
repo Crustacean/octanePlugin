@@ -32,15 +32,29 @@
           text-transform: uppercase;
         }
         .octane-dashboard {
-          --octane-color-bad: #FF3B30;
-          --octane-color-good: #34C759;
-          --octane-color-neutral: #007AFF;
-          --octane-color-warn: #FFCC00;
-          --octane-status-blocked: #FF9500;
-          --octane-status-failed: #FF3B30;
-          --octane-status-no-run: #8E8E93;
-          --octane-status-passed: #34C759;
-          --octane-status-skipped: #AF52DE;
+          --octane-system-blue: #007AFF;
+          --octane-system-gray: #8E8E93;
+          --octane-system-green: #34C759;
+          --octane-system-orange: #FF9500;
+          --octane-system-purple: #AF52DE;
+          --octane-system-red: #FF3B30;
+          --octane-system-yellow: #FFCC00;
+          --octane-color-bad: var(--octane-system-red);
+          --octane-color-good: var(--octane-system-green);
+          --octane-color-neutral: var(--octane-system-blue);
+          --octane-color-on-emphasis: #000000;
+          --octane-color-warn: var(--octane-system-yellow);
+          --octane-severity-critical: var(--octane-system-red);
+          --octane-severity-high: var(--octane-system-orange);
+          --octane-severity-low: #5AC8FA;
+          --octane-severity-medium: var(--octane-system-purple);
+          --octane-severity-unspecified: var(--octane-system-gray);
+          --octane-severity-very-high: var(--octane-system-yellow);
+          --octane-status-blocked: var(--octane-system-orange);
+          --octane-status-failed: var(--octane-system-red);
+          --octane-status-no-run: var(--octane-system-gray);
+          --octane-status-passed: var(--octane-system-green);
+          --octane-status-skipped: var(--octane-system-purple);
           align-items: stretch;
           display: flex;
           flex-wrap: wrap;
@@ -49,15 +63,13 @@
         }
         @media (prefers-color-scheme: dark) {
           .octane-dashboard {
-            --octane-color-bad: #FF453A;
-            --octane-color-good: #30D158;
-            --octane-color-neutral: #0A84FF;
-            --octane-color-warn: #FFD60A;
-            --octane-status-blocked: #FF9F0A;
-            --octane-status-failed: #FF453A;
-            --octane-status-no-run: #8E8E93;
-            --octane-status-passed: #30D158;
-            --octane-status-skipped: #BF5AF2;
+            --octane-system-blue: #0A84FF;
+            --octane-system-green: #30D158;
+            --octane-system-orange: #FF9F0A;
+            --octane-system-purple: #BF5AF2;
+            --octane-system-red: #FF453A;
+            --octane-system-yellow: #FFD60A;
+            --octane-severity-low: #64D2FF;
           }
         }
         html[data-theme="dark"] .octane-dashboard,
@@ -65,30 +77,26 @@
         [data-color-mode="dark"] .octane-dashboard,
         .jenkins-theme-dark .octane-dashboard,
         .theme-dark .octane-dashboard {
-          --octane-color-bad: #FF453A;
-          --octane-color-good: #30D158;
-          --octane-color-neutral: #0A84FF;
-          --octane-color-warn: #FFD60A;
-          --octane-status-blocked: #FF9F0A;
-          --octane-status-failed: #FF453A;
-          --octane-status-no-run: #8E8E93;
-          --octane-status-passed: #30D158;
-          --octane-status-skipped: #BF5AF2;
+          --octane-system-blue: #0A84FF;
+          --octane-system-green: #30D158;
+          --octane-system-orange: #FF9F0A;
+          --octane-system-purple: #BF5AF2;
+          --octane-system-red: #FF453A;
+          --octane-system-yellow: #FFD60A;
+          --octane-severity-low: #64D2FF;
         }
         html[data-theme="light"] .octane-dashboard,
         body[data-theme="light"] .octane-dashboard,
         [data-color-mode="light"] .octane-dashboard,
         .jenkins-theme-light .octane-dashboard,
         .theme-light .octane-dashboard {
-          --octane-color-bad: #FF3B30;
-          --octane-color-good: #34C759;
-          --octane-color-neutral: #007AFF;
-          --octane-color-warn: #FFCC00;
-          --octane-status-blocked: #FF9500;
-          --octane-status-failed: #FF3B30;
-          --octane-status-no-run: #8E8E93;
-          --octane-status-passed: #34C759;
-          --octane-status-skipped: #AF52DE;
+          --octane-system-blue: #007AFF;
+          --octane-system-green: #34C759;
+          --octane-system-orange: #FF9500;
+          --octane-system-purple: #AF52DE;
+          --octane-system-red: #FF3B30;
+          --octane-system-yellow: #FFCC00;
+          --octane-severity-low: #5AC8FA;
         }
         .octane-exit-extended-form {
           align-items: center;
@@ -107,7 +115,16 @@
         .octane-exit-extended-form[data-visible="false"] {
           display: none;
         }
+        .octane-exit-extended-command[data-visible="false"],
+        .octane-exit-finalizing-status[data-visible="false"] {
+          display: none;
+        }
+        .octane-exit-finalizing-status {
+          color: var(--text-color-secondary);
+          font-weight: 500;
+        }
         .octane-timer-zone,
+        .octane-test-management-zone,
         .octane-report-zone {
           align-items: stretch;
           border: 1px solid var(--background);
@@ -229,7 +246,6 @@
         .octane-report-zone.octane-zone-focused .octane-card-title {
           font-size: clamp(0.66rem, 2.6cqw, 0.85rem);
         }
-        .octane-zone-focused .octane-distribution-meta,
         .octane-zone-focused .octane-suite-chart-meta {
           gap: 0.2rem 0.45rem;
         }
@@ -252,16 +268,12 @@
         .octane-zone-focused .octane-timer-wrap,
         .octane-zone-focused .octane-flip-viewport,
         .octane-zone-focused .octane-flip-face-body,
-        .octane-zone-focused .octane-donut-wrap,
-        .octane-zone-focused .octane-bar-graph {
+        .octane-zone-focused .octane-chart-inner {
           flex: 1 1 auto;
           min-height: 0;
         }
-        .octane-zone-focused .octane-donut-wrap {
-          box-sizing: border-box;
-          overflow: visible;
-          padding: clamp(0.25rem, 1vh, 0.75rem) clamp(0.5rem, 1.2vw, 1.5rem);
-          width: 100%;
+        .octane-zone-focused .octane-donut-graph {
+          height: auto;
         }
         .octane-zone-focused .octane-timer-donut {
           height: min(100%, 38vh, 38vw);
@@ -277,12 +289,6 @@
           max-height: min(38vh, 38vw);
           max-width: min(38vh, 38vw);
           width: min(100cqw, 100cqh, 38vh, 38vw);
-        }
-        .octane-zone-focused .octane-donut {
-          height: 100%;
-          max-height: 100%;
-          max-width: 100%;
-          width: 100%;
         }
         .octane-zone-focused .octane-bar-graph {
           --octane-axis-label-row: clamp(1.05rem, 2vh, 1.7rem);
@@ -551,33 +557,24 @@
           width: 100%;
         }
         .octane-execution-breakdown-content {
-          --octane-execution-height-width: 132cqh;
+          --octane-execution-chart-height: 50%;
+          --octane-execution-content-width: 80rem;
           align-items: center;
           container-type: inline-size;
           display: grid;
-          gap: clamp(0.35rem, min(1.4cqh, 1.2cqw), 0.9rem);
+          gap: clamp(0.18rem, min(1cqh, 1cqw), 0.7rem);
           grid-template-columns: minmax(0, 1fr);
-          grid-template-rows: auto auto;
+          grid-template-rows: minmax(0, 1fr) auto;
+          height: 100%;
           justify-items: center;
           max-height: 100%;
           max-width: 100%;
-          width: min(92cqw, var(--octane-execution-height-width), 80rem);
-        }
-        .octane-execution-breakdown-content[data-status-count="1"] {
-          --octane-execution-height-width: 172cqh;
-        }
-        .octane-execution-breakdown-content[data-status-count="2"] {
-          --octane-execution-height-width: 160cqh;
-        }
-        .octane-execution-breakdown-content[data-status-count="3"] {
-          --octane-execution-height-width: 150cqh;
-        }
-        .octane-execution-breakdown-content[data-status-count="4"] {
-          --octane-execution-height-width: 141cqh;
+          width: min(92cqw, var(--octane-execution-content-width), 80rem);
         }
         .octane-execution-half-pie-wrap {
           align-items: center;
           display: flex;
+          height: var(--octane-execution-chart-height);
           justify-content: center;
           min-height: 0;
           min-width: 0;
@@ -586,12 +583,12 @@
         .octane-execution-half-pie {
           aspect-ratio: 2 / 1;
           display: block;
-          height: auto;
+          height: 100%;
           max-height: 100%;
           max-width: 100%;
           overflow: visible;
           shape-rendering: geometricPrecision;
-          width: 100%;
+          width: auto;
         }
         .octane-chart-card[data-card-key="progress-execution"].octane-expanded
           .octane-card-title,
@@ -630,7 +627,7 @@
         .octane-execution-breakdown-list {
           box-sizing: border-box;
           display: grid;
-          gap: clamp(0.18rem, 0.72cqw, 0.55rem);
+          gap: clamp(0.12rem, min(0.72cqw, 0.8cqh), 0.55rem);
           max-width: 100%;
           min-width: 0;
           padding-inline: clamp(0.35rem, 4cqw, 3rem);
@@ -641,7 +638,7 @@
           color: var(--text-color);
           display: grid;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
-          font-size: clamp(0.7rem, 1.8cqw, 1.3rem);
+          font-size: clamp(0.62rem, min(1.8cqw, 2.4cqh), 1.3rem);
           font-weight: 600;
           gap: clamp(0.4rem, 1cqw, 0.75rem);
           grid-template-columns: clamp(0.55rem, 1.15cqw, 0.9rem) minmax(0, 1fr) max-content;
@@ -1504,10 +1501,12 @@
         .octane-chart-card.octane-expanded .octane-timer-wrap,
         .octane-chart-card.octane-expanded .octane-flip-viewport,
         .octane-chart-card.octane-expanded .octane-flip-face-body,
-        .octane-chart-card.octane-expanded .octane-donut-wrap,
-        .octane-chart-card.octane-expanded .octane-bar-graph {
+        .octane-chart-card.octane-expanded .octane-chart-inner {
           flex: 1 1 auto;
           min-height: 0;
+        }
+        .octane-chart-card.octane-expanded .octane-donut-graph {
+          height: auto;
         }
         .octane-chart-card.octane-expanded .octane-timer-donut {
           height: min(100%, 76vh, 76vw);
@@ -1524,10 +1523,6 @@
           max-width: min(76vh, 76vw);
           width: min(100cqw, 100cqh, 76vh, 76vw);
         }
-        .octane-chart-card.octane-expanded .octane-donut {
-          max-height: min(72vh, 72vw);
-          max-width: min(72vh, 72vw);
-        }
         .octane-chart-card.octane-expanded .octane-bar-graph {
           --octane-axis-label-row: 1.7rem;
           grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row);
@@ -1540,6 +1535,14 @@
           min-height: 280px;
           min-width: 280px;
           width: calc(25% - 0.75rem);
+        }
+        .octane-timer-zone:not(.octane-zone-focused)
+          > .octane-timer-card:not(.octane-expanded),
+        .octane-test-management-zone:not(.octane-zone-focused)
+          > .octane-test-management-card:not(.octane-expanded) {
+          height: 280px;
+          max-height: 280px;
+          min-height: 280px;
         }
         .octane-timer-wrap {
           align-items: center;
@@ -1605,37 +1608,112 @@
             display: inline;
           }
         }
+        .octane-chart-inner {
+          box-sizing: border-box;
+          margin-top: 1rem;
+          width: 100%;
+        }
+        .octane-donut-graph {
+          --octane-axis-label-row: 1.7rem;
+          height: calc(260px + var(--octane-axis-label-row));
+          min-height: 0;
+          overflow: hidden;
+          padding: 0;
+        }
+        .octane-donut-layout {
+          align-items: center;
+          display: grid;
+          gap: clamp(0.125rem, 0.75cqw, 0.375rem);
+          grid-template-columns: minmax(0, 1fr) max-content;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          padding: 0;
+          width: 100%;
+        }
         .octane-donut-wrap {
           align-items: center;
+          box-sizing: border-box;
           display: flex;
-          gap: 0.75rem;
+          height: 100%;
           justify-content: center;
-          padding: 0.75rem 1.5rem;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          padding: 5px;
+          width: 100%;
         }
         .octane-donut {
           display: block;
-          height: auto;
-          justify-self: center;
-          max-width: 280px;
-          overflow: visible;
+          height: 100%;
+          max-height: none;
+          max-width: none;
+          overflow: hidden;
+          shape-rendering: geometricPrecision;
           width: 100%;
         }
-        .octane-donut-label {
+        .octane-donut-center-value {
           fill: var(--text-color);
-          font-size: 0.28rem;
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 0.72rem;
           font-weight: 700;
           pointer-events: none;
-          text-anchor: middle;
+        }
+        .octane-donut-center-label {
+          fill: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 0.2875rem;
+          font-weight: 500;
+          pointer-events: none;
+        }
+        .octane-donut-segment {
+          stroke: none;
         }
         .octane-donut-hole {
           fill: var(--background);
         }
-        .octane-distribution-meta {
+        .octane-donut-legend {
+          border-collapse: collapse;
+          color: var(--text-color);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.62rem, 2.1cqw, 0.9rem);
+          font-variant-numeric: tabular-nums;
+          justify-self: center;
+          line-height: 1.2;
+          width: auto;
+        }
+        .octane-donut-legend caption {
+          border: 0;
+          clip-path: inset(50%);
+          height: 1px;
+          overflow: hidden;
+          position: absolute;
+          white-space: nowrap;
+          width: 1px;
+        }
+        .octane-donut-legend th,
+        .octane-donut-legend td {
+          border: 0;
+          padding-block: clamp(0.16rem, 0.7cqw, 0.36rem);
+          white-space: nowrap;
+        }
+        .octane-donut-legend-status {
+          font-weight: 600;
+          padding-inline: 0 clamp(0.5rem, 2.2cqw, 1.5625rem);
+          text-align: left;
+        }
+        .octane-donut-legend-label {
           align-items: center;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.35rem 0.75rem;
-          margin-top: 0.25rem;
+          display: inline-flex;
+          gap: clamp(0.3rem, 1cqw, 0.48rem);
+        }
+        .octane-donut-legend-label .octane-swatch {
+          flex: 0 0 auto;
+        }
+        .octane-donut-legend-percentage {
+          font-weight: 600;
+          padding-inline: 0;
+          text-align: right;
         }
         .octane-total-label {
           color: var(--text-color-secondary);
@@ -1656,14 +1734,11 @@
         }
         .octane-bar-graph {
           --octane-axis-label-row: 1.7rem;
-          box-sizing: border-box;
           column-gap: 0.09rem;
           display: grid;
           grid-template-columns: 1.35rem max-content minmax(0, 1fr);
           grid-template-rows: 260px var(--octane-axis-label-row);
-          margin-top: 1rem;
           row-gap: 0;
-          width: 100%;
         }
         .octane-y-axis-label {
           align-self: center;
@@ -2233,6 +2308,819 @@
         .octane-client-donut-segment {
           shape-rendering: geometricPrecision;
         }
+        .octane-test-management-zone.octane-zone-focused {
+          background: var(--background);
+          border-color: #4391F5;
+          border-radius: 14px;
+          box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
+          box-sizing: border-box;
+          display: grid;
+          gap: 1rem;
+          grid-auto-rows: minmax(0, 1fr);
+          grid-auto-flow: row;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          height: auto;
+          inset: 1rem;
+          max-height: none;
+          max-width: none;
+          overflow: hidden;
+          padding: 1rem;
+          position: fixed;
+          width: auto;
+          z-index: 9999;
+        }
+        .octane-test-management-zone.octane-zone-focused
+          > .octane-chart-card:nth-of-type(3) {
+          grid-column: 1;
+          grid-row: 2;
+        }
+        .octane-test-management-zone.octane-zone-focused
+          > .octane-chart-card:nth-of-type(4) {
+          grid-column: 2;
+          grid-row: 2;
+        }
+        .octane-test-management-card {
+          display: flex;
+          flex: 1 1 calc(25% - 0.75rem);
+          flex-direction: column;
+          min-height: 280px;
+          min-width: 280px;
+          position: relative;
+          width: calc(25% - 0.75rem);
+        }
+        .octane-test-management-card > .octane-card-header {
+          flex: 0 0 auto;
+        }
+        .octane-management-header-copy {
+          display: grid;
+          gap: 0.2rem;
+          min-width: 0;
+        }
+        .octane-management-subtitle-line {
+          align-items: center;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 0.25rem clamp(0.45rem, 1.8cqi, 0.85rem);
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          overscroll-behavior-inline: contain;
+          scrollbar-width: none;
+        }
+        .octane-management-subtitle-line::-webkit-scrollbar {
+          display: none;
+        }
+        .octane-management-card-body {
+          display: flex;
+          flex: 1 1 auto;
+          height: 100%;
+          max-height: 100%;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+        }
+        .octane-management-chart {
+          container-type: inline-size;
+          display: grid;
+          flex: 1 1 auto;
+          gap: clamp(0.3rem, 1.4cqi, 0.65rem);
+          grid-template-rows: minmax(0, 1fr);
+          height: 100%;
+          max-height: 100%;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-management-legend {
+          align-items: center;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 0.3rem clamp(0.45rem, 2cqi, 0.9rem);
+          min-height: 1rem;
+          width: max-content;
+        }
+        .octane-management-legend-item {
+          align-items: center;
+          color: var(--text-color-secondary);
+          display: inline-flex;
+          font-size: clamp(0.58rem, 2.2cqi, 0.78rem);
+          font-weight: 500;
+          gap: 0.3rem;
+          white-space: nowrap;
+        }
+        .octane-management-legend-swatch {
+          background: var(--octane-legend-color);
+          display: inline-block;
+          height: 0.62rem;
+          width: 0.62rem;
+        }
+        .octane-management-plot-layout {
+          --octane-management-axis-gap: 0.09rem;
+          column-gap: var(--octane-management-axis-gap);
+          display: grid;
+          grid-template-columns:
+            1.35rem max-content minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr) 1.25rem;
+          height: 100%;
+          max-height: 100%;
+          min-height: 0;
+          min-width: 0;
+          row-gap: 0;
+        }
+        .octane-management-y-axis-title {
+          align-self: center;
+          color: var(--text-color-secondary);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, 1.8cqi, 0.75rem);
+          font-weight: 400;
+          grid-column: 1;
+          grid-row: 1;
+          justify-self: center;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          writing-mode: vertical-rl;
+        }
+        .octane-management-y-labels {
+          color: var(--text-color-secondary);
+          display: flex;
+          flex-direction: column;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, 1.8cqi, 0.75rem);
+          font-weight: 400;
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: space-between;
+          line-height: 1;
+          padding: 0 0 0.1rem;
+          text-align: right;
+        }
+        .octane-management-svg-wrap {
+          grid-column: 3;
+          grid-row: 1;
+          min-height: 0;
+          min-width: 0;
+          position: relative;
+        }
+        .octane-management-svg {
+          display: block;
+          height: 100%;
+          min-height: 8rem;
+          overflow: visible;
+          width: 100%;
+        }
+        .octane-management-grid-line {
+          stroke: var(--input-border);
+          stroke-dasharray: 3 7;
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-management-line {
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: clamp(2px, 0.35cqi, 4px);
+        }
+        .octane-management-line-planned {
+          stroke-dasharray: 7 5;
+        }
+        .octane-management-x-labels {
+          color: var(--text-color-secondary);
+          display: flex;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.56rem, 1.75cqi, 0.72rem);
+          font-weight: 400;
+          grid-column: 3;
+          grid-row: 2;
+          justify-content: space-between;
+          line-height: 1.1;
+          padding-top: 0.25rem;
+        }
+        .octane-management-state-bars {
+          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);
+          --octane-management-bar-width: clamp(8px, 4cqw, 100px);
+          align-items: end;
+          background-image:
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
+          background-position: left 0, left 25%, left 50%, left 75%;
+          background-repeat: repeat-x;
+          background-size: 9px 1px;
+          border-bottom: 1px solid var(--input-border);
+          display: flex;
+          gap: var(--octane-management-bar-gap);
+          grid-column: 3;
+          grid-row: 1;
+          justify-content: safe center;
+          min-height: 0;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          overscroll-behavior-inline: contain;
+          padding: 0 clamp(0.15rem, 0.8cqi, 0.4rem);
+          scrollbar-width: thin;
+        }
+        .octane-management-state-column {
+          display: flex;
+          flex: 0 0 var(--octane-management-bar-width);
+          flex-direction: column-reverse;
+          height: 100%;
+          justify-content: flex-start;
+          max-width: 100px;
+          min-width: 8px;
+          width: var(--octane-management-bar-width);
+        }
+        .octane-management-state-segment {
+          background: var(--octane-segment-color);
+          display: block;
+          flex: 0 0 var(--octane-segment-size);
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-management-failure-layout {
+          display: grid;
+          flex: 1 1 auto;
+          gap: clamp(0.35rem, 1.5cqi, 0.7rem);
+          grid-template-rows: minmax(0, 1fr);
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-management-failure-axis-layout {
+          --octane-management-failure-axis-row: 1.65rem;
+          min-height: 0;
+        }
+        .octane-management-failure-axis-layout > .octane-management-y-labels {
+          padding-bottom: var(--octane-management-failure-axis-row);
+        }
+        .octane-management-failure-chart {
+          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);
+          --octane-management-bar-width: clamp(8px, 4cqw, 100px);
+          --octane-management-scrollbar-thumb: var(--text-color-secondary);
+          align-items: end;
+          display: flex;
+          gap: var(--octane-management-bar-gap);
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          justify-content: safe center;
+          min-height: 0;
+          min-width: 0;
+          overflow-x: hidden;
+          overflow-y: hidden;
+          padding: 0 clamp(0.2rem, 1cqi, 0.5rem);
+          position: relative;
+          scrollbar-width: none;
+        }
+        .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+            .octane-management-failure-chart {
+          overflow-x: auto;
+          overscroll-behavior-inline: contain;
+          scrollbar-color: var(--octane-management-scrollbar-thumb) transparent;
+          scrollbar-gutter: stable;
+          scrollbar-width: thin;
+        }
+        @supports not (scrollbar-color: auto) {
+          .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+              .octane-management-failure-chart::-webkit-scrollbar {
+            height: 6px;
+          }
+          .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+              .octane-management-failure-chart::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+              .octane-management-failure-chart::-webkit-scrollbar-thumb {
+            background: var(--octane-management-scrollbar-thumb);
+            border-radius: 999px;
+          }
+        }
+        .octane-management-failure-chart::before {
+          background-image:
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
+          background-position: left 0, left 25%, left 50%, left 75%;
+          background-repeat: repeat-x;
+          background-size: 9px 1px;
+          bottom: var(--octane-management-failure-axis-row);
+          content: "";
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+          top: 0;
+        }
+        .octane-management-failure-chart::after {
+          background: var(--input-border);
+          bottom: calc(var(--octane-management-failure-axis-row) - 1px);
+          content: "";
+          height: 1px;
+          left: 0;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+        }
+        .octane-management-failure-group {
+          align-items: stretch;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          color: inherit;
+          cursor: pointer;
+          display: grid;
+          flex: 0 0 calc(
+            var(--octane-management-bar-width)
+            + var(--octane-management-bar-width)
+            + var(--octane-management-bar-gap));
+          gap: 0;
+          grid-template-rows:
+            minmax(0, 1fr) var(--octane-management-failure-axis-row);
+          height: 100%;
+          max-width: calc(100px + 100px + var(--octane-management-bar-gap));
+          min-width: calc(8px + 8px + var(--octane-management-bar-gap));
+          padding: 0;
+          position: relative;
+          width: calc(
+            var(--octane-management-bar-width)
+            + var(--octane-management-bar-width)
+            + var(--octane-management-bar-gap));
+          z-index: 1;
+        }
+        .octane-management-failure-group:focus-visible {
+          outline: 3px solid #4391F5;
+          outline-offset: 3px;
+        }
+        .octane-management-failure-bars {
+          align-items: end;
+          display: flex;
+          gap: var(--octane-management-bar-gap);
+          grid-row: 1;
+          justify-content: center;
+          min-height: 0;
+        }
+        .octane-management-failure-bar {
+          background: var(--octane-bar-color);
+          display: block;
+          flex: 0 0 var(--octane-management-bar-width);
+          height: var(--octane-bar-size);
+          max-width: 100px;
+          min-height: 2px;
+          min-width: 8px;
+          width: var(--octane-management-bar-width);
+        }
+        .octane-management-failure-label {
+          align-self: center;
+          box-sizing: border-box;
+          color: var(--text-color-secondary);
+          display: block;
+          font-size: clamp(0.52rem, 2cqi, 0.72rem);
+          grid-row: 2;
+          line-height: 1.15;
+          max-width: 100%;
+          min-height: 1.15em;
+          overflow: hidden;
+          padding-top: 0.3rem;
+          text-align: center;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-management-failure-tab-nav,
+        .octane-management-defect-detail-panel {
+          display: none;
+        }
+        .octane-chart-card.octane-expanded .octane-management-failure-layout {
+          grid-template-columns: minmax(15rem, 0.8fr) minmax(20rem, 1.2fr);
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .octane-chart-card.octane-expanded .octane-management-failure-axis-layout {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        .octane-chart-card.octane-expanded .octane-management-defect-detail-panel {
+          container-name: octane-management-defects;
+          container-type: inline-size;
+          display: flex;
+          flex-direction: column;
+          gap: 0.65rem;
+          grid-column: 2;
+          grid-row: 1;
+          min-height: 0;
+        }
+        .octane-chart-card.octane-expanded .octane-management-failure-tab-nav {
+          align-items: center;
+          display: grid;
+          flex: 0 1 min(60cqw, 42rem);
+          gap: 0.2rem;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          inline-size: min(60cqw, 42rem);
+          max-width: min(60cqw, 42rem);
+          min-width: 0;
+        }
+        .octane-management-failure-switcher {
+          align-items: center;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 0.25rem;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          overscroll-behavior-inline: contain;
+          scroll-behavior: smooth;
+          scrollbar-width: none;
+        }
+        .octane-management-failure-switcher::-webkit-scrollbar {
+          display: none;
+        }
+        .octane-management-category-scroll {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 3px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: none;
+          height: var(--octane-control-size);
+          justify-content: center;
+          padding: 0;
+          width: var(--octane-control-size);
+        }
+        .octane-management-category-scroll[data-visible="true"] {
+          display: inline-flex;
+        }
+        .octane-management-category-scroll:hover:not(:disabled) {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-management-category-scroll:disabled {
+          cursor: default;
+          opacity: 0.3;
+        }
+        .octane-management-category-scroll:focus-visible {
+          outline: 2px solid #4391F5;
+          outline-offset: 2px;
+        }
+        .octane-management-category-scroll svg {
+          fill: none;
+          height: 0.82rem;
+          stroke: currentColor;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 2;
+          width: 0.82rem;
+        }
+        .octane-management-category-toggle {
+          appearance: none;
+          background: var(--panel-border-color);
+          border: 1px solid var(--input-border);
+          border-radius: 999px;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          flex: 0 0 auto;
+          font: inherit;
+          font-size: clamp(0.64rem, 1.4vw, 0.82rem);
+          padding: 0.3rem 0.7rem;
+          white-space: nowrap;
+        }
+        .octane-management-category-toggle[aria-pressed="true"] {
+          background: var(--octane-color-neutral);
+          border-color: var(--octane-color-neutral);
+          color: var(--octane-color-on-emphasis);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .octane-management-failure-switcher {
+            scroll-behavior: auto;
+          }
+        }
+        .octane-management-defect-list {
+          --octane-management-defect-id-width:
+            clamp(4rem, 13cqi, 6rem);
+          --octane-management-pill-width:
+            clamp(6.25rem, calc(11ch + 1.5rem), 8.5rem);
+          --octane-management-defect-columns:
+            var(--octane-management-defect-id-width) minmax(0, 1fr)
+            repeat(2, var(--octane-management-pill-width));
+          display: block;
+          flex: 1 1 auto;
+          margin: 0;
+          min-height: 0;
+          overflow: auto;
+          padding: 0;
+        }
+        .octane-management-defect-header,
+        .octane-management-defect-row {
+          align-items: center;
+          display: grid;
+          gap: clamp(0.4rem, 1.5cqi, 0.75rem);
+          grid-template-columns: var(--octane-management-defect-columns);
+          min-width: 0;
+        }
+        .octane-management-defect-header {
+          background: var(--background, var(--octane-card-background));
+          border-bottom: 1px solid var(--input-border);
+          inset-block-start: 0;
+          padding: 0.3rem 0.2rem;
+          position: sticky;
+          z-index: 2;
+        }
+        .octane-management-defect-row {
+          border-bottom: 1px solid var(--input-border);
+          padding: clamp(0.5rem, 1.7cqi, 0.7rem) 0.2rem;
+        }
+        .octane-management-defect-empty {
+          border-bottom: 1px solid var(--input-border);
+          padding: 0.65rem 0.2rem;
+        }
+        .octane-management-defect-header-cell {
+          min-width: 0;
+        }
+        .octane-management-defect-sort {
+          align-items: center;
+          appearance: none;
+          background: transparent;
+          border: 0;
+          color: var(--text-color-secondary);
+          cursor: pointer;
+          display: flex;
+          font: inherit;
+          font-size: clamp(0.6188rem, 1.8785cqi, 0.7956rem);
+          font-weight: 600;
+          gap: 0.25rem;
+          justify-content: flex-start;
+          min-width: 0;
+          padding: 0.2rem 0;
+          text-align: start;
+          width: 100%;
+        }
+        .octane-management-defect-header-cell:nth-child(n + 3)
+            .octane-management-defect-sort {
+          justify-content: center;
+        }
+        .octane-management-defect-sort:focus-visible {
+          outline: 2px solid var(--focus-input-border);
+          outline-offset: 2px;
+        }
+        .octane-management-defect-sort-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-management-defect-sort-indicator {
+          color: var(--text-color-secondary);
+          flex: 0 0 auto;
+          opacity: 0.42;
+        }
+        .octane-management-defect-sort-indicator::before {
+          content: "\2195";
+        }
+        .octane-management-defect-header-cell[aria-sort="ascending"]
+            .octane-management-defect-sort,
+        .octane-management-defect-header-cell[aria-sort="descending"]
+            .octane-management-defect-sort {
+          color: var(--text-color);
+        }
+        .octane-management-defect-header-cell[aria-sort="ascending"]
+            .octane-management-defect-sort-indicator,
+        .octane-management-defect-header-cell[aria-sort="descending"]
+            .octane-management-defect-sort-indicator {
+          color: currentColor;
+          opacity: 1;
+        }
+        .octane-management-defect-header-cell[aria-sort="ascending"]
+            .octane-management-defect-sort-indicator::before {
+          content: "\2191";
+        }
+        .octane-management-defect-header-cell[aria-sort="descending"]
+            .octane-management-defect-sort-indicator::before {
+          content: "\2193";
+        }
+        .octane-management-defect-id {
+          color: var(--text-color);
+          font-size: clamp(0.6rem, 1.8cqi, 0.78rem);
+          font-weight: 700;
+          min-width: 0;
+          white-space: nowrap;
+        }
+        .octane-management-defect-description {
+          font-size: clamp(0.6rem, 1.8cqi, 0.78rem);
+          line-height: 1.35;
+          min-width: 0;
+          overflow-wrap: anywhere;
+        }
+        .octane-management-defect-pill {
+          align-items: center;
+          background: var(--octane-pill-color);
+          border-radius: 9999px;
+          box-sizing: border-box;
+          color: var(--octane-pill-text-color, #ffffff);
+          display: inline-flex;
+          font-size: clamp(0.58rem, 2cqi, 0.74rem);
+          font-weight: 600;
+          inline-size: 100%;
+          justify-content: center;
+          line-height: 1.2;
+          max-inline-size: 8.5rem;
+          min-inline-size: 6.25rem;
+          overflow-wrap: anywhere;
+          padding:
+            clamp(0.25rem, 1cqi, 0.4rem)
+            clamp(0.4rem, 1.5cqi, 0.75rem);
+          text-align: center;
+          white-space: nowrap;
+        }
+        @container octane-management-defects (max-width: 32rem) {
+          .octane-management-defect-list {
+            --octane-management-pill-width:
+              clamp(5.25rem, calc(11ch + 1rem), 6.5rem);
+          }
+          .octane-management-defect-header,
+          .octane-management-defect-row {
+            gap: clamp(0.3rem, 1cqi, 0.5rem);
+          }
+          .octane-management-defect-pill {
+            font-size: clamp(0.54rem, 1.8cqi, 0.66rem);
+            max-inline-size: 6.5rem;
+            min-inline-size: 5.25rem;
+          }
+        }
+        @container octane-management-defects (max-width: 22rem) {
+          .octane-management-defect-list {
+            --octane-management-pill-width:
+              clamp(4.5rem, calc(11ch + 0.65rem), 5.25rem);
+          }
+          .octane-management-defect-id,
+          .octane-management-defect-description {
+            font-size: clamp(0.5rem, 1.7cqi, 0.62rem);
+          }
+          .octane-management-defect-pill {
+            font-size: clamp(0.5rem, 1.7cqi, 0.6rem);
+            max-inline-size: 5.25rem;
+            min-inline-size: 4.5rem;
+            padding-inline: clamp(0.25rem, 1cqi, 0.45rem);
+          }
+        }
+        .octane-management-metrics-grid {
+          container-name: octane-management-metrics;
+          container-type: size;
+          display: grid;
+          flex: 1 1 auto;
+          gap: 1px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-rows: repeat(2, minmax(0, 1fr));
+          min-height: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-management-metric-tile {
+          background: var(--panel-border-color);
+          border: 1px solid var(--input-border);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          padding: clamp(2px, 2.2cqi, 0.9rem);
+        }
+        .octane-management-metric-tile:nth-child(3) {
+          border-bottom-left-radius: 14px;
+        }
+        .octane-management-metric-tile:nth-child(4) {
+          border-bottom-right-radius: 14px;
+        }
+        .octane-management-tone-good {
+          background: var(--octane-color-good);
+          color: var(--octane-color-on-emphasis);
+        }
+        .octane-management-tone-bad {
+          background: var(--octane-color-bad);
+          color: var(--octane-color-on-emphasis);
+        }
+        .octane-management-tone-neutral {
+          background: var(--panel-border-color);
+          color: var(--text-color);
+        }
+        .octane-management-metric-title {
+          font-size: clamp(0.62rem, 2.2cqi, 0.82rem);
+          font-weight: 600;
+          margin: 0 0 0.25rem;
+        }
+        .octane-management-metric-value {
+          font-size: clamp(1rem, 5cqi, 2rem);
+          font-weight: 700;
+          line-height: 1.05;
+          max-width: 100%;
+          overflow-wrap: anywhere;
+        }
+        .octane-management-metric-detail {
+          font-size: clamp(0.58rem, 2cqi, 0.78rem);
+          font-weight: 500;
+          margin-top: 0.2rem;
+        }
+        .octane-management-metric-items {
+          display: grid;
+          font-size: clamp(0.54rem, 1.8cqi, 0.72rem);
+          gap: 0.12rem;
+          list-style: none;
+          margin: 0.35rem 0 0;
+          padding: 0;
+        }
+        .octane-management-metric-items li {
+          display: flex;
+          gap: 0.4rem;
+          justify-content: space-between;
+          min-width: 0;
+        }
+        .octane-management-metric-items span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items {
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items li,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items li {
+          align-items: baseline;
+          flex-wrap: nowrap;
+          overflow: hidden;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items span,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items span {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items strong,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-items strong {
+          flex: 0 0 auto;
+          text-wrap: nowrap;
+          white-space: nowrap;
+        }
+        @container octane-management-metrics
+          (max-width: 20rem) or (max-height: 14rem) {
+          .octane-management-metric-tile {
+            padding: clamp(2px, 1.8cqi, 0.45rem);
+            text-align: center;
+          }
+          .octane-management-metric-title {
+            font-size: clamp(0.46rem, min(3.6cqi, 4.2cqh), 0.62rem);
+            font-weight: 400;
+            line-height: 1.08;
+            margin-bottom: 0.12rem;
+            overflow-wrap: anywhere;
+          }
+          .octane-management-metric-value {
+            font-size: clamp(0.64rem, min(6.2cqi, 7cqh), 1.15rem);
+            font-weight: 400;
+            line-height: 1;
+          }
+          .octane-management-metric-detail {
+            font-size: clamp(0.43rem, min(3cqi, 3.6cqh), 0.58rem);
+            font-weight: 400;
+            line-height: 1.08;
+            margin-top: 0.1rem;
+            overflow-wrap: anywhere;
+          }
+          .octane-management-metric-items {
+            font-size: clamp(0.42rem, min(2.7cqi, 3.1cqh), 0.56rem);
+            font-weight: 400;
+            gap: 0;
+            line-height: 1.05;
+            margin-top: 0.16rem;
+            text-align: start;
+          }
+          .octane-management-metric-items strong {
+            font-weight: 400;
+          }
+        }
+        @container octane-management-metrics
+          (max-width: 15rem) or (max-height: 10rem) {
+          .octane-management-metric-title {
+            font-size: clamp(0.4rem, 3.4cqi, 0.52rem);
+          }
+          .octane-management-metric-value {
+            font-size: clamp(0.56rem, min(5.5cqi, 6cqh), 0.88rem);
+          }
+          .octane-management-metric-detail,
+          .octane-management-metric-items {
+            font-size: clamp(0.38rem, 2.5cqi, 0.49rem);
+          }
+        }
         @media (min-width: 840px) {
           .octane-tester-details-body {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2263,8 +3151,15 @@
           .octane-timer-zone.octane-zone-focused {
             grid-template-columns: minmax(0, 1fr);
           }
+          .octane-test-management-zone.octane-zone-focused {
+            grid-template-columns: minmax(0, 1fr);
+          }
           .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
           .octane-timer-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4),
+          .octane-test-management-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(3),
+          .octane-test-management-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(4),
           .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(3),
           .octane-report-zone.octane-zone-focused > .octane-chart-card:nth-of-type(4) {
             grid-column: auto;
@@ -2273,6 +3168,18 @@
           .octane-timer-card {
             flex-basis: 100%;
             width: 100%;
+          }
+          .octane-chart-card.octane-expanded .octane-management-failure-layout {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: minmax(8rem, 0.8fr) minmax(0, 1.2fr);
+          }
+          .octane-chart-card.octane-expanded .octane-management-failure-axis-layout {
+            grid-column: 1;
+            grid-row: 1;
+          }
+          .octane-chart-card.octane-expanded .octane-management-defect-detail-panel {
+            grid-column: 1;
+            grid-row: 2;
           }
           .octane-donut-wrap {
             justify-content: center;
@@ -2288,13 +3195,21 @@
         </p>
         <p data-report-message="true">${snapshot.message}</p>
           <div class="octane-exit-extended-form" data-exit-extended-form="true"
-            data-visible="${snapshot.extendedTime}">
+            data-visible="${it.extendedExitControlVisible}">
             <f:form method="post" action="exitOctaneAndContinue">
-              <button class="jenkins-button jenkins-button--primary octane-exit-extended-button"
-                  type="submit">
-                Exit Octane and Continue
-              </button>
+              <span class="octane-exit-extended-command"
+                  data-exit-extended-command="true"
+                  data-visible="${it.extendedExitAvailable}">
+                <button class="jenkins-button jenkins-button--primary octane-exit-extended-button"
+                    type="submit">
+                  Exit Octane and Continue
+                </button>
+              </span>
             </f:form>
+            <span class="octane-exit-finalizing-status" data-exit-finalizing-status="true"
+                data-visible="${it.manualExitPending}" role="status" aria-live="polite">
+              Finalizing...
+            </span>
           </div>
         <j:if test="${snapshot.hasCriteria()}">
           <p><strong>Criteria:</strong> ${snapshot.criteria}</p>
@@ -2305,6 +3220,7 @@
             data-report-building="${snapshot.building}"
             data-extended-time="${snapshot.extendedTime}"
             data-manual-exit-requested="${it.manualExitRequested}"
+            data-manual-exit-requested-at-millis="${it.manualExitRequestedAtMillis}"
             data-snapshot-url="snapshot">
           <div id="octane-reorder-status" class="octane-visually-hidden"
               aria-live="polite" aria-atomic="true"></div>
@@ -2374,7 +3290,7 @@
                       <h2 class="octane-card-title" data-timeout-title="true">
                         ${snapshot.testingTimeTitle}
                       </h2>
-                      <div class="octane-muted">Testing Session Timer</div>
+                      <div class="octane-muted">Session Time Remaining</div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
@@ -3078,6 +3994,251 @@
             </section>
           </div>
 
+          <div class="octane-test-management-zone octane-card-zone"
+              id="octane-test-management-zone" data-zone-key="test-management"
+              data-test-management-json="${it.testManagementJson}">
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-burndown">
+              <div class="octane-card-header">
+                <div class="octane-management-header-copy">
+                  <h2 class="octane-card-title">Testing Against Schedule</h2>
+                  <div class="octane-management-subtitle-line">
+                    <div class="octane-management-legend"
+                        data-management-legend="true"></div>
+                  </div>
+                </div>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-chart" data-management-burndown="true">
+                  <div class="octane-management-plot-layout">
+                    <div class="octane-management-y-axis-title">Total Test cases</div>
+                    <div class="octane-management-y-labels"
+                        data-management-y-labels="true"></div>
+                    <div class="octane-management-svg-wrap">
+                      <svg class="octane-management-svg" viewBox="0 0 1000 380"
+                          preserveAspectRatio="none" role="img"
+                          aria-label="Planned, executed, and passed tests over the gate timeline">
+                      </svg>
+                    </div>
+                    <div class="octane-management-x-labels"
+                        data-management-x-labels="true"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-current-state">
+              <div class="octane-card-header">
+                <div class="octane-management-header-copy">
+                  <h2 class="octane-card-title">Execution per Sprint Parts</h2>
+                  <div class="octane-management-subtitle-line">
+                    <div class="octane-management-legend"
+                        data-management-legend="true"></div>
+                  </div>
+                </div>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-chart" data-management-state="true">
+                  <div class="octane-management-plot-layout">
+                    <div class="octane-management-y-axis-title">Tests Executed</div>
+                    <div class="octane-management-y-labels"
+                        data-management-y-labels="true"></div>
+                    <div class="octane-management-state-bars"
+                        data-management-state-bars="true" role="img"
+                        aria-label="Execution statuses across ten equal sprint parts"></div>
+                    <div class="octane-management-x-labels"
+                        data-management-x-labels="true"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-failures">
+              <div class="octane-card-header">
+                <div class="octane-management-header-copy">
+                  <h2 class="octane-card-title">Test Failure Analysis</h2>
+                  <div class="octane-management-subtitle-line">
+                    <div class="octane-management-legend"
+                        data-management-legend="true"></div>
+                  </div>
+                </div>
+                <div class="octane-card-actions">
+                  <div class="octane-management-failure-tab-nav"
+                      data-management-failure-tab-nav="true"
+                      role="group" aria-label="Defect group filters">
+                    <button class="octane-management-category-scroll" type="button"
+                        data-management-category-scroll="-1" data-visible="false"
+                        aria-label="Scroll defect groups left"
+                        aria-controls="octane-management-failure-tabs">
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="M12.5 4.5L7 10l5.5 5.5" />
+                      </svg>
+                    </button>
+                    <div class="octane-management-failure-switcher"
+                        id="octane-management-failure-tabs"
+                        data-management-failure-switcher="true"
+                        data-selected-category="all"></div>
+                    <button class="octane-management-category-scroll" type="button"
+                        data-management-category-scroll="1" data-visible="false"
+                        aria-label="Scroll defect groups right"
+                        aria-controls="octane-management-failure-tabs">
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="M7.5 4.5L13 10l-5.5 5.5" />
+                      </svg>
+                    </button>
+                  </div>
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-failure-layout"
+                    data-management-failures="true">
+                  <div class="octane-management-plot-layout
+                      octane-management-failure-axis-layout">
+                    <div class="octane-management-y-axis-title">Defects</div>
+                    <div class="octane-management-y-labels"
+                        data-management-y-labels="true"></div>
+                    <div class="octane-management-failure-chart"
+                        data-management-failure-bars="true" role="img"
+                        aria-label="Open and closed defects grouped by root cause"></div>
+                  </div>
+                  <div class="octane-management-defect-detail-panel">
+                    <div class="octane-management-defect-list"
+                        data-management-defect-list="true"
+                        data-sort-column="id" data-sort-direction="ascending"
+                        role="table" aria-colcount="4"
+                        aria-label="Failure Analysis defects"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="octane-chart-card octane-test-management-card" draggable="true"
+                data-card-key="test-management-metrics">
+              <div class="octane-card-header">
+                <div>
+                  <h2 class="octane-card-title">Testing Metrics</h2>
+                  <div class="octane-muted">QA Health &amp; Compliance</div>
+                </div>
+                <div class="octane-card-actions">
+                  <button class="octane-expand-toggle" type="button" aria-label="Expand widget"
+                      aria-expanded="false" title="Expand widget">
+                    <svg class="octane-action-icon octane-icon-expand" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M8 4H4v4" />
+                      <path d="M16 4h4v4" />
+                      <path d="M20 16v4h-4" />
+                      <path d="M8 20H4v-4" />
+                    </svg>
+                    <svg class="octane-action-icon octane-icon-collapse" viewBox="0 0 24 24"
+                        aria-hidden="true" focusable="false">
+                      <path d="M9 3v6H3" />
+                      <path d="M3 9l6-6" />
+                      <path d="M15 21v-6h6" />
+                      <path d="M21 15l-6 6" />
+                    </svg>
+                  </button>
+                  <button class="octane-card-tools" type="button" aria-label="Move widget"
+                      title="Drag to move. Use arrow keys to reorder. Resize from the corner.">
+                    <svg class="octane-grabber-icon" viewBox="0 0 24 24" aria-hidden="true"
+                        focusable="false">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="octane-management-card-body">
+                <div class="octane-management-metrics-grid"
+                    data-management-metrics="true"></div>
+              </div>
+            </section>
+          </div>
+
           <div class="octane-report-zone octane-card-zone" id="octane-report-zone"
               data-zone-key="reports"
               data-client-rendered="${snapshot.clientRenderedReport}"
@@ -3117,19 +4278,8 @@
                     <div class="octane-card-header">
                       <div>
                         <h2 class="octane-card-title">${section.statusDistributionTitle}</h2>
-                        <div class="octane-distribution-meta">
-                          <span class="octane-total-label">Total: ${section.metrics.total}</span>
-                          <div class="octane-legend">
-                            <j:forEach var="status" items="${section.totals}">
-                              <j:if test="${status.count > 0}">
-                                <div class="octane-legend-row">
-                                  <span class="octane-swatch"
-                                      style="background: ${status.color};"></span>
-                                  <span>${status.label}</span>
-                                </div>
-                              </j:if>
-                            </j:forEach>
-                          </div>
+                        <div class="octane-muted octane-distribution-subtitle">
+                          Total test cases: ${section.metrics.total}
                         </div>
                       </div>
                       <div class="octane-card-actions">
@@ -3163,54 +4313,63 @@
                         </button>
                       </div>
                     </div>
-                    <div class="octane-donut-wrap">
-                      <svg class="octane-donut" viewBox="-10 -10 120 120" role="img"
-                          aria-label="${section.statusDistributionTitle}">
-                        <title>${section.statusDistributionTitle}</title>
-                        <j:forEach var="slice" items="${section.pieSlices}">
-                          <j:choose>
-                            <j:when test="${slice.fullCircle}">
-                              <circle cx="50" cy="50" r="46" fill="${slice.color}">
-                                <title>${slice.title}</title>
-                              </circle>
-                            </j:when>
-                            <j:otherwise>
-                              <path d="${slice.path}" fill="${slice.color}">
-                                <title>${slice.title}</title>
-                              </path>
-                            </j:otherwise>
-                          </j:choose>
-                        </j:forEach>
-                        <circle class="octane-donut-hole" cx="50" cy="50" r="30" />
-                        <j:forEach var="slice" items="${section.pieSlices}">
-                          <text class="octane-donut-label" x="${slice.labelX}"
-                              y="${slice.labelY}" dominant-baseline="central">
-                            ${slice.percentageLabel}
-                          </text>
-                        </j:forEach>
-                      </svg>
+                    <div class="octane-chart-inner octane-donut-graph">
+                      <div class="octane-donut-layout">
+                        <div class="octane-donut-wrap">
+                          <svg class="octane-donut" viewBox="3 3 94 94"
+                              preserveAspectRatio="xMidYMid meet" role="img"
+                              aria-label="${section.statusDistributionTitle}">
+                            <title>${section.statusDistributionTitle}</title>
+                            <j:forEach var="slice" items="${section.pieSlices}">
+                              <j:choose>
+                                <j:when test="${slice.fullCircle}">
+                                  <circle cx="50" cy="50" r="46" fill="${slice.color}">
+                                    <title>${slice.title}</title>
+                                  </circle>
+                                </j:when>
+                                <j:otherwise>
+                                  <path class="octane-donut-segment" d="${slice.path}"
+                                      fill="${slice.color}">
+                                    <title>${slice.title}</title>
+                                  </path>
+                                </j:otherwise>
+                              </j:choose>
+                            </j:forEach>
+                            <circle class="octane-donut-hole" cx="50" cy="50" r="29" />
+                            <text class="octane-donut-center-value" x="50" y="46"
+                                dominant-baseline="central" text-anchor="middle">
+                              ${section.metrics.total}
+                            </text>
+                            <text class="octane-donut-center-label" x="50" y="57"
+                                dominant-baseline="central" text-anchor="middle">
+                              Total test cases
+                            </text>
+                          </svg>
+                        </div>
+                        <table class="octane-donut-legend">
+                          <caption>${section.statusDistributionTitle}</caption>
+                          <tbody>
+                            <j:forEach var="status" items="${section.totals}">
+                              <j:if test="${status.count > 0}">
+                                <tr>
+                                  <th class="octane-donut-legend-status" scope="row">
+                                    <span class="octane-donut-legend-label">
+                                      <span class="octane-swatch"
+                                          style="background: ${status.color};"
+                                          aria-hidden="true"></span>
+                                      <span>${status.label}</span>
+                                    </span>
+                                  </th>
+                                  <td class="octane-donut-legend-percentage">
+                                    ${status.percentageLabel}
+                                  </td>
+                                </tr>
+                              </j:if>
+                            </j:forEach>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <table class="octane-chart-data-summary octane-visually-hidden">
-                      <caption>${section.statusDistributionTitle}</caption>
-                      <thead>
-                        <tr>
-                          <th scope="col">Status</th>
-                          <th scope="col">Count</th>
-                          <th scope="col">Percent</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <j:forEach var="status" items="${section.totals}">
-                          <j:if test="${status.count > 0}">
-                            <tr>
-                              <th scope="row">${status.label}</th>
-                              <td>${status.count}</td>
-                              <td>${status.percentageLabel}</td>
-                            </tr>
-                          </j:if>
-                        </j:forEach>
-                      </tbody>
-                    </table>
                   </section>
 
                   <section class="octane-chart-card" draggable="true"
@@ -3266,7 +4425,7 @@
                         </button>
                       </div>
                     </div>
-                    <div class="octane-bar-graph">
+                    <div class="octane-chart-inner octane-bar-graph">
                       <div class="octane-y-axis-label">Test Runs</div>
                       <div class="octane-y-axis-scale">
                         <j:forEach var="tick" items="${section.yAxisTicks}">
@@ -3487,6 +4646,7 @@
             aria-hidden="true"></div>
       </div>
       <script src="scaleReportScript"></script>
+      <script src="testManagementScript"></script>
       <script>
         //<![CDATA[
         (function () {
@@ -3522,6 +4682,11 @@
           var liveUpdateTitle = dashboard.querySelector("[data-live-update-title]");
           var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
           var exitExtendedForm = document.querySelector("[data-exit-extended-form]");
+          var exitExtendedCommand = document.querySelector("[data-exit-extended-command]");
+          var exitExtendedSubmitForm = exitExtendedCommand
+              ? exitExtendedCommand.closest("form")
+              : null;
+          var exitFinalizingStatus = document.querySelector("[data-exit-finalizing-status]");
           var reorderStatus = document.getElementById("octane-reorder-status");
           var liveRefresh = {
             fetching: false,
@@ -3633,9 +4798,17 @@
               liveUpdateStatus.textContent = isLastUpdated === true ? "" : message || "";
             }
           }
-          function setExtendedExitVisibility(extendedTime) {
+          function setExtendedExitVisibility(extendedTime, manualExit, building) {
+            var pending = manualExit === true && building === true;
+            var available = extendedTime === true && building === true && !pending;
             if (exitExtendedForm) {
-              exitExtendedForm.setAttribute("data-visible", String(extendedTime === true));
+              exitExtendedForm.setAttribute("data-visible", String(available || pending));
+            }
+            if (exitExtendedCommand) {
+              exitExtendedCommand.setAttribute("data-visible", String(available));
+            }
+            if (exitFinalizingStatus) {
+              exitFinalizingStatus.setAttribute("data-visible", String(pending));
             }
           }
           function htmlToElement(html) {
@@ -3873,6 +5046,88 @@
             var panel = dashboard.querySelector("[data-execution-breakdown-panel]");
             if (panel) {
               panel.innerHTML = payload.executionStatusDistributionHtml;
+              initializeExecutionBreakdownScaling(panel);
+            }
+          }
+          var executionBreakdownResizeObserver = null;
+          var executionBreakdownResizeScheduled = false;
+          var executionBreakdownResizeFallbackBound = false;
+          var executionBreakdownRoots = [];
+          /* OCTANE_EXECUTION_BREAKDOWN_MATH_START */
+          function executionBreakdownDimensions(
+              availableHeight, availableWidth, listHeight, gap) {
+            var chartHeight = Math.max(
+                0, Math.floor(availableHeight - listHeight - gap));
+            return {
+              chartHeight: chartHeight,
+              contentWidth: Math.max(
+                  0, Math.min(availableWidth * 0.92, chartHeight * 2, 1280))
+            };
+          }
+          /* OCTANE_EXECUTION_BREAKDOWN_MATH_END */
+          function fitExecutionBreakdown(root) {
+            var breakdown = root.querySelector
+                ? root.querySelector(".octane-execution-breakdown")
+                : null;
+            var content = breakdown
+                ? breakdown.querySelector(".octane-execution-breakdown-content")
+                : null;
+            var list = content
+                ? content.querySelector(".octane-execution-breakdown-list")
+                : null;
+            if (!breakdown || !content || !list) {
+              return;
+            }
+            var availableHeight = Math.max(0, breakdown.clientHeight);
+            var availableWidth = Math.max(0, breakdown.clientWidth);
+            if (availableHeight <= 0 || availableWidth <= 0) {
+              return;
+            }
+            var contentStyle = window.getComputedStyle(content);
+            var gap = parseFloat(contentStyle.rowGap || contentStyle.gap || "0") || 0;
+            var listHeight = Math.ceil(list.scrollHeight);
+            var dimensions = executionBreakdownDimensions(
+                availableHeight, availableWidth, listHeight, gap);
+            content.style.setProperty(
+                "--octane-execution-chart-height", dimensions.chartHeight + "px");
+            content.style.setProperty(
+                "--octane-execution-content-width", dimensions.contentWidth + "px");
+          }
+          function fitAllExecutionBreakdowns() {
+            executionBreakdownResizeScheduled = false;
+            for (var index = 0; index < executionBreakdownRoots.length; index += 1) {
+              fitExecutionBreakdown(executionBreakdownRoots[index]);
+            }
+          }
+          function scheduleExecutionBreakdownScaling() {
+            if (executionBreakdownResizeScheduled) {
+              return;
+            }
+            executionBreakdownResizeScheduled = true;
+            requestFrame(fitAllExecutionBreakdowns);
+          }
+          function initializeExecutionBreakdownScaling(root) {
+            if (executionBreakdownResizeObserver) {
+              executionBreakdownResizeObserver.disconnect();
+              executionBreakdownResizeObserver = null;
+            }
+            executionBreakdownRoots = root && root.querySelectorAll
+                ? Array.prototype.slice.call(
+                    root.querySelectorAll("[data-execution-breakdown-panel]"))
+                : [];
+            if (root && root.matches && root.matches("[data-execution-breakdown-panel]")) {
+              executionBreakdownRoots.unshift(root);
+            }
+            scheduleExecutionBreakdownScaling();
+            if (typeof window.ResizeObserver === "function") {
+              executionBreakdownResizeObserver =
+                  new window.ResizeObserver(scheduleExecutionBreakdownScaling);
+              for (var index = 0; index < executionBreakdownRoots.length; index += 1) {
+                executionBreakdownResizeObserver.observe(executionBreakdownRoots[index]);
+              }
+            } else if (!executionBreakdownResizeFallbackBound) {
+              executionBreakdownResizeFallbackBound = true;
+              window.addEventListener("resize", scheduleExecutionBreakdownScaling);
             }
           }
           var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -4508,6 +5763,8 @@
               extendedTime: dashboard.getAttribute("data-extended-time") === "true",
               manualExitRequested:
                   dashboard.getAttribute("data-manual-exit-requested") === "true",
+              manualExitRequestedAtMillis: Number(
+                  dashboard.getAttribute("data-manual-exit-requested-at-millis") || 0),
               executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
               sampleTimeMillis: currentWallTime(),
               startedAt: timeoutCard ? timeoutCard.getAttribute("data-started-at") || "" : "",
@@ -4530,6 +5787,16 @@
           }
           function manualExitRequested(payload) {
             return payload && payload.manualExitRequested === true;
+          }
+          function manualExitTimeMillis(payload, fallback) {
+            var requestedAt = Number(
+                payload && payload.manualExitRequestedAtMillis
+                    ? payload.manualExitRequestedAtMillis
+                    : 0);
+            if (manualExitRequested(payload) && isFinite(requestedAt) && requestedAt > 0) {
+              return requestedAt;
+            }
+            return manualExitRequested(payload) ? Math.max(0, fallback || 0) : 0;
           }
           function timeoutSampleTimeMillis(payload) {
             if (payload && payload.building !== true) {
@@ -4645,6 +5912,9 @@
             if (zone.id === "octane-report-zone") {
               return "reports";
             }
+            if (zone.id === "octane-test-management-zone") {
+              return "test-management";
+            }
             return "";
           }
           function decorateCardZones(root) {
@@ -4652,11 +5922,14 @@
               return;
             }
             var zones = [];
-            if (root.id === "octane-timer-zone" || root.id === "octane-report-zone") {
+            if (root.id === "octane-timer-zone"
+                || root.id === "octane-test-management-zone"
+                || root.id === "octane-report-zone") {
               zones.push(root);
             }
             var nestedZones = root.querySelectorAll
-                ? root.querySelectorAll("#octane-timer-zone, #octane-report-zone")
+                ? root.querySelectorAll(
+                    "#octane-timer-zone, #octane-test-management-zone, #octane-report-zone")
                 : [];
             for (var nestedIndex = 0; nestedIndex < nestedZones.length; nestedIndex += 1) {
               zones.push(nestedZones[nestedIndex]);
@@ -4865,6 +6138,45 @@
             }
           }
           decorateCardZones(dashboard);
+          var testManagementZone = document.getElementById("octane-test-management-zone");
+          function initialTestManagementPayload() {
+            if (!testManagementZone) {
+              return {};
+            }
+            try {
+              return JSON.parse(
+                  testManagementZone.getAttribute("data-test-management-json") || "{}");
+            } catch (error) {
+              return {};
+            }
+          }
+          function expandFailureCategory(categoryBar, category) {
+            var card = categoryBar
+                ? categoryBar.closest(".octane-chart-card")
+                : dashboard.querySelector('[data-card-key="test-management-failures"]');
+            if (card) {
+              expandCard(card);
+              window.OctaneTestManagement.revealFailureCategory(
+                  testManagementZone, category);
+            }
+          }
+          function initializeTestManagement() {
+            if (!testManagementZone || !window.OctaneTestManagement) {
+              return;
+            }
+            window.OctaneTestManagement.mount(
+                testManagementZone,
+                initialTestManagementPayload(),
+                {onCategorySelect: expandFailureCategory});
+          }
+          function updateTestManagement(payload) {
+            if (!testManagementZone || !window.OctaneTestManagement
+                || !payload || !payload.testManagement) {
+              return;
+            }
+            window.OctaneTestManagement.update(testManagementZone, payload.testManagement);
+          }
+          initializeTestManagement();
           initializeFluidBarCharts(dashboard);
           var initialClientReportZone = document.getElementById("octane-report-zone");
           if (initialClientReportZone
@@ -4876,6 +6188,7 @@
                 null);
           }
           initializeCardViews(dashboard);
+          initializeExecutionBreakdownScaling(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
           scheduleDefectTrendAnimation();
@@ -4908,6 +6221,12 @@
               lastDisplayedUnit: "",
               lastDisplayedValue: "",
               mode: mode,
+              manualExitRequestedAtMillis:
+                  mode === "timeout"
+                      ? Number(
+                          dashboard.getAttribute(
+                              "data-manual-exit-requested-at-millis") || 0)
+                      : 0,
               progressCircle: card.querySelector("[data-timer-progress]"),
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
@@ -4917,6 +6236,13 @@
               value: card.querySelector("[data-timer-value]")
             };
           }
+          function timerStateSampleTime(state, now) {
+            return timerSampleTimeMillis(
+                state.active,
+                state.updatedAt,
+                state.manualExitRequestedAtMillis,
+                now);
+          }
           function remainingMillis(state, now) {
             if (!state.active && state.mode === "poll") {
               return 0;
@@ -4924,11 +6250,11 @@
             if (state.mode === "timeout" && state.extendedActive) {
               return 0;
             }
-            var sampleTime = state.active ? now : state.updatedAt;
+            var sampleTime = timerStateSampleTime(state, now);
             return clamp(state.endAt - sampleTime, 0, state.totalMillis);
           }
           function testingTimeSpentMillis(state, now) {
-            var sampleTime = state.active ? now : state.updatedAt;
+            var sampleTime = timerStateSampleTime(state, now);
             var elapsed = sampleTime - (state.endAt - state.totalMillis);
             var maximum = state.totalMillis + (state.extendedTotalMillis || 0);
             return clamp(elapsed, 0, maximum);
@@ -4940,6 +6266,9 @@
             return state.totalMillis + state.extendedTotalMillis;
           }
           /* OCTANE_TIMER_DISPLAY_START */
+          function timerSampleTimeMillis(active, updatedAt, manualExitAt, now) {
+            return manualExitAt > 0 ? manualExitAt : active ? now : updatedAt;
+          }
           function timeoutCountdownRemainingMillis(
               startedAt, baseTotalMillis, extendedTotalMillis, sampleTime) {
             var totalMillis =
@@ -5014,7 +6343,7 @@
             if (!state.active && state.mode === "poll") {
               return 0;
             }
-            var sampleTime = state.active ? now : state.updatedAt;
+            var sampleTime = timerStateSampleTime(state, now);
             var startedAt = state.endAt - state.totalMillis;
             if (state.mode === "timeout") {
               return timeoutCountdownRemainingMillis(
@@ -5042,7 +6371,7 @@
             if (state.mode !== "timeout" || !state.title) {
               return;
             }
-            state.title.textContent = state.active ? "Testing Time Remaining" : "Testing Time";
+            state.title.textContent = "Testing Session Monitor";
           }
           function fitTimerText(state, displayValue, displayUnit, compactDisplayUnit) {
             if (!state.value || !state.unit) {
@@ -5161,7 +6490,14 @@
             if (!payload) {
               return false;
             }
-            return payload.updatedAt !== currentUpdatedAt || payload.building === false;
+            return payload.updatedAt !== currentUpdatedAt
+                || payload.building === false
+                || payload.manualExitRequested
+                    !== (dashboard.getAttribute("data-manual-exit-requested") === "true")
+                || Number(payload.manualExitRequestedAtMillis || 0)
+                    !== Number(
+                        dashboard.getAttribute(
+                            "data-manual-exit-requested-at-millis") || 0);
           }
           function resetPollTimer(payload) {
             var updatedAt = parseTimestamp(payload.updatedAt);
@@ -5182,6 +6518,10 @@
               state.active = payload.building === true;
               state.updatedAt = updatedAt;
               state.extendedActive = payload.extendedTime === true && state.mode === "timeout";
+              if (state.mode === "timeout") {
+                state.manualExitRequestedAtMillis = manualExitTimeMillis(
+                    payload, state.manualExitRequestedAtMillis);
+              }
               state.card.setAttribute("data-active", String(state.active));
               state.card.setAttribute("data-updated-at", payload.updatedAt || "");
               if (state.mode === "poll") {
@@ -5246,7 +6586,16 @@
             dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
             dashboard.setAttribute(
                 "data-manual-exit-requested", String(payload.manualExitRequested === true));
-            setExtendedExitVisibility(payload.extendedTime === true);
+            dashboard.setAttribute(
+                "data-manual-exit-requested-at-millis",
+                String(payload.manualExitRequestedAtMillis || 0));
+            dashboard.setAttribute(
+                "aria-busy",
+                String(payload.manualExitRequested === true && payload.building === true));
+            setExtendedExitVisibility(
+                payload.extendedTime === true,
+                payload.manualExitRequested === true,
+                payload.building === true);
             if (stateLabel) {
               stateLabel.textContent = payload.stateLabel || "";
             }
@@ -5260,6 +6609,7 @@
             updateTestMetrics(payload);
             updateExecutionStatusDistribution(payload);
             updateDefectTrend(payload);
+            updateTestManagement(payload);
             updateTesterDetails(payload);
             runCompletionAutoFlips(payload);
             var reportZone = document.getElementById("octane-report-zone");
@@ -5322,6 +6672,7 @@
                 }
               }
               initializeFluidBarCharts(updatedReportZone);
+              initializeExecutionBreakdownScaling(dashboard);
               requestFrame(function () {
                 barPopupRefreshInProgress = false;
                 restoreBarPopupAfterRefresh(updatedReportZone, popupRestoreState);
@@ -5348,7 +6699,9 @@
             liveRefresh.waiting = false;
             resetPollTimer(payload);
             setLiveUpdateStatus(
-                payload.building === true
+                payload.manualExitRequested === true && payload.building === true
+                    ? "Finalizing..."
+                    : payload.building === true
                     ? "+" + (waitedMillis / 1000).toFixed(1) + "s"
                     : formatLastUpdatedStatus(payload),
                 payload.building !== true);
@@ -5414,6 +6767,7 @@
               updateTestMetrics(payload);
               updateExecutionStatusDistribution(payload);
               updateDefectTrend(payload);
+              updateTestManagement(payload);
               runCompletionAutoFlips(payload);
             }).catch(function () {
               updateRiskHeatMap({riskHeatMapHtml: ""});
@@ -5448,6 +6802,23 @@
           }
           if (timers.length > 0) {
             scheduleTimerAnimation();
+          }
+          if (exitExtendedSubmitForm) {
+            exitExtendedSubmitForm.addEventListener("submit", function () {
+              var requestedAt = currentWallTime();
+              dashboard.setAttribute("data-manual-exit-requested", "true");
+              dashboard.setAttribute(
+                  "data-manual-exit-requested-at-millis", String(requestedAt));
+              dashboard.setAttribute("aria-busy", "true");
+              setExtendedExitVisibility(true, true, true);
+              for (var index = 0; index < timers.length; index += 1) {
+                if (timers[index].mode === "timeout") {
+                  timers[index].manualExitRequestedAtMillis = requestedAt;
+                  updateTimer(timers[index], requestedAt);
+                }
+              }
+              setLiveUpdateStatus("Finalizing...", false);
+            });
           }
           fetchRiskHeatMapSnapshot();
           function updateExecutionProgress(card) {
@@ -6151,6 +7522,7 @@
             card.setAttribute("draggable", "true");
             setExpandButtonState(card, false);
             scheduleFluidBarCharts();
+            scheduleExecutionBreakdownScaling();
           }
           function findCardByKey(key) {
             if (!key) {
@@ -6206,6 +7578,7 @@
             restoreZoneFocusButton(zone);
             setZoneButtonState(zone, false);
             scheduleFluidBarCharts();
+            scheduleExecutionBreakdownScaling();
           }
           function findZoneByKey(key) {
             if (!key) {
@@ -6288,7 +7661,8 @@
             if (!button) {
               return;
             }
-            var zone = button.closest(".octane-timer-zone, .octane-report-zone");
+            var zone = button.closest(
+                ".octane-timer-zone, .octane-test-management-zone, .octane-report-zone");
             event.preventDefault();
             event.stopPropagation();
             if (zone && zone.classList.contains("octane-zone-focused")) {

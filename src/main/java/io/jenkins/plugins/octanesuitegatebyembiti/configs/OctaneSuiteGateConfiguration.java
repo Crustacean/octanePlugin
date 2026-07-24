@@ -4,8 +4,11 @@ import hudson.Extension;
 import hudson.util.ListBoxModel;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import jenkins.model.GlobalConfiguration;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.StaplerRequest2;
 
@@ -18,7 +21,7 @@ public class OctaneSuiteGateConfiguration extends GlobalConfiguration {
   }
 
   public static OctaneSuiteGateConfiguration get() {
-    return GlobalConfiguration.all().get(OctaneSuiteGateConfiguration.class);
+    return all().get(OctaneSuiteGateConfiguration.class);
   }
 
   @Override
@@ -45,14 +48,38 @@ public class OctaneSuiteGateConfiguration extends GlobalConfiguration {
 
   @Override
   public boolean configure(StaplerRequest2 request, JSONObject formData) throws FormException {
+    Jenkins.get().checkPermission(Jenkins.ADMINISTER);
     Object serversNode = formData.opt("servers");
+    List<OctaneServer> configuredServers;
     if (serversNode == null) {
-      setServers(List.of());
+      configuredServers = List.of();
     } else {
-      setServers(request.bindJSONToList(OctaneServer.class, serversNode));
+      configuredServers = request.bindJSONToList(OctaneServer.class, serversNode);
     }
+    validateServers(configuredServers);
+    setServers(configuredServers);
     save();
     return true;
+  }
+
+  private void validateServers(List<OctaneServer> configuredServers) throws FormException {
+    Set<String> serverIds = new LinkedHashSet<>();
+    for (OctaneServer server : configuredServers) {
+      if (server == null || server.getServerId().isBlank()) {
+        throw new FormException("Server ID is required.", "servers");
+      }
+      if (!serverIds.add(server.getServerId())) {
+        throw new FormException("Server IDs must be unique.", "servers");
+      }
+      if (server.getCredentialsId().isBlank()) {
+        throw new FormException("Credentials are required.", "servers");
+      }
+      try {
+        OctaneServerUrl.normalize(server.getBaseUrl());
+      } catch (IllegalArgumentException e) {
+        throw new FormException(e.getMessage(), "servers");
+      }
+    }
   }
 
   public ListBoxModel doFillServerIdItems() {

@@ -13,6 +13,9 @@ import java.util.Set;
 
 public class CriteriaExpression implements Serializable {
   private static final long serialVersionUID = 1L;
+  static final int MAX_EXPRESSION_LENGTH = 8_192;
+  static final int MAX_TOKENS = 1_024;
+  static final int MAX_NESTING_DEPTH = 64;
 
   private final Node root;
   private final Set<String> metricReferences;
@@ -62,66 +65,7 @@ public class CriteriaExpression implements Serializable {
   }
 
   private static List<Token> tokenize(String expression) {
-    String value = Util.trimToEmpty(expression);
-    if (value.isEmpty()) {
-      throw new CriteriaException("Criteria expression is required.");
-    }
-
-    List<Token> tokens = new ArrayList<>();
-    int index = 0;
-    while (index < value.length()) {
-      char character = value.charAt(index);
-      if (Character.isWhitespace(character)) {
-        index++;
-      } else if (character == '(') {
-        tokens.add(new Token(TokenType.LEFT_PAREN, "(", 0.0));
-        index++;
-      } else if (character == ')') {
-        tokens.add(new Token(TokenType.RIGHT_PAREN, ")", 0.0));
-        index++;
-      } else if (isOperatorStart(character)) {
-        int next = index + 1;
-        if (next < value.length() && value.charAt(next) == '=') {
-          tokens.add(new Token(TokenType.OPERATOR, value.substring(index, next + 1), 0.0));
-          index = next + 1;
-        } else if (character == '<' || character == '>') {
-          tokens.add(new Token(TokenType.OPERATOR, String.valueOf(character), 0.0));
-          index++;
-        } else {
-          throw new CriteriaException("Unexpected operator near: " + value.substring(index));
-        }
-      } else if (Character.isDigit(character)) {
-        int start = index;
-        index++;
-        while (index < value.length()
-            && (Character.isDigit(value.charAt(index)) || value.charAt(index) == '.')) {
-          index++;
-        }
-        String number = value.substring(start, index);
-        if (index < value.length() && value.charAt(index) == '%') {
-          index++;
-        }
-        tokens.add(new Token(TokenType.NUMBER, number, parseNumber(number)));
-      } else if (isIdentifierStart(character)) {
-        int start = index;
-        index++;
-        while (index < value.length() && isIdentifierPart(value.charAt(index))) {
-          index++;
-        }
-        String word = value.substring(start, index);
-        if ("AND".equalsIgnoreCase(word)) {
-          tokens.add(new Token(TokenType.AND, word, 0.0));
-        } else if ("OR".equalsIgnoreCase(word)) {
-          tokens.add(new Token(TokenType.OR, word, 0.0));
-        } else {
-          tokens.add(new Token(TokenType.IDENTIFIER, word, 0.0));
-        }
-      } else {
-        throw new CriteriaException("Unexpected character in criteria: " + character);
-      }
-    }
-    tokens.add(new Token(TokenType.END, "", 0.0));
-    return tokens;
+    return new Tokenizer(expression).tokenize();
   }
 
   private static boolean isOperatorStart(char character) {
@@ -144,6 +88,109 @@ public class CriteriaExpression implements Serializable {
       return Double.parseDouble(number);
     } catch (NumberFormatException e) {
       throw new CriteriaException("Invalid number: " + number);
+    }
+  }
+
+  private static final class Tokenizer {
+    private final String value;
+    private final List<Token> tokens = new ArrayList<>();
+    private int index;
+
+    private Tokenizer(String expression) {
+      value = Util.trimToEmpty(expression);
+      if (value.isEmpty()) {
+        throw new CriteriaException("Criteria expression is required.");
+      }
+      if (value.length() > MAX_EXPRESSION_LENGTH) {
+        throw new CriteriaException(
+            "Criteria expression exceeds the " + MAX_EXPRESSION_LENGTH + " character limit.");
+      }
+    }
+
+    private List<Token> tokenize() {
+      while (index < value.length()) {
+        scanToken();
+      }
+      tokens.add(new Token(TokenType.END, "", 0.0));
+      return tokens;
+    }
+
+    private void scanToken() {
+      char character = value.charAt(index);
+      if (Character.isWhitespace(character)) {
+        index++;
+        return;
+      }
+      if (character == '(' || character == ')') {
+        addToken(
+            character == '(' ? TokenType.LEFT_PAREN : TokenType.RIGHT_PAREN,
+            String.valueOf(character),
+            0.0);
+        index++;
+        return;
+      }
+      if (isOperatorStart(character)) {
+        scanOperator(character);
+        return;
+      }
+      if (Character.isDigit(character)) {
+        scanNumber();
+        return;
+      }
+      if (isIdentifierStart(character)) {
+        scanIdentifier();
+        return;
+      }
+      throw new CriteriaException("Unexpected character in criteria: " + character);
+    }
+
+    private void scanOperator(char character) {
+      int next = index + 1;
+      if (next < value.length() && value.charAt(next) == '=') {
+        addToken(TokenType.OPERATOR, value.substring(index, next + 1), 0.0);
+        index = next + 1;
+        return;
+      }
+      if (character == '<' || character == '>') {
+        addToken(TokenType.OPERATOR, String.valueOf(character), 0.0);
+        index++;
+        return;
+      }
+      throw new CriteriaException("Unexpected operator near: " + value.substring(index));
+    }
+
+    private void scanNumber() {
+      int start = index++;
+      while (index < value.length()
+          && (Character.isDigit(value.charAt(index)) || value.charAt(index) == '.')) {
+        index++;
+      }
+      String number = value.substring(start, index);
+      if (index < value.length() && value.charAt(index) == '%') {
+        index++;
+      }
+      addToken(TokenType.NUMBER, number, parseNumber(number));
+    }
+
+    private void scanIdentifier() {
+      int start = index++;
+      while (index < value.length() && isIdentifierPart(value.charAt(index))) {
+        index++;
+      }
+      String word = value.substring(start, index);
+      TokenType type =
+          "AND".equalsIgnoreCase(word)
+              ? TokenType.AND
+              : "OR".equalsIgnoreCase(word) ? TokenType.OR : TokenType.IDENTIFIER;
+      addToken(type, word, 0.0);
+    }
+
+    private void addToken(TokenType type, String text, double number) {
+      tokens.add(new Token(type, text, number));
+      if (tokens.size() > MAX_TOKENS) {
+        throw new CriteriaException(
+            "Criteria expression exceeds the " + MAX_TOKENS + " token limit.");
+      }
     }
   }
 
@@ -230,6 +277,7 @@ public class CriteriaExpression implements Serializable {
   private static class Parser {
     private final List<Token> tokens;
     private int position;
+    private int nestingDepth;
 
     Parser(List<Token> tokens) {
       this.tokens = tokens;
@@ -256,9 +304,18 @@ public class CriteriaExpression implements Serializable {
     private Node parseFactor() {
       if (peek().type == TokenType.LEFT_PAREN) {
         advance();
-        Node node = parseExpression();
-        expect(TokenType.RIGHT_PAREN);
-        return node;
+        nestingDepth++;
+        if (nestingDepth > MAX_NESTING_DEPTH) {
+          throw new CriteriaException(
+              "Criteria expression exceeds the " + MAX_NESTING_DEPTH + " level nesting limit.");
+        }
+        try {
+          Node node = parseExpression();
+          expect(TokenType.RIGHT_PAREN);
+          return node;
+        } finally {
+          nestingDepth--;
+        }
       }
       return parseComparison();
     }

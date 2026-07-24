@@ -56,7 +56,7 @@ flowchart LR
     EmailStep["octaneEmailReport\noptional next stage"]
     CronScheduler["Shared progress-email scheduler\n4 daemon threads / 5-minute throttle"]
     Screenshot["octane-report-zone.png\nworkspace file"]
-    Email["Jenkins Email Extension"]
+    Email["Jenkins Mailer"]
     Browser["Build report page\n/octaneSuiteGateReport/"]
     Charts["Timer widgets\nDonut charts\nPer-suite bar charts"]
     HeatMapView["Risk heat map\nStatus Check alternate view"]
@@ -268,7 +268,7 @@ octaneEmailReport(
 
 This step reads the current build's `Octane Gate Report`, captures only
 `octane-report-zone`, renders the persisted criteria evaluation as HTML, and sends both through
-Jenkins Email Extension. The comparison table preserves AST leaf order and reports the expected
+Jenkins Mailer. The comparison table preserves AST leaf order and reports the expected
 threshold, actual value, and `OK` or `NOT OK` result. It is Pipeline-only and does not change gate
 criteria or build result unless the email step itself fails according to `onFailure`.
 
@@ -550,7 +550,7 @@ flowchart LR
   Chrome["Headless Chrome / Chromium"]
   Png["octane-report-zone.png"]
   Archive["Optional Jenkins archive"]
-  Mail["Jenkins Email Extension"]
+  Mail["Jenkins Mailer"]
 
   Build --> Action --> Evaluation
   Cron --> Action
@@ -950,7 +950,7 @@ containing API secrets are not logged.
 | `models.OctaneRiskHeatMapBuilder` | Builds defect risk hierarchy and risk scores. |
 | `services.OctaneRiskHeatMapRenderer` | Renders heat-map SVG/HTML for the Status Check card. |
 | `services.HeadlessBrowserReportScreenshotService` | Captures `octane-report-zone` with Chrome/Chromium. |
-| `services.EmailExtensionOctaneReportSender` | Sends the screenshot through Jenkins Email Extension. |
+| `services.JenkinsMailerOctaneReportSender` | Sends HTML and the inline screenshot through Jenkins Mailer. |
 | `listeners.OctaneProgressEmailRunListener` | Cancels any remaining schedules when a run completes or is deleted. |
 
 ## Examples

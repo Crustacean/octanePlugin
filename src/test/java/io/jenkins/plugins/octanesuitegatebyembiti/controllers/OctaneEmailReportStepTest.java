@@ -29,7 +29,7 @@ public class OctaneEmailReportStepTest {
   }
 
   @Test
-  public void composesToCcAndBccRecipientsForEmailExtension() {
+  public void composesToCcAndBccRecipientsForMailer() {
     assertEquals(
         "qa@example.com,dev@example.com,cc:lead@example.com,bcc:audit@example.com",
         OctaneEmailReportStep.composeRecipients(
@@ -147,7 +147,7 @@ public class OctaneEmailReportStepTest {
     assertTrue(sentBody.get().contains("src=\"cid:report.png\""));
     assertFalse(sentBody.get().contains("{{UPDATED_AT_TEXT}}"));
     assertEquals("interval-email-test/report.png", sentAttachment.get());
-    jenkins.assertLogContains("Jenkins Email Extension completed the SMTP handoff", run);
+    jenkins.assertLogContains("Jenkins Mailer completed the SMTP handoff", run);
   }
 
   @TestExtension

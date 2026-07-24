@@ -31,7 +31,55 @@ test("uses delegated safe DOM rendering without per-bar tooltip trees", () => {
   assert.doesNotMatch(source, /className = "octane-bar-popup"/);
 });
 
+test("cancels stale data requests and replays the latest resize demand", () => {
+  assert.match(source, /typeof AbortController === "function"/);
+  assert.match(source, /function abortRequest\(controller\)/);
+  assert.match(source, /abortRequest\(requestController\)/);
+  assert.match(source, /abortRequest\(state\.controller\)/);
+  assert.match(source, /options\.signal = signal/);
+  assert.match(source, /function isAbortError\(error\)/);
+  assert.match(source, /pendingCursor = safeCursor/);
+  assert.match(source, /function loadPending\(\)/);
+  assert.match(source, /requestGeneration\+\+/);
+});
+
 test("preserves SVG text proportions across responsive layouts", () => {
   assert.match(source, /preserveAspectRatio", "xMidYMid meet"/);
   assert.doesNotMatch(source, /preserveAspectRatio", "none"/);
+});
+
+test("builds bounded donut slices without external label geometry", () => {
+  const slices = renderer.computeDonutSlices(
+      [
+        {count: 90, label: "Passed", percentageLabel: "90.00%"},
+        {count: 4, label: "Failed", percentageLabel: "4.00%"},
+        {count: 3, label: "Blocked", percentageLabel: "3.00%"},
+        {count: 2, label: "Skipped", percentageLabel: "2.00%"},
+        {count: 1, label: "Running", percentageLabel: "1.00%"}
+      ],
+      100);
+
+  assert.equal(slices.length, 5);
+  for (const slice of slices) {
+    assert.equal("callout" in slice, false);
+    assert.equal("labelX" in slice, false);
+    assert.match(slice.path, /46\.000/);
+  }
+});
+
+test("renders a centered total and rigid percentage legend without callouts", () => {
+  assert.match(source, /"Total test cases: " \+ total/);
+  assert.match(source, /"octane-chart-inner octane-donut-graph"/);
+  assert.match(source, /viewBox", "3 3 94 94"/);
+  assert.match(source, /"octane-donut-center-value"/);
+  assert.match(source, /"octane-donut-center-label", "Total test cases"/);
+  assert.match(source, /"table", "octane-donut-legend"/);
+  assert.match(source, /"octane-donut-legend-percentage"/);
+  assert.doesNotMatch(source, /octane-donut-callout-line/);
+  assert.doesNotMatch(source, /data-label-mode/);
+});
+
+test("identifies segmented donut wedges without rendering separator geometry", () => {
+  assert.match(source, /slice\.fullCircle \? "" : "octane-donut-segment"/);
+  assert.doesNotMatch(source, /stroke-width/);
 });

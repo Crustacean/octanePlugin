@@ -7,10 +7,12 @@ import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
+import io.jenkins.plugins.octanesuitegatebyembiti.controllers.OctaneEmailReportStep;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -20,11 +22,13 @@ import java.util.concurrent.TimeUnit;
 
 public class HeadlessBrowserReportScreenshotService implements OctaneReportScreenshotService {
   public static final String REPORT_EMAIL_DIR = ".octane-suite-gate/report-email";
-  public static final String SCREENSHOT_FILE_NAME = "octane-report-zone.png";
+  public static final String SCREENSHOT_FILE_NAME = "octane-report-zone.webp";
   public static final String HTML_FILE_NAME = "octane-report-zone.html";
   public static final String ATTACHMENT_PATTERN = REPORT_EMAIL_DIR + "/" + SCREENSHOT_FILE_NAME;
   static final int BROWSER_PROBE_TIMEOUT_SECONDS = 15;
   static final int SCREENSHOT_TIMEOUT_SECONDS = 60;
+  static final int MAX_SCREENSHOT_HEIGHT = 16_384;
+  private static final int MAX_BROWSER_PROBE_OUTPUT_BYTES = 64 * 1024;
 
   private static final List<String> BROWSER_CANDIDATES =
       List.of("chromium", "chromium-browser", "google-chrome", "google-chrome-stable");
@@ -56,7 +60,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     FilePath screenshotFile = outputDirectory.child(SCREENSHOT_FILE_NAME);
 
     OctaneGateReportSnapshot snapshot = action.getSnapshot();
-    int width = Math.max(320, viewportWidth);
+    int width = Math.min(OctaneEmailReportStep.MAX_VIEWPORT_WIDTH, Math.max(320, viewportWidth));
     htmlFile.write(renderer.render(snapshot, theme, width), StandardCharsets.UTF_8.name());
 
     FilePath browserProfileDirectory = outputDirectory.child("chrome-profile");
@@ -101,6 +105,10 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     }
     if (!screenshotFile.exists() || screenshotFile.length() == 0) {
       throw new AbortException("Headless browser did not create " + SCREENSHOT_FILE_NAME + ".");
+    }
+    if (!hasWebpSignature(screenshotFile)) {
+      throw new AbortException(
+          "Headless browser did not encode " + SCREENSHOT_FILE_NAME + " as WebP.");
     }
     listener.getLogger().println("Octane report-zone screenshot captured successfully.");
     return new OctaneReportScreenshot(htmlFile, screenshotFile, ATTACHMENT_PATTERN);
@@ -195,15 +203,31 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     command.add("--no-default-browser-check");
     command.add("--user-data-dir=" + profileDirectory);
     command.add("--virtual-time-budget=3000");
+    command.add("--force-device-scale-factor=2");
     command.add("--window-size=" + width + "," + height);
     command.add("--screenshot=" + screenshotPath);
     command.add(reportUrl);
     return command;
   }
 
+  boolean hasWebpSignature(FilePath screenshotFile) throws IOException, InterruptedException {
+    try (InputStream input = screenshotFile.read()) {
+      byte[] header = input.readNBytes(12);
+      return header.length == 12
+          && header[0] == 'R'
+          && header[1] == 'I'
+          && header[2] == 'F'
+          && header[3] == 'F'
+          && header[8] == 'W'
+          && header[9] == 'E'
+          && header[10] == 'B'
+          && header[11] == 'P';
+    }
+  }
+
   private BrowserProbeResult probeBrowser(
       String browser, String profileDirectory, Launcher launcher) throws InterruptedException {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    ByteArrayOutputStream output = new BoundedByteArrayOutputStream(MAX_BROWSER_PROBE_OUTPUT_BYTES);
     try {
       Proc process =
           launcher
@@ -273,7 +297,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     int columns =
         viewportWidth <= OctaneReportZoneHtmlRenderer.EMAIL_SINGLE_COLUMN_BREAKPOINT_PX ? 1 : 2;
     int rows = Math.max(1, (cardCount + columns - 1) / columns);
-    return Math.max(800, 120 + rows * 380);
+    return Math.min(MAX_SCREENSHOT_HEIGHT, Math.max(800, 120 + rows * 380));
   }
 
   private record BrowserProbeResult(

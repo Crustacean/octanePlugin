@@ -29,9 +29,18 @@ import org.htmlunit.html.HtmlPage;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 public class OctaneGateReportActionTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
+
+  @Test
+  public void manualExitEndpointRemainsPostOnly() throws Exception {
+    assertNotNull(
+        OctaneGateReportAction.class
+            .getMethod("doExitOctaneAndContinue")
+            .getAnnotation(RequirePOST.class));
+  }
 
   @Test
   public void refreshesOnlyWhenRunningSnapshotIsOlderThanThreshold() throws Exception {
@@ -111,7 +120,7 @@ public class OctaneGateReportActionTest {
     assertFalse(text.contains("Last update (EAT)"));
     assertTrue(text.contains("REGRESSION Tests Status Distribution"));
     assertTrue(text.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
-    assertTrue(text.contains("Testing Time"));
+    assertTrue(text.contains("Testing Session Monitor"));
     assertFalse(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Test Metrics"));
     assertTrue(text.contains("Current Job Analytics"));
@@ -120,7 +129,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Execution Completion"));
     assertTrue(text.contains("Open Defects"));
     assertTrue(text.contains("Status Check"));
-    assertTrue(text.contains("Testing Session Timer"));
+    assertTrue(text.contains("Session Time Remaining"));
     assertTrue(text.contains("Execution Progress"));
     assertTrue(text.contains("All Testcase execution"));
     assertTrue(text.contains("All Testcase Status"));
@@ -128,6 +137,30 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Execution Pass Rate"));
     assertTrue(text.contains("Execution Defect Rate"));
     assertTrue(text.contains("Defect Arrival vs. Resolution Trend Analysis"));
+    assertFalse(text.contains("Burn-down Chart"));
+    assertTrue(text.contains("Testing Against Schedule"));
+    assertTrue(text.contains("Total Test cases"));
+    assertFalse(text.contains("Current Execution State"));
+    assertTrue(text.contains("Execution per Sprint Parts"));
+    assertTrue(text.contains("Tests Executed"));
+    assertTrue(text.contains("Test Failure Analysis"));
+    assertFalse(text.contains("Defect Root-Cause Breakdown"));
+    assertTrue(text.contains("Defects"));
+    assertTrue(text.contains("Testing Metrics"));
+    assertTrue(text.contains("QA Health & Compliance"));
+    assertTrue(
+        xml.indexOf("id=\"octane-test-management-zone\"")
+            < xml.indexOf("id=\"octane-report-zone\""));
+    assertTrue(xml.contains("data-zone-key=\"test-management\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-burndown\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-current-state\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-failures\""));
+    assertTrue(xml.contains("data-card-key=\"test-management-metrics\""));
+    assertTrue(xml.contains("data-management-failure-switcher=\"true\""));
+    assertTrue(xml.contains("data-management-defect-list=\"true\""));
+    assertTrue(xml.contains("function updateTestManagement(payload)"));
+    assertTrue(xml.contains("window.OctaneTestManagement.mount"));
+    assertTrue(xml.contains("window.OctaneTestManagement.update"));
     assertFalse(text.contains("Defect Volumes"));
     assertTrue(text.contains("Volume"));
     assertTrue(text.contains("Density"));
@@ -145,7 +178,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains(">Defects / Test</div>"));
     assertTrue(text.contains("Opened Defects"));
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
-    assertTrue(text.contains("Total: 2"));
+    assertTrue(text.contains("Total test cases"));
     assertTrue(text.contains("Total Suiteruns: 1"));
     assertTrue(text.contains("Tester Details"));
     assertTrue(text.contains("Testers with LESS THAN 70% Pass Rate"));
@@ -172,29 +205,41 @@ public class OctaneGateReportActionTest {
     assertFalse(text.contains("Global + Critical execution"));
     assertFalse(text.contains("Execution 100.0%, pass"));
     assertFalse(text.contains("Suite runs: 4501"));
-    assertTrue(xml.contains("--octane-status-passed: #34C759"));
-    assertTrue(xml.contains("--octane-status-passed: #30D158"));
-    assertTrue(xml.contains("--octane-status-failed: #FF3B30"));
-    assertTrue(xml.contains("--octane-status-failed: #FF453A"));
-    assertTrue(xml.contains("--octane-status-blocked: #FF9500"));
-    assertTrue(xml.contains("--octane-status-blocked: #FF9F0A"));
-    assertTrue(xml.contains("--octane-status-skipped: #AF52DE"));
-    assertTrue(xml.contains("--octane-status-skipped: #BF5AF2"));
-    assertTrue(xml.contains("--octane-status-no-run: #8E8E93"));
+    assertTrue(xml.contains("--octane-status-passed: var(--octane-system-green)"));
+    assertTrue(xml.contains("--octane-status-failed: var(--octane-system-red)"));
+    assertTrue(xml.contains("--octane-status-blocked: var(--octane-system-orange)"));
+    assertTrue(xml.contains("--octane-status-skipped: var(--octane-system-purple)"));
+    assertTrue(xml.contains("--octane-status-no-run: var(--octane-system-gray)"));
+    assertTrue(xml.contains("--octane-system-green: #34C759"));
+    assertTrue(xml.contains("--octane-system-green: #30D158"));
+    assertTrue(xml.contains("--octane-system-red: #FF3B30"));
+    assertTrue(xml.contains("--octane-system-red: #FF453A"));
     assertTrue(xml.contains("var(--octane-status-passed)"));
     assertTrue(xml.contains("var(--octane-status-failed)"));
     assertTrue(xml.contains("octane-donut"));
-    assertTrue(xml.contains("octane-distribution-meta"));
-    assertTrue(xml.contains("octane-total-label"));
-    assertTrue(xml.contains("octane-donut-label"));
-    assertTrue(
-        xml.contains("viewBox=\"-10 -10 120 120\"") || xml.contains("viewbox=\"-10 -10 120 120\""));
-    assertTrue(xml.contains("max-width: 280px"));
+    assertTrue(xml.contains("octane-chart-inner octane-donut-graph"));
+    assertTrue(xml.contains("octane-donut-layout"));
+    assertTrue(xml.contains("gap: clamp(0.125rem, 0.75cqw, 0.375rem)"));
+    assertTrue(xml.contains("octane-donut-center-value"));
+    assertTrue(xml.contains("octane-donut-center-label"));
+    assertTrue(xml.contains("octane-donut-legend"));
+    assertTrue(xml.contains("octane-donut-legend-percentage"));
+    assertFalse(xml.contains("octane-donut-label"));
+    assertFalse(xml.contains("octane-donut-callout-line"));
+    assertTrue(xml.contains("viewBox=\"3 3 94 94\"") || xml.contains("viewbox=\"3 3 94 94\""));
+    assertFalse(xml.contains("max-width: 340px"));
     assertFalse(xml.contains("min-height: 294px"));
-    assertTrue(xml.contains("overflow: visible"));
+    assertTrue(xml.contains("padding: 5px"));
+    assertTrue(xml.contains("height: calc(260px + var(--octane-axis-label-row))"));
     assertTrue(xml.contains("<path d=") || xml.contains("r=\"46\" fill="));
-    assertTrue(xml.contains("r=\"30\""));
-    assertTrue(xml.contains(">50%</text>"));
+    assertTrue(xml.contains("r=\"29\""));
+    assertTrue(text.contains("Total test cases"));
+    assertTrue(text.contains("Total test cases: 2"));
+    assertTrue(text.contains("50.00%"));
+    String donutSegmentRule = cssRule(xml, ".octane-donut-segment");
+    assertTrue(donutSegmentRule.contains("stroke: none"));
+    assertFalse(donutSegmentRule.contains("stroke-width"));
+    assertTrue(xml.contains("clamp(0.5rem, 2.2cqw, 1.5625rem)"));
     assertTrue(xml.contains("border-radius: 14px"));
     assertFalse(xml.contains("border-radius: 6px"));
     assertTrue(xml.contains("contain: layout style paint"));
@@ -446,10 +491,13 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-execution-half-pie-total\" x=\"160\" y=\"146\""));
     assertTrue(xml.contains("octane-execution-half-pie-label\" x=\"160\" y=\"172\""));
     assertTrue(xml.contains("stroke-width: 24"));
-    assertTrue(xml.contains("width: min(92cqw, var(--octane-execution-height-width), 80rem)"));
-    assertTrue(xml.contains("--octane-execution-height-width: 172cqh"));
-    assertTrue(xml.contains("--octane-execution-height-width: 132cqh"));
-    assertTrue(xml.contains("font-size: clamp(0.7rem, 1.8cqw, 1.3rem)"));
+    assertTrue(xml.contains("width: min(92cqw, var(--octane-execution-content-width), 80rem)"));
+    assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) auto"));
+    assertTrue(xml.contains("function fitExecutionBreakdown"));
+    assertTrue(xml.contains("function executionBreakdownDimensions"));
+    assertTrue(xml.contains("OCTANE_EXECUTION_BREAKDOWN_MATH_START"));
+    assertTrue(xml.contains("new window.ResizeObserver(scheduleExecutionBreakdownScaling)"));
+    assertTrue(xml.contains("font-size: clamp(0.62rem, min(1.8cqw, 2.4cqh), 1.3rem)"));
     assertTrue(xml.contains("font-size: clamp(1rem, 2cqw, 1.5rem)"));
     assertTrue(xml.contains("octane-flip-face-metrics"));
     assertTrue(xml.contains("data-test-metrics-panel=\"true\""));
@@ -570,7 +618,15 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("octane-x-axis-labels"));
     assertFalse(xml.contains("octane-axis-label-column"));
     assertTrue(xml.contains("overflow-x: hidden"));
-    assertFalse(xml.contains("overflow-x: auto"));
+    assertTrue(
+        xml.contains(
+            ".octane-management-state-bars {\n"
+                + "          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);"));
+    assertTrue(
+        xml.contains(
+            ".octane-management-failure-chart {\n"
+                + "          --octane-management-bar-gap: clamp(2px, 1cqw, 40px);"));
+    assertTrue(xml.contains("overflow-x: auto"));
     assertTrue(xml.contains("grid-template-rows: minmax(0, 1fr) var(--octane-axis-label-row)"));
     assertFalse(xml.contains(".octane-zone-focused .octane-suite-column"));
     assertFalse(xml.contains(".octane-chart-card.octane-expanded .octane-suite-column"));
@@ -643,6 +699,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-extended-active=\"false\""));
     assertTrue(xml.contains("data-extended-time=\"false\""));
     assertTrue(xml.contains("data-manual-exit-requested=\"false\""));
+    assertTrue(xml.contains("data-manual-exit-requested-at-millis=\"0\""));
     assertTrue(xml.contains("data-exit-extended-form=\"true\""));
     assertTrue(xml.contains("data-visible=\"false\""));
     assertTrue(xml.contains("Exit Octane and Continue"));
@@ -731,7 +788,8 @@ public class OctaneGateReportActionTest {
     assertTrue(
         xml.contains(
             "setTimerText(state, state.mode === \"timeout\" ? trackRemaining : remaining)"));
-    assertTrue(xml.contains("Testing Time Remaining"));
+    assertTrue(xml.contains("Testing Session Monitor"));
+    assertTrue(xml.contains("Session Time Remaining"));
     assertTrue(xml.contains("stroke-width: 1"));
     assertTrue(xml.contains("stroke-width: 16"));
     assertTrue(xml.contains("opacity: 1"));
@@ -752,14 +810,14 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("function extendedProgressPercent"));
     assertTrue(xml.contains("style=\"height: 100.00%;\""));
     assertTrue(xml.contains("title=\"Ada Tester (suite runs: 4501)\""));
-    assertTrue(xml.contains("--octane-color-good: #34C759"));
-    assertTrue(xml.contains("--octane-color-good: #30D158"));
-    assertTrue(xml.contains("--octane-color-warn: #FFCC00"));
-    assertTrue(xml.contains("--octane-color-warn: #FFD60A"));
-    assertTrue(xml.contains("--octane-color-bad: #FF3B30"));
-    assertTrue(xml.contains("--octane-color-bad: #FF453A"));
-    assertTrue(xml.contains("--octane-color-neutral: #007AFF"));
-    assertTrue(xml.contains("--octane-color-neutral: #0A84FF"));
+    assertTrue(xml.contains("--octane-color-good: var(--octane-system-green)"));
+    assertTrue(xml.contains("--octane-color-warn: var(--octane-system-yellow)"));
+    assertTrue(xml.contains("--octane-color-bad: var(--octane-system-red)"));
+    assertTrue(xml.contains("--octane-color-neutral: var(--octane-system-blue)"));
+    assertTrue(xml.contains("--octane-system-yellow: #FFCC00"));
+    assertTrue(xml.contains("--octane-system-yellow: #FFD60A"));
+    assertTrue(xml.contains("--octane-system-blue: #007AFF"));
+    assertTrue(xml.contains("--octane-system-blue: #0A84FF"));
     assertTrue(xml.contains("@media (prefers-color-scheme: dark)"));
     assertTrue(xml.contains("html[data-theme=\"dark\"] .octane-dashboard"));
     assertTrue(xml.contains("html[data-theme=\"light\"] .octane-dashboard"));
@@ -965,6 +1023,7 @@ public class OctaneGateReportActionTest {
     assertEquals(0, payload.getInt("timeoutExtendedSeconds"));
     assertFalse(payload.getBoolean("extendedTime"));
     assertFalse(payload.getBoolean("manualExitRequested"));
+    assertEquals(0L, payload.getLong("manualExitRequestedAtMillis"));
     assertEquals("100%", payload.getString("executionProgressText"));
     assertEquals(50.0, payload.getDouble("passRateProgress"), 0.001);
     assertEquals("50%", payload.getString("passRateProgressText"));
@@ -986,6 +1045,13 @@ public class OctaneGateReportActionTest {
     assertEquals("#ff6361", payload.getJSONObject("defectTrend").getString("openedColor"));
     assertEquals("#7BE5B3", payload.getJSONObject("defectTrend").getString("closedColor"));
     assertTrue(payload.getJSONObject("defectTrend").getJSONArray("densityBuckets").size() >= 1);
+    assertTrue(payload.containsKey("testManagement"));
+    assertEquals(
+        0, payload.getJSONObject("testManagement").getJSONArray("failureCategories").size());
+    assertEquals(4, payload.getJSONObject("testManagement").getJSONArray("metrics").size());
+    assertTrue(payload.getJSONObject("testManagement").getJSONArray("points").size() >= 1);
+    assertEquals(
+        10, payload.getJSONObject("testManagement").getJSONArray("executionIntervals").size());
     assertTrue(
         payload
             .getJSONObject("defectTrend")
@@ -1032,6 +1098,59 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("Exit Octane and Continue"));
     assertFalse(xml.contains("Extended time is active"));
     assertFalse(xml.contains("The latest Octane data will still be checked before continuing"));
+  }
+
+  @Test
+  public void manualExitFreezesAtFirstRequestAndRendersPendingFinalization() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setTimeoutMinutesExtended(10);
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    action.onExtendedTime(result(), classifier());
+    AtomicInteger callbacks = new AtomicInteger();
+    action.setManualExitCallback(callbacks::incrementAndGet);
+    long beforeRequest = System.currentTimeMillis();
+
+    action.doExitOctaneAndContinue();
+
+    long requestedAt = action.getManualExitRequestedAtMillis();
+    assertTrue(action.isManualExitRequested());
+    assertTrue(action.isManualExitPending());
+    assertFalse(action.isExtendedExitAvailable());
+    assertTrue(requestedAt >= beforeRequest);
+    assertTrue(requestedAt <= System.currentTimeMillis());
+    assertEquals(1, callbacks.get());
+
+    action.doExitOctaneAndContinue();
+    assertEquals(requestedAt, action.getManualExitRequestedAtMillis());
+    assertEquals(1, callbacks.get());
+
+    HtmlPage page = jenkins.createWebClient().getPage(build, OctaneGateReportAction.URL_NAME);
+    HtmlElement control = page.getFirstByXPath("//*[@data-exit-extended-form='true']");
+    HtmlElement command = page.getFirstByXPath("//*[@data-exit-extended-command='true']");
+    HtmlElement status = page.getFirstByXPath("//*[@data-exit-finalizing-status='true']");
+    HtmlElement dashboard = page.getHtmlElementById("octane-dashboard");
+    assertEquals("true", control.getAttribute("data-visible"));
+    assertEquals("false", command.getAttribute("data-visible"));
+    assertEquals("true", status.getAttribute("data-visible"));
+    assertTrue(status.asNormalizedText().contains("Finalizing..."));
+    assertEquals(
+        String.valueOf(requestedAt),
+        dashboard.getAttribute("data-manual-exit-requested-at-millis"));
+
+    Page jsonPage =
+        jenkins
+            .createWebClient()
+            .getPage(
+                jenkins
+                    .getURL()
+                    .toURI()
+                    .resolve(build.getUrl() + OctaneGateReportAction.URL_NAME + "/snapshot")
+                    .toURL());
+    JSONObject payload = JSONObject.fromObject(jsonPage.getWebResponse().getContentAsString());
+    assertTrue(payload.getBoolean("manualExitRequested"));
+    assertEquals(requestedAt, payload.getLong("manualExitRequestedAtMillis"));
   }
 
   private void assertBarPopupInteractions(HtmlPage page) {

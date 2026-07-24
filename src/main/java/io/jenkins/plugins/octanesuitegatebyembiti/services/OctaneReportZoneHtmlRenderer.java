@@ -167,6 +167,7 @@ public class OctaneReportZoneHtmlRenderer {
           border: 1px solid var(--octane-border);
           border-radius: 14px;
           box-shadow: 0 1px 7px var(--octane-card-shadow);
+          container-type: inline-size;
           flex: 0 1 calc(50% - 8px);
           min-height: 310px;
           min-width: 360px;
@@ -222,37 +223,112 @@ public class OctaneReportZoneHtmlRenderer {
           height: 14px;
           width: 14px;
         }
+        .octane-chart-inner {
+          box-sizing: border-box;
+          margin-top: 16px;
+          width: 100%;
+        }
+        .octane-donut-graph {
+          --octane-axis-label-row: 27px;
+          height: calc(260px + var(--octane-axis-label-row));
+          min-height: 0;
+          overflow: hidden;
+          padding: 0;
+        }
+        .octane-donut-layout {
+          align-items: center;
+          display: grid;
+          gap: clamp(2px, 0.75cqw, 6px);
+          grid-template-columns: minmax(0, 1fr) max-content;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          padding: 0;
+          width: 100%;
+        }
         .octane-donut-wrap {
           align-items: center;
+          box-sizing: border-box;
           display: flex;
-          gap: 12px;
+          height: 100%;
           justify-content: center;
-          padding: 12px 24px;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          padding: 5px;
+          width: 100%;
         }
         .octane-donut {
           display: block;
-          height: auto;
-          justify-self: center;
-          max-width: 280px;
-          overflow: visible;
+          height: 100%;
+          max-height: none;
+          max-width: none;
+          overflow: hidden;
+          shape-rendering: geometricPrecision;
           width: 100%;
         }
-        .octane-donut-label {
+        .octane-donut-center-value {
           fill: var(--octane-text);
-          font-size: 4.5px;
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 11.5px;
           font-weight: 700;
           pointer-events: none;
-          text-anchor: middle;
+        }
+        .octane-donut-center-label {
+          fill: var(--octane-muted-text);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 4.6px;
+          font-weight: 500;
+          pointer-events: none;
+        }
+        .octane-donut-segment {
+          stroke: none;
         }
         .octane-donut-hole {
           fill: var(--octane-card-background);
         }
-        .octane-distribution-meta {
+        .octane-donut-legend {
+          border-collapse: collapse;
+          color: var(--octane-text);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(10px, 2.1cqw, 14px);
+          font-variant-numeric: tabular-nums;
+          justify-self: center;
+          line-height: 1.2;
+          width: auto;
+        }
+        .octane-donut-legend caption {
+          border: 0;
+          clip-path: inset(50%);
+          height: 1px;
+          overflow: hidden;
+          position: absolute;
+          white-space: nowrap;
+          width: 1px;
+        }
+        .octane-donut-legend th,
+        .octane-donut-legend td {
+          border: 0;
+          padding-block: clamp(3px, 0.7cqw, 6px);
+          white-space: nowrap;
+        }
+        .octane-donut-legend-status {
+          font-weight: 600;
+          padding-inline: 0 clamp(8px, 2.2cqw, 25px);
+          text-align: left;
+        }
+        .octane-donut-legend-label {
           align-items: center;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px 12px;
-          margin-top: 4px;
+          display: inline-flex;
+          gap: clamp(5px, 1cqw, 8px);
+        }
+        .octane-donut-legend-label .octane-swatch {
+          flex: 0 0 auto;
+        }
+        .octane-donut-legend-percentage {
+          font-weight: 600;
+          padding-inline: 0;
+          text-align: right;
         }
         .octane-total-label {
           color: var(--octane-muted-text);
@@ -272,14 +348,11 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-bar-graph {
           --octane-axis-label-row: 27px;
-          box-sizing: border-box;
           column-gap: 1px;
           display: grid;
           grid-template-columns: 22px max-content minmax(0, 1fr);
           grid-template-rows: 260px var(--octane-axis-label-row);
-          margin-top: 16px;
           row-gap: 0;
-          width: 100%;
         }
         .octane-y-axis-label {
           align-self: center;
@@ -590,23 +663,17 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<h2 class=\"octane-card-title\">");
     html.append(escapeHtml(section.getStatusDistributionTitle()));
     html.append("</h2>");
-    html.append("<div class=\"octane-distribution-meta\">");
-    html.append("<span class=\"octane-total-label\">Total: ");
+    html.append("<div class=\"octane-muted octane-distribution-subtitle\">Total test cases: ");
     html.append(section.getMetrics().getTotal());
-    html.append("</span>");
-    html.append("<div class=\"octane-legend\">");
-    for (OctaneGateStatusCount status : section.getTotals()) {
-      if (status.getCount() > 0) {
-        renderLegendKey(html, status);
-      }
-    }
-    html.append("</div>");
     html.append("</div>");
     html.append("</div>");
     renderCardTools(html);
     html.append("</div>\n");
+    html.append("<div class=\"octane-chart-inner octane-donut-graph\">\n");
+    html.append("<div class=\"octane-donut-layout\">\n");
     html.append("<div class=\"octane-donut-wrap\">\n");
-    html.append("<svg class=\"octane-donut\" viewBox=\"-10 -10 120 120\" role=\"img\" ");
+    html.append("<svg class=\"octane-donut\" viewBox=\"3 3 94 94\" ");
+    html.append("preserveAspectRatio=\"xMidYMid meet\" role=\"img\" ");
     html.append("aria-label=\"");
     html.append(escapeAttribute(section.getStatusDistributionTitle()));
     html.append("\">\n");
@@ -616,13 +683,20 @@ public class OctaneReportZoneHtmlRenderer {
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSlice(html, slice);
     }
-    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"30\" />\n");
-    for (OctaneGatePieSlice slice : section.getPieSlices()) {
-      renderSliceLabel(html, slice);
-    }
+    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"29\" />\n");
+    html.append(
+        "<text class=\"octane-donut-center-value\" x=\"50\" y=\"46\" "
+            + "dominant-baseline=\"central\" text-anchor=\"middle\">");
+    html.append(section.getMetrics().getTotal());
+    html.append("</text>\n");
+    html.append(
+        "<text class=\"octane-donut-center-label\" x=\"50\" y=\"57\" "
+            + "dominant-baseline=\"central\" text-anchor=\"middle\">Total test cases</text>\n");
     html.append("</svg>\n");
     html.append("</div>\n");
-    renderDistributionSummaryTable(html, section);
+    renderDistributionLegend(html, section);
+    html.append("</div>\n");
+    html.append("</div>\n");
     html.append("</section>\n");
   }
 
@@ -646,23 +720,13 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("</title></circle>\n");
       return;
     }
-    html.append("<path d=\"");
+    html.append("<path class=\"octane-donut-segment\" d=\"");
     html.append(escapeAttribute(slice.getPath()));
     html.append("\" fill=\"");
     html.append(escapeAttribute(slice.getColor()));
     html.append("\"><title>");
     html.append(escapeHtml(slice.getTitle()));
     html.append("</title></path>\n");
-  }
-
-  private void renderSliceLabel(StringBuilder html, OctaneGatePieSlice slice) {
-    html.append("<text class=\"octane-donut-label\" x=\"");
-    html.append(escapeAttribute(slice.getLabelX()));
-    html.append("\" y=\"");
-    html.append(escapeAttribute(slice.getLabelY()));
-    html.append("\" dominant-baseline=\"central\">");
-    html.append(escapeHtml(slice.getPercentageLabel()));
-    html.append("</text>\n");
   }
 
   private void renderSuiteRunCard(
@@ -692,7 +756,7 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div>");
     renderCardTools(html);
     html.append("</div>\n");
-    html.append("<div class=\"octane-bar-graph\">\n");
+    html.append("<div class=\"octane-chart-inner octane-bar-graph\">\n");
     html.append("<div class=\"octane-y-axis-label\">Test Runs</div>\n");
     html.append("<div class=\"octane-y-axis-scale\">");
     for (Integer tick : section.getYAxisTicks()) {
@@ -753,22 +817,21 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</button>");
   }
 
-  private void renderDistributionSummaryTable(StringBuilder html, OctaneGateReportSection section) {
-    html.append("<table class=\"octane-chart-data-summary octane-visually-hidden\">");
+  private void renderDistributionLegend(StringBuilder html, OctaneGateReportSection section) {
+    html.append("<table class=\"octane-donut-legend\">");
     html.append("<caption>");
     html.append(escapeHtml(section.getStatusDistributionTitle()));
-    html.append("</caption><thead><tr>");
-    html.append("<th scope=\"col\">Status</th>");
-    html.append("<th scope=\"col\">Count</th>");
-    html.append("<th scope=\"col\">Percent</th>");
-    html.append("</tr></thead><tbody>");
+    html.append("</caption><tbody>");
     for (OctaneGateStatusCount status : section.getTotals()) {
       if (status.getCount() > 0) {
-        html.append("<tr><th scope=\"row\">");
+        html.append("<tr><th class=\"octane-donut-legend-status\" scope=\"row\">");
+        html.append("<span class=\"octane-donut-legend-label\">");
+        html.append("<span class=\"octane-swatch\" style=\"background: ");
+        html.append(escapeAttribute(status.getColor()));
+        html.append(";\" aria-hidden=\"true\"></span><span>");
         html.append(escapeHtml(status.getLabel()));
-        html.append("</th><td>");
-        html.append(status.getCount());
-        html.append("</td><td>");
+        html.append("</span></span></th>");
+        html.append("<td class=\"octane-donut-legend-percentage\">");
         html.append(escapeHtml(status.getPercentageLabel()));
         html.append("</td></tr>");
       }

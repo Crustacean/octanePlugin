@@ -98,6 +98,91 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void rejectsUnsafeEntityIdsBeforeBuildingOctaneQueries() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      try {
+        client.fetchSuiteChildRuns("1001", "2002", "55) OR (id GT 0");
+      } catch (IllegalArgumentException e) {
+        assertTrue(e.getMessage().contains("unsafe entity ID"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected an unsafe entity ID to be rejected.");
+  }
+
+  @Test
+  public void stopsPaginationWhenAFullPageMakesNoRequestedIdProgress() throws Exception {
+    AtomicInteger requests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          requests.incrementAndGet();
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < 200; index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            body.append("{\"id\":\"unrelated-")
+                .append(index)
+                .append("\",\"native_status\":{\"logical_name\":\"passed\"}}");
+          }
+          body.append("]}");
+          json(exchange, 200, body.toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      assertTrue(client.fetchScopedRuns("1001", "2002", List.of("101"), "").isEmpty());
+      assertEquals(1, requests.get());
+    }
+  }
+
+  @Test
+  public void boundsJsonResponseBodies() throws Exception {
+    server.createContext(
+        "/authentication/sign_in",
+        exchange -> json(exchange, 200, "x".repeat(OctaneClient.MAX_JSON_RESPONSE_BYTES + 1)));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      try {
+        client.authenticate();
+      } catch (IOException e) {
+        assertTrue(e.getMessage().contains("byte safety limit"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected an oversized response body to be rejected.");
+  }
+
+  @Test
+  public void redactsSensitiveValuesFromOctaneFailureMessages() throws Exception {
+    server.createContext(
+        "/authentication/sign_in",
+        exchange ->
+            json(
+                exchange,
+                401,
+                "{\"client_secret\":\"server-echoed-secret\",\"message\":\"denied\"}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "request-secret")) {
+      try {
+        client.authenticate();
+      } catch (AbortException e) {
+        assertFalse(e.getMessage().contains("server-echoed-secret"));
+        assertTrue(e.getMessage().contains("***"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected authentication to fail.");
+  }
+
+  @Test
   public void reAuthenticatesOnceAfterUnauthorizedResponse() throws Exception {
     AtomicInteger authCount = new AtomicInteger();
     AtomicInteger runCount = new AtomicInteger();
@@ -245,6 +330,89 @@ public class OctaneClientTest {
       }
     }
     throw new AssertionError("Expected suite run lookup to fail.");
+  }
+
+  @Test
+  public void doesNotMisreportFallbackFailureAsMissingBecauseRunsEndpointWasNotFound()
+      throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> json(exchange, 404, "{\"error\":\"runs endpoint unavailable\"}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/55",
+        exchange -> json(exchange, 400, "{\"error\":\"unsupported suite fields\"}"));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      try {
+        client.fetchSuiteChildRuns("1001", "2002", "55");
+      } catch (AbortException e) {
+        assertTrue(e.getMessage().contains("Runs collection lookup failed"));
+        assertTrue(e.getMessage().contains("runs endpoint unavailable"));
+        assertTrue(e.getMessage().contains("unsupported suite fields"));
+        return;
+      }
+    }
+    throw new AssertionError("Expected suite run lookup to fail.");
+  }
+
+  @Test
+  public void topologyCacheKeepsIdenticalSuiteIdsIsolatedByWorkspace() throws Exception {
+    AtomicInteger workspaceOneRequests = new AtomicInteger();
+    AtomicInteger workspaceTwoRequests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2001/runs",
+        exchange -> {
+          workspaceOneRequests.incrementAndGet();
+          if (idsFromQuery(exchange).contains("run-1")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"run-1\","
+                    + "\"native_status\":{\"logical_name\":\"passed\"}}]}");
+          } else {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\",\"runs_in_suite\":[{\"id\":\"run-1\"}]}]}");
+          }
+        });
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          workspaceTwoRequests.incrementAndGet();
+          if (idsFromQuery(exchange).contains("run-2")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"run-2\","
+                    + "\"native_status\":{\"logical_name\":\"passed\"}}]}");
+          } else {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\",\"runs_in_suite\":[{\"id\":\"run-2\"}]}]}");
+          }
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      Map<String, List<RunRecord>> first =
+          client.fetchSuiteChildRuns("1001", "2001", List.of("55"));
+      Map<String, List<RunRecord>> second =
+          client.fetchSuiteChildRuns("1001", "2002", List.of("55"));
+
+      assertEquals("run-1", first.get("55").get(0).getId());
+      assertEquals("run-2", second.get("55").get(0).getId());
+      assertTrue(workspaceOneRequests.get() > 0);
+      assertTrue(workspaceTwoRequests.get() > 0);
+    }
   }
 
   @Test

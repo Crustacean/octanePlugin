@@ -14,6 +14,8 @@
   var MIN_BAR_SLOT_PX = 10;
   var OVERFLOW_WIDTH_PX = 24;
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+  var DONUT_CENTER = 50;
+  var DONUT_RADIUS = 46;
   var mountedZones = typeof WeakMap === "function" ? new WeakMap() : null;
 
   function computeVisibleBarCount(width, totalBars) {
@@ -56,6 +58,55 @@
     text.textContent = String(value);
     parent.appendChild(text);
     return text;
+  }
+
+  function donutPoint(angle, radius) {
+    var radians = angle * Math.PI / 180;
+    return {
+      x: DONUT_CENTER + radius * Math.cos(radians),
+      y: DONUT_CENTER + radius * Math.sin(radians)
+    };
+  }
+
+  function donutNumber(value) {
+    return Number(value).toFixed(3);
+  }
+
+  function donutPath(startAngle, endAngle) {
+    var start = donutPoint(startAngle, DONUT_RADIUS);
+    var end = donutPoint(endAngle, DONUT_RADIUS);
+    var largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    return "M " + donutNumber(DONUT_CENTER) + " " + donutNumber(DONUT_CENTER)
+        + " L " + donutNumber(start.x) + " " + donutNumber(start.y)
+        + " A " + donutNumber(DONUT_RADIUS) + " " + donutNumber(DONUT_RADIUS)
+        + " 0 " + largeArc + " 1 " + donutNumber(end.x) + " " + donutNumber(end.y)
+        + " Z";
+  }
+
+  function computeDonutSlices(statuses, total) {
+    var safeTotal = Math.max(0, Number(total) || 0);
+    if (safeTotal === 0) {
+      return [];
+    }
+    var angle = -90;
+    var slices = [];
+    (statuses || []).forEach(function (status) {
+      var count = Math.max(0, Number(status.count) || 0);
+      if (count === 0) {
+        return;
+      }
+      var percentage = count * 100 / safeTotal;
+      var endAngle = angle + 360 * percentage / 100;
+      slices.push({
+        fullCircle: percentage >= 99.999999,
+        path: percentage >= 99.999999 ? "" : donutPath(angle, endAngle),
+        percentage: percentage,
+        percentageLabel: status.percentageLabel || percentage.toFixed(2) + "%",
+        status: status
+      });
+      angle = endAngle;
+    });
+    return slices;
   }
 
   function createCardActions() {
@@ -125,16 +176,13 @@
     return {actions: actions, card: card, heading: heading};
   }
 
-  function appendLegend(heading, section, barChart) {
-    var metadata = createElement(
-        "div", barChart ? "octane-suite-chart-meta" : "octane-distribution-meta");
+  function appendBarLegend(heading, section) {
+    var metadata = createElement("div", "octane-suite-chart-meta");
     appendText(
         metadata,
         "span",
         "octane-total-label",
-        barChart
-            ? "Total Suiteruns: " + section.suiteRunCount
-            : "Total: " + section.metrics.total);
+        "Total Suiteruns: " + section.suiteRunCount);
     var legend = createElement("div", "octane-legend");
     (section.totals || []).forEach(function (status) {
       if (Number(status.count) <= 0) {
@@ -153,48 +201,61 @@
 
   function renderDistribution(section) {
     var parts = createCard(section, "distribution");
-    appendLegend(parts.heading, section, false);
+    var total = section.metrics && section.metrics.total;
+    appendText(
+        parts.heading,
+        "div",
+        "octane-muted octane-distribution-subtitle",
+        "Total test cases: " + total);
+    var graph = createElement("div", "octane-chart-inner octane-donut-graph");
+    var layout = createElement("div", "octane-donut-layout");
     var wrap = createElement("div", "octane-donut-wrap");
     var svg = createSvgElement("svg", "octane-donut octane-client-donut");
-    svg.setAttribute("viewBox", "-10 -10 120 120");
+    svg.setAttribute("viewBox", "3 3 94 94");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", section.distributionTitle);
-    var circumference = 2 * Math.PI * 46;
-    var offset = 0;
-    (section.totals || []).forEach(function (status) {
-      if (Number(status.count) <= 0 || Number(section.metrics.total) <= 0) {
-        return;
+    var slices = computeDonutSlices(section.totals || [], total);
+    slices.forEach(function (slice) {
+      var graphic = createSvgElement(
+          slice.fullCircle ? "circle" : "path",
+          slice.fullCircle ? "" : "octane-donut-segment");
+      if (slice.fullCircle) {
+        graphic.setAttribute("cx", "50");
+        graphic.setAttribute("cy", "50");
+        graphic.setAttribute("r", "46");
+      } else {
+        graphic.setAttribute("d", slice.path);
       }
-      var circle = createSvgElement("circle", "octane-client-donut-segment");
-      var length = circumference * Number(status.count) / Number(section.metrics.total);
-      circle.setAttribute("cx", "50");
-      circle.setAttribute("cy", "50");
-      circle.setAttribute("r", "46");
-      circle.setAttribute("fill", "none");
-      circle.setAttribute("stroke", status.color);
-      circle.setAttribute("stroke-width", "32");
-      circle.setAttribute("stroke-dasharray", length + " " + (circumference - length));
-      circle.setAttribute("stroke-dashoffset", String(-offset));
-      circle.setAttribute("transform", "rotate(-90 50 50)");
+      graphic.setAttribute("fill", slice.status.color);
       var title = createSvgElement("title", "");
-      title.textContent = status.label + ": " + status.count + " (" + status.percentageLabel + ")";
-      circle.appendChild(title);
-      svg.appendChild(circle);
-      offset += length;
+      title.textContent = slice.status.label + ": " + slice.status.count
+          + " (" + slice.percentageLabel + ")";
+      graphic.appendChild(title);
+      svg.appendChild(graphic);
     });
     var hole = createSvgElement("circle", "octane-donut-hole");
     hole.setAttribute("cx", "50");
     hole.setAttribute("cy", "50");
-    hole.setAttribute("r", "30");
+    hole.setAttribute("r", "29");
     svg.appendChild(hole);
+    var value = appendSvgText(svg, "octane-donut-center-value", total, "50", "46");
+    value.setAttribute("dominant-baseline", "central");
+    value.setAttribute("text-anchor", "middle");
+    var label = appendSvgText(
+        svg, "octane-donut-center-label", "Total test cases", "50", "57");
+    label.setAttribute("dominant-baseline", "central");
+    label.setAttribute("text-anchor", "middle");
     wrap.appendChild(svg);
-    parts.card.appendChild(wrap);
-    parts.card.appendChild(distributionTable(section));
+    layout.appendChild(wrap);
+    layout.appendChild(distributionLegend(section));
+    graph.appendChild(layout);
+    parts.card.appendChild(graph);
     return parts.card;
   }
 
-  function distributionTable(section) {
-    var table = createElement("table", "octane-chart-data-summary octane-visually-hidden");
+  function distributionLegend(section) {
+    var table = createElement("table", "octane-donut-legend");
     appendText(table, "caption", "", section.distributionTitle);
     var body = createElement("tbody", "");
     (section.totals || []).forEach(function (status) {
@@ -202,10 +263,18 @@
         return;
       }
       var row = createElement("tr", "");
-      var label = appendText(row, "th", "", status.label);
-      label.setAttribute("scope", "row");
-      appendText(row, "td", "", status.count);
-      appendText(row, "td", "", status.percentageLabel);
+      var statusCell = createElement("th", "octane-donut-legend-status");
+      statusCell.setAttribute("scope", "row");
+      var statusLabel = createElement("span", "octane-donut-legend-label");
+      var swatch = createElement("span", "octane-swatch");
+      swatch.style.background = status.color;
+      swatch.setAttribute("aria-hidden", "true");
+      statusLabel.appendChild(swatch);
+      appendText(statusLabel, "span", "", status.label);
+      statusCell.appendChild(statusLabel);
+      row.appendChild(statusCell);
+      appendText(
+          row, "td", "octane-donut-legend-percentage", status.percentageLabel);
       body.appendChild(row);
     });
     table.appendChild(body);
@@ -224,16 +293,20 @@
         + encodeURIComponent(limit);
   }
 
-  function fetchJson(url, checksum) {
+  function fetchJson(url, checksum, signal) {
     var headers = {Accept: "application/json"};
     if (checksum) {
       headers["If-None-Match"] = '"' + checksum + '"';
     }
-    return window.fetch(url, {
+    var options = {
       cache: "no-store",
       credentials: "same-origin",
       headers: headers
-    }).then(function (response) {
+    };
+    if (signal) {
+      options.signal = signal;
+    }
+    return window.fetch(url, options).then(function (response) {
       if (response.status === 304) {
         return null;
       }
@@ -242,6 +315,24 @@
       }
       return response.json();
     });
+  }
+
+  function createRequestController() {
+    return typeof AbortController === "function" ? new AbortController() : null;
+  }
+
+  function signalFor(controller) {
+    return controller ? controller.signal : null;
+  }
+
+  function abortRequest(controller) {
+    if (controller) {
+      controller.abort();
+    }
+  }
+
+  function isAbortError(error) {
+    return Boolean(error && error.name === "AbortError");
   }
 
   function statusByKey(bar, key) {
@@ -274,7 +365,7 @@
     if (old) {
       old.remove();
     }
-    var content = createElement("div", "octane-client-bar-content");
+    var content = createElement("div", "octane-chart-inner octane-client-bar-content");
     content.setAttribute("data-client-bar-content", "true");
     var svg = createSvgElement("svg", "octane-client-bar-chart");
     svg.setAttribute("viewBox", "0 0 1000 300");
@@ -402,7 +493,7 @@
 
   function renderBarCard(section, state) {
     var parts = createCard(section, "bars");
-    appendLegend(parts.heading, section, true);
+    appendBarLegend(parts.heading, section);
     var pageStatus = createElement("span", "octane-visually-hidden");
     pageStatus.setAttribute("aria-live", "polite");
     parts.heading.appendChild(pageStatus);
@@ -417,29 +508,41 @@
     var currentCursor = 0;
     var currentPage = null;
     var loadingRequest = false;
+    var pendingCursor = null;
+    var requestController = null;
     var requestGeneration = 0;
     function load(cursor) {
       var limit = computeVisibleBarCount(parts.card.clientWidth || 700, section.barCount);
       var safeCursor = Math.max(0, Number(cursor) || 0);
-      if (loadingRequest
-          || (limit === lastLimit
+      if (loadingRequest) {
+        pendingCursor = safeCursor;
+        return;
+      }
+      if (limit === lastLimit
               && safeCursor === currentCursor
-              && parts.card.hasAttribute("data-octane-loaded"))) {
+              && parts.card.hasAttribute("data-octane-loaded")) {
         return;
       }
       loadingRequest = true;
+      pendingCursor = null;
       var generation = ++requestGeneration;
+      requestController = createRequestController();
       parts.card.setAttribute("aria-busy", "true");
       previous.disabled = true;
       next.disabled = true;
-      fetchJson(buildSectionUrl(state.dataUrl, section.id, safeCursor, limit), "")
+      fetchJson(
+              buildSectionUrl(state.dataUrl, section.id, safeCursor, limit),
+              "",
+              signalFor(requestController))
           .then(function (page) {
             if (generation !== requestGeneration || !parts.card.isConnected) {
               return;
             }
             loadingRequest = false;
+            requestController = null;
             parts.card.setAttribute("aria-busy", "false");
             if (!page) {
+              loadPending();
               return;
             }
             lastLimit = limit;
@@ -448,19 +551,33 @@
             loading.remove();
             renderBarChart(parts.card, section, page);
             updatePageControls();
+            loadPending();
           })
-          .catch(function () {
+          .catch(function (error) {
             if (generation !== requestGeneration || !parts.card.isConnected) {
               return;
             }
             loadingRequest = false;
+            requestController = null;
             parts.card.setAttribute("aria-busy", "false");
+            if (isAbortError(error)) {
+              return;
+            }
             if (!loading.isConnected) {
               parts.card.appendChild(loading);
             }
             loading.textContent = "Chart data is temporarily unavailable.";
             updatePageControls();
+            loadPending();
           });
+    }
+    function loadPending() {
+      if (pendingCursor == null) {
+        return;
+      }
+      var cursor = pendingCursor;
+      pendingCursor = null;
+      load(cursor);
     }
     function updatePageControls() {
       var total = currentPage ? Math.max(0, Number(currentPage.totalBars) || 0) : 0;
@@ -515,6 +632,12 @@
         resizeObserver.disconnect();
       });
     }
+    trackCleanup(state, function () {
+      pendingCursor = null;
+      requestGeneration++;
+      abortRequest(requestController);
+      requestController = null;
+    });
     return parts.card;
   }
 
@@ -567,44 +690,72 @@
     zone.setAttribute("data-report-client-ready", "true");
   }
 
+  function stateForZone(zone, dataUrl) {
+    var state = mountedZones ? mountedZones.get(zone) : zone.__octaneScaleState;
+    if (state) {
+      return state;
+    }
+    state = {
+      checksum: "",
+      cleanups: [],
+      controller: null,
+      dataUrl: dataUrl,
+      generation: 0,
+      promise: null
+    };
+    if (mountedZones) {
+      mountedZones.set(zone, state);
+    } else {
+      zone.__octaneScaleState = state;
+    }
+    return state;
+  }
+
+  function completeMount(zone, payload, state, generation) {
+    if (generation !== state.generation) {
+      return false;
+    }
+    if (payload) {
+      renderIndex(zone, payload, state);
+    }
+    state.controller = null;
+    zone.setAttribute("aria-busy", "false");
+    return true;
+  }
+
+  function failMount(zone, state, generation, error) {
+    if (generation !== state.generation) {
+      return false;
+    }
+    state.controller = null;
+    zone.setAttribute("aria-busy", "false");
+    if (isAbortError(error)) {
+      return false;
+    }
+    zone.setAttribute("data-report-client-error", "true");
+    return false;
+  }
+
   function mount(zone, dataUrl, checksum) {
     if (!zone || !dataUrl || typeof window === "undefined" || !window.fetch) {
       return Promise.resolve(false);
     }
-    var state = mountedZones ? mountedZones.get(zone) : zone.__octaneScaleState;
-    if (!state) {
-      state = {checksum: "", cleanups: [], dataUrl: dataUrl, generation: 0, promise: null};
-      if (mountedZones) {
-        mountedZones.set(zone, state);
-      } else {
-        zone.__octaneScaleState = state;
-      }
-    }
+    var state = stateForZone(zone, dataUrl);
     state.dataUrl = dataUrl;
     if (state.promise && state.checksum === checksum) {
       return state.promise;
     }
+    abortRequest(state.controller);
+    state.controller = createRequestController();
     state.checksum = checksum || "";
     var generation = ++state.generation;
     zone.setAttribute("aria-busy", "true");
-    state.promise = fetchJson(dataUrl, "")
+    state.promise = fetchJson(dataUrl, "", signalFor(state.controller))
         .then(function (payload) {
-          if (generation !== state.generation) {
-            return false;
-          }
-          if (payload) {
-            renderIndex(zone, payload, state);
-          }
-          zone.setAttribute("aria-busy", "false");
-          return true;
+          return completeMount(zone, payload, state, generation);
         })
-        .catch(function () {
-          if (generation !== state.generation) {
-            return false;
-          }
-          zone.setAttribute("aria-busy", "false");
-          zone.setAttribute("data-report-client-error", "true");
-          return false;
+        .catch(function (error) {
+          return failMount(zone, state, generation, error);
         });
     if (typeof window !== "undefined") {
       window.__octaneReportReady = state.promise;
@@ -615,6 +766,7 @@
   return {
     MAX_VISIBLE_BARS: MAX_VISIBLE_BARS,
     OVERFLOW_WIDTH_PX: OVERFLOW_WIDTH_PX,
+    computeDonutSlices: computeDonutSlices,
     computeVisibleBarCount: computeVisibleBarCount,
     mount: mount
   };

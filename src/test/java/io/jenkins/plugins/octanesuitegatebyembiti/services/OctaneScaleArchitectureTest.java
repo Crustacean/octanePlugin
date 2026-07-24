@@ -3,7 +3,6 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import java.lang.management.ManagementFactory;
@@ -18,11 +17,33 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
+import tools.jackson.databind.ObjectMapper;
 
 public class OctaneScaleArchitectureTest {
   private static final int JOBS = 30;
   private static final int SUITES_PER_JOB = 500;
   private static final int CHILD_RUNS_PER_SUITE = 50;
+
+  @Test(timeout = 60_000L)
+  public void mapsMoreThanSevenHundredSuitesWithOneHundredFiftyChildrenToBoundedArtifacts()
+      throws Exception {
+    int suites = 701;
+    int childrenPerSuite = 150;
+    GateResult result = OctaneScaleTestFixture.result(100, suites, childrenPerSuite);
+    OctaneGateReportSnapshot snapshot = OctaneScaleTestFixture.snapshot(result);
+    OctaneReportDataMapper.ReportData data = new OctaneReportDataMapper().map(snapshot);
+    ObjectMapper mapper = new ObjectMapper();
+    int indexBytes = mapper.writeValueAsBytes(data.index()).length;
+    int completeBytes = mapper.writeValueAsBytes(data.complete()).length;
+
+    assertEquals(105_150, result.getRuns().size());
+    assertEquals(
+        suites,
+        data.sections().stream().mapToInt(section -> ((List<?>) section.get("bars")).size()).sum());
+    assertTrue("initial index must stay below 250 KB", indexBytes < 250_000);
+    assertTrue("complete JSON must stay below 5 MB", completeBytes < 5_000_000);
+    assertEquals(true, result.toPipelineMap().get("detailsTruncated"));
+  }
 
   @Test(timeout = 60_000L)
   public void mapsThirtyConcurrentDenseJobsToBoundedClientArtifacts() throws Exception {

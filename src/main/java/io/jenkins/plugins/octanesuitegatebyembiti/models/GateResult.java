@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 public class GateResult implements Serializable {
   private static final long serialVersionUID = 1L;
+  static final int PIPELINE_DETAIL_LIMIT = 10_000;
 
   private final String suiteRunId;
   private final String criteria;
@@ -22,6 +24,7 @@ public class GateResult implements Serializable {
   private final Map<String, GateScopeResult> scopedResults;
   private final OctaneRiskHeatMap riskHeatMap;
   private final DefectCriteriaMetrics defectMetrics;
+  private final List<DefectRecord> defects;
   private final CriteriaEvaluation criteriaEvaluation;
   private final Instant polledAt;
 
@@ -134,6 +137,36 @@ public class GateResult implements Serializable {
       DefectCriteriaMetrics defectMetrics,
       CriteriaEvaluation criteriaEvaluation,
       Instant polledAt) {
+    this(
+        suiteRunId,
+        criteria,
+        passed,
+        terminal,
+        metrics,
+        runs,
+        suiteRuns,
+        scopedResults,
+        riskHeatMap,
+        defectMetrics,
+        List.of(),
+        criteriaEvaluation,
+        polledAt);
+  }
+
+  public GateResult(
+      String suiteRunId,
+      String criteria,
+      boolean passed,
+      boolean terminal,
+      GateMetrics metrics,
+      List<RunRecord> runs,
+      Map<String, List<RunRecord>> suiteRuns,
+      Map<String, GateScopeResult> scopedResults,
+      OctaneRiskHeatMap riskHeatMap,
+      DefectCriteriaMetrics defectMetrics,
+      List<DefectRecord> defects,
+      CriteriaEvaluation criteriaEvaluation,
+      Instant polledAt) {
     this.suiteRunId = suiteRunId;
     this.criteria = criteria;
     this.passed = passed;
@@ -147,6 +180,7 @@ public class GateResult implements Serializable {
         defectMetrics == null
             ? new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of())
             : defectMetrics;
+    this.defects = defects == null ? List.of() : List.copyOf(defects);
     this.criteriaEvaluation =
         criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
     this.polledAt = polledAt;
@@ -206,6 +240,10 @@ public class GateResult implements Serializable {
         : defectMetrics;
   }
 
+  public List<DefectRecord> getDefects() {
+    return defects == null ? List.of() : defects;
+  }
+
   public CriteriaEvaluation getCriteriaEvaluation() {
     return criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
   }
@@ -223,14 +261,20 @@ public class GateResult implements Serializable {
 
     Map<String, Object> scopes = new LinkedHashMap<>();
     Map<String, Object> scopeDetails = new LinkedHashMap<>();
+    int perScopeDetailLimit =
+        scopedResults.isEmpty() ? 0 : Math.max(1, PIPELINE_DETAIL_LIMIT / scopedResults.size());
     for (Map.Entry<String, GateScopeResult> entry : scopedResults.entrySet()) {
       scopes.put(entry.getKey(), entry.getValue().getMetrics().toMap());
-      scopeDetails.put(entry.getKey(), entry.getValue().toMap());
+      scopeDetails.put(entry.getKey(), entry.getValue().toMap(perScopeDetailLimit));
     }
     result.put("scopes", scopes);
     result.put("scopeDetails", scopeDetails);
-    result.put("runs", toRunMaps(runs));
-    result.put("suiteRuns", toSuiteRunMaps(suiteRuns));
+    result.put("runCount", runs.size());
+    result.put("suiteRunCount", suiteRuns.size());
+    result.put("detailsTruncated", runs.size() > PIPELINE_DETAIL_LIMIT);
+    result.put("runs", toRunMaps(runs, PIPELINE_DETAIL_LIMIT));
+    result.put(
+        "suiteRuns", runs.size() > PIPELINE_DETAIL_LIMIT ? Map.of() : toSuiteRunMaps(suiteRuns));
     result.put("riskHeatMap", riskHeatMap.toMap());
     result.put("defects", getDefectMetrics().toMap());
     result.put("criteriaEvaluation", getCriteriaEvaluation().toMap());
@@ -248,8 +292,7 @@ public class GateResult implements Serializable {
     return scopedResults;
   }
 
-  private static Map<String, List<RunRecord>> copySuiteRuns(
-      Map<String, List<RunRecord>> suiteRuns) {
+  static Map<String, List<RunRecord>> copySuiteRuns(Map<String, List<RunRecord>> suiteRuns) {
     Map<String, List<RunRecord>> copy = new LinkedHashMap<>();
     for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
       copy.put(entry.getKey(), List.copyOf(entry.getValue()));
@@ -257,15 +300,20 @@ public class GateResult implements Serializable {
     return copy;
   }
 
-  private static List<Map<String, Object>> toRunMaps(List<RunRecord> runs) {
+  static List<Map<String, Object>> toRunMaps(List<RunRecord> runs) {
+    return toRunMaps(runs, Integer.MAX_VALUE);
+  }
+
+  private static List<Map<String, Object>> toRunMaps(List<RunRecord> runs, int limit) {
     List<Map<String, Object>> runMaps = new ArrayList<>();
-    for (RunRecord run : runs) {
-      runMaps.add(run.toMap());
+    int end = Math.min(runs.size(), Math.max(0, limit));
+    for (int index = 0; index < end; index++) {
+      runMaps.add(runs.get(index).toMap());
     }
     return runMaps;
   }
 
-  private static Map<String, Object> toSuiteRunMaps(Map<String, List<RunRecord>> suiteRuns) {
+  static Map<String, Object> toSuiteRunMaps(Map<String, List<RunRecord>> suiteRuns) {
     Map<String, Object> suiteRunMaps = new LinkedHashMap<>();
     for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
       suiteRunMaps.put(entry.getKey(), toRunMaps(entry.getValue()));

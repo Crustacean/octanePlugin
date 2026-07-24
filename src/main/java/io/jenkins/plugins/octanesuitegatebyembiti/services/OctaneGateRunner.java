@@ -42,9 +42,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import jenkins.model.Jenkins;
 
 public class OctaneGateRunner {
+  private static final Pattern OCTANE_NUMERIC_ID = Pattern.compile("[0-9]{1,18}");
+  private static final int MAX_SCOPES = 100;
+  private static final int MAX_DEFECT_GROUPS = 100;
   private final Clock clock;
   private final OctaneGateLogListener logListener;
 
@@ -126,6 +130,7 @@ public class OctaneGateRunner {
       extendedTimeoutConfigured = request.getTimeoutMinutesExtended() > 0;
       suiteRunIds = regressionSuiteRunIdsForCriteria(request);
       if (!this.state.isWaitingPublished()) {
+        logListener.logLookupContext(listener, sharedSpaceId, workspaceId);
         logListener.logWaiting(listener, request, suiteRunIds);
         reportPublisher.onWaiting(request, suiteRunIds);
         this.state.setWaitingPublished(true);
@@ -139,6 +144,7 @@ public class OctaneGateRunner {
     }
 
     public PollOutcome pollOnce() throws IOException, InterruptedException {
+      logManualExitFinalizingIfNeeded();
       GateResult result =
           poll(
               client,
@@ -188,6 +194,7 @@ public class OctaneGateRunner {
       }
       if (state.isExtendedTimeActive()
           && (reportPublisher.isManualExitRequested() || !now.isBefore(extendedDeadline))) {
+        logManualExitFinalizingIfNeeded();
         return PollOutcome.complete(
             finishExtendedGate(
                 request,
@@ -202,6 +209,14 @@ public class OctaneGateRunner {
       return PollOutcome.continueAfter(delay);
     }
 
+    private void logManualExitFinalizingIfNeeded() {
+      if (state.isExtendedTimeActive()
+          && reportPublisher.isManualExitRequested()
+          && state.markManualExitFinalizingLogged()) {
+        logListener.logManualExitRequested(listener);
+      }
+    }
+
     @Override
     public void close() throws IOException {
       client.close();
@@ -214,6 +229,7 @@ public class OctaneGateRunner {
     private final Instant startedAt;
     private final OctaneDefectLedger defectLedger = new OctaneDefectLedger();
     private boolean extendedTimeActive;
+    private boolean manualExitFinalizingLogged;
     private boolean waitingPublished;
 
     public PollingState(Instant startedAt) {
@@ -239,6 +255,14 @@ public class OctaneGateRunner {
 
     private void setExtendedTimeActive(boolean extendedTimeActive) {
       this.extendedTimeActive = extendedTimeActive;
+    }
+
+    private synchronized boolean markManualExitFinalizingLogged() {
+      if (manualExitFinalizingLogged) {
+        return false;
+      }
+      manualExitFinalizingLogged = true;
+      return true;
     }
 
     public boolean isWaitingPublished() {
@@ -313,9 +337,7 @@ public class OctaneGateRunner {
       StatusClassifier classifier,
       boolean manualExitRequested)
       throws GateFailedException {
-    if (manualExitRequested) {
-      logListener.logManualExitRequested(listener);
-    } else {
+    if (!manualExitRequested) {
       logListener.logExtendedTimeExpired(listener);
     }
     if (result.isPassed()) {
@@ -464,6 +486,7 @@ public class OctaneGateRunner {
         scopedResults,
         defectPollResult.reportHeatMap,
         defectMetrics,
+        defectPollResult.defects,
         criteriaEvaluation,
         clock.instant());
   }
@@ -506,6 +529,14 @@ public class OctaneGateRunner {
               request.getRiskHeatMapDefectQuery(),
               request.getRiskHeatMapMaxDefects());
       defectLedger.merge(defects);
+      if (defectLedger.isAtCapacity()) {
+        listener
+            .getLogger()
+            .println(
+                "Octane defect history reached its safety limit of "
+                    + OctaneDefectLedger.MAXIMUM_DEFECTS
+                    + " unique defects; existing defect states will continue to refresh.");
+      }
       refreshKnownDefects(
           client,
           sharedSpaceId,
@@ -521,7 +552,8 @@ public class OctaneGateRunner {
       }
       return new DefectPollResult(
           request.isRiskHeatMap() ? heatMap : OctaneRiskHeatMap.disabled(),
-          heatMap.getDefectSeveritySummary());
+          heatMap.getDefectSeveritySummary(),
+          defectLedger.getDefects());
     } catch (IOException e) {
       if (defectCriteriaRequired) {
         listener
@@ -536,7 +568,8 @@ public class OctaneGateRunner {
           .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
       return new DefectPollResult(
           OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage()),
-          OctaneDefectSeveritySummary.empty());
+          OctaneDefectSeveritySummary.empty(),
+          defectLedger.getDefects());
     }
   }
 
@@ -708,8 +741,25 @@ public class OctaneGateRunner {
     if (Util.isBlank(request.getServerId())) {
       throw new AbortException("Octane server ID is required.");
     }
-    if (request.getSuiteRunIds().isEmpty()) {
+    List<String> requestedSuiteRunIds = request.getSuiteRunIds();
+    if (requestedSuiteRunIds.isEmpty()) {
       throw new AbortException("At least one Octane suite run ID is required.");
+    }
+    if (requestedSuiteRunIds.size() > GateRequest.MAX_SUITE_RUN_IDS) {
+      throw new AbortException(
+          "At most " + GateRequest.MAX_SUITE_RUN_IDS + " Octane suite run IDs are supported.");
+    }
+    validateNumericId("Shared space ID", request.getSharedSpaceId());
+    validateNumericId("Workspace ID", request.getWorkspaceId());
+    for (String suiteRunId : requestedSuiteRunIds) {
+      validateNumericId("Suite run ID", suiteRunId);
+    }
+    if (request.getScopes().size() > MAX_SCOPES) {
+      throw new AbortException("At most " + MAX_SCOPES + " Octane scopes are supported.");
+    }
+    if (request.getDefectGroups().size() > MAX_DEFECT_GROUPS) {
+      throw new AbortException(
+          "At most " + MAX_DEFECT_GROUPS + " Octane defect groups are supported.");
     }
     for (OctaneGateScope scope : request.getScopes()) {
       validateScope(scope);
@@ -751,6 +801,27 @@ public class OctaneGateRunner {
           "Octane scope '"
               + scope.getName()
               + "' must define either suite run ID(s) or an Octane query, not both.");
+    }
+    if (scope.getSuiteRunIds().size() > GateRequest.MAX_SUITE_RUN_IDS) {
+      throw new AbortException(
+          "Octane scope '"
+              + scope.getName()
+              + "' exceeds the "
+              + GateRequest.MAX_SUITE_RUN_IDS
+              + " suite run ID limit.");
+    }
+    for (String suiteRunId : scope.getSuiteRunIds()) {
+      validateNumericId("Suite run ID", suiteRunId);
+    }
+  }
+
+  private void validateNumericId(String label, String value) throws AbortException {
+    String id = Util.trimToEmpty(value);
+    if (id.isEmpty()) {
+      return;
+    }
+    if (!OCTANE_NUMERIC_ID.matcher(id).matches()) {
+      throw new AbortException(label + " must contain 1 to 18 digits.");
     }
   }
 
@@ -797,16 +868,20 @@ public class OctaneGateRunner {
   private static class DefectPollResult {
     private final OctaneRiskHeatMap reportHeatMap;
     private final OctaneDefectSeveritySummary severitySummary;
+    private final List<DefectRecord> defects;
 
     private DefectPollResult(
-        OctaneRiskHeatMap reportHeatMap, OctaneDefectSeveritySummary severitySummary) {
+        OctaneRiskHeatMap reportHeatMap,
+        OctaneDefectSeveritySummary severitySummary,
+        List<DefectRecord> defects) {
       this.reportHeatMap = reportHeatMap;
       this.severitySummary = severitySummary;
+      this.defects = defects == null ? List.of() : List.copyOf(defects);
     }
 
     private static DefectPollResult empty() {
       return new DefectPollResult(
-          OctaneRiskHeatMap.disabled(), OctaneDefectSeveritySummary.empty());
+          OctaneRiskHeatMap.disabled(), OctaneDefectSeveritySummary.empty(), List.of());
     }
   }
 }

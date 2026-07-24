@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import java.util.List;
@@ -33,6 +34,20 @@ public class OctaneDefectLedgerTest {
     ledger.merge(List.of(defect("", "High", "opened"), defect("902", "Critical", "opened")));
 
     assertEquals(List.of("902"), ledger.getDefectIds());
+  }
+
+  @Test
+  public void boundsUniqueDefectHistoryButStillRefreshesKnownDefects() {
+    OctaneDefectLedger ledger = new OctaneDefectLedger();
+    for (int index = 0; index < OctaneDefectLedger.MAXIMUM_DEFECTS + 1; index++) {
+      ledger.merge(List.of(defect(Integer.toString(index), "High", "opened")));
+    }
+
+    ledger.merge(List.of(defect("0", "High", "closed")));
+
+    assertEquals(OctaneDefectLedger.MAXIMUM_DEFECTS, ledger.getDefects().size());
+    assertTrue(ledger.isAtCapacity());
+    assertFalse(ledger.getDefects().get(0).isOpen());
   }
 
   private DefectRecord defect(String id, String severity, String phase) {

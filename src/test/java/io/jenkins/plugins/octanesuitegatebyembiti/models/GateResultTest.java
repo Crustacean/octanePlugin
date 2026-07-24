@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
@@ -24,6 +25,35 @@ public class GateResultTest {
             Instant.parse("2026-05-13T00:00:00Z"));
 
     assertEquals(List.of("1196", "1200"), result.toPipelineMap().get("suiteRunIds"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void boundsPipelineRunDetailsAndReportsTruncation() {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < GateResult.PIPELINE_DETAIL_LIMIT + 1; index++) {
+      runs.add(new RunRecord(Integer.toString(index), "run " + index, "passed"));
+    }
+    GateResult result =
+        new GateResult(
+            "1196",
+            "100% pass",
+            true,
+            true,
+            new GateMetrics(runs.size(), runs.size(), runs.size(), 0, 0, 0),
+            runs,
+            Map.of("1196", runs),
+            Map.of(),
+            Instant.parse("2026-05-13T00:00:00Z"));
+
+    Map<String, Object> pipelineMap = result.toPipelineMap();
+
+    assertEquals(runs.size(), pipelineMap.get("runCount"));
+    assertEquals(true, pipelineMap.get("detailsTruncated"));
+    assertEquals(
+        GateResult.PIPELINE_DETAIL_LIMIT,
+        ((List<Map<String, Object>>) pipelineMap.get("runs")).size());
+    assertTrue(((Map<String, Object>) pipelineMap.get("suiteRuns")).isEmpty());
   }
 
   @Test

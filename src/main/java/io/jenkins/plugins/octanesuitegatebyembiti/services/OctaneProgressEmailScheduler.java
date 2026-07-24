@@ -31,6 +31,7 @@ public final class OctaneProgressEmailScheduler {
   private final Duration maximumLateness;
   private final int maximumSchedules;
   private final Map<String, ScheduledTask> registrations = new ConcurrentHashMap<>();
+  private final Object registrationLock = new Object();
 
   private OctaneProgressEmailScheduler(
       ScheduledThreadPoolExecutor executor,
@@ -63,7 +64,7 @@ public final class OctaneProgressEmailScheduler {
 
     ScheduledTask task =
         new ScheduledTask(registrationId, ownerId, schedule, new WeakReference<>(delivery));
-    synchronized (registrations) {
+    synchronized (registrationLock) {
       ScheduledTask previous = registrations.remove(registrationId);
       if (previous != null) {
         previous.cancel();

@@ -10,11 +10,13 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectTrend;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestManagementAnalytics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportArtifactStore;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,19 +39,22 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private transient Run<?, ?> run;
   // Kept under its historical field name so reports saved by older plugin versions still load.
   // New publications clear it before Run.save() and persist only artifactMetadata.
-  private OctaneGateReportSnapshot snapshot;
-  private transient OctaneGateReportSnapshot snapshotCache = OctaneGateReportSnapshot.empty();
-  private OctaneReportArtifactMetadata artifactMetadata = OctaneReportArtifactMetadata.empty();
-  private int refreshSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
-  private int timeoutSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES * 60;
-  private int timeoutExtendedSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED * 60;
-  private int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
-  private int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
-  private String startedAt = Instant.now().toString();
+  private volatile OctaneGateReportSnapshot snapshot;
+  private transient volatile OctaneGateReportSnapshot snapshotCache =
+      OctaneGateReportSnapshot.empty();
+  private volatile OctaneReportArtifactMetadata artifactMetadata =
+      OctaneReportArtifactMetadata.empty();
+  private volatile int refreshSeconds = GateRequest.DEFAULT_POLL_INTERVAL_SECONDS;
+  private volatile int timeoutSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES * 60;
+  private volatile int timeoutExtendedSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED * 60;
+  private volatile int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
+  private volatile int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
+  private volatile String startedAt = Instant.now().toString();
   private volatile boolean manualExitRequested;
-  private transient Object manualExitLock = new Object();
+  private volatile long manualExitRequestedAtMillis;
+  private transient volatile Object manualExitLock = new Object();
   private transient Runnable manualExitCallback;
-  private transient Object refreshLock = new Object();
+  private transient volatile Object refreshLock = new Object();
   private transient RefreshCallback refreshCallback;
 
   public static OctaneGateReportAction attachTo(Run<?, ?> run, GateRequest request) {
@@ -163,24 +168,28 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     publishSnapshot(withPreviousCycleMetrics(errorSnapshot));
   }
 
-  public synchronized OctaneGateReportSnapshot getSnapshot() {
+  public OctaneGateReportSnapshot getSnapshot() {
     OctaneGateReportSnapshot current = currentSnapshot();
     return current == null ? OctaneGateReportSnapshot.empty() : current;
   }
 
-  public synchronized int getRefreshSeconds() {
+  public int getRefreshSeconds() {
     return getSnapshot().getRefreshSeconds();
   }
 
-  public synchronized boolean isAutoRefresh() {
+  public boolean isAutoRefresh() {
     return getSnapshot().isBuilding();
   }
 
-  public synchronized String getReportDataChecksum() {
+  public String getReportDataChecksum() {
     return artifactMetadata == null ? "" : artifactMetadata.getChecksum();
   }
 
-  public synchronized int getReportDataSchemaVersion() {
+  public String getTestManagementJson() {
+    return JSONObject.fromObject(getSnapshot().getTestManagement().toMap()).toString();
+  }
+
+  public int getReportDataSchemaVersion() {
     return artifactMetadata == null ? 0 : artifactMetadata.getSchemaVersion();
   }
 
@@ -193,8 +202,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     return rootUrl == null ? buildPath : rootUrl + buildPath;
   }
 
-  public synchronized void doSnapshot(StaplerRequest2 request, StaplerResponse2 response)
-      throws IOException {
+  public void doSnapshot(StaplerRequest2 request, StaplerResponse2 response) throws IOException {
     checkReadPermission();
     String etag = currentEtag();
     if (etagMatches(request, etag)) {
@@ -221,11 +229,13 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("testMetricsHtml", safeSnapshot.getTestMetricsHtml());
     payload.put("testMetrics", safeSnapshot.getTestMetrics().toMap());
     payload.put("defectTrend", safeSnapshot.getDefectTrend().toMap());
+    payload.put("testManagement", safeSnapshot.getTestManagement().toMap());
     payload.put("refreshSeconds", safeSnapshot.getRefreshSeconds());
     payload.put("timeoutSeconds", safeSnapshot.getTimeoutSeconds());
     payload.put("timeoutExtendedSeconds", safeSnapshot.getTimeoutExtendedSeconds());
     payload.put("extendedTime", safeSnapshot.isExtendedTime());
     payload.put("manualExitRequested", isManualExitRequested());
+    payload.put("manualExitRequestedAtMillis", getManualExitRequestedAtMillis());
     payload.put("riskHeatMapEnabled", safeSnapshot.isRiskHeatMapEnabled());
     payload.put("riskHeatMapHtml", safeSnapshot.getRiskHeatMapHtml());
     payload.put(
@@ -248,7 +258,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     response.getWriter().print(payload.toString());
   }
 
-  public synchronized void doData(
+  public void doData(
       StaplerRequest2 request,
       StaplerResponse2 response,
       @QueryParameter String section,
@@ -305,16 +315,30 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
   }
 
+  public void doTestManagementScript(StaplerResponse2 response) throws IOException {
+    checkReadPermission();
+    try (InputStream script =
+        OctaneGateReportAction.class.getResourceAsStream("/js/octane-test-management.js")) {
+      if (script == null) {
+        response.sendError(404, "The Octane test-management renderer is unavailable.");
+        return;
+      }
+      response.setContentType("text/javascript;charset=UTF-8");
+      response.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+      response.setHeader("X-Content-Type-Options", "nosniff");
+      script.transferTo(response.getOutputStream());
+    }
+  }
+
   @RequirePOST
   public HttpResponse doExitOctaneAndContinue() {
-    if (run != null) {
-      run.getACL().checkPermission(Run.UPDATE);
-    }
+    requireRun().getACL().checkPermission(Run.UPDATE);
     Runnable callback = null;
     synchronized (manualExitLock()) {
       OctaneGateReportSnapshot current = currentSnapshot();
-      if (current != null && current.isExtendedTime()) {
+      if (current != null && current.isExtendedTime() && !manualExitRequested) {
         manualExitRequested = true;
+        manualExitRequestedAtMillis = System.currentTimeMillis();
         manualExitLock().notifyAll();
         callback = manualExitCallback;
       }
@@ -382,6 +406,27 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   @Override
   public synchronized boolean isManualExitRequested() {
     return manualExitRequested;
+  }
+
+  public long getManualExitRequestedAtMillis() {
+    return manualExitRequestedAtMillis;
+  }
+
+  public boolean isManualExitPending() {
+    OctaneGateReportSnapshot current = currentSnapshot();
+    return manualExitRequested && current != null && current.isBuilding();
+  }
+
+  public boolean isExtendedExitAvailable() {
+    OctaneGateReportSnapshot current = currentSnapshot();
+    return !manualExitRequested
+        && current != null
+        && current.isBuilding()
+        && current.isExtendedTime();
+  }
+
+  public boolean isExtendedExitControlVisible() {
+    return isExtendedExitAvailable() || isManualExitPending();
   }
 
   @Override
@@ -461,9 +506,16 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   private void checkReadPermission() {
-    if (run != null) {
-      run.getACL().checkPermission(Item.READ);
+    requireRun().getACL().checkPermission(Item.READ);
+  }
+
+  private Run<?, ?> requireRun() {
+    Run<?, ?> currentRun = run;
+    if (currentRun == null) {
+      Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+      throw new IllegalStateException("Octane report is not attached to a Jenkins build.");
     }
+    return currentRun;
   }
 
   private String currentEtag() {
@@ -501,20 +553,44 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     baseExecutionFigure = request.getBaseExecutionFigure();
     startedAt = Instant.now().toString();
     manualExitRequested = false;
+    manualExitRequestedAtMillis = 0L;
   }
 
   private Object manualExitLock() {
-    if (manualExitLock == null) {
-      manualExitLock = new Object();
+    Object current = manualExitLock;
+    if (current == null) {
+      synchronized (this) {
+        current = manualExitLock;
+        if (current == null) {
+          current = new Object();
+          manualExitLock = current;
+        }
+      }
     }
-    return manualExitLock;
+    return current;
   }
 
   private Object refreshLock() {
-    if (refreshLock == null) {
-      refreshLock = new Object();
+    Object current = refreshLock;
+    if (current == null) {
+      synchronized (this) {
+        current = refreshLock;
+        if (current == null) {
+          current = new Object();
+          refreshLock = current;
+        }
+      }
     }
-    return refreshLock;
+    return current;
+  }
+
+  private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+    input.defaultReadObject();
+    snapshotCache = null;
+    manualExitLock = new Object();
+    manualExitCallback = null;
+    refreshLock = new Object();
+    refreshCallback = null;
   }
 
   private Duration nonNegative(Duration duration) {
@@ -556,6 +632,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   private OctaneGateReportSnapshot withLiveReportData(OctaneGateReportSnapshot current) {
     OctaneDefectTrend trend = current.getDefectTrend();
+    OctaneTestManagementAnalytics testManagement = current.getTestManagement();
     OctaneGateReportSnapshot previous = currentSnapshot();
     if (previous != null) {
       trend =
@@ -563,8 +640,10 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
               .getDefectTrend()
               .append(
                   current.getUpdatedAt(), current.getRiskHeatMap(), current.getExecutedTestCount());
+      testManagement = previous.getTestManagement().appendLatest(testManagement);
     }
-    return withPreviousCycleMetrics(current.withDefectTrend(trend));
+    return withPreviousCycleMetrics(
+        current.withDefectTrend(trend).withTestManagement(testManagement));
   }
 
   private OctaneGateReportSnapshot previousCompletedSnapshot() {

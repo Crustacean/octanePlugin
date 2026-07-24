@@ -1,7 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
@@ -16,9 +15,10 @@ import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
-import io.jenkins.plugins.octanesuitegatebyembiti.services.EmailExtensionOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.HeadlessBrowserReportScreenshotService;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.JenkinsMailerOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailBodyRenderer;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailDeliveryCoordinator;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshotService;
@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
@@ -39,165 +38,23 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
-@SuppressFBWarnings(
-    value = "MS_SHOULD_BE_FINAL",
-    justification = "Tests replace these collaborators without invoking real browsers or SMTP.")
-public class OctaneEmailReportStep extends Step {
+public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
   static final int DEFAULT_VIEWPORT_WIDTH = 1400;
+  public static final int MAX_VIEWPORT_WIDTH = 3840;
 
   private static OctaneReportScreenshotService screenshotService =
       new HeadlessBrowserReportScreenshotService();
-  private static OctaneEmailReportSender emailSender = new EmailExtensionOctaneReportSender();
-
-  private final String to;
-  private String cc = "";
-  private String bcc = "";
-  private String subject = "";
-  private String body = "";
-  private String projectName = "";
-  private String domainName = "";
-  private String from = "";
-  private String replyTo = "";
-  private String onFailure = OctaneEmailFailureMode.UNSTABLE.name();
-  private String browserPath = "";
-  private String theme = OctaneReportTheme.LIGHT.name();
-  private int viewportWidth = DEFAULT_VIEWPORT_WIDTH;
-  private boolean archiveScreenshot = true;
-  private boolean printDefectGroups;
+  private static OctaneEmailReportSender emailSender = new JenkinsMailerOctaneReportSender();
 
   @DataBoundConstructor
   public OctaneEmailReportStep(String to) {
-    this.to = Util.trimToEmpty(to);
-  }
-
-  public String getTo() {
-    return to;
-  }
-
-  public String getCc() {
-    return cc;
+    super(to, OctaneEmailFailureMode.UNSTABLE, true);
   }
 
   @DataBoundSetter
-  public void setCc(String cc) {
-    this.cc = Util.trimToEmpty(cc);
-  }
-
-  public String getBcc() {
-    return bcc;
-  }
-
-  @DataBoundSetter
-  public void setBcc(String bcc) {
-    this.bcc = Util.trimToEmpty(bcc);
-  }
-
-  public String getSubject() {
-    return subject;
-  }
-
-  @DataBoundSetter
-  public void setSubject(String subject) {
-    this.subject = Util.trimToEmpty(subject);
-  }
-
-  public String getBody() {
-    return body;
-  }
-
-  @DataBoundSetter
-  public void setBody(String body) {
-    this.body = Util.trimToEmpty(body);
-  }
-
-  public String getProjectName() {
-    return projectName;
-  }
-
-  @DataBoundSetter
-  public void setProjectName(String projectName) {
-    this.projectName = Util.trimToEmpty(projectName);
-  }
-
-  public String getDomainName() {
-    return domainName;
-  }
-
-  @DataBoundSetter
-  public void setDomainName(String domainName) {
-    this.domainName = Util.trimToEmpty(domainName);
-  }
-
-  public String getFrom() {
-    return from;
-  }
-
-  @DataBoundSetter
-  public void setFrom(String from) {
-    this.from = Util.trimToEmpty(from);
-  }
-
-  public String getReplyTo() {
-    return replyTo;
-  }
-
-  @DataBoundSetter
-  public void setReplyTo(String replyTo) {
-    this.replyTo = Util.trimToEmpty(replyTo);
-  }
-
-  public String getOnFailure() {
-    return onFailure;
-  }
-
-  @DataBoundSetter
-  public void setOnFailure(String onFailure) {
-    this.onFailure = OctaneEmailFailureMode.normalize(onFailure);
-  }
-
-  public String getBrowserPath() {
-    return browserPath;
-  }
-
-  @DataBoundSetter
-  public void setBrowserPath(String browserPath) {
-    this.browserPath = Util.trimToEmpty(browserPath);
-  }
-
-  public String getTheme() {
-    return theme;
-  }
-
-  @DataBoundSetter
-  public void setTheme(String theme) {
-    this.theme = OctaneReportTheme.normalize(theme);
-  }
-
-  public int getViewportWidth() {
-    return viewportWidth;
-  }
-
-  @DataBoundSetter
+  @Override
   public void setViewportWidth(int viewportWidth) {
-    this.viewportWidth = Math.max(320, viewportWidth);
-  }
-
-  public boolean isArchiveScreenshot() {
-    return archiveScreenshot;
-  }
-
-  @DataBoundSetter
-  public void setArchiveScreenshot(boolean archiveScreenshot) {
-    this.archiveScreenshot = archiveScreenshot;
-  }
-
-  public boolean isPrintDefectGroups() {
-    return printDefectGroups;
-  }
-
-  @DataBoundSetter
-  public void setPrintDefectGroups(boolean printDefectGroups) {
-    this.printDefectGroups = printDefectGroups;
+    super.setViewportWidth(Math.min(MAX_VIEWPORT_WIDTH, viewportWidth));
   }
 
   @Override
@@ -214,7 +71,7 @@ public class OctaneEmailReportStep extends Step {
 
   static void resetServicesForTesting() {
     screenshotService = new HeadlessBrowserReportScreenshotService();
-    emailSender = new EmailExtensionOctaneReportSender();
+    emailSender = new JenkinsMailerOctaneReportSender();
   }
 
   static void executeRequest(EmailRequest request, StepContext context) throws Exception {
@@ -241,25 +98,6 @@ public class OctaneEmailReportStep extends Step {
       }
       recipients.add(prefix.isEmpty() ? cleanRecipient : prefix + ":" + cleanRecipient);
     }
-  }
-
-  EmailRequest toRequest() {
-    return new EmailRequest(
-        to,
-        cc,
-        bcc,
-        subject,
-        body,
-        projectName,
-        domainName,
-        from,
-        replyTo,
-        onFailure,
-        browserPath,
-        theme,
-        viewportWidth,
-        archiveScreenshot,
-        printDefectGroups);
   }
 
   static final class EmailRequest implements Serializable {
@@ -343,6 +181,14 @@ public class OctaneEmailReportStep extends Step {
 
     private void sendReport(Run<?, ?> run, TaskListener listener) throws Exception {
       FilePath workspace = getContext().get(FilePath.class);
+      try (OctaneEmailDeliveryCoordinator.Lease ignored =
+          OctaneEmailDeliveryCoordinator.acquire(run, workspace)) {
+        sendReportLocked(run, listener, workspace);
+      }
+    }
+
+    private void sendReportLocked(Run<?, ?> run, TaskListener listener, FilePath workspace)
+        throws Exception {
       Launcher launcher = getContext().get(Launcher.class);
       EnvVars envVars = envVars();
       OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
@@ -384,7 +230,7 @@ public class OctaneEmailReportStep extends Step {
                   screenshot.getScreenshotFile().getName(),
                   request.theme,
                   request.printDefectGroups);
-      listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
+      listener.getLogger().println("Sending Octane report email through Jenkins Mailer.");
       emailSender.send(
           getContext(),
           recipients,
@@ -396,7 +242,7 @@ public class OctaneEmailReportStep extends Step {
       listener
           .getLogger()
           .println(
-              "Jenkins Email Extension completed the SMTP handoff for "
+              "Jenkins Mailer completed the SMTP handoff for "
                   + visibleRecipients(recipients)
                   + ". Inbox placement is controlled by the receiving mail service.");
     }
@@ -589,8 +435,10 @@ public class OctaneEmailReportStep extends Step {
 
     public FormValidation doCheckViewportWidth(@QueryParameter String value) {
       try {
-        if (Integer.parseInt(value) < 320) {
-          return FormValidation.error("Viewport width must be at least 320.");
+        int width = Integer.parseInt(value);
+        if (width < 320 || width > MAX_VIEWPORT_WIDTH) {
+          return FormValidation.error(
+              "Viewport width must be between 320 and " + MAX_VIEWPORT_WIDTH + ".");
         }
         return FormValidation.ok();
       } catch (NumberFormatException e) {

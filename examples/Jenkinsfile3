@@ -11,6 +11,7 @@ pipeline {
     BROWSERPATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 
     OCTANE_TIMEOUT_MINUTES = '5'
+    // Leave blank or set to 0 to disable extended time.
     OCTANE_TIMEOUT_MINUTES_EXTENDED = '3'
 
     // Every minute on weekdays. Leave blank to disable progress emails for this Pipeline run.
@@ -54,15 +55,21 @@ pipeline {
       steps {
         script {
           int timeoutMinutes
-          int timeoutMinutesExtended
+          int timeoutMinutesExtended = 0
           try {
-            timeoutMinutes = Integer.parseInt(env.OCTANE_TIMEOUT_MINUTES.trim())
-            timeoutMinutesExtended =
-                Integer.parseInt(env.OCTANE_TIMEOUT_MINUTES_EXTENDED.trim())
+            String timeoutText = env.OCTANE_TIMEOUT_MINUTES?.trim()
+            String extendedTimeoutText = env.OCTANE_TIMEOUT_MINUTES_EXTENDED?.trim()
+            if (!timeoutText) {
+              error 'OCTANE_TIMEOUT_MINUTES is required.'
+            }
+            timeoutMinutes = Integer.parseInt(timeoutText)
+            if (extendedTimeoutText) {
+              timeoutMinutesExtended = Integer.parseInt(extendedTimeoutText)
+            }
           } catch (NumberFormatException ignored) {
             error(
-                'OCTANE_TIMEOUT_MINUTES and OCTANE_TIMEOUT_MINUTES_EXTENDED '
-                    + 'must be whole numbers.')
+                'OCTANE_TIMEOUT_MINUTES must be a whole number; '
+                    + 'OCTANE_TIMEOUT_MINUTES_EXTENDED must be blank or a whole number.')
           }
           if (timeoutMinutes <= 0 || timeoutMinutesExtended < 0) {
             error(

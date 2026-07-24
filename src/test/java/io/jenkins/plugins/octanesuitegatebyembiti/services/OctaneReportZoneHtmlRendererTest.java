@@ -39,7 +39,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("CRITICAL Tests Status Distribution"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
     assertTrue(html.contains("Testing progress per Tester Suite Runs_CRITICAL"));
-    assertTrue(html.contains("Total: 3"));
+    assertTrue(html.contains(">3</text>"));
+    assertTrue(html.contains(">Total test cases</text>"));
     assertTrue(html.contains("Total Suiteruns: 2"));
     assertTrue(html.contains("Ada Tester"));
     assertTrue(html.contains("ada tester"));
@@ -81,15 +82,25 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("#ffb74d"));
     assertFalse(html.contains("#808080"));
     assertTrue(html.contains("octane-donut"));
-    assertTrue(html.contains("octane-distribution-meta"));
-    assertTrue(html.contains("octane-total-label"));
-    assertTrue(html.contains("octane-donut-label"));
-    assertTrue(html.contains("viewBox=\"-10 -10 120 120\""));
-    assertTrue(html.contains("max-width: 280px"));
+    assertTrue(html.contains("octane-chart-inner octane-donut-graph"));
+    assertTrue(html.contains("octane-donut-layout"));
+    assertTrue(html.contains("gap: clamp(2px, 0.75cqw, 6px)"));
+    assertTrue(html.contains("octane-donut-center-value"));
+    assertTrue(html.contains("octane-donut-center-label"));
+    assertTrue(html.contains("octane-donut-legend"));
+    assertTrue(html.contains("octane-donut-legend-percentage"));
+    assertFalse(html.contains("octane-donut-label"));
+    assertFalse(html.contains("octane-donut-callout-line"));
+    assertTrue(html.contains("viewBox=\"3 3 94 94\""));
+    assertFalse(html.contains("max-width: 340px"));
     assertFalse(html.contains("min-height: 294px"));
-    assertTrue(html.contains("overflow: visible"));
+    assertTrue(html.contains("padding: 5px"));
+    assertTrue(html.contains("height: calc(260px + var(--octane-axis-label-row))"));
     assertTrue(html.contains("r=\"46\" fill="));
-    assertTrue(html.contains("r=\"30\""));
+    assertTrue(html.contains("r=\"29\""));
+    assertTrue(html.contains(">Total test cases</text>"));
+    assertTrue(html.contains("Total test cases: 3"));
+    assertTrue(html.contains("padding-inline: 0 clamp(8px, 2.2cqw, 25px)"));
     assertFalse(html.contains("octane-legend-value"));
     assertTrue(html.contains("octane-suite-chart-meta"));
     assertTrue(html.contains("octane-bar-graph"));
@@ -155,6 +166,26 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(html.contains("Status Check"));
     assertFalse(html.contains("Time to next Poll"));
     assertFalse(html.contains("Execution Progress"));
+  }
+
+  @Test
+  public void rendersThinDistributionSlicesWithTabularLegendAndNoCallouts() {
+    OctaneGateReportSnapshot snapshot = thinSliceSnapshot();
+
+    String html = new OctaneReportZoneHtmlRenderer().render(snapshot);
+
+    assertEquals(5, occurrences(html, "class=\"octane-donut-segment\""));
+    assertFalse(html.contains("octane-donut-callout-line"));
+    assertFalse(html.contains("data-label-mode"));
+    assertTrue(html.contains("class=\"octane-donut-center-value\""));
+    assertTrue(html.contains("class=\"octane-donut-center-label\""));
+    assertTrue(html.contains("class=\"octane-donut-legend\""));
+    assertTrue(html.contains("90.00%"));
+    assertTrue(html.contains("1.00%"));
+    assertTrue(html.contains(".octane-donut-segment {"));
+    assertTrue(html.contains(".octane-donut-segment {\n  stroke: none;"));
+    assertFalse(
+        html.contains(".octane-donut-segment {\n" + "  stroke: var(--octane-card-background)"));
   }
 
   @Test
@@ -452,6 +483,36 @@ public class OctaneReportZoneHtmlRendererTest {
             Instant.parse("2026-05-15T00:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(
         OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot thinSliceSnapshot() {
+    List<RunRecord> runs = new ArrayList<>();
+    addRuns(runs, "passed", 90);
+    addRuns(runs, "failed", 4);
+    addRuns(runs, "blocked", 3);
+    addRuns(runs, "skipped", 2);
+    addRuns(runs, "running", 1);
+    GateResult result =
+        new GateResult(
+            "thin-slices",
+            "regressions.executionRate >= 90",
+            true,
+            true,
+            new GateMetrics(100, 99, 90, 7, 2, 1),
+            runs,
+            Map.of("thin-slices", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private void addRuns(List<RunRecord> runs, String status, int count) {
+    int start = runs.size();
+    for (int index = 0; index < count; index++) {
+      String id = Integer.toString(start + index + 1);
+      runs.add(new RunRecord(id, status + " " + id, status, "Tester"));
+    }
   }
 
   private int occurrences(String value, String needle) {

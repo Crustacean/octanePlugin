@@ -6,8 +6,3 @@ reason = "commons-lang:commons-lang:2.6 is inherited from Jenkins core as a prov
 id = "GHSA-93qh-vwrm-c5pw"
 ignoreUntil = 2026-12-31
 reason = "Jenkins 2.555.3 contains the official LTS backport for this issue, but OSV currently models only the weekly 2.568 fix and incorrectly lists 2.555.3 as affected."
-
-[[IgnoredVulns]]
-id = "GHSA-5jmj-h7xm-6q6v"
-ignoreUntil = 2026-08-31
-reason = "The fix requires Jackson 2.21.5 or 2.22.1, but no Jenkins jackson2-api wrapper containing either release is available yet. This plugin parses Octane responses as JsonNode trees and does not use the vulnerable case-insensitive per-property deserialization pattern."

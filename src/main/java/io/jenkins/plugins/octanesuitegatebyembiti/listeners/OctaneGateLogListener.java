@@ -14,6 +14,17 @@ public class OctaneGateLogListener {
     logWaiting(listener, null, suiteRunIds);
   }
 
+  public void logLookupContext(TaskListener listener, String sharedSpaceId, String workspaceId) {
+    listener
+        .getLogger()
+        .println(
+            "ALM Octane lookup context: shared space "
+                + sharedSpaceId
+                + ", workspace "
+                + workspaceId
+                + ".");
+  }
+
   public void logWaiting(TaskListener listener, GateRequest request, List<String> suiteRunIds) {
     listener.getLogger().println("Waiting for ALM Octane suite run(s)");
     listener.getLogger().println("Regressions suite runs: " + describeIds(suiteRunIds));
