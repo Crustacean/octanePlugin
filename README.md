@@ -147,7 +147,7 @@ QA Automation Team''',
 
 The step captures only the `octane-report-zone` chart area, saves it in the workspace as
 `.octane-suite-gate/report-email/octane-report-zone.png`, archives it by default, and embeds it in
-the HTML email through the Content-ID assigned by Jenkins Email Extension. The email includes the
+the HTML email through a Content-ID attachment sent by Jenkins Mailer. The email includes the
 project/domain details, execution totals, overall criteria verdict, exact expression, a link to
 the build's Octane Gate Report, and an ordered table of each atomic comparison with its actual
 value and `OK` or `NOT OK` result. An `OR` expression can therefore contain a `NOT OK` row while
@@ -173,7 +173,7 @@ Optional parameters are `cc`, `bcc`, `projectName`, `domainName`, `from`, `reply
 `theme`, `viewportWidth`, and `archiveScreenshot`. If `projectName` is omitted, the Jenkins job
 display name is used. For Gmail SMTP, `from` should be the authenticated Gmail/Workspace account
 or an alias that account is authorized to send as. When `from` is omitted, the plugin uses the
-authenticated Extended E-mail Notification SMTP username before considering Jenkins' default
+authenticated E-mail Notification SMTP username before considering Jenkins' default
 sender. It rejects Jenkins' `nobody@nowhere` placeholder instead of reporting a misleading
 successful handoff. `theme` accepts `LIGHT`, `DARK`, or `SYSTEM` and defaults to `LIGHT`.
 `SYSTEM` follows the operating-system preference of the Jenkins agent service account.
@@ -183,15 +183,14 @@ On Windows, use a Groovy-escaped agent-local path such as
 account, not the interactive desktop user, must be able to start that browser. Browser validation
 and screenshot capture are time-bounded so a stuck Chrome process fails according to `onFailure`
 instead of holding the Pipeline indefinitely. Console messages identify whether the step is
-validating Chrome, capturing, archiving, or sending through Email Extension.
+validating Chrome, capturing, archiving, or sending through Jenkins Mailer.
 
-The report step uses **Extended E-mail Notification**, which is separate from Jenkins' standard
-**E-mail Notification** configuration. Test the SMTP settings in the Extended E-mail Notification
-section. For Gmail, use `smtp.gmail.com` with TLS on port `587`, or SSL on port `465`, the complete
-Google account address, and an app password. A connection or authentication failure happens before
-Gmail evaluates the HTML body, so changing the report to plain text will not repair that class of
-failure. After a successful SMTP handoff, check Gmail's Sent, All Mail, Spam, and delivery-status
-messages if the report is not in the recipient's inbox.
+The report step uses Jenkins' standard **E-mail Notification** SMTP configuration. Test those
+settings under **Manage Jenkins > System**. For Gmail, use `smtp.gmail.com` with TLS on port `587`,
+or SSL on port `465`, the complete Google account address, and an app password. A connection or
+authentication failure happens before Gmail evaluates the HTML body, so changing the report to
+plain text will not repair that class of failure. After a successful SMTP handoff, check Gmail's
+Sent, All Mail, Spam, and delivery-status messages if the report is not in the recipient's inbox.
 
 Query-backed scopes remain supported for compatibility. Query scopes are ALM Octane REST API
 query fragments applied to the regression suite runs' child runs:

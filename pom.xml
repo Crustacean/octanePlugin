@@ -35,7 +35,7 @@
   <properties>
     <java.level>25</java.level>
     <jenkins.version>2.555.3</jenkins.version>
-    <jenkins-test-harness.version>2565.vd1eb_7c961d1b_</jenkins-test-harness.version>
+    <jenkins-test-harness.version>2576.v081e5ee32e1d</jenkins-test-harness.version>
     <spotless.check.skip>false</spotless.check.skip>
   </properties>
 
@@ -56,7 +56,7 @@
       <dependency>
         <groupId>io.jenkins.plugins</groupId>
         <artifactId>jackson3-api</artifactId>
-        <version>3.1.4-81.v804303fd947a_</version>
+        <version>3.2.1-92.vd25c2e23c180</version>
       </dependency>
       <dependency>
         <groupId>io.jenkins.plugins</groupId>
@@ -72,16 +72,6 @@
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>bouncycastle-api</artifactId>
         <version>2.30.1.84-291.v9f17b_21896e2</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>email-ext</artifactId>
-        <version>1933.1935.v276319e3cc47</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>jackson2-api</artifactId>
-        <version>2.22.0-439.vb_b_43658d6176</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
@@ -103,16 +93,16 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.jenkins.plugins</groupId>
+      <artifactId>jackson3-api</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>credentials</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>email-ext</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>jackson2-api</artifactId>
+      <artifactId>mailer</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>

@@ -3,7 +3,6 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import java.lang.management.ManagementFactory;
@@ -18,6 +17,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
+import tools.jackson.databind.ObjectMapper;
 
 public class OctaneScaleArchitectureTest {
   private static final int JOBS = 30;

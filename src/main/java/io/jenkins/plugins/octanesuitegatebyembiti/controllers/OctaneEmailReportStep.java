@@ -15,8 +15,8 @@ import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
-import io.jenkins.plugins.octanesuitegatebyembiti.services.EmailExtensionOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.HeadlessBrowserReportScreenshotService;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.JenkinsMailerOctaneReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailBodyRenderer;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailDeliveryCoordinator;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailReportSender;
@@ -44,7 +44,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
 
   private static OctaneReportScreenshotService screenshotService =
       new HeadlessBrowserReportScreenshotService();
-  private static OctaneEmailReportSender emailSender = new EmailExtensionOctaneReportSender();
+  private static OctaneEmailReportSender emailSender = new JenkinsMailerOctaneReportSender();
 
   @DataBoundConstructor
   public OctaneEmailReportStep(String to) {
@@ -71,7 +71,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
 
   static void resetServicesForTesting() {
     screenshotService = new HeadlessBrowserReportScreenshotService();
-    emailSender = new EmailExtensionOctaneReportSender();
+    emailSender = new JenkinsMailerOctaneReportSender();
   }
 
   static void executeRequest(EmailRequest request, StepContext context) throws Exception {
@@ -230,7 +230,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
                   screenshot.getScreenshotFile().getName(),
                   request.theme,
                   request.printDefectGroups);
-      listener.getLogger().println("Sending Octane report email through Jenkins Email Extension.");
+      listener.getLogger().println("Sending Octane report email through Jenkins Mailer.");
       emailSender.send(
           getContext(),
           recipients,
@@ -242,7 +242,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       listener
           .getLogger()
           .println(
-              "Jenkins Email Extension completed the SMTP handoff for "
+              "Jenkins Mailer completed the SMTP handoff for "
                   + visibleRecipients(recipients)
                   + ". Inbox placement is controlled by the receiving mail service.");
     }

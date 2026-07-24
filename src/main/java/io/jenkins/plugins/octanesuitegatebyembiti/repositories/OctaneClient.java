@@ -1,8 +1,5 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import hudson.AbortException;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
@@ -30,6 +27,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 public class OctaneClient implements AutoCloseable {
   private static final int PAGE_SIZE = 200;
@@ -269,14 +270,14 @@ public class OctaneClient implements AutoCloseable {
             + parameter("fields", RUN_FIELDS)
             + "&"
             + parameter("limit", "1");
-    IOException runsLookupFailure = null;
+    Exception runsLookupFailure = null;
     try {
       JsonNode collection = getJson(path);
       JsonNode data = collection.path("data");
       if (data.isArray() && !data.isEmpty()) {
         return data.get(0);
       }
-    } catch (IOException e) {
+    } catch (IOException | JacksonException e) {
       // Some Octane versions reject querying suite runs through the aggregate collection.
       runsLookupFailure = e;
     }
@@ -580,7 +581,7 @@ public class OctaneClient implements AutoCloseable {
     StringResponse response = sendWithRetry(() -> requestBuilder(baseUrl + path).GET().build());
     try {
       return objectMapper.readTree(response.body());
-    } catch (IOException e) {
+    } catch (JacksonException e) {
       throw new IOException(
           "ALM Octane returned malformed JSON for "
               + response.request().uri()
