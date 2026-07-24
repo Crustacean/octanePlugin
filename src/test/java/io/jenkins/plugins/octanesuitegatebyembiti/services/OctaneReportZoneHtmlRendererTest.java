@@ -84,6 +84,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-donut"));
     assertTrue(html.contains("octane-chart-inner octane-donut-graph"));
     assertTrue(html.contains("octane-donut-layout"));
+    assertTrue(html.contains("gap: clamp(2px, 0.75cqw, 6px)"));
     assertTrue(html.contains("octane-donut-center-value"));
     assertTrue(html.contains("octane-donut-center-label"));
     assertTrue(html.contains("octane-donut-legend"));

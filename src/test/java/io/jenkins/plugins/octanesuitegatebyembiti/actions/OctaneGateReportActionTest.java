@@ -219,6 +219,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("octane-donut"));
     assertTrue(xml.contains("octane-chart-inner octane-donut-graph"));
     assertTrue(xml.contains("octane-donut-layout"));
+    assertTrue(xml.contains("gap: clamp(0.125rem, 0.75cqw, 0.375rem)"));
     assertTrue(xml.contains("octane-donut-center-value"));
     assertTrue(xml.contains("octane-donut-center-label"));
     assertTrue(xml.contains("octane-donut-legend"));

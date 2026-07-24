@@ -238,7 +238,7 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-donut-layout {
           align-items: center;
           display: grid;
-          gap: clamp(8px, 3cqw, 24px);
+          gap: clamp(2px, 0.75cqw, 6px);
           grid-template-columns: minmax(0, 1fr) max-content;
           height: 100%;
           justify-content: center;

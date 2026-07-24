@@ -25,6 +25,18 @@ test("renders ten discrete execution intervals in bottom-up status order", () =>
 
 test("renders dynamic failure clusters and keeps a valid category selected", () => {
   assert.match(source, /payload\.failureCategories/);
+  assert.match(
+      source,
+      /renderCategorySwitcher\(switcher, categories, payload\.totalDefects\)/);
+  assert.match(
+      source,
+      /var allLabel = "All " \+ failureCategoryTotal\(categories, totalDefects\)/);
+  assert.match(
+      source,
+      /Number\.isFinite\(reportedTotal\) && reportedTotal >= 0/);
+  assert.match(
+      source,
+      /total \+ nonNegative\(category\.open\) \+ nonNegative\(category\.closed\)/);
   assert.match(source, /category\.label/);
   assert.match(source, /button\.title = category\.label \|\| "Category"/);
   assert.match(source, /data-selected-category/);

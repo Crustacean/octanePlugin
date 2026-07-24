@@ -448,11 +448,21 @@
           {color: colors.open, label: "Open"},
           {color: colors.closed, label: "Closed"}
         ]);
-    renderCategorySwitcher(switcher, categories);
+    renderCategorySwitcher(switcher, categories, payload.totalDefects);
     renderFailureDetails(zone, colors);
   }
 
-  function renderCategorySwitcher(container, categories) {
+  function failureCategoryTotal(categories, totalDefects) {
+    var reportedTotal = Number(totalDefects);
+    if (Number.isFinite(reportedTotal) && reportedTotal >= 0) {
+      return Math.floor(reportedTotal);
+    }
+    return categories.reduce(function (total, category) {
+      return total + nonNegative(category.open) + nonNegative(category.closed);
+    }, 0);
+  }
+
+  function renderCategorySwitcher(container, categories, totalDefects) {
     if (!container) {
       return;
     }
@@ -465,7 +475,8 @@
       container.setAttribute("data-selected-category", selected);
     }
     clear(container);
-    [{key: "all", label: "All"}].concat(categories).forEach(function (category) {
+    var allLabel = "All " + failureCategoryTotal(categories, totalDefects);
+    [{key: "all", label: allLabel}].concat(categories).forEach(function (category) {
       var button = createElement("button", "octane-management-category-toggle");
       var key = category.key || "all";
       button.type = "button";
