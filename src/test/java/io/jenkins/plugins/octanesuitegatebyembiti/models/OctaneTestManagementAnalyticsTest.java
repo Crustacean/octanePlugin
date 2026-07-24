@@ -194,16 +194,21 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals("Open", details.get("d1").getStatus());
     assertEquals("Closed", details.get("d2").getStatus());
     assertEquals("Closed", details.get("d4").getStatus());
-    assertEquals("#9D1D34", details.get("d1").getSeverityColor());
-    assertEquals("#000000", details.get("d3").getSeverityTextColor());
+    assertEquals("#FF3B30", details.get("d1").getSeverityColor());
+    assertEquals("#FFCC00", details.get("d2").getSeverityColor());
+    assertEquals("#FF9500", details.get("d3").getSeverityColor());
+    assertEquals("#AF52DE", details.get("d4").getSeverityColor());
+    assertEquals("#5AC8FA", details.get("d5").getSeverityColor());
+    assertEquals("#8E8E93", details.get("d6").getSeverityColor());
+    assertEquals("#000000", details.get("d1").getSeverityTextColor());
     assertEquals("#000000", details.get("d4").getSeverityTextColor());
-    assertEquals("#5A5B5B", details.get("d2").getStatusColor());
+    assertEquals("#34C759", details.get("d2").getStatusColor());
     assertTrue(
         analytics.getFailureCategories().stream()
             .anyMatch(
                 category ->
                     "Critical".equals(category.getHighestOpenSeverity())
-                        && "#9D1D34".equals(category.getOpenColor())));
+                        && "#FF3B30".equals(category.getOpenColor())));
   }
 
   @Test
@@ -235,8 +240,17 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals("Major", details.get("d4").getSeverityLabel());
     assertEquals("Minor", details.get("d5").getSeverityLabel());
     assertEquals("Minor", details.get("d6").getSeverityLabel());
-    assertEquals("#9D1D34", details.get("d1").getSeverityColor());
+    assertEquals("Critical", details.get("d1").getSeverityColorKey());
+    assertEquals("Critical", details.get("d4").getSeverityColorKey());
+    assertEquals("Medium", details.get("d5").getSeverityColorKey());
+    assertEquals("Medium", details.get("d6").getSeverityColorKey());
+    assertEquals("#FF3B30", details.get("d1").getSeverityColor());
+    assertEquals("#FF3B30", details.get("d4").getSeverityColor());
+    assertEquals("#AF52DE", details.get("d5").getSeverityColor());
+    assertEquals("#AF52DE", details.get("d6").getSeverityColor());
     assertEquals("Major", defectMap(analytics, "d1").get("severityLabel"));
+    assertEquals("Critical", defectMap(analytics, "d4").get("severityColorKey"));
+    assertEquals("Medium", defectMap(analytics, "d6").get("severityColorKey"));
   }
 
   @Test
@@ -258,6 +272,8 @@ public class OctaneTestManagementAnalyticsTest {
 
     assertEquals("Major", details.get("d1").getSeverityLabel());
     assertEquals("Medium", details.get("d2").getSeverityLabel());
+    assertEquals("#FF3B30", details.get("d1").getSeverityColor());
+    assertEquals("#AF52DE", details.get("d2").getSeverityColor());
   }
 
   @Test

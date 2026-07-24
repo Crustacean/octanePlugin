@@ -183,8 +183,13 @@ test("normalizes and renders human-readable defect status and severity pills", (
   assert.match(source, /var severityLabel = displayedSeverity\(defect\)/);
   assert.match(source, /function canonicalStatus\(defect\)/);
   assert.match(source, /return defect\.open \? "Open" : "Closed"/);
-  assert.match(source, /category\.openColor \|\| colors\.open/);
-  assert.match(source, /category\.closedColor \|\| colors\.closed/);
+  assert.doesNotMatch(source, /category\.(?:openColor|closedColor)/);
+  assert.match(
+      source,
+      /statusLabel === "Open" \? colors\.open : colors\.closed/);
+  assert.match(
+      source,
+      /defect\.severityColorKey \|\| defect\.severity \|\| severityLabel/);
   assert.match(source, /status\.setAttribute\("aria-label", "Status: " \+ statusLabel\)/);
   assert.match(
       source,
@@ -199,6 +204,23 @@ test("resolves semantic chart and metric colors from the active theme", () => {
   assert.match(source, /passed: "--octane-status-passed"/);
   assert.match(source, /global\.getComputedStyle\(zone\)\.getPropertyValue\(propertyName\)/);
   assert.match(source, /colorsFor\(payload, zone\)/);
+  assert.match(source, /critical: "--octane-severity-critical"/);
+  assert.match(source, /veryhigh: "--octane-severity-very-high"/);
+  assert.match(source, /high: "--octane-severity-high"/);
+  assert.match(source, /low: "--octane-severity-low"/);
+  assert.match(source, /medium: "--octane-severity-medium"/);
+  assert.match(source, /unspecified: "--octane-severity-unspecified"/);
+  [
+    ["--octane-severity-critical", "#FF3B30", "#FF453A"],
+    ["--octane-severity-very-high", "#FFCC00", "#FFD60A"],
+    ["--octane-severity-high", "#FF9500", "#FF9F0A"],
+    ["--octane-severity-low", "#5AC8FA", "#64D2FF"],
+    ["--octane-severity-medium", "#AF52DE", "#BF5AF2"],
+    ["--octane-severity-unspecified", "#8E8E93", "#8E8E93"]
+  ].forEach(([property, light, dark]) => {
+    assert.match(jelly, new RegExp(`${property}: ${light}`));
+    assert.match(jelly, new RegExp(`${property}: ${dark}`));
+  });
   assert.match(
       jelly,
       /\.octane-management-tone-good\s*\{[^}]*background: var\(--octane-color-good\);[^}]*color: var\(--octane-color-on-emphasis\);/s);

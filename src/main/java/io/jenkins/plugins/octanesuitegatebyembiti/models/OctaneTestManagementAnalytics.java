@@ -37,9 +37,8 @@ public final class OctaneTestManagementAnalytics implements Serializable {
   public static final String BLOCKED_COLOR = "#FF9F0A";
   public static final String FAILED_COLOR = "#FF453A";
   public static final String PASSED_COLOR = "#30D158";
-  public static final String OPEN_COLOR = "#FF453A";
+  public static final String OPEN_COLOR = "#FF3B30";
   public static final String CLOSED_COLOR = "#34C759";
-  public static final String CLOSED_HIERARCHY_COLOR = "#5A5B5B";
 
   private final String startedAt;
   private final long durationMillis;
@@ -425,7 +424,8 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     if (defects.isEmpty()) {
       return List.of();
     }
-    Map<String, String> severityLabels = severityLabels(configuredGroups);
+    Map<String, SeverityPresentation> severityPresentations =
+        severityPresentations(configuredGroups);
 
     List<Map<String, Integer>> tokenCounts = new ArrayList<>();
     Map<String, Integer> documentFrequencies = new LinkedHashMap<>();
@@ -477,17 +477,18 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       String key = occurrence == 1 ? baseKey : baseKey + "-" + occurrence;
       List<DefectDetail> details = new ArrayList<>();
       for (DefectDocument document : cluster.documents) {
-        details.add(DefectDetail.fromDefect(document.defect, key, severityLabels));
+        details.add(DefectDetail.fromDefect(document.defect, key, severityPresentations));
       }
       categories.add(new FailureCategory(key, label, details));
     }
     return List.copyOf(categories);
   }
 
-  private static Map<String, String> severityLabels(List<OctaneDefectGroup> configuredGroups) {
-    Map<String, String> labels = new LinkedHashMap<>();
+  private static Map<String, SeverityPresentation> severityPresentations(
+      List<OctaneDefectGroup> configuredGroups) {
+    Map<String, SeverityPresentation> presentations = new LinkedHashMap<>();
     if (configuredGroups == null) {
-      return labels;
+      return presentations;
     }
     for (OctaneDefectGroup group : configuredGroups) {
       if (group == null) {
@@ -497,11 +498,17 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       if (label.isEmpty()) {
         continue;
       }
+      String colorSeverity =
+          group.getNormalizedTypes().stream()
+              .map(type -> DefectDetail.canonicalSeverity(type))
+              .min(Comparator.comparingInt(severity -> DefectDetail.severityRank(severity)))
+              .orElse("Unspecified");
+      SeverityPresentation presentation = new SeverityPresentation(label, colorSeverity);
       for (String type : group.getNormalizedTypes()) {
-        labels.putIfAbsent(type, label);
+        presentations.putIfAbsent(type, presentation);
       }
     }
-    return labels;
+    return presentations;
   }
 
   private static String displayDefectGroupName(String value) {
@@ -1032,15 +1039,12 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       return defects.stream()
           .filter(defect -> defect.isOpen())
           .map(defect -> defect.getSeverity())
-          .max(Comparator.comparingInt(severity -> DefectDetail.severityRank(severity)))
+          .min(Comparator.comparingInt(severity -> DefectDetail.severityRank(severity)))
           .orElse("Closed");
     }
 
     public String getOpenColor() {
-      String severity = getHighestOpenSeverity();
-      return "Closed".equals(severity)
-          ? CLOSED_HIERARCHY_COLOR
-          : DefectDetail.severityColor(severity);
+      return getOpenCount() > 0 ? OPEN_COLOR : CLOSED_COLOR;
     }
 
     private Map<String, Object> toMap() {
@@ -1051,9 +1055,19 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       values.put("closed", getClosedCount());
       values.put("highestOpenSeverity", getHighestOpenSeverity());
       values.put("openColor", getOpenColor());
-      values.put("closedColor", CLOSED_HIERARCHY_COLOR);
+      values.put("closedColor", CLOSED_COLOR);
       values.put("defects", defects.stream().map(defect -> defect.toMap()).toList());
       return values;
+    }
+  }
+
+  private static final class SeverityPresentation {
+    private final String label;
+    private final String colorSeverity;
+
+    private SeverityPresentation(String label, String colorSeverity) {
+      this.label = label;
+      this.colorSeverity = colorSeverity;
     }
   }
 
@@ -1064,6 +1078,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     private final String description;
     private final String severity;
     private final String severityLabel;
+    private final String severityColorKey;
     private final String status;
     private final String category;
     private final boolean open;
@@ -1073,6 +1088,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
         String description,
         String severity,
         String severityLabel,
+        String severityColorKey,
         String status,
         String category,
         boolean open) {
@@ -1080,21 +1096,28 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       this.description = description;
       this.severity = severity;
       this.severityLabel = severityLabel;
+      this.severityColorKey = severityColorKey;
       this.status = status;
       this.category = category;
       this.open = open;
     }
 
     private static DefectDetail fromDefect(
-        DefectRecord defect, String category, Map<String, String> severityLabels) {
+        DefectRecord defect,
+        String category,
+        Map<String, SeverityPresentation> severityPresentations) {
       boolean open = defect.isOpen();
       String severity = canonicalSeverity(defect.getSeverity());
       String normalizedSeverity = OctaneDefectSeveritySummary.normalizeOpenType(severity);
+      SeverityPresentation presentation =
+          severityPresentations.getOrDefault(
+              normalizedSeverity, new SeverityPresentation(severity, severity));
       return new DefectDetail(
           defect.getId(),
           Util.isBlank(defect.getName()) ? "Defect " + defect.getId() : defect.getName(),
           severity,
-          severityLabels.getOrDefault(normalizedSeverity, severity),
+          presentation.label,
+          presentation.colorSeverity,
           open ? "Open" : "Closed",
           category,
           open);
@@ -1116,12 +1139,16 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       return Util.isBlank(severityLabel) ? severity : severityLabel;
     }
 
+    public String getSeverityColorKey() {
+      return Util.isBlank(severityColorKey) ? severity : severityColorKey;
+    }
+
     public String getStatus() {
       return status;
     }
 
     public String getSeverityColor() {
-      return severityColor(severity);
+      return severityColor(getSeverityColorKey());
     }
 
     public String getSeverityTextColor() {
@@ -1129,7 +1156,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     }
 
     public String getStatusColor() {
-      return open ? OPEN_COLOR : CLOSED_HIERARCHY_COLOR;
+      return open ? OPEN_COLOR : CLOSED_COLOR;
     }
 
     public boolean isOpen() {
@@ -1142,6 +1169,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       values.put("description", description);
       values.put("severity", severity);
       values.put("severityLabel", getSeverityLabel());
+      values.put("severityColorKey", getSeverityColorKey());
       values.put("status", status);
       values.put("phase", status);
       values.put("category", category);
@@ -1149,7 +1177,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       values.put("severityColor", getSeverityColor());
       values.put("severityTextColor", getSeverityTextColor());
       values.put("statusColor", getStatusColor());
-      values.put("statusTextColor", open ? "#000000" : "#ffffff");
+      values.put("statusTextColor", "#000000");
       return values;
     }
 
@@ -1177,44 +1205,38 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     private static String severityColor(String severity) {
       switch (canonicalSeverity(severity)) {
         case "Critical":
-          return "#9D1D34";
+          return "#FF3B30";
         case "Very High":
-          return "#D1334C";
+          return "#FFCC00";
         case "High":
-          return "#ED8D25";
+          return "#FF9500";
         case "Medium":
-          return "#FFD700";
+          return "#AF52DE";
         case "Low":
-          return "#ACAF4B";
+          return "#5AC8FA";
         default:
-          return "#D4D59F";
+          return "#8E8E93";
       }
     }
 
     private static String severityTextColor(String severity) {
-      String canonical = canonicalSeverity(severity);
-      return "High".equals(canonical)
-              || "Medium".equals(canonical)
-              || "Low".equals(canonical)
-              || "Unspecified".equals(canonical)
-          ? "#000000"
-          : "#ffffff";
+      return "#000000";
     }
 
     private static int severityRank(String severity) {
       switch (canonicalSeverity(severity)) {
         case "Critical":
-          return 6;
-        case "Very High":
-          return 5;
-        case "High":
-          return 4;
-        case "Medium":
-          return 3;
-        case "Low":
-          return 2;
-        default:
           return 1;
+        case "Very High":
+          return 2;
+        case "High":
+          return 3;
+        case "Medium":
+          return 4;
+        case "Low":
+          return 5;
+        default:
+          return 6;
       }
     }
   }

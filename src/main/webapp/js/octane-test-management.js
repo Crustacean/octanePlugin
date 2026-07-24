@@ -31,15 +31,22 @@
     passed: "Passed",
     skipped: "Skipped"
   };
-  var SEVERITY_COLORS = {
-    critical: "#9D1D34",
-    high: "#ED8D25",
-    low: "#ACAF4B",
-    medium: "#FFD700",
-    unspecified: "#D4D59F",
-    veryhigh: "#D1334C"
+  var DEFAULT_SEVERITY_COLORS = {
+    critical: "#FF3B30",
+    high: "#FF9500",
+    low: "#5AC8FA",
+    medium: "#AF52DE",
+    unspecified: "#8E8E93",
+    veryhigh: "#FFCC00"
   };
-  var CLOSED_STATUS_COLOR = "#5A5B5B";
+  var SEVERITY_COLOR_PROPERTIES = {
+    critical: "--octane-severity-critical",
+    high: "--octane-severity-high",
+    low: "--octane-severity-low",
+    medium: "--octane-severity-medium",
+    unspecified: "--octane-severity-unspecified",
+    veryhigh: "--octane-severity-very-high"
+  };
 
   function finiteNumber(value, fallback) {
     var number = Number(value);
@@ -120,18 +127,17 @@
         : "Open";
   }
 
-  function severityColor(severity) {
-    return SEVERITY_COLORS[
-        severity.toLowerCase().replace(/[^a-z0-9]/g, "")] || SEVERITY_COLORS.unspecified;
+  function severityColor(severity, zone) {
+    var key = String(severity || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_SEVERITY_COLORS, key)) {
+      key = "unspecified";
+    }
+    return themeColor(
+        zone, SEVERITY_COLOR_PROPERTIES[key], DEFAULT_SEVERITY_COLORS[key]);
   }
 
-  function severityTextColor(severity) {
-    return severity === "High"
-            || severity === "Medium"
-            || severity === "Low"
-            || severity === "Unspecified"
-        ? "#000000"
-        : "#ffffff";
+  function emphasisTextColor(zone) {
+    return themeColor(zone, "--octane-color-on-emphasis", "#000000");
   }
 
   function themeColor(zone, propertyName, fallback) {
@@ -414,12 +420,12 @@
       [
         {
           count: nonNegative(category.open),
-          color: category.openColor || colors.open,
+          color: colors.open,
           label: "Open"
         },
         {
           count: nonNegative(category.closed),
-          color: category.closedColor || colors.closed,
+          color: colors.closed,
           label: "Closed"
         }
       ].forEach(function (series) {
@@ -619,17 +625,19 @@
       var status = createElement("span", "octane-management-defect-pill");
       status.style.setProperty(
           "--octane-pill-color",
-          statusLabel === "Open" ? colors.open : CLOSED_STATUS_COLOR);
+          statusLabel === "Open" ? colors.open : colors.closed);
       status.style.setProperty(
-          "--octane-pill-text-color", statusLabel === "Open" ? "#000000" : "#ffffff");
+          "--octane-pill-text-color", emphasisTextColor(zone));
       status.textContent = statusLabel;
       status.setAttribute("aria-label", "Status: " + statusLabel);
       var severity = createElement("span", "octane-management-defect-pill");
       severity.style.setProperty(
-          "--octane-pill-color", defect.severityColor || severityColor(severityLabel));
+          "--octane-pill-color",
+          severityColor(
+              defect.severityColorKey || defect.severity || severityLabel,
+              zone));
       severity.style.setProperty(
-          "--octane-pill-text-color",
-          defect.severityTextColor || severityTextColor(severityLabel));
+          "--octane-pill-text-color", emphasisTextColor(zone));
       severity.textContent = severityLabel;
       severity.setAttribute("aria-label", "Severity: " + severityLabel);
       pills.appendChild(status);
