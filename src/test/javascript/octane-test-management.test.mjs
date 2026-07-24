@@ -118,7 +118,19 @@ test("matches timer heights and preserves bounded scrollable bar tracks", () => 
       /\.octane-management-state-column\s*\{[^}]*max-width: 100px;[^}]*min-width: 8px;/s);
   assert.match(
       jelly,
-      /\.octane-management-failure-chart\s*\{[^}]*overflow-x: auto;/s);
+      /\.octane-management-failure-chart\s*\{[^}]*overflow-x: hidden;[^}]*scrollbar-width: none;/s);
+  assert.match(
+      jelly,
+      /\.octane-chart-card\[data-card-key="test-management-failures"\]\.octane-expanded\s*\.octane-management-failure-chart\s*\{[^}]*overflow-x: auto;[^}]*overscroll-behavior-inline: contain;[^}]*scrollbar-color: var\(--octane-management-scrollbar-thumb\) transparent;[^}]*scrollbar-gutter: stable;[^}]*scrollbar-width: thin;/s);
+  assert.match(
+      jelly,
+      /\.octane-chart-card\[data-card-key="test-management-failures"\]\.octane-expanded\s*\.octane-management-failure-chart::-webkit-scrollbar\s*\{[^}]*height: 6px;/s);
+  assert.match(
+      jelly,
+      /\.octane-chart-card\[data-card-key="test-management-failures"\]\.octane-expanded\s*\.octane-management-failure-chart::-webkit-scrollbar-track\s*\{[^}]*background: transparent;/s);
+  assert.match(
+      jelly,
+      /\.octane-chart-card\[data-card-key="test-management-failures"\]\.octane-expanded\s*\.octane-management-failure-chart::-webkit-scrollbar-thumb\s*\{[^}]*background: var\(--octane-management-scrollbar-thumb\);[^}]*border-radius: 999px;/s);
   assert.match(
       jelly,
       /\.octane-management-failure-bar\s*\{[^}]*max-width: 100px;[^}]*min-width: 8px;/s);

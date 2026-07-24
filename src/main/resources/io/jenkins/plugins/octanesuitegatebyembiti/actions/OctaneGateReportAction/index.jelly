@@ -2514,6 +2514,7 @@
         .octane-management-failure-chart {
           --octane-management-bar-gap: clamp(2px, 1cqw, 40px);
           --octane-management-bar-width: clamp(8px, 4cqw, 100px);
+          --octane-management-scrollbar-thumb: var(--text-color-secondary);
           align-items: end;
           display: flex;
           gap: var(--octane-management-bar-gap);
@@ -2522,15 +2523,34 @@
           justify-content: safe center;
           min-height: 0;
           min-width: 0;
-          overflow-x: auto;
+          overflow-x: hidden;
           overflow-y: hidden;
-          overscroll-behavior-inline: contain;
           padding: 0 clamp(0.2rem, 1cqi, 0.5rem);
           position: relative;
           scrollbar-width: none;
         }
-        .octane-management-failure-chart::-webkit-scrollbar {
-          display: none;
+        .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+            .octane-management-failure-chart {
+          overflow-x: auto;
+          overscroll-behavior-inline: contain;
+          scrollbar-color: var(--octane-management-scrollbar-thumb) transparent;
+          scrollbar-gutter: stable;
+          scrollbar-width: thin;
+        }
+        @supports not (scrollbar-color: auto) {
+          .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+              .octane-management-failure-chart::-webkit-scrollbar {
+            height: 6px;
+          }
+          .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+              .octane-management-failure-chart::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .octane-chart-card[data-card-key="test-management-failures"].octane-expanded
+              .octane-management-failure-chart::-webkit-scrollbar-thumb {
+            background: var(--octane-management-scrollbar-thumb);
+            border-radius: 999px;
+          }
         }
         .octane-management-failure-chart::before {
           background-image:
