@@ -3352,6 +3352,7 @@
         .octane-management-metric-tile[data-management-metric-key="tester-volume"]
           .octane-management-metric-item-value {
           grid-template-columns: minmax(7ch, max-content) 0.5ch 4ch;
+          margin-inline-end: 1ch;
         }
         .octane-management-metric-tile[data-management-metric-key="tester-defects"]
           .octane-management-metric-item-value {

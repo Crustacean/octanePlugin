@@ -243,7 +243,7 @@ test("clips every metric quadrant and keeps tester rows on one line", () => {
       /\.octane-management-metric-items li\s*\{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;/s);
   assert.match(
       jelly,
-      /data-management-metric-key="tester-volume"[\s\S]*?\.octane-management-metric-item-value\s*\{[^}]*grid-template-columns: minmax\(7ch, max-content\) 0\.5ch 4ch;/s);
+      /data-management-metric-key="tester-volume"[\s\S]*?\.octane-management-metric-item-value\s*\{[^}]*grid-template-columns: minmax\(7ch, max-content\) 0\.5ch 4ch;[^}]*margin-inline-end: 1ch;/s);
   assert.match(
       jelly,
       /\.octane-management-metric-items > li > span\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s);
