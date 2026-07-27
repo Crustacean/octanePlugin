@@ -349,8 +349,10 @@ public class OctaneTestMetrics implements Serializable {
               definition.rank));
     }
     segments.sort(
-        Comparator.comparingInt(OctaneTestMetricSegment::getSeverityRank)
-            .thenComparing(OctaneTestMetricSegment::getLabel, String.CASE_INSENSITIVE_ORDER));
+        Comparator.comparingInt((OctaneTestMetricSegment segment) -> segment.getSeverityRank())
+            .thenComparing(
+                (OctaneTestMetricSegment segment) -> segment.getLabel(),
+                String.CASE_INSENSITIVE_ORDER));
     return List.copyOf(segments);
   }
 

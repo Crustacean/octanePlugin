@@ -41,7 +41,9 @@ public class OctaneTestMetricsTest {
     assertEquals(List.of("critical", "medium", "unspecified"), severityKeys(card));
     assertEquals(
         100.0,
-        card.getSegments().stream().mapToDouble(OctaneTestMetricSegment::getPercentage).sum(),
+        card.getSegments().stream()
+            .mapToDouble((OctaneTestMetricSegment segment) -> segment.getPercentage())
+            .sum(),
         0.001);
     assertEquals("M (3)", card.getSegments().get(0).getShortLabel());
   }
@@ -143,10 +145,14 @@ public class OctaneTestMetricsTest {
   }
 
   private List<String> labels(OctaneTestMetricCard card) {
-    return card.getSegments().stream().map(OctaneTestMetricSegment::getLabel).toList();
+    return card.getSegments().stream()
+        .map((OctaneTestMetricSegment segment) -> segment.getLabel())
+        .toList();
   }
 
   private List<String> severityKeys(OctaneTestMetricCard card) {
-    return card.getSegments().stream().map(OctaneTestMetricSegment::getSeverityKey).toList();
+    return card.getSegments().stream()
+        .map((OctaneTestMetricSegment segment) -> segment.getSeverityKey())
+        .toList();
   }
 }
