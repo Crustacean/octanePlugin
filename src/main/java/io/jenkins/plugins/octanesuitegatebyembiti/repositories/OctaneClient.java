@@ -158,7 +158,7 @@ public class OctaneClient implements AutoCloseable {
     JsonNode suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
     List<String> runIds = parseRunsInSuite(suiteRun);
     if (runIds.isEmpty()) {
-      return List.of(suiteRun.path("id").asText(suiteRunId));
+      return List.of(suiteRun.path("id").asString(suiteRunId));
     }
     return runIds;
   }
@@ -333,7 +333,7 @@ public class OctaneClient implements AutoCloseable {
         JsonNode data = getJson(path).path("data");
         if (data.isArray()) {
           for (JsonNode suiteRun : data) {
-            String id = suiteRun.path("id").asText();
+            String id = suiteRun.path("id").asString();
             if (!chunk.contains(id)) {
               continue;
             }
@@ -353,7 +353,7 @@ public class OctaneClient implements AutoCloseable {
         topology.put(
             suiteRunId,
             runIds.isEmpty()
-                ? List.of(suiteRun.path("id").asText(suiteRunId))
+                ? List.of(suiteRun.path("id").asString(suiteRunId))
                 : List.copyOf(runIds));
       }
     }
@@ -784,8 +784,8 @@ public class OctaneClient implements AutoCloseable {
     EntityReference test = readEntity(node.path("test"));
     EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
     return new RunRecord(
-        node.path("id").asText(),
-        node.path("name").asText(),
+        node.path("id").asString(),
+        node.path("name").asString(),
         status,
         readPersonName(node),
         test.id,
@@ -799,8 +799,8 @@ public class OctaneClient implements AutoCloseable {
     EntityReference test = readEntity(node.path("test"));
     EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
     return new DefectRecord(
-        node.path("id").asText(),
-        node.path("name").asText(),
+        node.path("id").asString(),
+        node.path("name").asString(),
         readStatus(node.path("severity")),
         readStatus(node.path("priority")),
         readStatus(node.path("phase")),
@@ -814,8 +814,8 @@ public class OctaneClient implements AutoCloseable {
     if (statusNode.isMissingNode() || statusNode.isNull()) {
       return "";
     }
-    if (statusNode.isTextual()) {
-      return statusNode.asText();
+    if (statusNode.isString()) {
+      return statusNode.asString();
     }
     Optional<String> logicalName = readOptionalText(statusNode, "logical_name");
     if (logicalName.isPresent()) {
@@ -829,7 +829,7 @@ public class OctaneClient implements AutoCloseable {
     if (value.isMissingNode() || value.isNull()) {
       return Optional.empty();
     }
-    return Optional.of(value.asText());
+    return Optional.of(value.asString());
   }
 
   private EntityReference readFirstEntity(JsonNode node, List<String> fieldNames) {
@@ -864,7 +864,7 @@ public class OctaneClient implements AutoCloseable {
       String name = readOptionalText(entityNode, "name").orElse("");
       return new EntityReference(id, name);
     }
-    return new EntityReference(entityNode.asText(), entityNode.asText());
+    return new EntityReference(entityNode.asString(), entityNode.asString());
   }
 
   private String readPersonName(JsonNode node) {
@@ -881,8 +881,8 @@ public class OctaneClient implements AutoCloseable {
     if (personNode.isMissingNode() || personNode.isNull()) {
       return Optional.empty();
     }
-    if (personNode.isTextual()) {
-      return Optional.of(personNode.asText());
+    if (personNode.isString()) {
+      return Optional.of(personNode.asString());
     }
     for (String fieldName : List.of("name", "full_name", "display_name", "email", "id")) {
       Optional<String> value = readOptionalText(personNode, fieldName);
@@ -910,12 +910,12 @@ public class OctaneClient implements AutoCloseable {
     } else if (node.isObject()) {
       JsonNode id = node.path("id");
       if (!id.isMissingNode() && !id.isNull()) {
-        runIds.add(id.asText());
+        runIds.add(id.asString());
       }
       collectRunIds(node.path("data"), runIds);
       collectRunIds(node.path("run"), runIds);
-    } else if (node.isTextual() || node.isNumber()) {
-      runIds.add(node.asText());
+    } else if (node.isString() || node.isNumber()) {
+      runIds.add(node.asString());
     }
   }
 

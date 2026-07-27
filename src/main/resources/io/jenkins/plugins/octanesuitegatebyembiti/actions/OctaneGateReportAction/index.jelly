@@ -467,6 +467,9 @@
           top: 1rem;
           z-index: 3;
         }
+        .octane-chart-card[data-card-key="timer-timeout"] {
+          container-type: size;
+        }
         .octane-flip-viewport {
           box-sizing: border-box;
           display: flex;
@@ -529,6 +532,14 @@
           .octane-flip-face-body {
           align-items: stretch;
           justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="timer-timeout"]
+          .octane-flip-face-metrics .octane-card-title {
+          font-size: clamp(0.78rem, min(3.2cqw, 5cqh), 1.3rem);
+        }
+        .octane-chart-card[data-card-key="timer-timeout"]
+          .octane-flip-face-metrics .octane-muted {
+          font-size: clamp(0.58rem, min(2.35cqw, 3.8cqh), 1rem);
         }
         .octane-chart-card[data-card-key="progress-execution"][data-active-view="breakdown"]
           .octane-flip-face-body {
@@ -1201,7 +1212,7 @@
         .octane-test-metrics-grid {
           box-sizing: border-box;
           display: grid;
-          gap: 0;
+          gap: clamp(0.3rem, min(1.8vw, 1.8vh), 1rem);
           grid-template-columns: repeat(2, minmax(0, 1fr));
           grid-template-rows: repeat(2, minmax(0, 1fr));
           height: 100%;
@@ -1210,46 +1221,47 @@
           width: 100%;
         }
         .octane-test-metric-card {
-          align-items: center;
+          --octane-test-metric-bar-label-font-size:
+            clamp(0.42rem, min(1.8cqw, 2.1cqh), 0.88rem);
+          --octane-test-metric-bar-label-gap:
+            clamp(0.32rem, min(2cqw, 2cqh), 1.1rem);
+          align-items: stretch;
           background: rgba(48, 54, 61, 0.28);
           border: 1px solid var(--input-border);
-          border-radius: 0;
+          border-radius: 12px;
           box-sizing: border-box;
           container-type: size;
           display: flex;
           flex-direction: column;
-          justify-content: center;
+          gap: clamp(0.16rem, min(0.9cqw, 0.9cqh), 0.7rem);
+          justify-content: flex-start;
           min-height: 0;
           min-width: 0;
           overflow: hidden;
-          padding: clamp(0.25rem, 1.1vmin, 2rem);
+          padding: clamp(0.42rem, min(2.4cqw, 2.4cqh), 1.5rem);
           text-align: center;
-        }
-        .octane-test-metric-card:nth-child(3) {
-          border-bottom-left-radius: 14px;
-        }
-        .octane-test-metric-card:nth-child(4) {
-          border-bottom-right-radius: 14px;
         }
         .octane-test-metric-heading {
           align-items: center;
+          align-self: flex-start;
           color: var(--text-color);
           display: inline-flex;
           font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-          font-size: clamp(0.54rem, min(2.85cqw, 3cqh), 1.75rem);
-          font-weight: 500;
-          gap: clamp(0.2rem, min(1.1cqw, 1.1cqh), 0.8rem);
-          justify-content: center;
-          letter-spacing: clamp(0.01em, 0.36cqw, 0.2em);
-          line-height: 1.12;
+          font-size: clamp(0.52rem, min(2.25cqw, 2.75cqh), 1.35rem);
+          font-weight: 650;
+          gap: clamp(0.18rem, min(0.9cqw, 0.9cqh), 0.62rem);
+          justify-content: flex-start;
+          letter-spacing: 0;
+          line-height: 1.1;
           min-width: 0;
-          max-width: 98%;
+          max-width: 100%;
           text-transform: uppercase;
           white-space: nowrap;
         }
         .octane-test-metric-heading span {
           min-width: 0;
-          overflow-wrap: anywhere;
+          overflow: hidden;
+          text-overflow: ellipsis;
           white-space: nowrap;
         }
         .octane-test-metric-icon {
@@ -1262,39 +1274,254 @@
           stroke-width: 2;
           width: clamp(1.05em, 1.55em, 2em);
         }
+        .octane-test-metric-visual {
+          align-items: center;
+          display: flex;
+          flex: 1 1 auto;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          overflow: hidden;
+          width: 100%;
+        }
         .octane-test-metric-value {
+          box-sizing: border-box;
           color: var(--text-color);
+          flex: 0 0 auto;
           font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
-          font-size: clamp(1.26rem, min(15.6cqw, 26.4cqh), 9.6rem);
+          font-size: clamp(1.15rem, min(11.5cqw, 17cqh), 5.4rem);
           font-weight: 700;
           letter-spacing: 0;
-          line-height: 0.95;
-          margin-top: clamp(0.22rem, min(2.6cqw, 2.6cqh), 2.25rem);
-          max-width: 98%;
+          line-height: 1.05;
+          max-width: 100%;
           overflow: hidden;
+          padding-block: 0.06em;
           text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .octane-test-metric-visual-sparkline {
+          gap: clamp(0.5rem, 3cqw, 2rem);
+        }
+        .octane-test-metric-sparkline {
+          aspect-ratio: 7 / 5;
+          color: var(--text-color);
+          flex: 0 1 min(34%, 9rem);
+          height: auto;
+          max-width: 34%;
+          min-width: 2.5rem;
+          overflow: visible;
+          width: min(34%, 9rem);
+        }
+        .octane-test-metric-sparkline polyline {
+          fill: none;
+          stroke: currentColor;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 2.4;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-test-metric-gauge {
+          align-items: center;
+          container-name: octane-test-metric-gauge;
+          container-type: size;
+          display: flex;
+          flex: 1 1 0;
+          justify-content: center;
+          min-height: 0;
+          width: 100%;
+        }
+        .octane-test-metric-gauge-svg {
+          aspect-ratio: 7 / 4;
+          display: block;
+          flex: 0 1 auto;
+          height: auto;
+          overflow: visible;
+          width: min(92cqw, 175cqh, 28rem);
+        }
+        .octane-test-metric-gauge-track,
+        .octane-test-metric-gauge-fill {
+          fill: none;
+          stroke-linecap: butt;
+          stroke-width: 7;
+        }
+        .octane-test-metric-gauge-track {
+          stroke: rgba(142, 142, 147, 0.42);
+          stroke: color-mix(in srgb, var(--text-color-secondary) 42%, transparent);
+        }
+        .octane-test-metric-gauge-fill {
+          stroke: var(--octane-system-green);
+        }
+        .octane-test-metric-gauge-value {
+          fill: var(--text-color);
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0;
+          text-anchor: middle;
+        }
+        .octane-test-metric-visual-progress,
+        .octane-test-metric-visual-defects {
+          flex-direction: column;
+          gap: var(--octane-test-metric-bar-label-gap);
+        }
+        .octane-test-metric-progress-wrap {
+          aspect-ratio: 34 / 1;
+          flex: 0 0 auto;
+          max-width: 30rem;
+          overflow: hidden;
+          width: min(82%, 30rem);
+        }
+        .octane-test-metric-visual-progress::after {
+          content: "";
+          flex: 0 0 calc(var(--octane-test-metric-bar-label-font-size) * 1.1);
+          width: 1px;
+        }
+        .octane-test-metric-progress {
+          appearance: none;
+          background: transparent;
+          border: 0;
+          border-radius: 999px;
+          display: block;
+          height: 100%;
+          overflow: hidden;
+          width: 100%;
+        }
+        .octane-test-metric-progress::-webkit-progress-bar {
+          background: rgba(142, 142, 147, 0.38);
+          background: color-mix(in srgb, var(--text-color-secondary) 38%, transparent);
+          border-radius: 999px;
+        }
+        .octane-test-metric-progress::-webkit-progress-value {
+          background: var(--octane-system-green);
+          border-radius: 999px;
+        }
+        .octane-test-metric-progress::-moz-progress-bar {
+          background: var(--octane-system-green);
+          border-radius: 999px;
+        }
+        .octane-test-metric-defect-segments {
+          display: flex;
+          flex: 0 0 auto;
+          flex-direction: column;
+          gap: var(--octane-test-metric-bar-label-gap);
+          max-width: 30rem;
+          min-height: 0;
+          min-width: 0;
+          width: min(82%, 30rem);
+        }
+        .octane-test-metric-defect-track {
+          aspect-ratio: 34 / 1;
+          display: flex;
+          gap: 2px;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-test-metric-defect-labels {
+          display: flex;
+          gap: 2px;
+          min-height: calc(var(--octane-test-metric-bar-label-font-size) * 1.1);
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-test-metric-defect-empty-track {
+          background: rgba(142, 142, 147, 0.38);
+          background: color-mix(in srgb, var(--text-color-secondary) 38%, transparent);
+          border-radius: 999px;
+          display: block;
+          height: 100%;
+          width: 100%;
+        }
+        .octane-test-metric-defect-segment {
+          flex: 0 1 var(--octane-test-metric-segment-share);
+          min-width: 0;
+          overflow: hidden;
+        }
+        .octane-test-metric-defect-color {
+          border-radius: 0;
+          display: block;
+          flex: 0 1 var(--octane-test-metric-segment-share);
+          height: 100%;
+          min-width: 0;
+        }
+        .octane-test-metric-defect-track
+          .octane-test-metric-defect-color:first-child {
+          border-bottom-left-radius: 999px;
+          border-top-left-radius: 999px;
+        }
+        .octane-test-metric-defect-track
+          .octane-test-metric-defect-color:last-child {
+          border-bottom-right-radius: 999px;
+          border-top-right-radius: 999px;
+        }
+        .octane-test-metric-defect-track
+          .octane-test-metric-defect-color:only-child {
+          border-radius: 999px;
+        }
+        .octane-test-metric-defect-color-critical {
+          background: var(--octane-severity-critical);
+        }
+        .octane-test-metric-defect-color-very-high {
+          background: var(--octane-severity-very-high);
+        }
+        .octane-test-metric-defect-color-high {
+          background: var(--octane-severity-high);
+        }
+        .octane-test-metric-defect-color-medium {
+          background: var(--octane-severity-medium);
+        }
+        .octane-test-metric-defect-color-low {
+          background: var(--octane-severity-low);
+        }
+        .octane-test-metric-defect-color-unspecified {
+          background: var(--octane-severity-unspecified);
+        }
+        .octane-test-metric-defect-label {
+          color: var(--text-color-secondary);
+          display: block;
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: var(--octane-test-metric-bar-label-font-size);
+          line-height: 1.1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: clip;
           white-space: nowrap;
         }
         .octane-test-metric-detail,
         .octane-test-metric-trend {
           color: var(--text-color-secondary);
           font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-          font-size: clamp(0.6rem, min(3.0625cqw, 3.3125cqh), 1.9375rem);
-          line-height: 1.14;
-          margin-top: clamp(0.08rem, min(0.8cqw, 0.8cqh), 0.75rem);
-          max-width: 98%;
+          font-size: clamp(0.5rem, min(2.1cqw, 2.5cqh), 1.12rem);
+          line-height: 1.1;
+          max-width: 100%;
           overflow: hidden;
-          overflow-wrap: anywhere;
           text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .octane-test-metric-trend {
-          font-weight: 700;
+          align-items: center;
+          align-self: center;
+          border-radius: 999px;
+          box-sizing: border-box;
+          color: #000000;
+          display: inline-flex;
+          font-weight: 600;
+          justify-content: center;
+          max-width: min(96%, 28rem);
+          min-height: clamp(1rem, 4.4cqh, 2rem);
+          overflow: visible;
+          padding: clamp(0.12rem, 0.65cqh, 0.36rem) clamp(0.34rem, 1.3cqw, 0.78rem);
+          text-overflow: clip;
+          width: fit-content;
+          white-space: nowrap;
         }
         @container (max-width: 16rem), (max-height: 10.5rem) {
+          .octane-test-metric-card {
+            gap: clamp(0.08rem, 0.55cqh, 0.24rem);
+            padding: clamp(0.3rem, min(1.7cqw, 1.7cqh), 0.7rem);
+          }
           .octane-test-metric-heading {
-            font-size: clamp(0.46rem, min(2.45cqw, 2.55cqh), 0.74rem);
+            font-size: clamp(0.45rem, min(2.2cqw, 2.45cqh), 0.74rem);
             gap: clamp(0.14rem, 0.8cqw, 0.34rem);
-            letter-spacing: clamp(0, 0.22cqw, 0.08em);
             line-height: 1.05;
             max-width: 100%;
           }
@@ -1303,37 +1530,60 @@
             width: 1.15em;
           }
           .octane-test-metric-value {
-            font-size: clamp(1.14rem, min(12cqw, 21.6cqh), 2.94rem);
-            line-height: 0.9;
-            margin-top: clamp(0.08rem, min(1.1cqw, 1.1cqh), 0.32rem);
+            font-size: clamp(1.02rem, min(10cqw, 15.5cqh), 2.7rem);
+            line-height: 1.05;
           }
           .octane-test-metric-detail,
           .octane-test-metric-trend {
-            font-size: clamp(0.55rem, min(2.75cqw, 2.8125cqh), 0.9rem);
+            font-size: clamp(0.46rem, min(2cqw, 2.25cqh), 0.8rem);
             line-height: 1.08;
-            margin-top: clamp(0.04rem, min(0.55cqw, 0.55cqh), 0.18rem);
             max-width: 100%;
+          }
+          .octane-test-metric-gauge {
+            width: 100%;
+          }
+          .octane-test-metric-gauge-svg {
+            width: min(90cqw, 175cqh, 18rem);
           }
         }
         @container (max-width: 12rem), (max-height: 8.25rem) {
+          .octane-test-metric-card {
+            --octane-test-metric-bar-label-font-size:
+              clamp(0.36rem, min(1.8cqw, 1.9cqh), 0.58rem);
+            --octane-test-metric-bar-label-gap:
+              clamp(0.1rem, 0.7cqh, 0.2rem);
+            gap: 0.04rem;
+            padding: clamp(0.18rem, min(1.2cqw, 1.2cqh), 0.4rem);
+          }
           .octane-test-metric-heading {
             font-size: clamp(0.4rem, min(2.15cqw, 2.2cqh), 0.58rem);
             letter-spacing: 0;
           }
           .octane-test-metric-value {
-            font-size: clamp(0.984rem, min(10.2cqw, 18cqh), 1.98rem);
+            font-size: clamp(0.88rem, min(8.8cqw, 13.5cqh), 1.8rem);
           }
           .octane-test-metric-detail,
           .octane-test-metric-trend {
-            font-size: clamp(0.475rem, min(2.375cqw, 2.5cqh), 0.725rem);
+            font-size: clamp(0.4rem, min(1.9cqw, 2.1cqh), 0.66rem);
             line-height: 1.05;
+          }
+          .octane-test-metric-trend {
+            font-weight: 500;
+            min-height: 0.75rem;
+            padding: 0.04rem 0.24rem;
           }
         }
         .octane-test-metric-trend-positive {
-          color: #7BE5B3;
+          background: var(--octane-system-green);
         }
         .octane-test-metric-trend-negative {
-          color: #ff6361;
+          background: var(--octane-system-red);
+        }
+        .octane-test-metric-trend-warning {
+          background: var(--octane-system-orange);
+        }
+        .octane-test-metric-trend-neutral {
+          background: var(--octane-system-gray);
         }
         .octane-defect-severity-tracker {
           container-type: inline-size;
@@ -2966,32 +3216,33 @@
           container-type: size;
           display: grid;
           flex: 1 1 auto;
-          gap: 1px;
+          gap: clamp(0.35rem, min(1.8cqi, 2.5cqh), 1rem);
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          grid-template-rows: repeat(2, minmax(0, 1fr));
+          grid-template-rows: minmax(0, 1fr) minmax(0, 1.5fr);
           min-height: 0;
           overflow: hidden;
           width: 100%;
         }
         .octane-management-metric-tile {
+          align-items: center;
           background: var(--panel-border-color);
           border: 1px solid var(--input-border);
+          border-radius: 12px;
           display: flex;
           flex-direction: column;
           justify-content: center;
           min-height: 0;
           min-width: 0;
           overflow: hidden;
-          padding: clamp(2px, 2.2cqi, 0.9rem);
-        }
-        .octane-management-metric-tile:nth-child(3) {
-          border-bottom-left-radius: 14px;
-        }
-        .octane-management-metric-tile:nth-child(4) {
-          border-bottom-right-radius: 14px;
+          padding: clamp(0.35rem, min(2.2cqi, 3cqh), 1rem);
+          text-align: center;
         }
         .octane-management-tone-good {
           background: var(--octane-color-good);
+          color: var(--octane-color-on-emphasis);
+        }
+        .octane-management-tone-warning {
+          background: var(--octane-system-orange);
           color: var(--octane-color-on-emphasis);
         }
         .octane-management-tone-bad {
@@ -2999,41 +3250,48 @@
           color: var(--octane-color-on-emphasis);
         }
         .octane-management-tone-neutral {
-          background: var(--panel-border-color);
-          color: var(--text-color);
+          background: var(--octane-system-gray);
+          color: var(--octane-color-on-emphasis);
         }
         .octane-management-metric-title {
-          font-size: clamp(0.62rem, 2.2cqi, 0.82rem);
+          font-size: clamp(0.65rem, min(2.6cqi, 5cqh), 1.15rem);
           font-weight: 600;
-          margin: 0 0 0.25rem;
+          line-height: 1.15;
+          margin: 0 0 clamp(0.12rem, 0.8cqh, 0.4rem);
+          max-width: 100%;
+          overflow-wrap: anywhere;
         }
         .octane-management-metric-value {
-          font-size: clamp(1rem, 5cqi, 2rem);
+          font-size: clamp(1.1rem, min(5cqi, 10cqh), 2.7rem);
           font-weight: 700;
           line-height: 1.05;
           max-width: 100%;
           overflow-wrap: anywhere;
         }
         .octane-management-metric-detail {
-          font-size: clamp(0.58rem, 2cqi, 0.78rem);
+          font-size: clamp(0.56rem, min(2.2cqi, 4cqh), 1rem);
           font-weight: 500;
-          margin-top: 0.2rem;
+          line-height: 1.18;
+          margin-top: clamp(0.1rem, 0.7cqh, 0.35rem);
+          max-width: 100%;
+          overflow-wrap: anywhere;
         }
         .octane-management-metric-items {
           display: grid;
-          font-size: clamp(0.54rem, 1.8cqi, 0.72rem);
-          gap: 0.12rem;
+          font-size: clamp(0.5rem, min(1.8cqi, 2.8cqh), 0.88rem);
+          gap: clamp(0.06rem, 0.55cqh, 0.25rem);
           list-style: none;
-          margin: 0.35rem 0 0;
+          margin: clamp(0.15rem, 1.1cqh, 0.55rem) 0 0;
           padding: 0;
         }
         .octane-management-metric-items li {
-          display: flex;
-          gap: 0.4rem;
-          justify-content: space-between;
+          align-items: baseline;
+          display: grid;
+          gap: clamp(0.2rem, 0.8cqi, 0.55rem);
+          grid-template-columns: minmax(0, 1fr) max-content;
           min-width: 0;
         }
-        .octane-management-metric-items span {
+        .octane-management-metric-items > li > span {
           overflow: hidden;
           text-overflow: ellipsis;
           text-wrap: nowrap;
@@ -3049,63 +3307,90 @@
           width: 100%;
         }
         .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items {
+          box-sizing: border-box;
+          padding-inline-end: clamp(0.3rem, 1.2cqi, 0.7rem);
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-value,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-value,
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-detail,
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-detail {
+          text-align: center;
+          width: 100%;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
           .octane-management-metric-items li,
         .octane-management-metric-tile[data-management-metric-key="tester-defects"]
           .octane-management-metric-items li {
-          align-items: baseline;
-          flex-wrap: nowrap;
           overflow: hidden;
         }
         .octane-management-metric-tile[data-management-metric-key="tester-volume"]
-          .octane-management-metric-items span,
+          .octane-management-metric-items > li > span,
         .octane-management-metric-tile[data-management-metric-key="tester-defects"]
-          .octane-management-metric-items span {
-          flex: 1 1 auto;
+          .octane-management-metric-items > li > span {
           min-width: 0;
         }
-        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
-          .octane-management-metric-items strong,
-        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
-          .octane-management-metric-items strong {
-          flex: 0 0 auto;
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"],
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"] {
+          align-items: stretch;
+          text-align: start;
+        }
+        .octane-management-metric-item-value {
+          align-items: baseline;
+          display: grid;
+          font-variant-numeric: tabular-nums;
+          font-weight: 600;
+          justify-content: end;
+          min-width: 0;
           text-wrap: nowrap;
           white-space: nowrap;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-item-value {
+          grid-template-columns: minmax(7ch, max-content) 0.5ch 4ch;
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-defects"]
+          .octane-management-metric-item-value {
+          grid-template-columns: minmax(7ch, max-content);
+        }
+        .octane-management-metric-item-primary,
+        .octane-management-metric-item-secondary {
+          text-align: end;
+        }
+        .octane-management-metric-item-separator {
+          text-align: center;
         }
         @container octane-management-metrics
           (max-width: 20rem) or (max-height: 14rem) {
           .octane-management-metric-tile {
-            padding: clamp(2px, 1.8cqi, 0.45rem);
-            text-align: center;
+            padding: clamp(2px, min(1.6cqi, 2.3cqh), 0.45rem);
           }
           .octane-management-metric-title {
-            font-size: clamp(0.46rem, min(3.6cqi, 4.2cqh), 0.62rem);
-            font-weight: 400;
+            font-size: clamp(0.46rem, min(3.2cqi, 4.2cqh), 0.68rem);
+            font-weight: 600;
             line-height: 1.08;
             margin-bottom: 0.12rem;
-            overflow-wrap: anywhere;
           }
           .octane-management-metric-value {
-            font-size: clamp(0.64rem, min(6.2cqi, 7cqh), 1.15rem);
-            font-weight: 400;
+            font-size: clamp(0.68rem, min(6cqi, 7cqh), 1.2rem);
+            font-weight: 700;
             line-height: 1;
           }
           .octane-management-metric-detail {
             font-size: clamp(0.43rem, min(3cqi, 3.6cqh), 0.58rem);
-            font-weight: 400;
+            font-weight: 500;
             line-height: 1.08;
             margin-top: 0.1rem;
-            overflow-wrap: anywhere;
           }
           .octane-management-metric-items {
             font-size: clamp(0.42rem, min(2.7cqi, 3.1cqh), 0.56rem);
-            font-weight: 400;
             gap: 0;
             line-height: 1.05;
             margin-top: 0.16rem;
-            text-align: start;
-          }
-          .octane-management-metric-items strong {
-            font-weight: 400;
           }
         }
         @container octane-management-metrics
@@ -3137,6 +3422,19 @@
           .octane-tester-tracker + .octane-tester-tracker {
             border-left: 1px solid var(--input-border);
             border-top: 0;
+          }
+        }
+        @media (max-height: 34rem) and (min-aspect-ratio: 2 / 1) {
+          .octane-timer-zone.octane-zone-focused {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-rows: minmax(0, 1fr);
+          }
+          .octane-timer-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(3),
+          .octane-timer-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(4) {
+            grid-column: auto;
+            grid-row: auto;
           }
         }
         @media (max-width: 840px) {
@@ -3376,7 +3674,79 @@
                             </j:choose>
                             <span>${metric.title}</span>
                           </div>
-                          <div class="octane-test-metric-value">${metric.value}</div>
+                          <j:choose>
+                            <j:when test="${metric.key == 'avg-time'}">
+                              <div class="octane-test-metric-visual octane-test-metric-visual-sparkline">
+                                <div class="octane-test-metric-value">${metric.value}</div>
+                                <svg class="octane-test-metric-sparkline" viewBox="0 0 56 40"
+                                    preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                                  <polyline points="${metric.sparklinePoints}" />
+                                </svg>
+                              </div>
+                            </j:when>
+                            <j:when test="${metric.key == 'success-rate'}">
+                              <div class="octane-test-metric-visual octane-test-metric-gauge">
+                                <svg class="octane-test-metric-gauge-svg" viewBox="0 0 84 48"
+                                    aria-hidden="true">
+                                  <path class="octane-test-metric-gauge-track"
+                                      d="M12 42 A30 30 0 0 1 72 42" pathLength="100" />
+                                  <path class="octane-test-metric-gauge-fill"
+                                      d="M12 42 A30 30 0 0 1 72 42" pathLength="100"
+                                      stroke-dasharray="${metric.progressPercentText} 100" />
+                                  <text class="octane-test-metric-gauge-value" x="42" y="43">
+                                    ${metric.value}
+                                  </text>
+                                </svg>
+                              </div>
+                            </j:when>
+                            <j:when test="${metric.key == 'execution'}">
+                              <div class="octane-test-metric-visual octane-test-metric-visual-progress">
+                                <div class="octane-test-metric-value">${metric.value}</div>
+                                <div class="octane-test-metric-progress-wrap">
+                                  <progress class="octane-test-metric-progress" max="100"
+                                      value="${metric.progressPercentText}"
+                                      aria-label="${metric.title} ${metric.value}"></progress>
+                                </div>
+                              </div>
+                            </j:when>
+                            <j:when test="${metric.key == 'defects'}">
+                              <div class="octane-test-metric-visual octane-test-metric-visual-defects">
+                                <div class="octane-test-metric-value">${metric.value}</div>
+                                <div class="octane-test-metric-defect-segments"
+                                    data-test-metric-segments="true">
+                                  <j:if test="${!metric.segmented}">
+                                    <div class="octane-test-metric-defect-track" aria-hidden="true">
+                                      <span class="octane-test-metric-defect-empty-track"></span>
+                                    </div>
+                                  </j:if>
+                                  <j:if test="${metric.segmented}">
+                                    <div class="octane-test-metric-defect-track" aria-hidden="true">
+                                      <j:forEach var="segment" items="${metric.segments}">
+                                        <span class="octane-test-metric-defect-color octane-test-metric-defect-color-${segment.severityKey}"
+                                            style="--octane-test-metric-segment-share:${segment.percentageText}%"></span>
+                                      </j:forEach>
+                                    </div>
+                                  </j:if>
+                                  <div class="octane-test-metric-defect-labels">
+                                    <j:forEach var="segment" items="${metric.segments}">
+                                      <div class="octane-test-metric-defect-segment"
+                                          data-test-metric-segment="true"
+                                          data-full-label="${segment.label}"
+                                          data-short-label="${segment.shortLabel}"
+                                          style="--octane-test-metric-segment-share:${segment.percentageText}%">
+                                        <span class="octane-test-metric-defect-label">
+                                          ${segment.label}
+                                        </span>
+                                      </div>
+                                    </j:forEach>
+                                  </div>
+                                </div>
+                              </div>
+                            </j:when>
+                            <j:otherwise>
+                              <div class="octane-test-metric-value">${metric.value}</div>
+                            </j:otherwise>
+                          </j:choose>
                           <div class="octane-test-metric-detail">${metric.detail}</div>
                           <div class="octane-test-metric-trend octane-test-metric-trend-${metric.trendTone}">
                             ${metric.trendText}
@@ -5030,6 +5400,63 @@
               panel.innerHTML = payload.riskHeatMapHtml;
             }
           }
+          /* OCTANE_TEST_METRIC_LABELS_START */
+          var testMetricSegmentResizeObserver = null;
+          var testMetricSegmentResizeFallbackBound = false;
+          var testMetricSegmentLabelScheduled = false;
+          function fitTestMetricSegmentLabels(root) {
+            var scope = root || dashboard;
+            var segments = scope.querySelectorAll("[data-test-metric-segment]");
+            for (var index = 0; index < segments.length; index += 1) {
+              var segment = segments[index];
+              var label = segment.querySelector(".octane-test-metric-defect-label");
+              if (!label) {
+                continue;
+              }
+              var fullLabel = segment.getAttribute("data-full-label") || "";
+              var shortLabel = segment.getAttribute("data-short-label") || fullLabel;
+              label.textContent = fullLabel;
+              label.title = fullLabel;
+              var labelWidth = label.getBoundingClientRect().width;
+              var segmentWidth = segment.getBoundingClientRect().width;
+              var availableWidth = Math.max(0, labelWidth || segmentWidth);
+              if (availableWidth > 0 && label.scrollWidth > availableWidth + 0.5) {
+                label.textContent = shortLabel;
+              }
+            }
+          }
+          function scheduleTestMetricSegmentLabels(root) {
+            if (testMetricSegmentLabelScheduled) {
+              return;
+            }
+            testMetricSegmentLabelScheduled = true;
+            requestFrame(function () {
+              testMetricSegmentLabelScheduled = false;
+              fitTestMetricSegmentLabels(root || dashboard);
+            });
+          }
+          function initializeTestMetricSegments(root) {
+            var scope = root || dashboard;
+            var containers = scope.querySelectorAll("[data-test-metric-segments]");
+            if (typeof window.ResizeObserver === "function") {
+              if (testMetricSegmentResizeObserver) {
+                testMetricSegmentResizeObserver.disconnect();
+              }
+              testMetricSegmentResizeObserver = new window.ResizeObserver(function () {
+                scheduleTestMetricSegmentLabels(dashboard);
+              });
+              for (var index = 0; index < containers.length; index += 1) {
+                testMetricSegmentResizeObserver.observe(containers[index]);
+              }
+            } else if (!testMetricSegmentResizeFallbackBound) {
+              window.addEventListener("resize", function () {
+                scheduleTestMetricSegmentLabels(dashboard);
+              });
+              testMetricSegmentResizeFallbackBound = true;
+            }
+            scheduleTestMetricSegmentLabels(scope);
+          }
+          /* OCTANE_TEST_METRIC_LABELS_END */
           function updateTestMetrics(payload) {
             if (!payload || typeof payload.testMetricsHtml !== "string") {
               return;
@@ -5037,6 +5464,7 @@
             var panel = dashboard.querySelector("[data-test-metrics-panel]");
             if (panel) {
               panel.innerHTML = payload.testMetricsHtml;
+              initializeTestMetricSegments(panel);
             }
           }
           function updateExecutionStatusDistribution(payload) {
@@ -6188,6 +6616,7 @@
                 null);
           }
           initializeCardViews(dashboard);
+          initializeTestMetricSegments(dashboard);
           initializeExecutionBreakdownScaling(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();

@@ -23,6 +23,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
   private static final int EXECUTION_INTERVAL_COUNT = 10;
   private static final int MAX_FAILURE_CLUSTERS = 8;
   private static final int TOP_TESTER_LIMIT = 5;
+  private static final double ACTION_THRESHOLD_PERCENT = 70.0;
   private static final double CLUSTER_SIMILARITY_THRESHOLD = 0.24;
   private static final Pattern CLUSTER_TOKEN_PATTERN =
       Pattern.compile("[a-z0-9]+(?:[-_.][a-z0-9]+)*");
@@ -294,6 +295,9 @@ public final class OctaneTestManagementAnalytics implements Serializable {
         slowTesters++;
       }
     }
+    int expectedOpenDefects = getExpectedOpenDefects();
+    int topTesterOpenDefects =
+        topDefectTesters.stream().mapToInt(tester -> tester.getOpenDefects()).sum();
     return List.of(
         defectComplianceMetric(),
         new MetricQuadrant(
@@ -301,26 +305,29 @@ public final class OctaneTestManagementAnalytics implements Serializable {
             "Open vs Closed",
             openDefects + " open",
             closedDefects + " closed",
-            openDefects == 0 ? "good" : "bad",
+            openDefects == 0 && closedDefects == 0
+                ? "neutral"
+                : thresholdTone(openDefects, totalDefects),
             List.of()),
         new MetricQuadrant(
             "tester-volume",
-            "Top 5 Testers (Volume)",
+            "Top Testers by Volume",
             topVolumeTesters.size() + " testers",
             slowTesters == 0
                 ? "On pace against " + executionTarget + "% execution"
                 : slowTesters + " below " + executionTarget + "% execution",
-            slowTesters > 0 ? "bad" : "neutral",
+            topVolumeTesters.isEmpty()
+                ? "neutral"
+                : thresholdTone(slowTesters, topVolumeTesters.size()),
             testerItems(topVolumeTesters, false)),
         new MetricQuadrant(
             "tester-defects",
-            "Top 5 Testers (Defects)",
-            topDefectTesters.isEmpty()
-                ? "0 open"
-                : topDefectTesters.stream().mapToInt(tester -> tester.getOpenDefects()).sum()
-                    + " open",
+            "Top Testers by Open Defects",
+            topTesterOpenDefects + " open",
             topDefectTesters.isEmpty() ? "No tester-linked open defects" : "Highest open workload",
-            topDefectTesters.isEmpty() ? "neutral" : "bad",
+            topDefectTesters.isEmpty()
+                ? "neutral"
+                : thresholdTone(topTesterOpenDefects, expectedOpenDefects),
             testerItems(topDefectTesters, true)));
   }
 
@@ -337,10 +344,10 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       tone = "good";
     } else if (variance > 0) {
       value = variance + " surplus";
-      tone = "bad";
+      tone = thresholdTone(Math.abs(variance), Math.max(expected, openDefects));
     } else {
       value = Math.abs(variance) + " under-reported";
-      tone = "bad";
+      tone = thresholdTone(Math.abs(variance), Math.max(expected, openDefects));
     }
     return new MetricQuadrant(
         "defect-compliance",
@@ -349,6 +356,17 @@ public final class OctaneTestManagementAnalytics implements Serializable {
         expected + " expected | " + openDefects + " open",
         tone,
         List.of());
+  }
+
+  private static String thresholdTone(int affected, int baseline) {
+    if (affected <= 0) {
+      return "good";
+    }
+    if (baseline <= 0) {
+      return "bad";
+    }
+    double affectedPercent = affected * 100.0 / baseline;
+    return affectedPercent > ACTION_THRESHOLD_PERCENT ? "bad" : "warning";
   }
 
   public Map<String, Object> toMap() {
@@ -683,11 +701,17 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     for (TesterSummary tester : testers) {
       Map<String, Object> item = new LinkedHashMap<>();
       item.put("label", tester.getName());
-      item.put(
-          "value",
-          defects
-              ? tester.getOpenDefects() + " open"
-              : tester.getTotal() + " tests | " + tester.getExecutionRateText());
+      if (defects) {
+        String openDefectsText = tester.getOpenDefects() + " open";
+        item.put("value", openDefectsText);
+        item.put("primaryValue", openDefectsText);
+        item.put("secondaryValue", "");
+      } else {
+        String testCountText = tester.getTotal() + " tests";
+        item.put("value", testCountText + " | " + tester.getExecutionRateText());
+        item.put("primaryValue", testCountText);
+        item.put("secondaryValue", tester.getExecutionRateText());
+      }
       values.add(item);
     }
     return values;

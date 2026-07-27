@@ -65,12 +65,17 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals(2, analytics.getTopDefectTesters().get(0).getOpenDefects());
 
     List<OctaneTestManagementAnalytics.MetricQuadrant> metrics = analytics.getMetricQuadrants();
-    assertEquals("bad", metrics.get(0).getTone());
+    assertEquals("warning", metrics.get(0).getTone());
     assertEquals("1 surplus", metrics.get(0).getValue());
     assertEquals("2 expected | 3 open", metrics.get(0).getDetail());
     assertEquals("bad", metrics.get(1).getTone());
-    assertEquals("bad", metrics.get(2).getTone());
+    assertEquals("warning", metrics.get(2).getTone());
     assertEquals("bad", metrics.get(3).getTone());
+    assertEquals("Top Testers by Volume", metrics.get(2).getTitle());
+    assertEquals("Top Testers by Open Defects", metrics.get(3).getTitle());
+    assertEquals("3 tests", metrics.get(2).getItems().get(0).get("primaryValue"));
+    assertEquals("33%", metrics.get(2).getItems().get(0).get("secondaryValue"));
+    assertEquals("2 open", metrics.get(3).getItems().get(0).get("primaryValue"));
   }
 
   @Test
@@ -299,7 +304,7 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals("No open defects", analytics.getMetricQuadrants().get(0).getValue());
     assertEquals("0 expected | 0 open", analytics.getMetricQuadrants().get(0).getDetail());
     assertEquals("neutral", analytics.getMetricQuadrants().get(0).getTone());
-    assertEquals("good", analytics.getMetricQuadrants().get(1).getTone());
+    assertEquals("neutral", analytics.getMetricQuadrants().get(1).getTone());
   }
 
   @Test
@@ -331,7 +336,41 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals("good", compliant.getMetricQuadrants().get(0).getTone());
     assertEquals(-1, underReported.getOpenDefectVariance());
     assertEquals("1 under-reported", underReported.getMetricQuadrants().get(0).getValue());
-    assertEquals("bad", underReported.getMetricQuadrants().get(0).getTone());
+    assertEquals("warning", underReported.getMetricQuadrants().get(0).getTone());
+  }
+
+  @Test
+  public void appliesWarningThroughSeventyPercentAndActionAboveSeventyPercent() {
+    List<RunRecord> runs =
+        List.of(
+            run("1", "failed", "Tester Alpha", "test-1"),
+            run("2", "passed", "Tester Alpha", "test-2"));
+    OctaneTestManagementAnalytics warning =
+        analyticsAt(
+            "2026-07-23T08:01:00Z",
+            runs,
+            defectsWithPhases(7, 3),
+            CriteriaEvaluation.unavailable());
+    OctaneTestManagementAnalytics action =
+        analyticsAt(
+            "2026-07-23T08:01:00Z",
+            runs,
+            defectsWithPhases(8, 2),
+            CriteriaEvaluation.unavailable());
+
+    assertEquals("warning", warning.getMetricQuadrants().get(1).getTone());
+    assertEquals("bad", action.getMetricQuadrants().get(1).getTone());
+
+    List<RunRecord> allBelowTarget =
+        List.of(
+            run("10", "planned", "Tester One", "test-10"),
+            run("11", "planned", "Tester Two", "test-11"),
+            run("12", "planned", "Tester Three", "test-12"),
+            run("13", "planned", "Tester Four", "test-13"));
+    OctaneTestManagementAnalytics volumeAction =
+        analyticsAt(
+            "2026-07-23T08:01:00Z", allBelowTarget, List.of(), CriteriaEvaluation.unavailable());
+    assertEquals("bad", volumeAction.getMetricQuadrants().get(2).getTone());
   }
 
   @Test
@@ -442,6 +481,18 @@ public class OctaneTestManagementAnalyticsTest {
         defect("d2", "Broken selector in script", "high", "fixed", "1", "test-1"),
         defect("d3", "Stale test data", "medium", "opened", "5", "test-5"),
         defect("d4", "Checkout total is wrong", "very high", "new", "", "test-4"));
+  }
+
+  private List<DefectRecord> defectsWithPhases(int open, int closed) {
+    List<DefectRecord> values = new java.util.ArrayList<>();
+    for (int index = 0; index < open; index++) {
+      values.add(defect("open-" + index, "Open defect " + index, "high", "new", "1", "test-1"));
+    }
+    for (int index = 0; index < closed; index++) {
+      values.add(
+          defect("closed-" + index, "Closed defect " + index, "medium", "fixed", "1", "test-1"));
+    }
+    return List.copyOf(values);
   }
 
   private DefectRecord defect(

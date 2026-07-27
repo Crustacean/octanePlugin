@@ -503,14 +503,21 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-test-metrics-panel=\"true\""));
     assertTrue(xml.contains("octane-test-metrics-grid"));
     assertTrue(xml.contains("octane-test-metric-card"));
-    assertTrue(xml.contains(".octane-test-metric-card:nth-child(3)"));
-    assertTrue(xml.contains("border-bottom-left-radius: 14px"));
-    assertTrue(xml.contains(".octane-test-metric-card:nth-child(4)"));
-    assertTrue(xml.contains("border-bottom-right-radius: 14px"));
+    assertTrue(xml.contains("gap: clamp(0.3rem"));
+    assertTrue(xml.contains("border-radius: 12px"));
+    assertFalse(xml.contains(".octane-test-metric-card:nth-child(3)"));
+    assertFalse(xml.contains(".octane-test-metric-card:nth-child(4)"));
     assertTrue(xml.contains("data-test-metric-key=\"avg-time\""));
     assertTrue(xml.contains("data-test-metric-key=\"success-rate\""));
     assertTrue(xml.contains("data-test-metric-key=\"execution\""));
     assertTrue(xml.contains("data-test-metric-key=\"defects\""));
+    assertTrue(xml.contains("octane-test-metric-sparkline"));
+    assertTrue(xml.contains("octane-test-metric-gauge-fill"));
+    assertTrue(xml.contains("octane-test-metric-progress"));
+    assertTrue(xml.contains("data-test-metric-segments=\"true\""));
+    assertTrue(xml.contains("fitTestMetricSegmentLabels"));
+    assertTrue(xml.contains("new window.ResizeObserver"));
+    assertTrue(xml.contains("octane-test-metric-trend-warning"));
     assertTrue(xml.contains("octane-zone-focus-toggle"));
     assertTrue(xml.contains("octane-icon-zone-expand"));
     assertFalse(xml.contains("octane-icon-zone-collapse"));
@@ -1040,6 +1047,24 @@ public class OctaneGateReportActionTest {
     assertTrue(
         payload.getString("executionStatusDistributionHtml").contains("x=\"160\" y=\"172\""));
     assertEquals(4, payload.getJSONObject("testMetrics").getJSONArray("cards").size());
+    assertTrue(
+        payload
+            .getJSONObject("testMetrics")
+            .getJSONArray("cards")
+            .getJSONObject(0)
+            .containsKey("sparklinePoints"));
+    assertTrue(
+        payload
+            .getJSONObject("testMetrics")
+            .getJSONArray("cards")
+            .getJSONObject(1)
+            .containsKey("progressPercent"));
+    assertTrue(
+        payload
+            .getJSONObject("testMetrics")
+            .getJSONArray("cards")
+            .getJSONObject(3)
+            .containsKey("segments"));
     assertTrue(payload.getJSONObject("defectTrend").getJSONArray("points").size() >= 1);
     assertEquals(0, payload.getJSONObject("defectTrend").getInt("openedTotal"));
     assertEquals("#ff6361", payload.getJSONObject("defectTrend").getString("openedColor"));

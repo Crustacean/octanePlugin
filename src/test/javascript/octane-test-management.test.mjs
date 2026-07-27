@@ -184,7 +184,7 @@ test("matches timer heights and preserves bounded scrollable bar tracks", () => 
       /\.octane-management-failure-label\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s);
 });
 
-test("keeps standard grid axes, rounded lower quadrants, and capsule pills", () => {
+test("keeps standard grid axes, rounded metric tiles, and capsule pills", () => {
   assert.match(
       jelly,
       /\.octane-management-plot-layout\s*\{[^}]*--octane-management-axis-gap: 0\.09rem;[^}]*column-gap: var\(--octane-management-axis-gap\)[^}]*grid-template-columns:\s*1\.35rem max-content minmax\(0, 1fr\)/s);
@@ -207,10 +207,7 @@ test("keeps standard grid axes, rounded lower quadrants, and capsule pills", () 
       /\.octane-management-failure-chart::after\s*\{[^}]*bottom: calc\(var\(--octane-management-failure-axis-row\) - 1px\)/s);
   assert.match(
       jelly,
-      /\.octane-management-metric-tile:nth-child\(3\)[^}]*border-bottom-left-radius: 14px/s);
-  assert.match(
-      jelly,
-      /\.octane-management-metric-tile:nth-child\(4\)[^}]*border-bottom-right-radius: 14px/s);
+      /\.octane-management-metric-tile\s*\{[^}]*border-radius: 12px/s);
   assert.match(
       jelly,
       /\.octane-management-defect-pill\s*\{[^}]*border-radius: 9999px[^}]*padding:\s*clamp\(0\.25rem, 1cqi, 0\.4rem\)\s*clamp\(0\.4rem, 1\.5cqi, 0\.75rem\)/s);
@@ -219,16 +216,16 @@ test("keeps standard grid axes, rounded lower quadrants, and capsule pills", () 
 test("scales testing metric typography inside compact quadrant containers", () => {
   assert.match(
       jelly,
-      /\.octane-management-metrics-grid\s*\{[^}]*container-name: octane-management-metrics;[^}]*container-type: size;/s);
+      /\.octane-management-metrics-grid\s*\{[^}]*container-name: octane-management-metrics;[^}]*container-type: size;[^}]*gap: clamp\(0\.35rem, min\(1\.8cqi, 2\.5cqh\), 1rem\);[^}]*grid-template-rows: minmax\(0, 1fr\) minmax\(0, 1\.5fr\);/s);
   assert.match(
       jelly,
-      /@container octane-management-metrics\s*\(max-width: 20rem\) or \(max-height: 14rem\)[\s\S]*?\.octane-management-metric-tile\s*\{[^}]*padding: clamp\(2px, 1\.8cqi, 0\.45rem\);[^}]*text-align: center;/s);
+      /\.octane-management-metric-tile\s*\{[^}]*align-items: center;[^}]*overflow: hidden;[^}]*text-align: center;/s);
   assert.match(
       jelly,
-      /@container octane-management-metrics\s*\(max-width: 20rem\) or \(max-height: 14rem\)[\s\S]*?\.octane-management-metric-title\s*\{[^}]*font-size: clamp\(0\.46rem, min\(3\.6cqi, 4\.2cqh\), 0\.62rem\);[^}]*font-weight: 400;/s);
+      /\.octane-management-metric-title\s*\{[^}]*font-size: clamp\(0\.65rem, min\(2\.6cqi, 5cqh\), 1\.15rem\);[^}]*font-weight: 600;/s);
   assert.match(
       jelly,
-      /@container octane-management-metrics\s*\(max-width: 20rem\) or \(max-height: 14rem\)[\s\S]*?\.octane-management-metric-value\s*\{[^}]*font-size: clamp\(0\.64rem, min\(6\.2cqi, 7cqh\), 1\.15rem\);[^}]*font-weight: 400;/s);
+      /\.octane-management-metric-value\s*\{[^}]*font-size: clamp\(1\.1rem, min\(5cqi, 10cqh\), 2\.7rem\);[^}]*font-weight: 700;/s);
   assert.match(
       jelly,
       /@container octane-management-metrics\s*\(max-width: 15rem\) or \(max-height: 10rem\)[\s\S]*?\.octane-management-metric-value\s*\{[^}]*font-size: clamp\(0\.56rem, min\(5\.5cqi, 6cqh\), 0\.88rem\)/s);
@@ -237,19 +234,21 @@ test("scales testing metric typography inside compact quadrant containers", () =
 test("clips every metric quadrant and keeps tester rows on one line", () => {
   assert.match(
       jelly,
-      /\.octane-management-metric-tile\s*\{[^}]*overflow: hidden;[^}]*padding: clamp\(2px, 2\.2cqi, 0\.9rem\);/s);
+      /\.octane-management-metric-tile\s*\{[^}]*overflow: hidden;[^}]*padding: clamp\(0\.35rem, min\(2\.2cqi, 3cqh\), 1rem\);/s);
   assert.match(
       source,
       /tile\.setAttribute\(\s*"data-management-metric-key",\s*String\(metric\.key \|\| ""\)\.trim\(\)\.toLowerCase\(\)\);/s);
   assert.match(
       jelly,
-      /\.octane-management-metric-tile\[data-management-metric-key="tester-volume"\][\s\S]*?\.octane-management-metric-items li,[\s\S]*?data-management-metric-key="tester-defects"[\s\S]*?\.octane-management-metric-items li\s*\{[^}]*flex-wrap: nowrap;[^}]*overflow: hidden;/s);
+      /\.octane-management-metric-items li\s*\{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;/s);
   assert.match(
       jelly,
-      /\.octane-management-metric-tile\[data-management-metric-key="tester-volume"\][\s\S]*?\.octane-management-metric-items span,[\s\S]*?data-management-metric-key="tester-defects"[\s\S]*?\.octane-management-metric-items span\s*\{[^}]*flex: 1 1 auto;[^}]*min-width: 0;/s);
+      /data-management-metric-key="tester-volume"[\s\S]*?\.octane-management-metric-item-value\s*\{[^}]*grid-template-columns: minmax\(7ch, max-content\) 0\.5ch 4ch;/s);
   assert.match(
       jelly,
-      /\.octane-management-metric-items span\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*text-wrap: nowrap;[^}]*white-space: nowrap;/s);
+      /\.octane-management-metric-items > li > span\s*\{[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s);
+  assert.match(source, /item\.primaryValue != null/);
+  assert.match(source, /octane-management-metric-item-secondary/);
 });
 
 test("normalizes and renders human-readable defect status and severity pills", () => {
@@ -401,13 +400,19 @@ test("resolves semantic chart and metric colors from the active theme", () => {
       /\.octane-management-tone-good\s*\{[^}]*background: var\(--octane-color-good\);[^}]*color: var\(--octane-color-on-emphasis\);/s);
   assert.match(
       jelly,
+      /\.octane-management-tone-warning\s*\{[^}]*background: var\(--octane-system-orange\);[^}]*color: var\(--octane-color-on-emphasis\);/s);
+  assert.match(
+      jelly,
       /\.octane-management-tone-bad\s*\{[^}]*background: var\(--octane-color-bad\);[^}]*color: var\(--octane-color-on-emphasis\);/s);
+  assert.match(
+      jelly,
+      /\.octane-management-tone-neutral\s*\{[^}]*background: var\(--octane-system-gray\);[^}]*color: var\(--octane-color-on-emphasis\);/s);
   assert.match(
       jelly,
       /\.octane-management-category-toggle\[aria-pressed="true"\]\s*\{[^}]*background: var\(--octane-color-neutral\);[^}]*color: var\(--octane-color-on-emphasis\);/s);
   assert.doesNotMatch(
       jelly,
-      /\.octane-management-tone-(?:good|bad)\s*\{[^}]*(?:#34C759|#FF3B30|#ffffff)/s);
+      /\.octane-management-tone-(?:good|warning|bad|neutral)\s*\{[^}]*(?:#34C759|#FF3B30|#FF9500|#8E8E93|#ffffff)/s);
 });
 
 test("coalesces repeated polling updates into one connected-frame render", () => {
