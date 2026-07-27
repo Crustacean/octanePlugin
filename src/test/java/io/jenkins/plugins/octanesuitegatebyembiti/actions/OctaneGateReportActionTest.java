@@ -503,7 +503,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-test-metrics-panel=\"true\""));
     assertTrue(xml.contains("octane-test-metrics-grid"));
     assertTrue(xml.contains("octane-test-metric-card"));
-    assertTrue(xml.contains("gap: 16px"));
+    assertTrue(xml.contains("gap: clamp(0.3rem"));
     assertTrue(xml.contains("border-radius: 12px"));
     assertFalse(xml.contains(".octane-test-metric-card:nth-child(3)"));
     assertFalse(xml.contains(".octane-test-metric-card:nth-child(4)"));

@@ -15,6 +15,9 @@ function metricSegment({availableWidth, fullLabel, fullWidth, shortLabel, shortW
   let text = "";
   const label = {
     title: "",
+    getBoundingClientRect() {
+      return {width: availableWidth};
+    },
     get scrollWidth() {
       return text === fullLabel ? fullWidth : shortWidth;
     },
@@ -50,7 +53,10 @@ function contextFor(segments) {
   };
   const context = {
     dashboard: root,
-    requestFrame: callback => callback(),
+    requestFrame: callback => {
+      callback();
+      return 1;
+    },
     window: {addEventListener() {}}
   };
   vm.runInNewContext(
@@ -94,9 +100,23 @@ test("uses the compact defect label when the rendered segment is narrow", () => 
 
 test("retains responsive and polling hooks for refreshed metric markup", () => {
   assert.match(jelly, /new window\.ResizeObserver/);
+  assert.match(jelly, /testMetricSegmentResizeObserver\.disconnect\(\)/);
   assert.match(jelly, /initializeTestMetricSegments\(panel\)/);
   assert.match(jelly, /initializeTestMetricSegments\(dashboard\)/);
   assert.match(jelly, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(jelly, /grid-template-rows: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(jelly, /\.octane-test-metric-card \{[\s\S]*?overflow: hidden/);
+  assert.match(jelly, /\.octane-test-metric-sparkline \{[\s\S]*?aspect-ratio: 7 \/ 5/);
+  assert.match(jelly, /\.octane-test-metric-gauge-svg \{[\s\S]*?aspect-ratio: 7 \/ 4/);
+  assert.match(jelly, /container-name: octane-test-metric-gauge/);
+  assert.match(jelly, /width: min\(92cqw, 175cqh, 28rem\)/);
+  assert.match(
+      jelly,
+      /@media \(max-height: 34rem\) and \(min-aspect-ratio: 2 \/ 1\)/);
+  assert.match(jelly, /<text class="octane-test-metric-gauge-value" x="42" y="43">/);
+  assert.match(jelly, /\.octane-test-metric-progress-wrap \{[\s\S]*?aspect-ratio: 34 \/ 1/);
+  assert.match(jelly, /\.octane-test-metric-defect-track \{[\s\S]*?aspect-ratio: 34 \/ 1/);
+  assert.match(jelly, /\.octane-test-metric-trend \{[\s\S]*?display: inline-flex/);
+  assert.match(jelly, /\.octane-test-metric-trend \{[\s\S]*?white-space: nowrap/);
+  assert.match(jelly, /\.octane-test-metric-defect-color:only-child/);
 });

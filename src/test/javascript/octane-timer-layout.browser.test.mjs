@@ -10,9 +10,13 @@ const jellyPath =
 const jelly = readFileSync(jellyPath, "utf8");
 const styleMatch = jelly.match(/<style>([\s\S]*?)<\/style>/);
 assert.ok(styleMatch, "The report page must contain its dashboard stylesheet");
+const metricLabelSource = jelly
+    .split("/* OCTANE_TEST_METRIC_LABELS_START */")[1]
+    .split("/* OCTANE_TEST_METRIC_LABELS_END */")[0];
 
 const viewports = [
   {height: 640, name: "compact", width: 360},
+  {height: 420, name: "short-wide", width: 1200},
   {height: 900, name: "tablet", width: 768},
   {height: 900, name: "desktop", width: 1440},
   {height: 1440, name: "wide", width: 2560}
@@ -114,9 +118,108 @@ async function withFirefox(callback) {
 }
 
 function timerCard(index, title) {
+  const metricsFace = index === 0
+      ? `<div class="octane-flip-face octane-flip-face-metrics" data-card-view="metrics">
+          <div class="octane-flip-face-header">
+            <div>
+              <h2 class="octane-card-title">Test Metrics</h2>
+              <div class="octane-muted">Current Job Analytics</div>
+            </div>
+          </div>
+          <div class="octane-flip-face-body" data-test-metrics-panel="true">
+            <div class="octane-test-metrics-grid">
+              <article class="octane-test-metric-card octane-test-metric-avg-time">
+                <div class="octane-test-metric-heading"><span>Avg. Execution Time</span></div>
+                <div class="octane-test-metric-visual octane-test-metric-visual-sparkline">
+                  <div class="octane-test-metric-value">14m 22s</div>
+                  <svg class="octane-test-metric-sparkline" viewBox="0 0 56 40"
+                      preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                    <polyline points="4,32 20,24 36,29 52,8"></polyline>
+                  </svg>
+                </div>
+                <div class="octane-test-metric-detail">779 executed tests</div>
+                <div class="octane-test-metric-trend octane-test-metric-trend-neutral">
+                  No change from last cycle
+                </div>
+              </article>
+              <article class="octane-test-metric-card octane-test-metric-success-rate">
+                <div class="octane-test-metric-heading"><span>Success Rate</span></div>
+                <div class="octane-test-metric-visual octane-test-metric-gauge">
+                  <svg class="octane-test-metric-gauge-svg" viewBox="0 0 84 48"
+                      aria-hidden="true">
+                    <path class="octane-test-metric-gauge-track"
+                        d="M12 42 A30 30 0 0 1 72 42" pathLength="100"></path>
+                    <path class="octane-test-metric-gauge-fill"
+                        d="M12 42 A30 30 0 0 1 72 42" pathLength="100"
+                        stroke-dasharray="62.2 100"></path>
+                    <text class="octane-test-metric-gauge-value" x="42" y="43">
+                      62.2%
+                    </text>
+                  </svg>
+                </div>
+                <div class="octane-test-metric-detail">680 / 1093 passed</div>
+                <div class="octane-test-metric-trend octane-test-metric-trend-positive">
+                  +1.7% improvement
+                </div>
+              </article>
+              <article class="octane-test-metric-card octane-test-metric-execution">
+                <div class="octane-test-metric-heading"><span>Execution Completion</span></div>
+                <div class="octane-test-metric-visual octane-test-metric-visual-progress">
+                  <div class="octane-test-metric-value">71.3%</div>
+                  <div class="octane-test-metric-progress-wrap">
+                    <progress class="octane-test-metric-progress" max="100"
+                        value="71.3"></progress>
+                  </div>
+                </div>
+                <div class="octane-test-metric-detail">779 / 1093 executed</div>
+                <div class="octane-test-metric-trend octane-test-metric-trend-warning">
+                  -12.4% from last cycle
+                </div>
+              </article>
+              <article class="octane-test-metric-card octane-test-metric-defects">
+                <div class="octane-test-metric-heading"><span>Open Defects</span></div>
+                <div class="octane-test-metric-visual octane-test-metric-visual-defects">
+                  <div class="octane-test-metric-value">28 open</div>
+                  <div class="octane-test-metric-defect-segments"
+                      data-test-metric-segments="true">
+                    <div class="octane-test-metric-defect-track" aria-hidden="true">
+                      ${[
+                      ["Major (14)", "M (14)", "critical", 50],
+                      ["Medium (9)", "M (9)", "medium", 32.1429],
+                      ["Unspecified (5)", "U (5)", "unspecified", 17.8571]
+                    ].map(([, , severity, percentage]) => `
+                        <span class="octane-test-metric-defect-color
+                            octane-test-metric-defect-color-${severity}"
+                            style="--octane-test-metric-segment-share:${percentage}%">
+                        </span>`).join("")}
+                    </div>
+                    <div class="octane-test-metric-defect-labels">
+                      ${[
+                        ["Major (14)", "M (14)", 50],
+                        ["Medium (9)", "M (9)", 32.1429],
+                        ["Unspecified (5)", "U (5)", 17.8571]
+                      ].map(([full, short, percentage]) => `
+                      <div class="octane-test-metric-defect-segment"
+                          data-test-metric-segment="true" data-full-label="${full}"
+                          data-short-label="${short}"
+                          style="--octane-test-metric-segment-share:${percentage}%">
+                        <span class="octane-test-metric-defect-label">${full}</span>
+                      </div>`).join("")}
+                    </div>
+                  </div>
+                </div>
+                <div class="octane-test-metric-detail">2.6 per 100 tests</div>
+                <div class="octane-test-metric-trend octane-test-metric-trend-negative">
+                  +9 from last cycle
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>`
+      : "";
   return `
     <section class="octane-chart-card octane-timer-card" data-active-view="timer"
-        data-card-key="timer-${index}">
+        data-card-key="${index === 0 ? "timer-timeout" : `timer-${index}`}">
       <div class="octane-flip-viewport">
         <div class="octane-flip-face octane-flip-face-timer">
           <div class="octane-flip-face-header">
@@ -138,6 +241,7 @@ function timerCard(index, title) {
             </div>
           </div>
         </div>
+        ${metricsFace}
       </div>
     </section>`;
 }
@@ -360,6 +464,12 @@ function fixtureHtml() {
             ${managementCards}
           </div>
         </main>
+        <script>
+          var dashboard = document.getElementById("octane-dashboard");
+          var requestFrame = window.requestAnimationFrame.bind(window);
+          ${metricLabelSource}
+          initializeTestMetricSegments(dashboard);
+        </script>
       </body>
     </html>`;
 }
@@ -608,6 +718,8 @@ async function compactManagementMetricLayout(driver) {
                   labelTextOverflow: labelStyle.textOverflow,
                   labelWhiteSpace: labelStyle.whiteSpace,
                   labelIsTruncated: label.scrollWidth > label.clientWidth,
+                  valueRightGutter: tileRect.right - valueRect.right,
+                  valueWithinTile: valueRect.right <= tileRect.right + 0.5,
                   valueInline: Math.abs(labelRect.top - valueRect.top) <= 1
                 };
               });
@@ -629,6 +741,166 @@ async function compactManagementMetricLayout(driver) {
             withinTile: withinTile
           };
         });`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function testMetricLayout(driver, expanded, focused) {
+  const result = await executeAfterPaint(driver, `
+    var card = document.querySelector('[data-card-key="timer-timeout"]');
+    var zone = document.getElementById("octane-timer-zone");
+    card.classList.toggle("octane-expanded", Boolean(arguments[0]));
+    zone.classList.toggle("octane-zone-focused", Boolean(arguments[1]));
+    card.setAttribute("data-active-view", "metrics");
+    initializeTestMetricSegments(card);
+    fitTestMetricSegmentLabels(card);
+    var cardRect = card.getBoundingClientRect();
+    var metricsGridRect = card.querySelector(".octane-test-metrics-grid")
+        .getBoundingClientRect();
+    var metricTileRects = Array.prototype.map.call(
+        card.querySelectorAll(".octane-test-metric-card"), function (tile) {
+          var rect = tile.getBoundingClientRect();
+          return {bottom: rect.bottom, height: rect.height, top: rect.top, width: rect.width};
+        });
+    var title = card.querySelector(".octane-flip-face-metrics .octane-card-title");
+    var subtitle = card.querySelector(".octane-flip-face-metrics .octane-muted");
+    var sparkline = card.querySelector(".octane-test-metric-sparkline");
+    var gauge = card.querySelector(".octane-test-metric-gauge-svg");
+    var gaugePath = card.querySelector(".octane-test-metric-gauge-fill");
+    var gaugeValue = card.querySelector(".octane-test-metric-gauge-value");
+    var gaugeVisual = card.querySelector(".octane-test-metric-gauge");
+    var progress = card.querySelector(".octane-test-metric-progress-wrap");
+    var executionValue = card.querySelector(
+        '.octane-test-metric-execution .octane-test-metric-value');
+    var defectTrack = card.querySelector(".octane-test-metric-defect-track");
+    var colors = card.querySelectorAll(".octane-test-metric-defect-color");
+    function ratio(element) {
+      var rect = element.getBoundingClientRect();
+      return rect.height > 0 ? rect.width / rect.height : 0;
+    }
+    var gaugeBox = gauge.getBoundingClientRect();
+    var gaugeVisualBox = gaugeVisual.getBoundingClientRect();
+    var gaugeValueBox = gaugeValue.getBoundingClientRect();
+    var gaugeValueSvgBox = gaugeValue.getBBox();
+    var gaugeStrokeWidth = parseFloat(getComputedStyle(gaugePath).strokeWidth) || 0;
+    var gaugePathTouchesValue = false;
+    var gaugeCollisionPoint = null;
+    var gaugePathLength = gaugePath.getTotalLength();
+    for (var pointIndex = 0; pointIndex <= 100; pointIndex += 1) {
+      var point = gaugePath.getPointAtLength(gaugePathLength * pointIndex / 100);
+      if (point.x >= gaugeValueSvgBox.x - gaugeStrokeWidth / 2
+          && point.x <= gaugeValueSvgBox.x + gaugeValueSvgBox.width + gaugeStrokeWidth / 2
+          && point.y >= gaugeValueSvgBox.y - gaugeStrokeWidth / 2
+          && point.y <= gaugeValueSvgBox.y + gaugeValueSvgBox.height + gaugeStrokeWidth / 2) {
+        gaugePathTouchesValue = true;
+        gaugeCollisionPoint = {x: point.x, y: point.y};
+        break;
+      }
+    }
+    var progressRect = progress.getBoundingClientRect();
+    var defectTrackRect = defectTrack.getBoundingClientRect();
+    var executionValueRect = executionValue.getBoundingClientRect();
+    var executionValueStyle = getComputedStyle(executionValue);
+    var containedElements = card.querySelectorAll(
+              ".octane-test-metric-heading, .octane-test-metric-value, "
+              + ".octane-test-metric-detail, .octane-test-metric-trend, "
+              + ".octane-test-metric-sparkline, .octane-test-metric-gauge-svg, "
+              + ".octane-test-metric-progress, .octane-test-metric-defect-segments");
+    var escapedContent = Array.prototype.filter.call(containedElements, function (element) {
+      var rect = element.getBoundingClientRect();
+      return rect.left < cardRect.left - 1 || rect.right > cardRect.right + 1
+          || rect.top < cardRect.top - 1 || rect.bottom > cardRect.bottom + 1;
+    }).map(function (element) {
+      var rect = element.getBoundingClientRect();
+      return {
+        bottom: rect.bottom,
+        className: element.getAttribute("class") || "",
+        left: rect.left,
+        right: rect.right,
+        top: rect.top
+      };
+    });
+    var metrics = {
+      allContentContained: escapedContent.length === 0,
+      cardHeight: cardRect.height,
+      escapedContent: escapedContent,
+      metricTileRects: metricTileRects,
+      metricsGridHeight: metricsGridRect.height,
+      gaugeRatio: ratio(gauge),
+      gaugePathTouchesValue: gaugePathTouchesValue,
+      gaugeSpaceUtilization:
+          gaugeBox.width / Math.max(1, Math.min(
+              gaugeVisualBox.width * 0.84,
+              gaugeVisualBox.height * 1.7,
+              288)),
+      gaugeWidth: gaugeBox.width,
+      gaugeVisualHeight: gaugeVisualBox.height,
+      gaugeVisualWidth: gaugeVisualBox.width,
+      gaugeCollisionPoint: gaugeCollisionPoint,
+      gaugeValueSvgBox: {
+        height: gaugeValueSvgBox.height,
+        width: gaugeValueSvgBox.width,
+        x: gaugeValueSvgBox.x,
+        y: gaugeValueSvgBox.y
+      },
+      gaugeValueWithinSvg:
+          gaugeValueBox.left >= gaugeBox.left - 1
+          && gaugeValueBox.right <= gaugeBox.right + 1
+          && gaugeValueBox.top >= gaugeBox.top - 1
+          && gaugeValueBox.bottom <= gaugeBox.bottom + 1,
+      lowerBars: {
+        defectHeight: defectTrackRect.height,
+        defectTop: defectTrackRect.top,
+        defectWidth: defectTrackRect.width,
+        executionHeight: progressRect.height,
+        executionTop: progressRect.top,
+        executionWidth: progressRect.width
+      },
+      executionValueClearance: progressRect.top - executionValueRect.bottom,
+      executionValueContentFits:
+          executionValue.scrollHeight <= executionValue.clientHeight + 1
+          && executionValue.scrollWidth <= executionValue.clientWidth + 1,
+      executionValueFontSize: parseFloat(executionValueStyle.fontSize),
+      executionValueLineHeight: parseFloat(executionValueStyle.lineHeight),
+      labels: Array.prototype.map.call(
+          card.querySelectorAll(".octane-test-metric-defect-label"),
+          function (label) { return label.textContent.trim(); }),
+      progressRatio: ratio(progress),
+      segmentRadii: Array.prototype.map.call(colors, function (color) {
+        var style = getComputedStyle(color);
+        return {
+          bottomLeft: parseFloat(style.borderBottomLeftRadius),
+          bottomRight: parseFloat(style.borderBottomRightRadius),
+          topLeft: parseFloat(style.borderTopLeftRadius),
+          topRight: parseFloat(style.borderTopRightRadius)
+        };
+      }),
+      sparklineRatio: ratio(sparkline),
+      subtitleFontSize: parseFloat(getComputedStyle(subtitle).fontSize),
+      titleFontSize: parseFloat(getComputedStyle(title).fontSize),
+      trends: Array.prototype.map.call(
+          card.querySelectorAll(".octane-test-metric-trend"), function (trend) {
+            var style = getComputedStyle(trend);
+            var rect = trend.getBoundingClientRect();
+            var parentRect = trend.parentElement.getBoundingClientRect();
+            return {
+              alignItems: style.alignItems,
+              display: style.display,
+              justifyContent: style.justifyContent,
+              symmetricPadding:
+                  Math.abs(parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) < 0.1
+                  && Math.abs(parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)) < 0.1,
+              whiteSpace: style.whiteSpace,
+              withinCard: rect.left >= parentRect.left - 1 && rect.right <= parentRect.right + 1
+            };
+          })
+    };
+    card.setAttribute("data-active-view", "timer");
+    card.classList.remove("octane-expanded");
+    zone.classList.remove("octane-zone-focused");
+    return metrics;`, [expanded, focused]);
   if (result.error) {
     throw new Error(result.error);
   }
@@ -798,6 +1070,7 @@ test(
             {url: `data:text/html;base64,${fixture}`});
 
         const desktopSizes = {};
+        const testMetricSizes = {};
         for (const viewport of viewports) {
           await setViewport(driver, viewport);
 
@@ -855,6 +1128,87 @@ test(
               axisMetrics.every(metric => metric.plotGain >= 6),
               `${viewport.name}: plot did not absorb the reclaimed axis width: `
                   + JSON.stringify(axisMetrics));
+          const testMetrics = await testMetricLayout(
+              driver,
+              viewport.name === "wide",
+              viewport.name === "short-wide");
+          assert.equal(
+              testMetrics.allContentContained,
+              true,
+              `${viewport.name}: Test Metrics content escaped its card: `
+                  + JSON.stringify(testMetrics));
+          assert.ok(
+              Math.abs(testMetrics.sparklineRatio - 1.4) <= 0.08,
+              `${viewport.name}: sparkline aspect ratio changed: ${JSON.stringify(testMetrics)}`);
+          assert.ok(
+              Math.abs(testMetrics.gaugeRatio - 1.75) <= 0.08,
+              `${viewport.name}: gauge aspect ratio changed: ${JSON.stringify(testMetrics)}`);
+          assert.equal(
+              testMetrics.gaugePathTouchesValue,
+              false,
+              `${viewport.name}: success-rate value overlaps its half-pie: `
+                  + JSON.stringify(testMetrics));
+          assert.equal(
+              testMetrics.gaugeValueWithinSvg,
+              true,
+              `${viewport.name}: success-rate value is clipped by its SVG: `
+                  + JSON.stringify(testMetrics));
+          assert.ok(
+              testMetrics.gaugeSpaceUtilization >= 0.95,
+              `${viewport.name}: success-rate half-pie does not use available space: `
+                  + JSON.stringify(testMetrics));
+          assert.ok(
+              testMetrics.gaugeWidth >= 80,
+              `${viewport.name}: success-rate half-pie collapsed below a legible size: `
+                  + JSON.stringify(testMetrics));
+          assert.ok(
+              Math.abs(testMetrics.progressRatio - 34) <= 1,
+              `${viewport.name}: progress aspect ratio changed: ${JSON.stringify(testMetrics)}`);
+          assert.ok(
+              Math.abs(
+                  testMetrics.lowerBars.executionWidth
+                    - testMetrics.lowerBars.defectWidth) <= 1
+                && Math.abs(
+                    testMetrics.lowerBars.executionHeight
+                      - testMetrics.lowerBars.defectHeight) <= 1,
+              `${viewport.name}: lower metric bars differ in size: `
+                  + JSON.stringify(testMetrics));
+          assert.ok(
+              Math.abs(
+                  testMetrics.lowerBars.executionTop
+                    - testMetrics.lowerBars.defectTop) <= 1,
+              `${viewport.name}: lower metric bars are vertically misaligned: `
+                  + JSON.stringify(testMetrics));
+          assert.ok(
+              testMetrics.executionValueLineHeight
+                  >= testMetrics.executionValueFontSize
+                && testMetrics.executionValueContentFits
+                && testMetrics.executionValueClearance >= 1,
+              `${viewport.name}: execution percentage is clipped by its progress bar: `
+                  + JSON.stringify(testMetrics));
+          assert.ok(
+              testMetrics.trends.every(trend =>
+                (trend.display === "inline-flex" || trend.display === "flex")
+                  && trend.alignItems === "center"
+                  && trend.justifyContent === "center"
+                  && trend.symmetricPadding
+                  && trend.whiteSpace === "nowrap"
+                  && trend.withinCard),
+              `${viewport.name}: status pills are misaligned or clipped: `
+                  + JSON.stringify(testMetrics.trends));
+          assert.deepEqual(
+              testMetrics.segmentRadii.map(radius => ({
+                left: radius.topLeft > 0 || radius.bottomLeft > 0,
+                right: radius.topRight > 0 || radius.bottomRight > 0
+              })),
+              [{left: true, right: false}, {left: false, right: false},
+                {left: false, right: true}],
+              `${viewport.name}: defect segment outer corners are incorrect`);
+          testMetricSizes[viewport.name] = {
+            labels: testMetrics.labels,
+            subtitle: testMetrics.subtitleFontSize,
+            title: testMetrics.titleFontSize
+          };
           if (viewport.name === "compact") {
             const metricTiles = await compactManagementMetricLayout(driver);
             assert.equal(metricTiles.length, 4);
@@ -902,6 +1256,11 @@ test(
             assert.ok(
                 testerRows.some(row => row.labelIsTruncated),
                 `Tester metric ellipsis was not exercised: ${JSON.stringify(testerRows)}`);
+            const volumeRows = metricTiles
+                .find(metric => metric.key === "tester-volume").rows;
+            assert.ok(
+                volumeRows.every(row => row.valueWithinTile && row.valueRightGutter >= 4),
+                `Tester-volume values lost their right gutter: ${JSON.stringify(volumeRows)}`);
           }
           const defectRows = await managementDefectListLayout(driver);
           assert.equal(defectRows.length, 6);
@@ -990,5 +1349,16 @@ test(
         assert.ok(
             desktopSizes.expanded > desktopSizes.focused * 1.2,
             `Expanded graph did not grow: ${JSON.stringify(desktopSizes)}`);
+        assert.ok(
+            testMetricSizes.wide.title > testMetricSizes.compact.title
+                && testMetricSizes.wide.subtitle > testMetricSizes.compact.subtitle,
+            `Test Metrics header typography did not scale: ${JSON.stringify(testMetricSizes)}`);
+        assert.ok(
+            testMetricSizes.compact.labels.some(label => /^[A-Z] \(\d+\)$/.test(label)),
+            `Compact defect labels were not abbreviated: ${JSON.stringify(testMetricSizes)}`);
+        assert.deepEqual(
+            testMetricSizes.wide.labels,
+            ["Major (14)", "Medium (9)", "Unspecified (5)"],
+            `Wide defect labels were not restored: ${JSON.stringify(testMetricSizes)}`);
       });
     });

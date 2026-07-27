@@ -59,7 +59,7 @@ public class OctaneTestMetricsRenderer {
     html.append("<div class=\"octane-test-metric-visual octane-test-metric-visual-sparkline\">");
     renderValue(html, card);
     html.append(
-            "<svg class=\"octane-test-metric-sparkline\" viewBox=\"0 0 56 40\" preserveAspectRatio=\"none\" aria-hidden=\"true\">")
+            "<svg class=\"octane-test-metric-sparkline\" viewBox=\"0 0 56 40\" preserveAspectRatio=\"xMidYMid meet\" aria-hidden=\"true\">")
         .append("<polyline points=\"")
         .append(escape(card.getSparklinePoints()))
         .append("\" /></svg></div>");
@@ -74,21 +74,23 @@ public class OctaneTestMetricsRenderer {
         .append(
             "<path class=\"octane-test-metric-gauge-fill\" d=\"M12 42 A30 30 0 0 1 72 42\" pathLength=\"100\" stroke-dasharray=\"")
         .append(card.getProgressPercentText())
-        .append(" 100\" /></svg>");
-    renderValue(html, card);
-    html.append("</div>");
+        .append(" 100\" />")
+        .append("<text class=\"octane-test-metric-gauge-value\" x=\"42\" y=\"43\">")
+        .append(escape(card.getValue()))
+        .append("</text></svg></div>");
   }
 
   private void renderExecution(StringBuilder html, OctaneTestMetricCard card) {
     html.append("<div class=\"octane-test-metric-visual octane-test-metric-visual-progress\">");
     renderValue(html, card);
-    html.append("<progress class=\"octane-test-metric-progress\" max=\"100\" value=\"")
+    html.append("<div class=\"octane-test-metric-progress-wrap\">")
+        .append("<progress class=\"octane-test-metric-progress\" max=\"100\" value=\"")
         .append(card.getProgressPercentText())
         .append("\" aria-label=\"")
         .append(escape(card.getTitle()))
         .append(" ")
         .append(escape(card.getValue()))
-        .append("\"></progress></div>");
+        .append("\"></progress></div></div>");
   }
 
   private void renderDefects(StringBuilder html, OctaneTestMetricCard card) {
@@ -96,7 +98,19 @@ public class OctaneTestMetricsRenderer {
     renderValue(html, card);
     html.append("<div class=\"octane-test-metric-defect-segments")
         .append(card.isSegmented() ? "" : " octane-test-metric-defect-segments-empty")
-        .append("\" data-test-metric-segments=\"true\">");
+        .append("\" data-test-metric-segments=\"true\">")
+        .append("<div class=\"octane-test-metric-defect-track\" aria-hidden=\"true\">");
+    for (OctaneTestMetricSegment segment : card.getSegments()) {
+      html.append("<span class=\"octane-test-metric-defect-color octane-test-metric-defect-color-")
+          .append(escape(segment.getSeverityKey()))
+          .append("\" style=\"--octane-test-metric-segment-share:")
+          .append(segment.getPercentageText())
+          .append("%\"></span>");
+    }
+    if (!card.isSegmented()) {
+      html.append("<span class=\"octane-test-metric-defect-empty-track\"></span>");
+    }
+    html.append("</div><div class=\"octane-test-metric-defect-labels\">");
     for (OctaneTestMetricSegment segment : card.getSegments()) {
       html.append(
               "<div class=\"octane-test-metric-defect-segment\" data-test-metric-segment=\"true\" data-full-label=\"")
@@ -105,15 +119,11 @@ public class OctaneTestMetricsRenderer {
           .append(escape(segment.getShortLabel()))
           .append("\" style=\"--octane-test-metric-segment-share:")
           .append(segment.getPercentageText())
-          .append("%\">")
-          .append("<span class=\"octane-test-metric-defect-color octane-test-metric-defect-color-")
-          .append(escape(segment.getSeverityKey()))
-          .append("\" aria-hidden=\"true\"></span>")
-          .append("<span class=\"octane-test-metric-defect-label\">")
+          .append("%\"><span class=\"octane-test-metric-defect-label\">")
           .append(escape(segment.getLabel()))
           .append("</span></div>");
     }
-    html.append("</div></div>");
+    html.append("</div></div></div>");
   }
 
   private void renderValue(StringBuilder html, OctaneTestMetricCard card) {

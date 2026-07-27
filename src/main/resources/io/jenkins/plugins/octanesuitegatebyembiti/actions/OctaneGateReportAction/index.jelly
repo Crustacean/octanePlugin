@@ -467,6 +467,9 @@
           top: 1rem;
           z-index: 3;
         }
+        .octane-chart-card[data-card-key="timer-timeout"] {
+          container-type: size;
+        }
         .octane-flip-viewport {
           box-sizing: border-box;
           display: flex;
@@ -529,6 +532,14 @@
           .octane-flip-face-body {
           align-items: stretch;
           justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="timer-timeout"]
+          .octane-flip-face-metrics .octane-card-title {
+          font-size: clamp(0.78rem, min(3.2cqw, 5cqh), 1.3rem);
+        }
+        .octane-chart-card[data-card-key="timer-timeout"]
+          .octane-flip-face-metrics .octane-muted {
+          font-size: clamp(0.58rem, min(2.35cqw, 3.8cqh), 1rem);
         }
         .octane-chart-card[data-card-key="progress-execution"][data-active-view="breakdown"]
           .octane-flip-face-body {
@@ -1201,7 +1212,7 @@
         .octane-test-metrics-grid {
           box-sizing: border-box;
           display: grid;
-          gap: 16px;
+          gap: clamp(0.3rem, min(1.8vw, 1.8vh), 1rem);
           grid-template-columns: repeat(2, minmax(0, 1fr));
           grid-template-rows: repeat(2, minmax(0, 1fr));
           height: 100%;
@@ -1210,6 +1221,10 @@
           width: 100%;
         }
         .octane-test-metric-card {
+          --octane-test-metric-bar-label-font-size:
+            clamp(0.42rem, min(1.8cqw, 2.1cqh), 0.88rem);
+          --octane-test-metric-bar-label-gap:
+            clamp(0.32rem, min(2cqw, 2cqh), 1.1rem);
           align-items: stretch;
           background: rgba(48, 54, 61, 0.28);
           border: 1px solid var(--input-border);
@@ -1270,14 +1285,17 @@
           width: 100%;
         }
         .octane-test-metric-value {
+          box-sizing: border-box;
           color: var(--text-color);
+          flex: 0 0 auto;
           font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
           font-size: clamp(1.15rem, min(11.5cqw, 17cqh), 5.4rem);
           font-weight: 700;
           letter-spacing: 0;
-          line-height: 0.95;
+          line-height: 1.05;
           max-width: 100%;
           overflow: hidden;
+          padding-block: 0.06em;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
@@ -1285,12 +1303,14 @@
           gap: clamp(0.5rem, 3cqw, 2rem);
         }
         .octane-test-metric-sparkline {
+          aspect-ratio: 7 / 5;
           color: var(--text-color);
           flex: 0 1 min(34%, 9rem);
-          height: clamp(1.7rem, min(17cqw, 17cqh), 6.5rem);
+          height: auto;
           max-width: 34%;
           min-width: 2.5rem;
           overflow: visible;
+          width: min(34%, 9rem);
         }
         .octane-test-metric-sparkline polyline {
           fill: none;
@@ -1301,17 +1321,22 @@
           vector-effect: non-scaling-stroke;
         }
         .octane-test-metric-gauge {
-          align-self: center;
-          flex: 1 1 auto;
-          max-height: 100%;
-          position: relative;
-          width: min(78%, 24rem);
+          align-items: center;
+          container-name: octane-test-metric-gauge;
+          container-type: size;
+          display: flex;
+          flex: 1 1 0;
+          justify-content: center;
+          min-height: 0;
+          width: 100%;
         }
         .octane-test-metric-gauge-svg {
-          height: 100%;
-          max-height: 100%;
+          aspect-ratio: 7 / 4;
+          display: block;
+          flex: 0 1 auto;
+          height: auto;
           overflow: visible;
-          width: 100%;
+          width: min(92cqw, 175cqh, 28rem);
         }
         .octane-test-metric-gauge-track,
         .octane-test-metric-gauge-fill {
@@ -1326,25 +1351,40 @@
         .octane-test-metric-gauge-fill {
           stroke: var(--octane-system-green);
         }
-        .octane-test-metric-gauge .octane-test-metric-value {
-          bottom: clamp(0.05rem, 1cqh, 0.45rem);
-          left: 50%;
-          position: absolute;
-          transform: translateX(-50%);
+        .octane-test-metric-gauge-value {
+          fill: var(--text-color);
+          font-family: "Hanken Grotesk", Inter, "Segoe UI", Arial, sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0;
+          text-anchor: middle;
         }
         .octane-test-metric-visual-progress,
         .octane-test-metric-visual-defects {
           flex-direction: column;
-          gap: clamp(0.32rem, min(2cqw, 2cqh), 1.1rem);
+          gap: var(--octane-test-metric-bar-label-gap);
+        }
+        .octane-test-metric-progress-wrap {
+          aspect-ratio: 34 / 1;
+          flex: 0 0 auto;
+          max-width: 30rem;
+          overflow: hidden;
+          width: min(82%, 30rem);
+        }
+        .octane-test-metric-visual-progress::after {
+          content: "";
+          flex: 0 0 calc(var(--octane-test-metric-bar-label-font-size) * 1.1);
+          width: 1px;
         }
         .octane-test-metric-progress {
           appearance: none;
           background: transparent;
           border: 0;
           border-radius: 999px;
-          height: clamp(0.32rem, min(2.3cqw, 2.3cqh), 0.9rem);
+          display: block;
+          height: 100%;
           overflow: hidden;
-          width: min(82%, 30rem);
+          width: 100%;
         }
         .octane-test-metric-progress::-webkit-progress-bar {
           background: rgba(142, 142, 147, 0.38);
@@ -1360,21 +1400,27 @@
           border-radius: 999px;
         }
         .octane-test-metric-defect-segments {
-          align-items: stretch;
+          display: flex;
+          flex: 0 0 auto;
+          flex-direction: column;
+          gap: var(--octane-test-metric-bar-label-gap);
+          max-width: 30rem;
+          min-height: 0;
+          min-width: 0;
+          width: min(82%, 30rem);
+        }
+        .octane-test-metric-defect-track {
+          aspect-ratio: 34 / 1;
           display: flex;
           gap: 2px;
-          min-height: clamp(1.5rem, min(8cqw, 8cqh), 3.5rem);
           min-width: 0;
-          width: min(92%, 34rem);
+          width: 100%;
         }
-        .octane-test-metric-defect-segments:empty::before,
-        .octane-test-metric-defect-segments-empty::before {
-          background: rgba(142, 142, 147, 0.38);
-          background: color-mix(in srgb, var(--text-color-secondary) 38%, transparent);
-          border-radius: 999px;
-          content: "";
-          height: clamp(0.34rem, min(2.4cqw, 2.4cqh), 0.85rem);
-          margin: auto 0;
+        .octane-test-metric-defect-labels {
+          display: flex;
+          gap: 2px;
+          min-height: calc(var(--octane-test-metric-bar-label-font-size) * 1.1);
+          min-width: 0;
           width: 100%;
         }
         .octane-test-metric-defect-empty-track {
@@ -1382,22 +1428,34 @@
           background: color-mix(in srgb, var(--text-color-secondary) 38%, transparent);
           border-radius: 999px;
           display: block;
-          height: clamp(0.34rem, min(2.4cqw, 2.4cqh), 0.85rem);
-          margin: auto 0;
+          height: 100%;
           width: 100%;
         }
         .octane-test-metric-defect-segment {
-          display: grid;
           flex: 0 1 var(--octane-test-metric-segment-share);
-          grid-template-rows: auto minmax(0, 1fr);
           min-width: 0;
           overflow: hidden;
         }
         .octane-test-metric-defect-color {
-          border-radius: 2px;
+          border-radius: 0;
           display: block;
-          height: clamp(0.34rem, min(2.4cqw, 2.4cqh), 0.85rem);
-          width: 100%;
+          flex: 0 1 var(--octane-test-metric-segment-share);
+          height: 100%;
+          min-width: 0;
+        }
+        .octane-test-metric-defect-track
+          .octane-test-metric-defect-color:first-child {
+          border-bottom-left-radius: 999px;
+          border-top-left-radius: 999px;
+        }
+        .octane-test-metric-defect-track
+          .octane-test-metric-defect-color:last-child {
+          border-bottom-right-radius: 999px;
+          border-top-right-radius: 999px;
+        }
+        .octane-test-metric-defect-track
+          .octane-test-metric-defect-color:only-child {
+          border-radius: 999px;
         }
         .octane-test-metric-defect-color-critical {
           background: var(--octane-severity-critical);
@@ -1421,9 +1479,8 @@
           color: var(--text-color-secondary);
           display: block;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
-          font-size: clamp(0.42rem, min(1.8cqw, 2.1cqh), 0.88rem);
+          font-size: var(--octane-test-metric-bar-label-font-size);
           line-height: 1.1;
-          margin-top: clamp(0.08rem, 0.5cqh, 0.28rem);
           min-width: 0;
           overflow: hidden;
           text-overflow: clip;
@@ -1441,12 +1498,21 @@
           white-space: nowrap;
         }
         .octane-test-metric-trend {
+          align-items: center;
           align-self: center;
           border-radius: 999px;
+          box-sizing: border-box;
           color: #000000;
+          display: inline-flex;
           font-weight: 600;
+          justify-content: center;
           max-width: min(96%, 28rem);
+          min-height: clamp(1rem, 4.4cqh, 2rem);
+          overflow: visible;
           padding: clamp(0.12rem, 0.65cqh, 0.36rem) clamp(0.34rem, 1.3cqw, 0.78rem);
+          text-overflow: clip;
+          width: fit-content;
+          white-space: nowrap;
         }
         @container (max-width: 16rem), (max-height: 10.5rem) {
           .octane-test-metric-card {
@@ -1465,7 +1531,7 @@
           }
           .octane-test-metric-value {
             font-size: clamp(1.02rem, min(10cqw, 15.5cqh), 2.7rem);
-            line-height: 0.9;
+            line-height: 1.05;
           }
           .octane-test-metric-detail,
           .octane-test-metric-trend {
@@ -1474,13 +1540,21 @@
             max-width: 100%;
           }
           .octane-test-metric-gauge {
-            width: min(72%, 13rem);
+            width: 100%;
           }
-          .octane-test-metric-defect-segments {
-            min-height: 1.2rem;
+          .octane-test-metric-gauge-svg {
+            width: min(90cqw, 175cqh, 18rem);
           }
         }
         @container (max-width: 12rem), (max-height: 8.25rem) {
+          .octane-test-metric-card {
+            --octane-test-metric-bar-label-font-size:
+              clamp(0.36rem, min(1.8cqw, 1.9cqh), 0.58rem);
+            --octane-test-metric-bar-label-gap:
+              clamp(0.1rem, 0.7cqh, 0.2rem);
+            gap: 0.04rem;
+            padding: clamp(0.18rem, min(1.2cqw, 1.2cqh), 0.4rem);
+          }
           .octane-test-metric-heading {
             font-size: clamp(0.4rem, min(2.15cqw, 2.2cqh), 0.58rem);
             letter-spacing: 0;
@@ -1495,7 +1569,8 @@
           }
           .octane-test-metric-trend {
             font-weight: 500;
-            padding: 0.08rem 0.28rem;
+            min-height: 0.75rem;
+            padding: 0.04rem 0.24rem;
           }
         }
         .octane-test-metric-trend-positive {
@@ -3232,6 +3307,11 @@
           width: 100%;
         }
         .octane-management-metric-tile[data-management-metric-key="tester-volume"]
+          .octane-management-metric-items {
+          box-sizing: border-box;
+          padding-inline-end: clamp(0.3rem, 1.2cqi, 0.7rem);
+        }
+        .octane-management-metric-tile[data-management-metric-key="tester-volume"]
           .octane-management-metric-value,
         .octane-management-metric-tile[data-management-metric-key="tester-defects"]
           .octane-management-metric-value,
@@ -3342,6 +3422,19 @@
           .octane-tester-tracker + .octane-tester-tracker {
             border-left: 1px solid var(--input-border);
             border-top: 0;
+          }
+        }
+        @media (max-height: 34rem) and (min-aspect-ratio: 2 / 1) {
+          .octane-timer-zone.octane-zone-focused {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-rows: minmax(0, 1fr);
+          }
+          .octane-timer-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(3),
+          .octane-timer-zone.octane-zone-focused
+            > .octane-chart-card:nth-of-type(4) {
+            grid-column: auto;
+            grid-row: auto;
           }
         }
         @media (max-width: 840px) {
@@ -3586,7 +3679,7 @@
                               <div class="octane-test-metric-visual octane-test-metric-visual-sparkline">
                                 <div class="octane-test-metric-value">${metric.value}</div>
                                 <svg class="octane-test-metric-sparkline" viewBox="0 0 56 40"
-                                    preserveAspectRatio="none" aria-hidden="true">
+                                    preserveAspectRatio="xMidYMid meet" aria-hidden="true">
                                   <polyline points="${metric.sparklinePoints}" />
                                 </svg>
                               </div>
@@ -3600,16 +3693,20 @@
                                   <path class="octane-test-metric-gauge-fill"
                                       d="M12 42 A30 30 0 0 1 72 42" pathLength="100"
                                       stroke-dasharray="${metric.progressPercentText} 100" />
+                                  <text class="octane-test-metric-gauge-value" x="42" y="43">
+                                    ${metric.value}
+                                  </text>
                                 </svg>
-                                <div class="octane-test-metric-value">${metric.value}</div>
                               </div>
                             </j:when>
                             <j:when test="${metric.key == 'execution'}">
                               <div class="octane-test-metric-visual octane-test-metric-visual-progress">
                                 <div class="octane-test-metric-value">${metric.value}</div>
-                                <progress class="octane-test-metric-progress" max="100"
-                                    value="${metric.progressPercentText}"
-                                    aria-label="${metric.title} ${metric.value}"></progress>
+                                <div class="octane-test-metric-progress-wrap">
+                                  <progress class="octane-test-metric-progress" max="100"
+                                      value="${metric.progressPercentText}"
+                                      aria-label="${metric.title} ${metric.value}"></progress>
+                                </div>
                               </div>
                             </j:when>
                             <j:when test="${metric.key == 'defects'}">
@@ -3618,22 +3715,31 @@
                                 <div class="octane-test-metric-defect-segments"
                                     data-test-metric-segments="true">
                                   <j:if test="${!metric.segmented}">
-                                    <span class="octane-test-metric-defect-empty-track"
-                                        aria-hidden="true"></span>
-                                  </j:if>
-                                  <j:forEach var="segment" items="${metric.segments}">
-                                    <div class="octane-test-metric-defect-segment"
-                                        data-test-metric-segment="true"
-                                        data-full-label="${segment.label}"
-                                        data-short-label="${segment.shortLabel}"
-                                        style="--octane-test-metric-segment-share:${segment.percentageText}%">
-                                      <span class="octane-test-metric-defect-color octane-test-metric-defect-color-${segment.severityKey}"
-                                          aria-hidden="true"></span>
-                                      <span class="octane-test-metric-defect-label">
-                                        ${segment.label}
-                                      </span>
+                                    <div class="octane-test-metric-defect-track" aria-hidden="true">
+                                      <span class="octane-test-metric-defect-empty-track"></span>
                                     </div>
-                                  </j:forEach>
+                                  </j:if>
+                                  <j:if test="${metric.segmented}">
+                                    <div class="octane-test-metric-defect-track" aria-hidden="true">
+                                      <j:forEach var="segment" items="${metric.segments}">
+                                        <span class="octane-test-metric-defect-color octane-test-metric-defect-color-${segment.severityKey}"
+                                            style="--octane-test-metric-segment-share:${segment.percentageText}%"></span>
+                                      </j:forEach>
+                                    </div>
+                                  </j:if>
+                                  <div class="octane-test-metric-defect-labels">
+                                    <j:forEach var="segment" items="${metric.segments}">
+                                      <div class="octane-test-metric-defect-segment"
+                                          data-test-metric-segment="true"
+                                          data-full-label="${segment.label}"
+                                          data-short-label="${segment.shortLabel}"
+                                          style="--octane-test-metric-segment-share:${segment.percentageText}%">
+                                        <span class="octane-test-metric-defect-label">
+                                          ${segment.label}
+                                        </span>
+                                      </div>
+                                    </j:forEach>
+                                  </div>
                                 </div>
                               </div>
                             </j:when>
@@ -5297,6 +5403,7 @@
           /* OCTANE_TEST_METRIC_LABELS_START */
           var testMetricSegmentResizeObserver = null;
           var testMetricSegmentResizeFallbackBound = false;
+          var testMetricSegmentLabelScheduled = false;
           function fitTestMetricSegmentLabels(root) {
             var scope = root || dashboard;
             var segments = scope.querySelectorAll("[data-test-metric-segment]");
@@ -5310,14 +5417,21 @@
               var shortLabel = segment.getAttribute("data-short-label") || fullLabel;
               label.textContent = fullLabel;
               label.title = fullLabel;
-              var availableWidth = Math.max(0, segment.getBoundingClientRect().width);
-              if (availableWidth > 0 && label.scrollWidth > availableWidth) {
+              var labelWidth = label.getBoundingClientRect().width;
+              var segmentWidth = segment.getBoundingClientRect().width;
+              var availableWidth = Math.max(0, labelWidth || segmentWidth);
+              if (availableWidth > 0 && label.scrollWidth > availableWidth + 0.5) {
                 label.textContent = shortLabel;
               }
             }
           }
           function scheduleTestMetricSegmentLabels(root) {
+            if (testMetricSegmentLabelScheduled) {
+              return;
+            }
+            testMetricSegmentLabelScheduled = true;
             requestFrame(function () {
+              testMetricSegmentLabelScheduled = false;
               fitTestMetricSegmentLabels(root || dashboard);
             });
           }
@@ -5325,11 +5439,12 @@
             var scope = root || dashboard;
             var containers = scope.querySelectorAll("[data-test-metric-segments]");
             if (typeof window.ResizeObserver === "function") {
-              if (!testMetricSegmentResizeObserver) {
-                testMetricSegmentResizeObserver = new window.ResizeObserver(function () {
-                  scheduleTestMetricSegmentLabels(dashboard);
-                });
+              if (testMetricSegmentResizeObserver) {
+                testMetricSegmentResizeObserver.disconnect();
               }
+              testMetricSegmentResizeObserver = new window.ResizeObserver(function () {
+                scheduleTestMetricSegmentLabels(dashboard);
+              });
               for (var index = 0; index < containers.length; index += 1) {
                 testMetricSegmentResizeObserver.observe(containers[index]);
               }
