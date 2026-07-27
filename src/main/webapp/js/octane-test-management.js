@@ -930,8 +930,27 @@
           var row = createElement("li");
           var label = createElement("span");
           label.textContent = item.label || "";
-          var itemValue = createElement("strong");
-          itemValue.textContent = item.value || "";
+          var itemValue = createElement(
+              "strong", "octane-management-metric-item-value");
+          if (item.primaryValue != null) {
+            var primaryValue = createElement(
+                "span", "octane-management-metric-item-primary");
+            primaryValue.textContent = item.primaryValue || "";
+            itemValue.appendChild(primaryValue);
+            if (item.secondaryValue) {
+              var separator = createElement(
+                  "span", "octane-management-metric-item-separator");
+              separator.setAttribute("aria-hidden", "true");
+              separator.textContent = "|";
+              var secondaryValue = createElement(
+                  "span", "octane-management-metric-item-secondary");
+              secondaryValue.textContent = item.secondaryValue;
+              itemValue.appendChild(separator);
+              itemValue.appendChild(secondaryValue);
+            }
+          } else {
+            itemValue.textContent = item.value || "";
+          }
           row.appendChild(label);
           row.appendChild(itemValue);
           items.appendChild(row);

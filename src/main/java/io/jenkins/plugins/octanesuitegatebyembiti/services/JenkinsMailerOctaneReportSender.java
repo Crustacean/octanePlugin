@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Properties;
+import jenkins.model.JenkinsLocationConfiguration;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 
 public class JenkinsMailerOctaneReportSender implements OctaneEmailReportSender {
@@ -53,7 +54,8 @@ public class JenkinsMailerOctaneReportSender implements OctaneEmailReportSender 
 
     ParsedRecipients parsedRecipients = parseRecipients(recipients);
     String effectiveFrom =
-        resolveSender(from, smtpUsername(descriptor), descriptor.getAdminAddress());
+        resolveSender(
+            from, smtpUsername(descriptor), JenkinsLocationConfiguration.get().getAdminAddress());
     Session session = descriptor.createSession();
     logConfiguration(listener, descriptor, session, effectiveFrom);
 

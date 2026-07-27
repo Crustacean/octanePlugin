@@ -250,28 +250,28 @@ function managementCard(index, title) {
             </article>
             <article class="octane-management-metric-tile octane-management-tone-neutral"
                 data-management-metric-key="tester-volume">
-              <h3 class="octane-management-metric-title">Top 5 Testers (Volume)</h3>
+              <h3 class="octane-management-metric-title">Top Testers by Volume</h3>
               <div class="octane-management-metric-value">5 testers</div>
               <div class="octane-management-metric-detail">3 below 80% execution</div>
               <ul class="octane-management-metric-items">
-                <li><span>tester.alpha.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>100%</strong></li>
-                <li><span>tester.beta.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>80%</strong></li>
-                <li><span>Tester Gamma</span><strong>70%</strong></li>
-                <li><span>Tester Delta</span><strong>60%</strong></li>
-                <li><span>Tester Epsilon</span><strong>50%</strong></li>
+                <li><span>tester.alpha.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">57 tests</span><span class="octane-management-metric-item-separator">|</span><span class="octane-management-metric-item-secondary">100%</span></strong></li>
+                <li><span>tester.beta.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">46 tests</span><span class="octane-management-metric-item-separator">|</span><span class="octane-management-metric-item-secondary">80%</span></strong></li>
+                <li><span>Tester Gamma</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">45 tests</span><span class="octane-management-metric-item-separator">|</span><span class="octane-management-metric-item-secondary">70%</span></strong></li>
+                <li><span>Tester Delta</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">44 tests</span><span class="octane-management-metric-item-separator">|</span><span class="octane-management-metric-item-secondary">60%</span></strong></li>
+                <li><span>Tester Epsilon</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">40 tests</span><span class="octane-management-metric-item-separator">|</span><span class="octane-management-metric-item-secondary">50%</span></strong></li>
               </ul>
             </article>
             <article class="octane-management-metric-tile octane-management-tone-bad"
                 data-management-metric-key="tester-defects">
-              <h3 class="octane-management-metric-title">Top 5 Testers (Defects)</h3>
+              <h3 class="octane-management-metric-title">Top Testers by Open Defects</h3>
               <div class="octane-management-metric-value">12 open</div>
               <div class="octane-management-metric-detail">Highest open workload</div>
               <ul class="octane-management-metric-items">
-                <li><span>tester.alpha.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>5</strong></li>
-                <li><span>tester.beta.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong>3</strong></li>
-                <li><span>Tester Gamma</span><strong>2</strong></li>
-                <li><span>Tester Delta</span><strong>1</strong></li>
-                <li><span>Tester Epsilon</span><strong>1</strong></li>
+                <li><span>tester.alpha.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">105 open</span></strong></li>
+                <li><span>tester.beta.with.an.extremely.long.enterprise.identity.and.region@example.com</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">23 open</span></strong></li>
+                <li><span>Tester Gamma</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">8 open</span></strong></li>
+                <li><span>Tester Delta</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">2 open</span></strong></li>
+                <li><span>Tester Epsilon</span><strong class="octane-management-metric-item-value"><span class="octane-management-metric-item-primary">1 open</span></strong></li>
               </ul>
             </article>
           </div>`
@@ -602,6 +602,7 @@ async function compactManagementMetricLayout(driver) {
                 var labelRect = label.getBoundingClientRect();
                 var valueRect = itemValue.getBoundingClientRect();
                 return {
+                  display: rowStyle.display,
                   flexWrap: rowStyle.flexWrap,
                   labelOverflow: labelStyle.overflow,
                   labelTextOverflow: labelStyle.textOverflow,
@@ -876,11 +877,13 @@ test(
                 `Compact metric padding dropped below 2px: ${JSON.stringify(metricTiles)}`);
             assert.ok(
                 metricTiles.every(metric =>
-                  metric.titleTextAlign === "center"
+                  (metric.key === "tester-volume" || metric.key === "tester-defects"
+                    ? metric.titleTextAlign === "start"
+                    : metric.titleTextAlign === "center")
                     && metric.valueTextAlign === "center"
-                    && metric.titleFontWeight === "400"
-                    && metric.valueFontWeight === "400"),
-                `Compact metric typography did not center and normalize: `
+                    && metric.titleFontWeight === "600"
+                    && metric.valueFontWeight === "700"),
+                `Compact metric typography did not scale and align by tile type: `
                     + JSON.stringify(metricTiles));
             const testerRows = metricTiles
                 .filter(metric =>
@@ -889,7 +892,8 @@ test(
             assert.ok(testerRows.length > 0);
             assert.ok(
                 testerRows.every(row =>
-                  row.flexWrap === "nowrap"
+                  row.display === "grid"
+                    && row.flexWrap === "nowrap"
                     && row.labelOverflow === "hidden"
                     && row.labelTextOverflow === "ellipsis"
                     && row.labelWhiteSpace === "nowrap"
