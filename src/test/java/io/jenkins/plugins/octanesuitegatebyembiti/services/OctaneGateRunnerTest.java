@@ -433,6 +433,28 @@ public class OctaneGateRunnerTest {
     assertEquals(1, snapshot.getSections().size());
     assertEquals(
         regressionRemoved ? "critical" : "regressions", snapshot.getSections().get(0).getSource());
+    assertEquals(
+        500, HeadlessBrowserReportScreenshotService.estimateViewportHeight(snapshot, 1400));
+    assertScreenshotContainsOnlyActiveSection(snapshot, regressionRemoved);
+
+    OctaneGateReportSnapshot finalSnapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result, request.createStatusClassifier(), 30);
+    assertEquals(
+        500, HeadlessBrowserReportScreenshotService.estimateViewportHeight(finalSnapshot, 1400));
+    assertScreenshotContainsOnlyActiveSection(finalSnapshot, regressionRemoved);
+  }
+
+  private void assertScreenshotContainsOnlyActiveSection(
+      OctaneGateReportSnapshot snapshot, boolean regressionRemoved) {
+    String screenshotHtml = new OctaneReportZoneHtmlRenderer().render(snapshot, "DARK", 1400);
+    String activeSource = regressionRemoved ? "critical" : "regressions";
+    String removedSource = regressionRemoved ? "regressions" : "critical";
+
+    assertTrue(screenshotHtml.contains("data-card-key=\"distribution-" + activeSource + "\""));
+    assertTrue(screenshotHtml.contains("data-card-key=\"bars-" + activeSource + "\""));
+    assertFalse(screenshotHtml.contains("data-card-key=\"distribution-" + removedSource + "\""));
+    assertFalse(screenshotHtml.contains("data-card-key=\"bars-" + removedSource + "\""));
   }
 
   private GateRequest criticalOnlyRequest(String regressionSuiteRunId) {

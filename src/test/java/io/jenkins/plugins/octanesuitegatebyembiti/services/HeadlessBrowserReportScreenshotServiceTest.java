@@ -96,12 +96,13 @@ public class HeadlessBrowserReportScreenshotServiceTest {
   }
 
   @Test
-  public void cropsCriticalOnlyCaptureToItsActiveCardRow() {
+  public void cropsSingleSectionCaptureToItsActiveCardRow() {
     assertEquals(
         500,
-        HeadlessBrowserReportScreenshotService.estimateCriticalOnlyViewportHeightForCards(2, 1400));
+        HeadlessBrowserReportScreenshotService.estimateSingleSectionViewportHeightForCards(
+            2, 1400));
     assertEquals(
         880,
-        HeadlessBrowserReportScreenshotService.estimateCriticalOnlyViewportHeightForCards(2, 600));
+        HeadlessBrowserReportScreenshotService.estimateSingleSectionViewportHeightForCards(2, 600));
   }
 }

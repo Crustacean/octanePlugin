@@ -482,6 +482,10 @@ public class OctaneGateReportSnapshot implements Serializable {
         && "critical".equalsIgnoreCase(reportSections.get(0).getSource());
   }
 
+  public boolean isSingleSectionReport() {
+    return getReportSections().size() == 1;
+  }
+
   public int getRefreshSeconds() {
     return refreshSeconds;
   }

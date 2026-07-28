@@ -288,15 +288,15 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     return " Browser output: " + concise;
   }
 
-  private int estimateViewportHeight(OctaneGateReportSnapshot snapshot, int viewportWidth) {
+  static int estimateViewportHeight(OctaneGateReportSnapshot snapshot, int viewportWidth) {
     int cardCount = snapshot.hasReportSections() ? snapshot.getReportSections().size() * 2 : 1;
-    if (snapshot.isCriticalOnlyReport()) {
-      return estimateCriticalOnlyViewportHeightForCards(cardCount, viewportWidth);
+    if (snapshot.isSingleSectionReport()) {
+      return estimateSingleSectionViewportHeightForCards(cardCount, viewportWidth);
     }
     return estimateViewportHeightForCards(cardCount, viewportWidth);
   }
 
-  static int estimateCriticalOnlyViewportHeightForCards(int cardCount, int viewportWidth) {
+  static int estimateSingleSectionViewportHeightForCards(int cardCount, int viewportWidth) {
     return estimateViewportHeightForCards(cardCount, viewportWidth, 420);
   }
 
