@@ -49,6 +49,11 @@ public class CriteriaExpression implements Serializable {
     return CriteriaEvaluation.available(!evaluation.applicable || evaluation.passed, comparisons);
   }
 
+  public String effectiveExpression(MetricsContext context, boolean regressionEvaluationEnabled) {
+    RenderedExpression rendered = root.render(context, regressionEvaluationEnabled);
+    return rendered == null ? "No applicable criteria." : rendered.text;
+  }
+
   public boolean usesMetricNamespace(String namespace) {
     String prefix = Util.trimToEmpty(namespace).toLowerCase(Locale.ROOT) + ".";
     if (metricReferences == null) {
@@ -204,6 +209,8 @@ public class CriteriaExpression implements Serializable {
         MetricsContext context,
         List<CriteriaComparisonEvaluation> comparisonEvaluations,
         boolean regressionEvaluationEnabled);
+
+    RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled);
   }
 
   private static final class NodeEvaluation {
@@ -219,6 +226,16 @@ public class CriteriaExpression implements Serializable {
 
     private static NodeEvaluation applicable(boolean passed) {
       return new NodeEvaluation(true, passed);
+    }
+  }
+
+  private static final class RenderedExpression {
+    private final String text;
+    private final int precedence;
+
+    private RenderedExpression(String text, int precedence) {
+      this.text = text;
+      this.precedence = precedence;
     }
   }
 
@@ -256,6 +273,26 @@ public class CriteriaExpression implements Serializable {
               : leftEvaluation.passed || rightEvaluation.passed;
       return NodeEvaluation.applicable(passed);
     }
+
+    @Override
+    public RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled) {
+      RenderedExpression leftExpression = left.render(context, regressionEvaluationEnabled);
+      RenderedExpression rightExpression = right.render(context, regressionEvaluationEnabled);
+      if (leftExpression == null) {
+        return rightExpression;
+      }
+      if (rightExpression == null) {
+        return leftExpression;
+      }
+      int precedence = operator == TokenType.AND ? 2 : 1;
+      String leftText = parenthesizeWhenRequired(leftExpression, precedence);
+      String rightText = parenthesizeWhenRequired(rightExpression, precedence);
+      return new RenderedExpression(leftText + " " + operator.name() + " " + rightText, precedence);
+    }
+
+    private String parenthesizeWhenRequired(RenderedExpression expression, int precedence) {
+      return expression.precedence < precedence ? "(" + expression.text + ")" : expression.text;
+    }
   }
 
   private static class ComparisonNode implements Node {
@@ -290,6 +327,22 @@ public class CriteriaExpression implements Serializable {
               context.isPercentageMetric(metricName),
               passed));
       return NodeEvaluation.applicable(passed);
+    }
+
+    @Override
+    public RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled) {
+      if (!regressionEvaluationEnabled && isRegressionMetric(metricName)) {
+        return null;
+      }
+      CriteriaComparisonEvaluation comparison =
+          new CriteriaComparisonEvaluation(
+              metricName,
+              operator,
+              expectedValue,
+              0.0,
+              context.isPercentageMetric(metricName),
+              true);
+      return new RenderedExpression(comparison.getCriterionLabel(), 3);
     }
 
     private boolean isRegressionMetric(String reference) {

@@ -72,19 +72,17 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
-  public void omitsBypassedRegressionComparisonsFromEvaluationTable() {
+  public void omitsBypassedRegressionRulesFromPrintedCriteriaAndEvaluationTable() {
     String criteria = "regressions.executionRate == 100 AND critical.executionRate == 100";
     GateMetrics criticalMetrics = new GateMetrics(2, 2, 2, 0, 0, 0);
-    CriteriaEvaluation evaluation =
-        CriteriaExpression.parse(criteria)
-            .evaluateDetailed(
-                new MetricsContext(
-                    new GateMetrics(0, 0, 0, 0, 0, 0), Map.of("critical", criticalMetrics)),
-                false);
+    MetricsContext metricsContext =
+        new MetricsContext(new GateMetrics(0, 0, 0, 0, 0, 0), Map.of("critical", criticalMetrics));
+    CriteriaExpression expression = CriteriaExpression.parse(criteria);
+    CriteriaEvaluation evaluation = expression.evaluateDetailed(metricsContext, false);
     GateResult result =
         new GateResult(
             "",
-            criteria,
+            expression.effectiveExpression(metricsContext, false),
             true,
             true,
             new GateMetrics(0, 0, 0, 0, 0, 0),
@@ -106,6 +104,9 @@ public class OctaneEmailBodyRendererTest {
 
     assertTrue(evaluationTable.contains("critical.executionRate == 100%"));
     assertFalse(evaluationTable.contains("regressions.executionRate"));
+    assertTrue(html.contains("Criteria:</strong> <code"));
+    assertTrue(html.contains("critical.executionRate == 100%"));
+    assertFalse(html.contains("regressions.executionRate"));
   }
 
   @Test

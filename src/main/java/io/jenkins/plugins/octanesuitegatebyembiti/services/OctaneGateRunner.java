@@ -472,6 +472,10 @@ public class OctaneGateRunner {
     boolean regressionEvaluationEnabled = !suiteRunIds.isEmpty();
     CriteriaEvaluation criteriaEvaluation =
         criteria.evaluateDetailed(metricsContext, regressionEvaluationEnabled);
+    String effectiveCriteria =
+        regressionEvaluationEnabled
+            ? request.getCriteria()
+            : criteria.effectiveExpression(metricsContext, false);
     boolean passed = criteriaEvaluation.isPassed();
     boolean terminal = !regressionEvaluationEnabled || regressionMetrics.isTerminal();
     for (GateMetrics scopedMetric : scopedMetrics.values()) {
@@ -482,7 +486,7 @@ public class OctaneGateRunner {
     }
     return new GateResult(
         String.join(",", suiteRunIds),
-        request.getCriteria(),
+        effectiveCriteria,
         passed,
         terminal,
         regressionMetrics,

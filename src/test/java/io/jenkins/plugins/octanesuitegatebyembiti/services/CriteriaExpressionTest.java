@@ -97,6 +97,32 @@ public class CriteriaExpressionTest {
   }
 
   @Test
+  public void effectiveExpressionDropsRegressionRulesAndPreservesRemainingLogic() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 2, 0, 0, 0)));
+    CriteriaExpression criteria =
+        CriteriaExpression.parse(
+            "(regressions.executionRate == 100 OR critical.passRate == 100) "
+                + "AND defects.majorCount == 0");
+
+    assertEquals(
+        "critical.passRate == 100% AND defects.majorCount == 0",
+        criteria.effectiveExpression(context, false));
+  }
+
+  @Test
+  public void effectiveExpressionReportsWhenEveryRuleWasBypassed() {
+    MetricsContext context = new MetricsContext(new GateMetrics(0, 0, 0, 0, 0, 0), Map.of());
+
+    assertEquals(
+        "No applicable criteria.",
+        CriteriaExpression.parse("100% execution AND regressions.passRate == 100")
+            .effectiveExpression(context, false));
+  }
+
+  @Test
   public void detailsEvaluateEveryOrBranchWhileKeepingOverallResult() {
     MetricsContext context = new MetricsContext(new GateMetrics(2, 2, 1, 1, 0, 0), Map.of());
 

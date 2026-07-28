@@ -76,6 +76,12 @@ bucket. For example, `gateResult.scopeDetails.critical.suiteRunIds` contains the
 suite run IDs, and `gateResult.scopeDetails.critical.runIds` contains the Octane child run IDs
 that fed the critical metrics.
 
+If critical ownership removes every regression suite run, regression comparisons are removed
+from the logical criteria expression before evaluation. The effective expression is stored in
+`gateResult.criteria` and used by the report and email. Consequently, `{{CRITERIA}}` and the
+criteria evaluation table show only rules that were actually evaluated; they do not repeat
+regression rules merely because those rules were present in the Jenkinsfile.
+
 Build logs start with the suite run IDs under consideration, then each poll prints compact
 metric lines for the regression suite runs and each suite-run-backed scope. For example:
 

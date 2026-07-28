@@ -101,6 +101,9 @@ public class OctaneGateRunnerTest {
     assertEquals(
         overlappingResult.getCriteriaEvaluation().toMap(),
         omittedResult.getCriteriaEvaluation().toMap());
+    assertEquals("critical.executionRate == 100%", overlappingResult.getCriteria());
+    assertEquals(overlappingResult.getCriteria(), omittedResult.getCriteria());
+    assertFalse(overlappingResult.getCriteria().contains("regressions."));
   }
 
   @Test
