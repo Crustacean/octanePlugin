@@ -107,6 +107,50 @@ public class OctaneGateRunnerTest {
   }
 
   @Test
+  public void taskCriteriaScenariosUseOnlyApplicableBuckets() throws Exception {
+    String criticalAndDefectCriteria =
+        "(critical.executionRate == 100 AND critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)";
+    String effectiveCriticalAndDefectCriteria =
+        "critical.executionRate == 100% AND critical.passRate == 100% "
+            + "AND defects.major < 10% AND defects.minor < 20% "
+            + "AND defects.Unspecified == 0%";
+
+    GateResult identicalIds =
+        refreshTaskCriteriaScenario(
+            "1196,1200,1204",
+            "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+                + "AND "
+                + criticalAndDefectCriteria);
+    GateResult omittedRegressionOr =
+        refreshTaskCriteriaScenario(
+            "",
+            "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+                + "OR "
+                + criticalAndDefectCriteria);
+    GateResult distinctRegression =
+        refreshTaskCriteriaScenario("1197,2200,1201", criticalAndDefectCriteria);
+    GateResult mixedRegressionBranches =
+        refreshTaskCriteriaScenario(
+            "",
+            "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+                + "AND (critical.passRate == 100 OR regressions.passRate >= 95) "
+                + "AND (defects.major < 10% AND defects.minor < 20%) "
+                + "AND (defects.Unspecified == 0%)");
+
+    assertCriticalOnlyScenario(identicalIds, effectiveCriticalAndDefectCriteria);
+    assertCriticalOnlyScenario(omittedRegressionOr, effectiveCriticalAndDefectCriteria);
+    assertCriticalOnlyScenario(mixedRegressionBranches, effectiveCriticalAndDefectCriteria);
+
+    assertTrue(distinctRegression.isRegressionEvaluationEnabled());
+    assertTrue(distinctRegression.isPassed());
+    assertEquals(criticalAndDefectCriteria, distinctRegression.getCriteria());
+    assertNoRegressionComparisons(distinctRegression);
+    assertEquals(3, distinctRegression.getSuiteRuns().size());
+  }
+
+  @Test
   public void nonCriticalSuiteRunScopesDoNotOwnRegressionIds() {
     GateRequest request = new GateRequest("octane-prod", "450297,450300,450303");
     OctaneGateScope smoke = new OctaneGateScope("smoke");
@@ -289,6 +333,56 @@ public class OctaneGateRunnerTest {
         new OctaneGateReportPublisher() {});
   }
 
+  private GateResult refreshTaskCriteriaScenario(String regressionSuiteRunIds, String criteria)
+      throws Exception {
+    GateRequest request = new GateRequest("octane-prod", regressionSuiteRunIds);
+    request.setCriteria(criteria);
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId("1196,1200,1204");
+    request.setScopes(List.of(critical));
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, Very High, High, Unspecified");
+    OctaneDefectGroup minor = new OctaneDefectGroup("minor");
+    minor.setTypes("Low, Medium");
+    request.setDefectGroups(List.of(major, minor));
+
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+    return runner.refreshPassedResult(
+        new NoDefectOctaneClient(),
+        previousPassedResult(request),
+        request,
+        OctaneGateRunner.regressionSuiteRunIdsForCriteria(request),
+        "1001",
+        "2001",
+        CriteriaExpression.parse(criteria),
+        request.createStatusClassifier(),
+        taskListener(new ByteArrayOutputStream()),
+        new OctaneGateReportPublisher() {});
+  }
+
+  private void assertCriticalOnlyScenario(GateResult result, String expectedCriteria) {
+    assertFalse(result.isRegressionEvaluationEnabled());
+    assertTrue(result.isPassed());
+    assertEquals(expectedCriteria, result.getCriteria());
+    assertNoRegressionComparisons(result);
+    assertTrue(result.getSuiteRuns().isEmpty());
+  }
+
+  private void assertNoRegressionComparisons(GateResult result) {
+    assertEquals(5, result.getCriteriaEvaluation().getComparisons().size());
+    assertTrue(
+        result.getCriteriaEvaluation().getComparisons().stream()
+            .noneMatch(
+                comparison ->
+                    comparison
+                        .getMetricReference()
+                        .toLowerCase(java.util.Locale.ROOT)
+                        .startsWith("regression")));
+  }
+
   private OctaneGateReportPublisher capturingPublisher(AtomicReference<GateResult> result) {
     return new OctaneGateReportPublisher() {
       @Override
@@ -364,6 +458,28 @@ public class OctaneGateRunnerTest {
     public List<DefectRecord> fetchDefectsByIds(
         String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
       return defects;
+    }
+  }
+
+  private static class NoDefectOctaneClient extends FakeOctaneClient {
+    NoDefectOctaneClient() {
+      super(List.of(new RunRecord("1", "one", "passed")));
+    }
+
+    @Override
+    public List<DefectRecord> fetchLinkedDefects(
+        String sharedSpaceId,
+        String workspaceId,
+        Map<String, List<RunRecord>> suiteRuns,
+        String defectQuery,
+        int maxDefects) {
+      return List.of();
+    }
+
+    @Override
+    public List<DefectRecord> fetchDefectsByIds(
+        String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
+      return List.of();
     }
   }
 }
