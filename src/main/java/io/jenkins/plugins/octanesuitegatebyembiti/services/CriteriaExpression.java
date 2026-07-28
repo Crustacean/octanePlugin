@@ -39,32 +39,68 @@ public class CriteriaExpression implements Serializable {
   }
 
   public CriteriaEvaluation evaluateDetailed(MetricsContext context) {
-    return evaluateDetailed(context, true);
+    return evaluateDetailed(context, Set.of());
   }
 
   public CriteriaEvaluation evaluateDetailed(
       MetricsContext context, boolean regressionEvaluationEnabled) {
+    return evaluateDetailed(
+        context, regressionEvaluationEnabled ? Set.of() : Set.of("regressions"));
+  }
+
+  public CriteriaEvaluation evaluateDetailed(
+      MetricsContext context, Set<String> disabledMetricNamespaces) {
+    Set<String> disabledNamespaces = normalizeNamespaces(disabledMetricNamespaces);
     List<CriteriaComparisonEvaluation> comparisons = new ArrayList<>();
-    NodeEvaluation evaluation = root.evaluate(context, comparisons, regressionEvaluationEnabled);
+    NodeEvaluation evaluation = root.evaluate(context, comparisons, disabledNamespaces);
     return CriteriaEvaluation.available(!evaluation.applicable || evaluation.passed, comparisons);
   }
 
   public CriteriaEvaluation evaluateAppliedDetailed(
       MetricsContext context, boolean regressionEvaluationEnabled) {
-    Node effectiveRoot = root.prune(regressionEvaluationEnabled);
+    return evaluateAppliedDetailed(
+        context, regressionEvaluationEnabled ? Set.of() : Set.of("regressions"));
+  }
+
+  public CriteriaEvaluation evaluateAppliedDetailed(
+      MetricsContext context, Set<String> disabledMetricNamespaces) {
+    Set<String> disabledNamespaces = normalizeNamespaces(disabledMetricNamespaces);
+    Node effectiveRoot = root.prune(disabledNamespaces);
     if (effectiveRoot == null) {
       return CriteriaEvaluation.available(true, List.of());
     }
     String appliedExpression = renderAppliedExpression(effectiveRoot, context);
-    return CriteriaExpression.parse(appliedExpression).evaluateDetailed(context, true);
+    return CriteriaExpression.parse(appliedExpression).evaluateDetailed(context);
   }
 
   public String effectiveExpression(MetricsContext context, boolean regressionEvaluationEnabled) {
-    Node effectiveRoot = root.prune(regressionEvaluationEnabled);
+    return effectiveExpression(
+        context, regressionEvaluationEnabled ? Set.of() : Set.of("regressions"));
+  }
+
+  public String effectiveExpression(MetricsContext context, Set<String> disabledMetricNamespaces) {
+    Node effectiveRoot = root.prune(normalizeNamespaces(disabledMetricNamespaces));
     if (effectiveRoot == null) {
       return "No applicable criteria.";
     }
     return renderAppliedExpression(effectiveRoot, context);
+  }
+
+  private static Set<String> normalizeNamespaces(Set<String> namespaces) {
+    if (namespaces == null || namespaces.isEmpty()) {
+      return Set.of();
+    }
+    Set<String> values = new LinkedHashSet<>();
+    for (String namespace : namespaces) {
+      String normalized = Util.trimToEmpty(namespace).toLowerCase(Locale.ROOT);
+      if ("regression".equals(normalized)) {
+        normalized = "regressions";
+      }
+      if (!normalized.isEmpty()) {
+        values.add(normalized);
+      }
+    }
+    return Set.copyOf(values);
   }
 
   private String renderAppliedExpression(Node effectiveRoot, MetricsContext context) {
@@ -281,11 +317,11 @@ public class CriteriaExpression implements Serializable {
     NodeEvaluation evaluate(
         MetricsContext context,
         List<CriteriaComparisonEvaluation> comparisonEvaluations,
-        boolean regressionEvaluationEnabled);
+        Set<String> disabledMetricNamespaces);
 
-    RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled);
+    RenderedExpression render(MetricsContext context, Set<String> disabledMetricNamespaces);
 
-    Node prune(boolean regressionEvaluationEnabled);
+    Node prune(Set<String> disabledMetricNamespaces);
   }
 
   private static final class NodeEvaluation {
@@ -341,7 +377,7 @@ public class CriteriaExpression implements Serializable {
       boolean grouped = node instanceof GroupNode;
       boolean filtered = grouped && ((GroupNode) node).filtered;
       Node renderedNode = grouped ? ((GroupNode) node).child : node;
-      RenderedExpression rendered = renderedNode.render(context, true);
+      RenderedExpression rendered = renderedNode.render(context, Set.of());
       return new AppliedTerm(
           rendered.text,
           rendered.precedence,
@@ -386,11 +422,11 @@ public class CriteriaExpression implements Serializable {
     public NodeEvaluation evaluate(
         MetricsContext context,
         List<CriteriaComparisonEvaluation> comparisonEvaluations,
-        boolean regressionEvaluationEnabled) {
+        Set<String> disabledMetricNamespaces) {
       NodeEvaluation leftEvaluation =
-          left.evaluate(context, comparisonEvaluations, regressionEvaluationEnabled);
+          left.evaluate(context, comparisonEvaluations, disabledMetricNamespaces);
       NodeEvaluation rightEvaluation =
-          right.evaluate(context, comparisonEvaluations, regressionEvaluationEnabled);
+          right.evaluate(context, comparisonEvaluations, disabledMetricNamespaces);
       if (!leftEvaluation.applicable) {
         return rightEvaluation;
       }
@@ -405,9 +441,9 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled) {
-      RenderedExpression leftExpression = left.render(context, regressionEvaluationEnabled);
-      RenderedExpression rightExpression = right.render(context, regressionEvaluationEnabled);
+    public RenderedExpression render(MetricsContext context, Set<String> disabledMetricNamespaces) {
+      RenderedExpression leftExpression = left.render(context, disabledMetricNamespaces);
+      RenderedExpression rightExpression = right.render(context, disabledMetricNamespaces);
       if (leftExpression == null) {
         return rightExpression;
       }
@@ -421,9 +457,9 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public Node prune(boolean regressionEvaluationEnabled) {
-      Node effectiveLeft = left.prune(regressionEvaluationEnabled);
-      Node effectiveRight = right.prune(regressionEvaluationEnabled);
+    public Node prune(Set<String> disabledMetricNamespaces) {
+      Node effectiveLeft = left.prune(disabledMetricNamespaces);
+      Node effectiveRight = right.prune(disabledMetricNamespaces);
       if (effectiveLeft == null) {
         return effectiveRight;
       }
@@ -460,19 +496,19 @@ public class CriteriaExpression implements Serializable {
     public NodeEvaluation evaluate(
         MetricsContext context,
         List<CriteriaComparisonEvaluation> comparisonEvaluations,
-        boolean regressionEvaluationEnabled) {
-      return child.evaluate(context, comparisonEvaluations, regressionEvaluationEnabled);
+        Set<String> disabledMetricNamespaces) {
+      return child.evaluate(context, comparisonEvaluations, disabledMetricNamespaces);
     }
 
     @Override
-    public RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled) {
-      RenderedExpression rendered = child.render(context, regressionEvaluationEnabled);
+    public RenderedExpression render(MetricsContext context, Set<String> disabledMetricNamespaces) {
+      RenderedExpression rendered = child.render(context, disabledMetricNamespaces);
       return rendered == null ? null : new RenderedExpression("(" + rendered.text + ")", 3);
     }
 
     @Override
-    public Node prune(boolean regressionEvaluationEnabled) {
-      Node effectiveChild = child.prune(regressionEvaluationEnabled);
+    public Node prune(Set<String> disabledMetricNamespaces) {
+      Node effectiveChild = child.prune(disabledMetricNamespaces);
       if (effectiveChild == null) {
         return null;
       }
@@ -502,8 +538,8 @@ public class CriteriaExpression implements Serializable {
     public NodeEvaluation evaluate(
         MetricsContext context,
         List<CriteriaComparisonEvaluation> comparisonEvaluations,
-        boolean regressionEvaluationEnabled) {
-      if (!regressionEvaluationEnabled && isRegressionMetric(metricName)) {
+        Set<String> disabledMetricNamespaces) {
+      if (disabledMetricNamespaces.contains(namespace())) {
         return NodeEvaluation.SKIPPED;
       }
       double actualValue = context.value(metricName);
@@ -520,8 +556,8 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled) {
-      if (!regressionEvaluationEnabled && isRegressionMetric(metricName)) {
+    public RenderedExpression render(MetricsContext context, Set<String> disabledMetricNamespaces) {
+      if (disabledMetricNamespaces.contains(namespace())) {
         return null;
       }
       String appliedLabel = expectedLabel;
@@ -540,8 +576,8 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public Node prune(boolean regressionEvaluationEnabled) {
-      return !regressionEvaluationEnabled && isRegressionMetric(metricName) ? null : this;
+    public Node prune(Set<String> disabledMetricNamespaces) {
+      return disabledMetricNamespaces.contains(namespace()) ? null : this;
     }
 
     private String namespace() {
@@ -552,16 +588,6 @@ public class CriteriaExpression implements Serializable {
       }
       String namespace = normalized.substring(0, dot);
       return "regression".equals(namespace) ? "regressions" : namespace;
-    }
-
-    private boolean isRegressionMetric(String reference) {
-      String normalized = Util.trimToEmpty(reference).toLowerCase(Locale.ROOT);
-      int dot = normalized.indexOf('.');
-      if (dot < 0) {
-        return true;
-      }
-      String namespace = normalized.substring(0, dot);
-      return "regression".equals(namespace) || "regressions".equals(namespace);
     }
 
     private boolean compare(double actualValue) {

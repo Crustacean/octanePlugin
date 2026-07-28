@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.Test;
 
 public class CriteriaExpressionTest {
@@ -125,6 +126,44 @@ public class CriteriaExpressionTest {
             + "AND (defects.major < 10% AND defects.minor < 20%) "
             + "AND (defects.Unspecified == 0%)",
         CriteriaExpression.parse(criteria).effectiveExpression(emptyContext(), false));
+  }
+
+  @Test
+  public void effectiveExpressionDropsDeletedCriticalBucketAndKeepsRegressionRules() {
+    String criteria =
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+            + "AND (critical.executionRate == 100 AND critical.passRate == 100)";
+    MetricsContext context = new MetricsContext(new GateMetrics(2, 2, 2, 0, 0, 0), Map.of());
+
+    CriteriaExpression expression = CriteriaExpression.parse(criteria);
+
+    assertEquals(
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95)",
+        expression.effectiveExpression(context, Set.of("critical")));
+    CriteriaEvaluation evaluation = expression.evaluateAppliedDetailed(context, Set.of("CRITICAL"));
+    assertTrue(evaluation.isPassed());
+    assertEquals(2, evaluation.getComparisons().size());
+  }
+
+  @Test
+  public void effectiveExpressionDropsDeletedRegressionBucketAndKeepsCriticalRules() {
+    String criteria =
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+            + "AND (critical.executionRate == 100 AND critical.passRate == 100)";
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 2, 0, 0, 0)));
+
+    CriteriaExpression expression = CriteriaExpression.parse(criteria);
+
+    assertEquals(
+        "(critical.executionRate == 100 AND critical.passRate == 100)",
+        expression.effectiveExpression(context, Set.of("regression")));
+    CriteriaEvaluation evaluation =
+        expression.evaluateAppliedDetailed(context, Set.of("regressions"));
+    assertTrue(evaluation.isPassed());
+    assertEquals(2, evaluation.getComparisons().size());
   }
 
   @Test

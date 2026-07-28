@@ -103,8 +103,8 @@ public class OctaneGateLogListenerTest {
         log.contains("continuous discovery for release 'Release 2.4' and sprint 'Sprint 3'"));
     assertTrue(log.contains("No active Critical suite runs were found"));
     assertTrue(log.contains("Use Jenkins Abort/Cancel to stop this pipeline"));
-    assertTrue(log.contains("suite run pool added: 55, 56"));
-    assertTrue(log.contains("removed unreachable/deleted run(s): 55"));
+    assertTrue(log.contains("55,56 [ADDED]"));
+    assertTrue(log.contains("55 [DELETED]"));
   }
 
   private GateResult resultWithCriticalScope() {

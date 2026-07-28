@@ -295,16 +295,16 @@ public class OctaneGateRunner {
         }
       }
 
-      boolean awaiting =
-          regressionSelectionEnabled
-              && regressionSuitePool.isConfigured()
-              && effectiveRegressionRuns.isEmpty();
-      for (SuiteRunPool pool : suiteScopePools.values()) {
-        if (pool.isConfigured() && pool.isEmpty()) {
-          awaiting = true;
-          break;
-        }
+      boolean configuredSuiteBucket =
+          regressionSelectionEnabled && regressionSuitePool.isConfigured();
+      boolean activeSuiteBucket = !effectiveRegressionRuns.isEmpty();
+      for (Map.Entry<String, SuiteRunPool> entry : suiteScopePools.entrySet()) {
+        SuiteRunPool pool = entry.getValue();
+        configuredSuiteBucket |= pool.isConfigured();
+        Map<String, List<RunRecord>> currentRuns = scopeSuiteRuns.get(entry.getKey());
+        activeSuiteBucket |= currentRuns != null && !currentRuns.isEmpty();
       }
+      boolean awaiting = configuredSuiteBucket && !activeSuiteBucket;
       return new CurrentSuiteRuns(effectiveRegressionRuns, scopeSuiteRuns, awaiting);
     }
 
@@ -424,10 +424,6 @@ public class OctaneGateRunner {
 
       private boolean isConfigured() {
         return selector.isConfigured();
-      }
-
-      private boolean isEmpty() {
-        return activeIds.isEmpty();
       }
 
       private List<String> getActiveIds() {
@@ -680,7 +676,7 @@ public class OctaneGateRunner {
       GateRequest request,
       Map<String, List<RunRecord>> suiteRuns,
       Map<String, Map<String, List<RunRecord>>> suiteScopeRuns,
-      boolean regressionEvaluationEnabled,
+      boolean regressionSelectionEnabled,
       boolean awaitingSuiteDiscovery,
       String sharedSpaceId,
       String workspaceId,
@@ -692,10 +688,22 @@ public class OctaneGateRunner {
     List<RunRecord> childRuns = flattenAndDedupeRuns(suiteRuns);
     GateMetrics regressionMetrics = GateMetrics.fromRuns(childRuns, classifier);
     List<String> childRunIds = runIds(childRuns);
+    boolean regressionEvaluationEnabled = regressionSelectionEnabled && !suiteRuns.isEmpty();
+    Set<String> inactiveMetricNamespaces = new LinkedHashSet<>();
+    if (!regressionEvaluationEnabled) {
+      inactiveMetricNamespaces.add("regressions");
+    }
 
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
     Map<String, GateScopeResult> scopedResults = new LinkedHashMap<>();
     for (OctaneGateScope scope : request.getScopes()) {
+      Map<String, List<RunRecord>> currentScopeSuiteRuns = suiteScopeRuns.get(scope.getName());
+      if (scope.isSuiteRunScope()
+          && currentScopeSuiteRuns != null
+          && currentScopeSuiteRuns.isEmpty()) {
+        inactiveMetricNamespaces.add(scope.getName());
+        continue;
+      }
       GateScopeResult scopeResult =
           pollScope(
               client,
@@ -703,7 +711,7 @@ public class OctaneGateRunner {
               workspaceId,
               childRunIds,
               suiteRuns,
-              suiteScopeRuns.get(scope.getName()),
+              currentScopeSuiteRuns,
               classifier,
               scope);
       scopedMetrics.put(scope.getName(), scopeResult.getMetrics());
@@ -727,13 +735,13 @@ public class OctaneGateRunner {
     MetricsContext metricsContext =
         new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
     String effectiveCriteria =
-        regressionEvaluationEnabled
+        inactiveMetricNamespaces.isEmpty()
             ? request.getCriteria()
-            : criteria.effectiveExpression(metricsContext, false);
+            : criteria.effectiveExpression(metricsContext, inactiveMetricNamespaces);
     CriteriaEvaluation criteriaEvaluation =
-        regressionEvaluationEnabled
-            ? criteria.evaluateDetailed(metricsContext, true)
-            : criteria.evaluateAppliedDetailed(metricsContext, false);
+        inactiveMetricNamespaces.isEmpty()
+            ? criteria.evaluateDetailed(metricsContext)
+            : criteria.evaluateAppliedDetailed(metricsContext, inactiveMetricNamespaces);
     boolean passed = !awaitingSuiteDiscovery && criteriaEvaluation.isPassed();
     boolean terminal =
         !awaitingSuiteDiscovery && (!regressionEvaluationEnabled || regressionMetrics.isTerminal());
@@ -796,6 +804,7 @@ public class OctaneGateRunner {
               suiteRuns,
               request.getRiskHeatMapDefectQuery(),
               request.getRiskHeatMapMaxDefects());
+      defectLedger.retainLinkedTo(flattenAndDedupeRuns(suiteRuns), defects);
       defectLedger.merge(defects);
       if (defectLedger.isAtCapacity()) {
         listener

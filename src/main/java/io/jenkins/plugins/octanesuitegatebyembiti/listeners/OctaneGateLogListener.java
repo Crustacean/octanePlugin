@@ -85,18 +85,11 @@ public class OctaneGateLogListener {
   }
 
   public void logSuiteRunsAdded(TaskListener listener, String label, List<String> suiteRunIds) {
-    listener
-        .getLogger()
-        .printf(
-            "[INFO/AUDIT] %s suite run pool added: %s.%n", label, String.join(", ", suiteRunIds));
+    listener.getLogger().printf("%s [ADDED]%n", String.join(",", suiteRunIds));
   }
 
   public void logSuiteRunsRemoved(TaskListener listener, String label, List<String> suiteRunIds) {
-    listener
-        .getLogger()
-        .printf(
-            "[WARNING/AUDIT] %s suite run pool removed unreachable/deleted run(s): %s.%n",
-            label, String.join(", ", suiteRunIds));
+    listener.getLogger().printf("%s [DELETED]%n", String.join(",", suiteRunIds));
   }
 
   public void logRegressionEvaluationSkipped(TaskListener listener) {

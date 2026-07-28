@@ -46,6 +46,10 @@ public class OctaneClient implements AutoCloseable {
   private static final String RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
           + "test{id,name},product_areas{id,name},runs_in_suite";
+  private static final String EXTENDED_DEFECT_FIELDS =
+      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
+          + "run{id,name},detected_in_run{id,name},test{id,name},owner_test{id,name},"
+          + "product_areas{id,name}";
   private static final String DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
           + "run{id,name},test{id,name},product_areas{id,name}";
@@ -293,6 +297,8 @@ public class OctaneClient implements AutoCloseable {
         defectQuery,
         maxDefects,
         recordsById);
+    fetchDefectsForRelation(
+        sharedSpaceId, workspaceId, "owner_test", testIds, defectQuery, maxDefects, recordsById);
     return new ArrayList<>(recordsById.values());
   }
 
@@ -663,13 +669,22 @@ public class OctaneClient implements AutoCloseable {
       String sharedSpaceId, String workspaceId, String query, int limit, int offset)
       throws IOException, InterruptedException {
     try {
-      return getJson(defectsPath(sharedSpaceId, workspaceId, query, DEFECT_FIELDS, limit, offset));
+      return getJson(
+          defectsPath(sharedSpaceId, workspaceId, query, EXTENDED_DEFECT_FIELDS, limit, offset));
     } catch (IOException e) {
       if (!isUnknownFieldFailure(e)) {
         throw e;
       }
-      return getJson(
-          defectsPath(sharedSpaceId, workspaceId, query, MINIMAL_DEFECT_FIELDS, limit, offset));
+      try {
+        return getJson(
+            defectsPath(sharedSpaceId, workspaceId, query, DEFECT_FIELDS, limit, offset));
+      } catch (IOException fallbackError) {
+        if (!isUnknownFieldFailure(fallbackError)) {
+          throw fallbackError;
+        }
+        return getJson(
+            defectsPath(sharedSpaceId, workspaceId, query, MINIMAL_DEFECT_FIELDS, limit, offset));
+      }
     }
   }
 
@@ -927,8 +942,8 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private DefectRecord parseDefect(JsonNode node) {
-    EntityReference run = readEntity(node.path("run"));
-    EntityReference test = readEntity(node.path("test"));
+    EntityReference run = readFirstEntity(node, List.of("run", "detected_in_run"));
+    EntityReference test = readFirstEntity(node, List.of("test", "owner_test"));
     EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
     return new DefectRecord(
         node.path("id").asString(),
