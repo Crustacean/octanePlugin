@@ -303,6 +303,15 @@ public class OctaneEmailBodyRendererTest {
         renderExecutionDetails(
             reconciliationSnapshot(OctaneGateReportState.POLLING, List.of("passed"), 2),
             OctaneReportTheme.DARK);
+    String closedAfterPassingRerun =
+        renderExecutionDetails(
+            reconciliationSnapshot(OctaneGateReportState.PASSED, List.of("passed", "passed"), 0, 2),
+            OctaneReportTheme.LIGHT);
+    String closedDefectsExcludedFromActual =
+        renderExecutionDetails(
+            reconciliationSnapshot(
+                OctaneGateReportState.PASSED, List.of("blocked", "passed"), 1, 2),
+            OctaneReportTheme.LIGHT);
 
     String zeroTallyTable = emailTable(zeroTally, "defect-reconciliation");
     assertReconciliationCounts(zeroTallyTable, 0, 0, 0, 0);
@@ -322,6 +331,17 @@ public class OctaneEmailBodyRendererTest {
     assertReconciliationCounts(surplusTable, 0, 0, 0, 2);
     assertTrue(surplusTable.contains("+100% (SURPLUS)"));
     assertTrue(surplusTable.contains("border-left:4px solid #FF9F0A"));
+
+    String closedAfterPassingRerunTable =
+        emailTable(closedAfterPassingRerun, "defect-reconciliation");
+    assertReconciliationCounts(closedAfterPassingRerunTable, 0, 0, 0, 0);
+    assertTrue(closedAfterPassingRerunTable.contains("0% (TALLY)"));
+
+    String closedDefectsExcludedTable =
+        emailTable(closedDefectsExcludedFromActual, "defect-reconciliation");
+    assertReconciliationCounts(closedDefectsExcludedTable, 1, 0, 1, 1);
+    assertTrue(closedDefectsExcludedTable.contains("0% (TALLY)"));
+    assertFalse(closedDefectsExcludedTable.contains("SURPLUS"));
   }
 
   @Test
@@ -499,7 +519,7 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(table.contains(">" + failed + "</td></tr>"));
     assertTrue(table.contains(">Total Expected Defects</th><td"));
     assertTrue(table.contains(">" + expected + "</td></tr>"));
-    assertTrue(table.contains(">Actual Defects Raised</th><td"));
+    assertTrue(table.contains(">Actual Open Defects</th><td"));
     assertTrue(table.contains(">" + actual + "</td></tr>"));
   }
 
@@ -564,13 +584,21 @@ public class OctaneEmailBodyRendererTest {
 
   private OctaneGateReportSnapshot reconciliationSnapshot(
       OctaneGateReportState state, List<String> statuses, int defectsRaised) {
+    return reconciliationSnapshot(state, statuses, defectsRaised, 0);
+  }
+
+  private OctaneGateReportSnapshot reconciliationSnapshot(
+      OctaneGateReportState state, List<String> statuses, int openDefects, int closedDefects) {
     List<RunRecord> runs = new ArrayList<>();
     for (int index = 0; index < statuses.size(); index++) {
       runs.add(new RunRecord("run-" + index, "Run " + index, statuses.get(index), "Test Engineer"));
     }
     List<DefectRecord> defects = new ArrayList<>();
-    for (int index = 0; index < defectsRaised; index++) {
+    for (int index = 0; index < openDefects; index++) {
       defects.add(defect("reconciliation-defect-" + index, "High", "opened"));
+    }
+    for (int index = 0; index < closedDefects; index++) {
+      defects.add(defect("closed-reconciliation-defect-" + index, "High", "closed"));
     }
     CriteriaEvaluation evaluation =
         CriteriaEvaluation.available(
@@ -590,6 +618,7 @@ public class OctaneEmailBodyRendererTest {
             Map.of(),
             OctaneRiskHeatMap.disabled(),
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.fromDefects(defects), List.of()),
+            defects,
             evaluation,
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(

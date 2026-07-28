@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaComparisonEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectLoggingCompliance;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneExecutionStatusDistribution;
@@ -281,8 +282,8 @@ public class OctaneEmailBodyRenderer {
 
   private void appendDefectReconciliationTable(
       StringBuilder html, OctaneGateReportSnapshot snapshot, String theme) {
-    DefectReconciliation reconciliation = defectReconciliation(snapshot);
-    ReconciliationStyle statusStyle = reconciliationStyle(reconciliation.status, theme);
+    DefectLoggingCompliance reconciliation = defectReconciliation(snapshot);
+    ReconciliationStyle statusStyle = reconciliationStyle(reconciliation.getStatus(), theme);
     html.append(
         "<table data-octane-email-table=\"defect-reconciliation\" cellpadding=\"0\" "
             + "cellspacing=\"0\" style=\"border-collapse:collapse;table-layout:fixed;"
@@ -292,21 +293,20 @@ public class OctaneEmailBodyRenderer {
         .append("\">Defect Logging Compliance</caption>");
     html.append("<colgroup><col style=\"width:68%;\"><col style=\"width:32%;\"></colgroup>");
     html.append("<tbody>");
-    appendReconciliationRow(html, "Blocked Tests", reconciliation.blockedCount, false, false);
-    appendReconciliationRow(html, "Failed Tests", reconciliation.failedCount, false, false);
+    appendReconciliationRow(html, "Blocked Tests", reconciliation.getBlockedTests(), false, false);
+    appendReconciliationRow(html, "Failed Tests", reconciliation.getFailedTests(), false, false);
     appendReconciliationRow(
-        html, "Total Expected Defects", reconciliation.expectedDefects, true, false);
+        html, "Total Expected Defects", reconciliation.getExpectedDefects(), true, false);
     appendReconciliationRow(
-        html, "Actual Defects Raised", reconciliation.defectsRaised, true, true);
+        html, "Actual Open Defects", reconciliation.getOpenDefects(), true, true);
     appendReconciliationStatusRow(html, reconciliation, statusStyle);
     html.append("</tbody></table>");
   }
 
-  private DefectReconciliation defectReconciliation(OctaneGateReportSnapshot snapshot) {
-    int blockedCount = statusCount(snapshot, "Blocked");
-    int failedCount = statusCount(snapshot, "Failed");
-    int defectsRaised = snapshot == null ? 0 : snapshot.getDefectMetrics().getTotalDefectsRaised();
-    return DefectReconciliation.from(blockedCount, failedCount, defectsRaised);
+  private DefectLoggingCompliance defectReconciliation(OctaneGateReportSnapshot snapshot) {
+    return snapshot == null
+        ? DefectLoggingCompliance.from(0, 0, 0)
+        : snapshot.getTestManagement().getDefectLoggingCompliance();
   }
 
   private void appendReconciliationRow(
@@ -331,13 +331,14 @@ public class OctaneEmailBodyRenderer {
   }
 
   private void appendReconciliationStatusRow(
-      StringBuilder html, DefectReconciliation reconciliation, ReconciliationStyle statusStyle) {
-    String percentagePrefix = reconciliation.status == ReconciliationStatus.SURPLUS ? "+" : "";
+      StringBuilder html, DefectLoggingCompliance reconciliation, ReconciliationStyle statusStyle) {
+    String percentagePrefix =
+        reconciliation.getStatus() == DefectLoggingCompliance.Status.SURPLUS ? "+" : "";
     String statusText =
         percentagePrefix
-            + formatPercentage(reconciliation.discrepancyPercentage)
+            + formatPercentage(reconciliation.getDiscrepancyPercentage())
             + " ("
-            + reconciliation.status.label
+            + reconciliation.getStatus().getLabel()
             + ")";
     html.append("<tr bgcolor=\"")
         .append(statusStyle.backgroundColor)
@@ -361,13 +362,14 @@ public class OctaneEmailBodyRenderer {
         .append("</td></tr>");
   }
 
-  private ReconciliationStyle reconciliationStyle(ReconciliationStatus status, String theme) {
+  private ReconciliationStyle reconciliationStyle(
+      DefectLoggingCompliance.Status status, String theme) {
     boolean darkTheme = emailTheme(theme) == OctaneReportTheme.DARK;
-    if (status == ReconciliationStatus.TALLY) {
+    if (status == DefectLoggingCompliance.Status.TALLY) {
       return new ReconciliationStyle(
           darkTheme ? DARK_SYSTEM_GREEN : LIGHT_SYSTEM_GREEN, "#E8F8ED", "#166534");
     }
-    if (status == ReconciliationStatus.UNDER_REPORTED) {
+    if (status == DefectLoggingCompliance.Status.UNDER_REPORTED) {
       return new ReconciliationStyle(
           darkTheme ? DARK_SYSTEM_RED : LIGHT_SYSTEM_RED, "#FDECEB", "#991B1B");
     }
@@ -936,74 +938,6 @@ public class OctaneEmailBodyRenderer {
     OPEN,
     CLOSED,
     TOTAL
-  }
-
-  private enum ReconciliationStatus {
-    TALLY("TALLY"),
-    UNDER_REPORTED("UNDER-REPORTED"),
-    SURPLUS("SURPLUS");
-
-    private final String label;
-
-    ReconciliationStatus(String label) {
-      this.label = label;
-    }
-  }
-
-  private static class DefectReconciliation {
-    private final int blockedCount;
-    private final int failedCount;
-    private final int expectedDefects;
-    private final int defectsRaised;
-    private final double discrepancyPercentage;
-    private final ReconciliationStatus status;
-
-    private DefectReconciliation(
-        int blockedCount,
-        int failedCount,
-        int expectedDefects,
-        int defectsRaised,
-        double discrepancyPercentage,
-        ReconciliationStatus status) {
-      this.blockedCount = blockedCount;
-      this.failedCount = failedCount;
-      this.expectedDefects = expectedDefects;
-      this.defectsRaised = defectsRaised;
-      this.discrepancyPercentage = discrepancyPercentage;
-      this.status = status;
-    }
-
-    private static DefectReconciliation from(int blockedCount, int failedCount, int defectsRaised) {
-      int safeBlockedCount = Math.max(0, blockedCount);
-      int safeFailedCount = Math.max(0, failedCount);
-      int safeDefectsRaised = Math.max(0, defectsRaised);
-      int expectedDefects = safeBlockedCount + safeFailedCount;
-      if (safeDefectsRaised == expectedDefects) {
-        return new DefectReconciliation(
-            safeBlockedCount,
-            safeFailedCount,
-            expectedDefects,
-            safeDefectsRaised,
-            0.0,
-            ReconciliationStatus.TALLY);
-      }
-
-      double discrepancyPercentage =
-          expectedDefects == 0
-              ? 100.0
-              : Math.abs(expectedDefects - safeDefectsRaised) * 100.0 / expectedDefects;
-      ReconciliationStatus status =
-          safeDefectsRaised < expectedDefects
-              ? ReconciliationStatus.UNDER_REPORTED
-              : ReconciliationStatus.SURPLUS;
-      return new DefectReconciliation(
-          safeBlockedCount,
-          safeFailedCount,
-          expectedDefects,
-          safeDefectsRaised,
-          discrepancyPercentage,
-          status);
-    }
   }
 
   private static class ReconciliationStyle {
