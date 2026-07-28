@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
 
@@ -119,6 +120,16 @@ public class OctaneGateRunnerTest {
         "Regression Release, Regression Sprint",
         "Critical Release, Critical Sprint",
         "regressions");
+  }
+
+  @Test
+  public void criticalBucketRepopulationRestoresTheCompleteReportPipeline() throws Exception {
+    assertBucketRepopulationRestoresTheCompleteReportPipeline("critical");
+  }
+
+  @Test
+  public void regressionBucketRepopulationRestoresTheCompleteReportPipeline() throws Exception {
+    assertBucketRepopulationRestoresTheCompleteReportPipeline("regressions");
   }
 
   @Test
@@ -457,6 +468,155 @@ public class OctaneGateRunnerTest {
     assertFalse(screenshotHtml.contains("data-card-key=\"bars-" + removedSource + "\""));
   }
 
+  @SuppressWarnings("unchecked")
+  private void assertBucketRepopulationRestoresTheCompleteReportPipeline(String repopulatedBucket)
+      throws Exception {
+    GateRequest request = new GateRequest("octane-prod", "Regression Release, Regression Sprint");
+    request.setCriteria(
+        "(regressions.executionRate == 100) AND (critical.executionRate == 100) "
+            + "AND (defects.criticalCount == 1)");
+    request.setRiskHeatMap(true);
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId("Critical Release, Critical Sprint");
+    request.setScopes(List.of(critical));
+
+    RunRecord existingRun =
+        new RunRecord(
+            "existing-run",
+            "Existing run",
+            "passed",
+            "Existing Tester",
+            "existing-test",
+            "Existing test",
+            "project-1",
+            "Project");
+    RunRecord repopulatedRun =
+        new RunRecord(
+            "repopulated-run",
+            "Repopulated run",
+            "passed",
+            "New Tester",
+            "repopulated-test",
+            "Repopulated test",
+            "project-1",
+            "Project");
+    boolean regressionRepopulated = "regressions".equals(repopulatedBucket);
+    Map<String, List<RunRecord>> inactiveRegressionRuns =
+        regressionRepopulated ? Map.of() : Map.of("regression-suite", List.of(existingRun));
+    Map<String, Map<String, List<RunRecord>>> inactiveScopeRuns =
+        Map.of(
+            "critical",
+            regressionRepopulated ? Map.of("critical-suite", List.of(existingRun)) : Map.of());
+    Map<String, List<RunRecord>> activeRegressionRuns =
+        Map.of("regression-suite", List.of(regressionRepopulated ? repopulatedRun : existingRun));
+    Map<String, Map<String, List<RunRecord>>> activeScopeRuns =
+        Map.of(
+            "critical",
+            Map.of(
+                "critical-suite", List.of(regressionRepopulated ? existingRun : repopulatedRun)));
+
+    RepopulationDefectClient client = new RepopulationDefectClient("repopulated-run");
+    OctaneDefectLedger defectLedger = new OctaneDefectLedger();
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+    CriteriaExpression criteria = CriteriaExpression.parse(request.getCriteria());
+    TaskListener listener = taskListener(new ByteArrayOutputStream());
+
+    GateResult inactiveResult =
+        runner.poll(
+            client,
+            request,
+            inactiveRegressionRuns,
+            inactiveScopeRuns,
+            true,
+            false,
+            "1001",
+            "2001",
+            criteria,
+            request.createStatusClassifier(),
+            listener,
+            defectLedger);
+    assertFalse(inactiveResult.getCriteria().contains(repopulatedBucket + "."));
+    assertEquals(0, inactiveResult.getDefects().size());
+
+    GateResult activeResult =
+        runner.poll(
+            client,
+            request,
+            activeRegressionRuns,
+            activeScopeRuns,
+            true,
+            false,
+            "1001",
+            "2001",
+            criteria,
+            request.createStatusClassifier(),
+            listener,
+            defectLedger);
+
+    assertEquals(request.getCriteria(), activeResult.getCriteria());
+    assertEquals(3, activeResult.getCriteriaEvaluation().getComparisons().size());
+    assertTrue(activeResult.isRegressionEvaluationEnabled());
+    assertTrue(activeResult.getScopedResults().get("critical").isActive());
+    assertTrue(activeResult.isPassed());
+    assertEquals(2, activeResult.getDefects().size());
+    assertEquals(1, activeResult.getRiskHeatMap().getDefectSeveritySummary().getOpenTotal());
+    assertEquals(1, activeResult.getRiskHeatMap().getDefectSeveritySummary().getClosed());
+    assertEquals(2, client.getLinkedDefectPolls());
+    assertTrue(client.isRepopulatedRunObserved());
+
+    Map<String, Object> pipelineMap = activeResult.toPipelineMap();
+    assertEquals(true, ((Map<String, Object>) pipelineMap.get("regressions")).get("active"));
+    assertEquals(
+        true,
+        ((Map<String, Object>) ((Map<String, Object>) pipelineMap.get("scopes")).get("critical"))
+            .get("active"));
+
+    assertRestoredEmailReport(activeResult, request, OctaneGateReportState.POLLING);
+    assertRestoredEmailReport(activeResult, request, OctaneGateReportState.PASSED);
+  }
+
+  @SuppressWarnings("unchecked")
+  private void assertRestoredEmailReport(
+      GateResult result, GateRequest request, OctaneGateReportState state) {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            state, state.getLabel(), result, request.createStatusClassifier(), 30);
+    assertEquals(2, snapshot.getReportSections().size());
+    assertEquals(
+        880, HeadlessBrowserReportScreenshotService.estimateViewportHeight(snapshot, 1400));
+
+    String screenshotHtml = new OctaneReportZoneHtmlRenderer().render(snapshot, "DARK", 1400);
+    assertTrue(screenshotHtml.contains("data-card-key=\"distribution-regressions\""));
+    assertTrue(screenshotHtml.contains("data-card-key=\"bars-regressions\""));
+    assertTrue(screenshotHtml.contains("data-card-key=\"distribution-critical\""));
+    assertTrue(screenshotHtml.contains("data-card-key=\"bars-critical\""));
+
+    OctaneReportDataMapper.ReportData reportData = new OctaneReportDataMapper().map(snapshot);
+    assertEquals(2, reportData.sections().size());
+    Map<String, Object> criteriaData = (Map<String, Object>) reportData.complete().get("criteria");
+    assertEquals(snapshot.getCriteria(), criteriaData.get("expression"));
+    assertEquals(3, ((List<Map<String, Object>>) criteriaData.get("rows")).size());
+
+    String emailHtml =
+        new OctaneEmailBodyRenderer()
+            .render(
+                "{{CRITERIA}}\n{{EXECUTION_DETAILS}}\n{{REPORT_SCREENSHOT}}",
+                "Project",
+                "Domain",
+                snapshot,
+                "https://jenkins.example/job/1/octane-gate-report/",
+                "report-image",
+                "DARK");
+    assertTrue(emailHtml.contains("Criteria evaluation"));
+    assertTrue(emailHtml.contains("regressions.executionRate"));
+    assertTrue(emailHtml.contains("critical.executionRate"));
+    assertTrue(emailHtml.contains("defects.criticalCount"));
+    assertTrue(emailHtml.contains("cid:report-image"));
+  }
+
   private GateRequest criticalOnlyRequest(String regressionSuiteRunId) {
     GateRequest request = new GateRequest("octane-prod", regressionSuiteRunId);
     request.setCriteria("regressions.executionRate == 100 AND critical.executionRate == 100");
@@ -628,6 +788,74 @@ public class OctaneGateRunnerTest {
     public List<DefectRecord> fetchDefectsByIds(
         String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
       return List.of();
+    }
+  }
+
+  private static class RepopulationDefectClient extends FakeOctaneClient {
+    private final String repopulatedRunId;
+    private final AtomicInteger linkedDefectPolls = new AtomicInteger();
+    private boolean repopulatedRunObserved;
+
+    RepopulationDefectClient(String repopulatedRunId) {
+      super(List.of());
+      this.repopulatedRunId = repopulatedRunId;
+    }
+
+    @Override
+    public List<DefectRecord> fetchLinkedDefects(
+        String sharedSpaceId,
+        String workspaceId,
+        Map<String, List<RunRecord>> suiteRuns,
+        String defectQuery,
+        int maxDefects) {
+      linkedDefectPolls.incrementAndGet();
+      boolean currentPollContainsRepopulatedRun =
+          suiteRuns.values().stream()
+              .flatMap(runs -> runs.stream())
+              .anyMatch(run -> repopulatedRunId.equals(run.getId()));
+      repopulatedRunObserved |= currentPollContainsRepopulatedRun;
+      if (!currentPollContainsRepopulatedRun) {
+        return List.of();
+      }
+      return repopulatedDefects();
+    }
+
+    private List<DefectRecord> repopulatedDefects() {
+      return List.of(
+          new DefectRecord(
+              "open-defect",
+              "Open defect",
+              "Critical",
+              "Highest",
+              "opened",
+              repopulatedRunId,
+              "repopulated-test",
+              "project-1",
+              "Project"),
+          new DefectRecord(
+              "closed-defect",
+              "Closed defect",
+              "High",
+              "Highest",
+              "closed",
+              repopulatedRunId,
+              "repopulated-test",
+              "project-1",
+              "Project"));
+    }
+
+    @Override
+    public List<DefectRecord> fetchDefectsByIds(
+        String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
+      return repopulatedRunObserved ? repopulatedDefects() : List.of();
+    }
+
+    int getLinkedDefectPolls() {
+      return linkedDefectPolls.get();
+    }
+
+    boolean isRepopulatedRunObserved() {
+      return repopulatedRunObserved;
     }
   }
 }

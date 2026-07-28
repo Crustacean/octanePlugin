@@ -116,9 +116,12 @@ final class OctaneSuiteTopologyCache {
       long expiry = loadedAt + ACTIVE_TTL.toNanos();
       synchronized (CACHE) {
         for (Map.Entry<Key, CompletableFuture<List<String>>> entry : owned.entrySet()) {
-          List<String> runIds =
-              List.copyOf(loaded.getOrDefault(entry.getKey().suiteRunId, List.of()));
-          CACHE.put(entry.getKey(), new Entry(runIds, expiry));
+          String suiteRunId = entry.getKey().suiteRunId;
+          boolean topologyWasFound = loaded.containsKey(suiteRunId);
+          List<String> runIds = List.copyOf(loaded.getOrDefault(suiteRunId, List.of()));
+          if (topologyWasFound) {
+            CACHE.put(entry.getKey(), new Entry(runIds, expiry));
+          }
           entry.getValue().complete(runIds);
         }
         evictToBound();

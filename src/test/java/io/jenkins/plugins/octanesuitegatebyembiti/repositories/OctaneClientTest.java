@@ -207,6 +207,49 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void releaseDiscoveryFindsNewSuitesAfterTheSelectionWasEmpty() throws Exception {
+    AtomicInteger discoveryPoll = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (query.contains("release EQ")) {
+            int poll = discoveryPoll.incrementAndGet();
+            if (poll == 1) {
+              json(exchange, 200, "{\"data\":[{\"id\":\"55\"}]}");
+            } else if (poll == 2) {
+              json(exchange, 200, "{\"data\":[]}");
+            } else {
+              json(exchange, 200, "{\"data\":[{\"id\":\"56\"}]}");
+            }
+            return;
+          }
+          List<String> ids = idsFromQuery(exchange);
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < ids.size(); index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            body.append("{\"id\":\"")
+                .append(ids.get(index))
+                .append("\",\"native_status\":{\"logical_name\":\"planned\"}}");
+          }
+          json(exchange, 200, body.append("]}").toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(List.of("55"), discoverAvailableIds(client));
+      assertEquals(List.of(), discoverAvailableIds(client));
+      assertEquals(List.of("56"), discoverAvailableIds(client));
+    }
+  }
+
+  @Test
   public void rejectsUnsafeEntityIdsBeforeBuildingOctaneQueries() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
