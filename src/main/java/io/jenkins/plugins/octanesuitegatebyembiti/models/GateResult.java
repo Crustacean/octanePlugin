@@ -206,6 +206,10 @@ public class GateResult implements Serializable {
     return metrics;
   }
 
+  public boolean isRegressionEvaluationEnabled() {
+    return !Util.splitIdList(suiteRunId).isEmpty();
+  }
+
   public List<RunRecord> getRuns() {
     return runs;
   }
@@ -255,6 +259,7 @@ public class GateResult implements Serializable {
     result.put("criteria", criteria);
     result.put("passed", passed);
     result.put("terminal", terminal);
+    result.put("regressionEvaluationEnabled", isRegressionEvaluationEnabled());
     result.put("polledAt", polledAt.toString());
     result.put("metrics", metrics.toMap());
     result.put("regressions", metrics.toMap());

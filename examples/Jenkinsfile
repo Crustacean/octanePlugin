@@ -43,23 +43,22 @@ pipeline {
           script {
           env.OCTANE_GATE_PASSED = 'false'
           def suiteRunIds =
-              env.OCTANE_REGRESSION_SUITE_RUN_ID
+              (env.OCTANE_REGRESSION_SUITE_RUN_ID ?: '')
                   .split(/[,\s]+/)
                   .collect { it.trim() }
                   .findAll { it }
           def criticalSuiteRunIds =
-              env.OCTANE_CRITICAL_SUITE_RUN_ID
+              (env.OCTANE_CRITICAL_SUITE_RUN_ID ?: '')
                   .split(/[,\s]+/)
                   .collect { it.trim() }
                   .findAll { it }
-          if (suiteRunIds.isEmpty()) {
-            error 'OCTANE_REGRESSION_SUITE_RUN_ID must contain at least one ID.'
-          }
           if (criticalSuiteRunIds.isEmpty()) {
             error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain at least one ID.'
           }
 
-          echo "Octane regression suite run IDs: ${suiteRunIds.join(', ')}"
+          echo(
+              'Octane regression suite run IDs: '
+                  + (suiteRunIds.isEmpty() ? '<none; evaluation skipped>' : suiteRunIds.join(', ')))
           echo "Octane critical suite run IDs: ${criticalSuiteRunIds.join(', ')}"
 
           Map gateResult =
@@ -104,8 +103,10 @@ pipeline {
           env.OCTANE_GATE_PASSED = gateResult.passed == true ? 'true' : 'false'
           echo "Octane criteria verdict: ${gateResult.passed ? 'PASS' : 'FAIL'}"
           echo "Octane suite run IDs: ${gateResult.suiteRunIds.join(', ')}"
-          echo "Regression execution rate: ${gateResult.regressions.executionRate}"
-          echo "Regression pass rate: ${gateResult.regressions.passRate}"
+          if (gateResult.regressionEvaluationEnabled) {
+            echo "Regression execution rate: ${gateResult.regressions.executionRate}"
+            echo "Regression pass rate: ${gateResult.regressions.passRate}"
+          }
           echo "Critical scope execution rate: ${gateResult.scopes.critical.executionRate}"
           echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
           echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"

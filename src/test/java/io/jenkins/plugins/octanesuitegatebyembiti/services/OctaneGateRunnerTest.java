@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import hudson.model.TaskListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
@@ -41,6 +42,65 @@ public class OctaneGateRunnerTest {
     assertEquals(
         List.of("450297", "450300"), OctaneGateRunner.regressionSuiteRunIdsForCriteria(request));
     assertEquals(List.of("450303", "450204"), critical.getSuiteRunIds());
+  }
+
+  @Test
+  public void identicalRegressionAndCriticalIdsMatchCriticalOnlyConfiguration() throws Exception {
+    GateRequest overlapping = new GateRequest("octane-prod", "75295");
+    OctaneGateScope overlappingCritical = new OctaneGateScope("critical");
+    overlappingCritical.setSuiteRunId("75295");
+    overlapping.setScopes(List.of(overlappingCritical));
+
+    GateRequest criticalOnly = new GateRequest("octane-prod", "");
+    OctaneGateScope onlyCritical = new OctaneGateScope("critical");
+    onlyCritical.setSuiteRunId("75295");
+    criticalOnly.setScopes(List.of(onlyCritical));
+
+    OctaneGateRunner.validateSuiteRunSources(overlapping);
+    OctaneGateRunner.validateSuiteRunSources(criticalOnly);
+    assertEquals(
+        OctaneGateRunner.regressionSuiteRunIdsForCriteria(criticalOnly),
+        OctaneGateRunner.regressionSuiteRunIdsForCriteria(overlapping));
+    assertTrue(OctaneGateRunner.regressionSuiteRunIdsForCriteria(overlapping).isEmpty());
+  }
+
+  @Test
+  public void emptyRegressionRequiresCriticalSuiteRunIds() throws Exception {
+    GateRequest request = new GateRequest("octane-prod", "");
+
+    try {
+      OctaneGateRunner.validateSuiteRunSources(request);
+      fail("Expected a critical suite run validation error.");
+    } catch (hudson.AbortException e) {
+      assertTrue(e.getMessage().contains("critical Octane suite run ID is required"));
+    }
+  }
+
+  @Test
+  public void identicalAndOmittedRegressionIdsProduceTheSameCriticalOnlyResult() throws Exception {
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+    GateRequest overlapping = criticalOnlyRequest("75295");
+    GateRequest omitted = criticalOnlyRequest("");
+
+    GateResult overlappingResult = refreshCriticalOnlyResult(runner, overlapping);
+    GateResult omittedResult = refreshCriticalOnlyResult(runner, omitted);
+
+    assertTrue(overlappingResult.isPassed());
+    assertTrue(omittedResult.isPassed());
+    assertTrue(overlappingResult.isTerminal());
+    assertTrue(omittedResult.isTerminal());
+    assertFalse(overlappingResult.isRegressionEvaluationEnabled());
+    assertFalse(omittedResult.isRegressionEvaluationEnabled());
+    assertEquals(
+        overlappingResult.getScopedMetrics().get("critical").getPassRate(),
+        omittedResult.getScopedMetrics().get("critical").getPassRate(),
+        0.000001);
+    assertEquals(
+        overlappingResult.getCriteriaEvaluation().toMap(),
+        omittedResult.getCriteriaEvaluation().toMap());
   }
 
   @Test
@@ -200,6 +260,30 @@ public class OctaneGateRunnerTest {
         Map.of("4501", runs),
         Map.of(),
         Instant.parse("2026-05-16T13:59:00Z"));
+  }
+
+  private GateRequest criticalOnlyRequest(String regressionSuiteRunId) {
+    GateRequest request = new GateRequest("octane-prod", regressionSuiteRunId);
+    request.setCriteria("regressions.executionRate == 100 AND critical.executionRate == 100");
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId("75295");
+    request.setScopes(List.of(critical));
+    return request;
+  }
+
+  private GateResult refreshCriticalOnlyResult(OctaneGateRunner runner, GateRequest request)
+      throws Exception {
+    return runner.refreshPassedResult(
+        new FakeOctaneClient(List.of(new RunRecord("1", "critical", "passed"))),
+        previousPassedResult(request),
+        request,
+        OctaneGateRunner.regressionSuiteRunIdsForCriteria(request),
+        "1001",
+        "2001",
+        CriteriaExpression.parse(request.getCriteria()),
+        request.createStatusClassifier(),
+        taskListener(new ByteArrayOutputStream()),
+        new OctaneGateReportPublisher() {});
   }
 
   private OctaneGateReportPublisher capturingPublisher(AtomicReference<GateResult> result) {

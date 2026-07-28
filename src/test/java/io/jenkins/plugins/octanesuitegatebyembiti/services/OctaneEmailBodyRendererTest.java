@@ -11,6 +11,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.CriteriaEvaluation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
@@ -68,6 +69,43 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(failed.contains("Timed out"));
     assertTrue(unavailable.contains("NOT EVALUATED"));
     assertTrue(unavailable.contains("Detailed evaluation unavailable for this build."));
+  }
+
+  @Test
+  public void omitsBypassedRegressionComparisonsFromEvaluationTable() {
+    String criteria = "regressions.executionRate == 100 AND critical.executionRate == 100";
+    GateMetrics criticalMetrics = new GateMetrics(2, 2, 2, 0, 0, 0);
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse(criteria)
+            .evaluateDetailed(
+                new MetricsContext(
+                    new GateMetrics(0, 0, 0, 0, 0, 0), Map.of("critical", criticalMetrics)),
+                false);
+    GateResult result =
+        new GateResult(
+            "",
+            criteria,
+            true,
+            true,
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
+            evaluation,
+            Instant.parse("2026-06-30T12:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+
+    String html = renderer.render("Report", snapshot, REPORT_URL);
+    int tableStart = html.indexOf("data-octane-email-table=\"criteria-evaluation\"");
+    int tableEnd = html.indexOf("</table>", tableStart);
+    String evaluationTable = html.substring(tableStart, tableEnd);
+
+    assertTrue(evaluationTable.contains("critical.executionRate == 100%"));
+    assertFalse(evaluationTable.contains("regressions.executionRate"));
   }
 
   @Test

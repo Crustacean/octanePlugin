@@ -250,6 +250,10 @@ octaneSuiteGate(
 ```
 
 `suiteRunId` may be a single ID or a comma/space-separated list such as `1196,1200`.
+It may also be omitted when a nonempty `critical` suite-run scope is configured. In that mode,
+regression criteria and report sections are skipped while critical and defect criteria continue to
+be evaluated. If a suite run appears in both `suiteRunId` and the `critical` scope, the critical
+scope owns it and it is removed from the regression bucket.
 `sharedSpaceId` and `workspaceId` are required because suite runs are workspace-scoped
 in ALM Octane.
 

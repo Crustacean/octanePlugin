@@ -629,7 +629,11 @@ public class OctaneReportZoneHtmlRenderer {
       OctaneGateReportSnapshot snapshot,
       Integer maxVisibleBars,
       Integer barChartWidth) {
-    html.append("<div class=\"octane-report-zone octane-card-zone\" id=\"octane-report-zone\">\n");
+    html.append("<div class=\"octane-report-zone octane-card-zone");
+    if (snapshot.isCriticalOnlyReport()) {
+      html.append(" octane-report-zone-critical-only");
+    }
+    html.append("\" id=\"octane-report-zone\">\n");
     if (snapshot.hasReportSections()) {
       for (OctaneGateReportSection section : snapshot.getReportSections()) {
         renderDistributionCard(html, section);

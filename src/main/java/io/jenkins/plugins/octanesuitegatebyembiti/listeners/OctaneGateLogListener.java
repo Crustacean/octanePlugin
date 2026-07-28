@@ -54,8 +54,18 @@ public class OctaneGateLogListener {
     }
   }
 
+  public void logRegressionEvaluationSkipped(TaskListener listener) {
+    listener
+        .getLogger()
+        .println(
+            "[INFO/AUDIT] OCTANE_REGRESSION_SUITE_RUN_ID is empty/omitted. "
+                + "Skipping regression evaluation and criteria checks.");
+  }
+
   public void logPollResult(TaskListener listener, GateResult result) {
-    logMetrics(listener, "Regressions suite runs", result.getMetrics());
+    if (result.isRegressionEvaluationEnabled()) {
+      logMetrics(listener, "Regressions suite runs", result.getMetrics());
+    }
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
       if (scopeResult.isSuiteRunScope()) {
         logMetrics(

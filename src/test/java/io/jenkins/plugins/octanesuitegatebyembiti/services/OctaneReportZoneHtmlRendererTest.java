@@ -378,6 +378,9 @@ public class OctaneReportZoneHtmlRendererTest {
 
     String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
 
+    assertTrue(snapshot.isCriticalOnlyReport());
+    assertEquals(1, snapshot.getSections().size());
+    assertTrue(html.contains("octane-report-zone-critical-only"));
     assertFalse(html.contains("REGRESSION Tests Status Distribution</h2>"));
     assertFalse(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS</h2>"));
     assertTrue(html.contains("CRITICAL Tests Status Distribution"));

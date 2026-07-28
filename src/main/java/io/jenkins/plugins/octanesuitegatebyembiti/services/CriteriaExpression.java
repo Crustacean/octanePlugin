@@ -39,9 +39,14 @@ public class CriteriaExpression implements Serializable {
   }
 
   public CriteriaEvaluation evaluateDetailed(MetricsContext context) {
+    return evaluateDetailed(context, true);
+  }
+
+  public CriteriaEvaluation evaluateDetailed(
+      MetricsContext context, boolean regressionEvaluationEnabled) {
     List<CriteriaComparisonEvaluation> comparisons = new ArrayList<>();
-    boolean passed = root.evaluate(context, comparisons);
-    return CriteriaEvaluation.available(passed, comparisons);
+    NodeEvaluation evaluation = root.evaluate(context, comparisons, regressionEvaluationEnabled);
+    return CriteriaEvaluation.available(!evaluation.applicable || evaluation.passed, comparisons);
   }
 
   public boolean usesMetricNamespace(String namespace) {
@@ -195,8 +200,26 @@ public class CriteriaExpression implements Serializable {
   }
 
   private interface Node extends Serializable {
-    boolean evaluate(
-        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations);
+    NodeEvaluation evaluate(
+        MetricsContext context,
+        List<CriteriaComparisonEvaluation> comparisonEvaluations,
+        boolean regressionEvaluationEnabled);
+  }
+
+  private static final class NodeEvaluation {
+    private static final NodeEvaluation SKIPPED = new NodeEvaluation(false, true);
+
+    private final boolean applicable;
+    private final boolean passed;
+
+    private NodeEvaluation(boolean applicable, boolean passed) {
+      this.applicable = applicable;
+      this.passed = passed;
+    }
+
+    private static NodeEvaluation applicable(boolean passed) {
+      return new NodeEvaluation(true, passed);
+    }
   }
 
   private static class LogicalNode implements Node {
@@ -213,11 +236,25 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public boolean evaluate(
-        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations) {
-      boolean leftPassed = left.evaluate(context, comparisonEvaluations);
-      boolean rightPassed = right.evaluate(context, comparisonEvaluations);
-      return operator == TokenType.AND ? leftPassed && rightPassed : leftPassed || rightPassed;
+    public NodeEvaluation evaluate(
+        MetricsContext context,
+        List<CriteriaComparisonEvaluation> comparisonEvaluations,
+        boolean regressionEvaluationEnabled) {
+      NodeEvaluation leftEvaluation =
+          left.evaluate(context, comparisonEvaluations, regressionEvaluationEnabled);
+      NodeEvaluation rightEvaluation =
+          right.evaluate(context, comparisonEvaluations, regressionEvaluationEnabled);
+      if (!leftEvaluation.applicable) {
+        return rightEvaluation;
+      }
+      if (!rightEvaluation.applicable) {
+        return leftEvaluation;
+      }
+      boolean passed =
+          operator == TokenType.AND
+              ? leftEvaluation.passed && rightEvaluation.passed
+              : leftEvaluation.passed || rightEvaluation.passed;
+      return NodeEvaluation.applicable(passed);
     }
   }
 
@@ -235,8 +272,13 @@ public class CriteriaExpression implements Serializable {
     }
 
     @Override
-    public boolean evaluate(
-        MetricsContext context, List<CriteriaComparisonEvaluation> comparisonEvaluations) {
+    public NodeEvaluation evaluate(
+        MetricsContext context,
+        List<CriteriaComparisonEvaluation> comparisonEvaluations,
+        boolean regressionEvaluationEnabled) {
+      if (!regressionEvaluationEnabled && isRegressionMetric(metricName)) {
+        return NodeEvaluation.SKIPPED;
+      }
       double actualValue = context.value(metricName);
       boolean passed = compare(actualValue);
       comparisonEvaluations.add(
@@ -247,7 +289,17 @@ public class CriteriaExpression implements Serializable {
               actualValue,
               context.isPercentageMetric(metricName),
               passed));
-      return passed;
+      return NodeEvaluation.applicable(passed);
+    }
+
+    private boolean isRegressionMetric(String reference) {
+      String normalized = Util.trimToEmpty(reference).toLowerCase(Locale.ROOT);
+      int dot = normalized.indexOf('.');
+      if (dot < 0) {
+        return true;
+      }
+      String namespace = normalized.substring(0, dot);
+      return "regression".equals(namespace) || "regressions".equals(namespace);
     }
 
     private boolean compare(double actualValue) {

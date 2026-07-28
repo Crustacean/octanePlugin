@@ -131,6 +131,9 @@ public class OctaneGateRunner {
       suiteRunIds = regressionSuiteRunIdsForCriteria(request);
       if (!this.state.isWaitingPublished()) {
         logListener.logLookupContext(listener, sharedSpaceId, workspaceId);
+        if (suiteRunIds.isEmpty()) {
+          logListener.logRegressionEvaluationSkipped(listener);
+        }
         logListener.logWaiting(listener, request, suiteRunIds);
         reportPublisher.onWaiting(request, suiteRunIds);
         this.state.setWaitingPublished(true);
@@ -466,9 +469,11 @@ public class OctaneGateRunner {
         new DefectCriteriaMetrics(defectPollResult.severitySummary, request.getDefectGroups());
     MetricsContext metricsContext =
         new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
-    CriteriaEvaluation criteriaEvaluation = criteria.evaluateDetailed(metricsContext);
+    boolean regressionEvaluationEnabled = !suiteRunIds.isEmpty();
+    CriteriaEvaluation criteriaEvaluation =
+        criteria.evaluateDetailed(metricsContext, regressionEvaluationEnabled);
     boolean passed = criteriaEvaluation.isPassed();
-    boolean terminal = regressionMetrics.isTerminal();
+    boolean terminal = !regressionEvaluationEnabled || regressionMetrics.isTerminal();
     for (GateMetrics scopedMetric : scopedMetrics.values()) {
       if (!Objects.requireNonNull(scopedMetric).isTerminal()) {
         terminal = false;
@@ -742,9 +747,7 @@ public class OctaneGateRunner {
       throw new AbortException("Octane server ID is required.");
     }
     List<String> requestedSuiteRunIds = request.getSuiteRunIds();
-    if (requestedSuiteRunIds.isEmpty()) {
-      throw new AbortException("At least one Octane suite run ID is required.");
-    }
+    validateSuiteRunSources(request);
     if (requestedSuiteRunIds.size() > GateRequest.MAX_SUITE_RUN_IDS) {
       throw new AbortException(
           "At most " + GateRequest.MAX_SUITE_RUN_IDS + " Octane suite run IDs are supported.");
@@ -765,6 +768,13 @@ public class OctaneGateRunner {
       validateScope(scope);
     }
     validateDefectGroups(request.getDefectGroups());
+  }
+
+  static void validateSuiteRunSources(GateRequest request) throws AbortException {
+    if (request.getSuiteRunIds().isEmpty() && criticalSuiteRunIds(request).isEmpty()) {
+      throw new AbortException(
+          "A critical Octane suite run ID is required when regression suite run IDs are empty.");
+    }
   }
 
   private void validateDefectGroups(List<OctaneDefectGroup> defectGroups) throws AbortException {

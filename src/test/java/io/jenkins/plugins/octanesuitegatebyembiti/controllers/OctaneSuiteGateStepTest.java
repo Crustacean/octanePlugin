@@ -67,4 +67,12 @@ public class OctaneSuiteGateStepTest {
     assertEquals(FormValidation.Kind.OK, descriptor.doCheckTimeoutMinutesExtended("0").kind);
     assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckTimeoutMinutesExtended("-1").kind);
   }
+
+  @Test
+  public void regressionSuiteRunValidationAcceptsBlankValues() {
+    OctaneSuiteGateStep.DescriptorImpl descriptor = new OctaneSuiteGateStep.DescriptorImpl();
+
+    assertEquals(FormValidation.Kind.OK, descriptor.doCheckSuiteRunId("").kind);
+    assertEquals(FormValidation.Kind.OK, descriptor.doCheckSuiteRunId(" ").kind);
+  }
 }

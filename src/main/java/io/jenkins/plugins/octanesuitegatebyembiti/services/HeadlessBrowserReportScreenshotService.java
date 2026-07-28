@@ -290,14 +290,26 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
 
   private int estimateViewportHeight(OctaneGateReportSnapshot snapshot, int viewportWidth) {
     int cardCount = snapshot.hasReportSections() ? snapshot.getReportSections().size() * 2 : 1;
+    if (snapshot.isCriticalOnlyReport()) {
+      return estimateCriticalOnlyViewportHeightForCards(cardCount, viewportWidth);
+    }
     return estimateViewportHeightForCards(cardCount, viewportWidth);
   }
 
+  static int estimateCriticalOnlyViewportHeightForCards(int cardCount, int viewportWidth) {
+    return estimateViewportHeightForCards(cardCount, viewportWidth, 420);
+  }
+
   static int estimateViewportHeightForCards(int cardCount, int viewportWidth) {
+    return estimateViewportHeightForCards(cardCount, viewportWidth, 800);
+  }
+
+  private static int estimateViewportHeightForCards(
+      int cardCount, int viewportWidth, int minimumHeight) {
     int columns =
         viewportWidth <= OctaneReportZoneHtmlRenderer.EMAIL_SINGLE_COLUMN_BREAKPOINT_PX ? 1 : 2;
     int rows = Math.max(1, (cardCount + columns - 1) / columns);
-    return Math.min(MAX_SCREENSHOT_HEIGHT, Math.max(800, 120 + rows * 380));
+    return Math.min(MAX_SCREENSHOT_HEIGHT, Math.max(minimumHeight, 120 + rows * 380));
   }
 
   private record BrowserProbeResult(

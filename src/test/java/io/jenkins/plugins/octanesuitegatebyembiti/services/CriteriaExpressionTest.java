@@ -49,6 +49,54 @@ public class CriteriaExpressionTest {
   }
 
   @Test
+  public void skipsRegressionComparisonsWithoutChangingRemainingAndSemantics() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 2, 0, 0, 0)));
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("regressions.executionRate == 100 AND critical.passRate == 100")
+            .evaluateDetailed(context, false);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals(1, evaluation.getComparisons().size());
+    assertEquals("critical.passRate", evaluation.getComparisons().get(0).getMetricReference());
+  }
+
+  @Test
+  public void removesRegressionBranchInsteadOfMakingOrExpressionPass() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(1, 1, 1, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 1, 1, 0, 0)));
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("regressions.passRate == 100 OR critical.passRate == 100")
+            .evaluateDetailed(context, false);
+
+    assertFalse(evaluation.isPassed());
+    assertEquals(1, evaluation.getComparisons().size());
+    assertEquals("critical.passRate", evaluation.getComparisons().get(0).getMetricReference());
+  }
+
+  @Test
+  public void skipsUnqualifiedRegressionShorthandWhenRegressionIsBypassed() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(1, 1, 1, 0, 0, 0)));
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("100% execution AND critical.executionRate == 100")
+            .evaluateDetailed(context, false);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals(1, evaluation.getComparisons().size());
+    assertEquals("critical.executionRate", evaluation.getComparisons().get(0).getMetricReference());
+  }
+
+  @Test
   public void detailsEvaluateEveryOrBranchWhileKeepingOverallResult() {
     MetricsContext context = new MetricsContext(new GateMetrics(2, 2, 1, 1, 0, 0), Map.of());
 
