@@ -212,7 +212,10 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(statusTable.contains("aria-label=\"Minor, Open: 2\""));
     assertTrue(statusTable.contains("aria-label=\"Minor, Closed: 1\""));
     assertTrue(statusTable.contains("aria-label=\"Minor, Total: 3\""));
-    assertTrue(statusTable.contains(">Total</th>"));
+    assertTrue(emailTable(html, "defect-distribution").contains(">Total (8)</th>"));
+    assertTrue(statusTable.contains(">Open (6)</th>"));
+    assertTrue(statusTable.contains(">Closed (2)</th>"));
+    assertTrue(statusTable.contains(">Total (8)</th>"));
     assertFalse(statusTable.contains("Total Defects"));
     assertTrue(html.contains("Criteria evaluation"));
     assertTrue(html.contains("Defect Logging Compliance"));

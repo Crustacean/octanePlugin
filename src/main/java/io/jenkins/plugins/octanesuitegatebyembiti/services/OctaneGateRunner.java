@@ -27,6 +27,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMapBuilder;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.SuiteRunSelector;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
@@ -102,7 +103,9 @@ public class OctaneGateRunner {
     private final Instant primaryDeadline;
     private final Instant extendedDeadline;
     private final boolean extendedTimeoutConfigured;
-    private final List<String> suiteRunIds;
+    private final SuiteRunPool regressionSuitePool;
+    private final Map<String, SuiteRunPool> suiteScopePools;
+    private final boolean regressionSelectionEnabled;
     private final OctaneClient client;
 
     private PollingSession(
@@ -128,31 +131,60 @@ public class OctaneGateRunner {
       extendedDeadline =
           primaryDeadline.plus(Duration.ofMinutes(request.getTimeoutMinutesExtended()));
       extendedTimeoutConfigured = request.getTimeoutMinutesExtended() > 0;
-      suiteRunIds = regressionSuiteRunIdsForCriteria(request);
+      regressionSuitePool = new SuiteRunPool("Regressions", request.getSuiteRunSelector());
+      suiteScopePools = new LinkedHashMap<>();
+      for (OctaneGateScope scope : request.getScopes()) {
+        if (scope.isSuiteRunScope()) {
+          suiteScopePools.put(
+              scope.getName(),
+              new SuiteRunPool(displayScopeName(scope.getName()), scope.getSuiteRunSelector()));
+        }
+      }
+      regressionSelectionEnabled = regressionSelectionEnabled(request);
       if (!this.state.isWaitingPublished()) {
         logListener.logLookupContext(listener, sharedSpaceId, workspaceId);
-        if (suiteRunIds.isEmpty()) {
-          logListener.logRegressionEvaluationSkipped(listener);
-        }
-        logListener.logWaiting(listener, request, suiteRunIds);
-        reportPublisher.onWaiting(request, suiteRunIds);
-        this.state.setWaitingPublished(true);
       }
       client =
           new OctaneClient(
               server.getBaseUrl(),
               credentials.getUsername(),
               credentials.getPassword().getPlainText());
-      client.authenticate();
+      boolean sessionReady = false;
+      try {
+        client.authenticate();
+        preflightSuitePools();
+        sessionReady = true;
+      } finally {
+        if (!sessionReady) {
+          try {
+            client.close();
+          } catch (IOException ignored) {
+            // Preserve the authentication or preflight failure that prevented the session.
+          }
+        }
+      }
+      List<String> suiteRunIds = currentRegressionSuiteRunIds();
+      if (!this.state.isWaitingPublished()) {
+        if (!regressionSelectionEnabled) {
+          logListener.logRegressionEvaluationSkipped(listener);
+        }
+        logListener.logWaiting(listener, request, suiteRunIds, currentScopeSuiteRunIds());
+        reportPublisher.onWaiting(request, suiteRunIds);
+        this.state.setWaitingPublished(true);
+      }
     }
 
     public PollOutcome pollOnce() throws IOException, InterruptedException {
       logManualExitFinalizingIfNeeded();
+      CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
       GateResult result =
           poll(
               client,
               request,
-              suiteRunIds,
+              currentSuiteRuns.regressionSuiteRuns,
+              currentSuiteRuns.scopeSuiteRuns,
+              regressionSelectionEnabled,
+              currentSuiteRuns.awaitingSuiteDiscovery,
               sharedSpaceId,
               workspaceId,
               criteria,
@@ -162,19 +194,7 @@ public class OctaneGateRunner {
       logListener.logPollResult(listener, result);
       publishPollResult(reportPublisher, result, classifier, state.isExtendedTimeActive());
       if (!extendedTimeoutConfigured && result.isPassed()) {
-        result =
-            refreshPassedResult(
-                client,
-                result,
-                request,
-                suiteRunIds,
-                sharedSpaceId,
-                workspaceId,
-                criteria,
-                classifier,
-                listener,
-                reportPublisher,
-                state.getDefectLedger());
+        result = refreshCurrentPassedResult(result);
       }
       if (!extendedTimeoutConfigured && result.isPassed()) {
         return PollOutcome.complete(passGate(listener, reportPublisher, result, classifier));
@@ -219,6 +239,206 @@ public class OctaneGateRunner {
         logListener.logManualExitRequested(listener);
       }
     }
+
+    private GateResult refreshCurrentPassedResult(GateResult previousResult)
+        throws InterruptedException {
+      logListener.logFinalRefresh(listener);
+      try {
+        CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
+        GateResult refreshedResult =
+            poll(
+                client,
+                request,
+                currentSuiteRuns.regressionSuiteRuns,
+                currentSuiteRuns.scopeSuiteRuns,
+                regressionSelectionEnabled,
+                currentSuiteRuns.awaitingSuiteDiscovery,
+                sharedSpaceId,
+                workspaceId,
+                criteria,
+                classifier,
+                listener,
+                state.getDefectLedger());
+        logListener.logPollResult(listener, refreshedResult);
+        reportPublisher.onPoll(refreshedResult, classifier);
+        return refreshedResult;
+      } catch (IOException e) {
+        logListener.logFinalRefreshSkipped(listener, e);
+        return previousResult;
+      }
+    }
+
+    private void preflightSuitePools() throws IOException, InterruptedException {
+      if (regressionSelectionEnabled) {
+        regressionSuitePool.preflight();
+      }
+      for (SuiteRunPool pool : suiteScopePools.values()) {
+        pool.preflight();
+      }
+    }
+
+    private CurrentSuiteRuns refreshSuitePools() throws IOException, InterruptedException {
+      Map<String, List<RunRecord>> regressionSuiteRuns =
+          regressionSelectionEnabled ? regressionSuitePool.refresh() : Map.of();
+      Map<String, Map<String, List<RunRecord>>> scopeSuiteRuns = new LinkedHashMap<>();
+      for (Map.Entry<String, SuiteRunPool> entry : suiteScopePools.entrySet()) {
+        scopeSuiteRuns.put(entry.getKey(), entry.getValue().refresh());
+      }
+
+      Set<String> criticalIds = currentCriticalSuiteRunIds(scopeSuiteRuns);
+      Map<String, List<RunRecord>> effectiveRegressionRuns = new LinkedHashMap<>();
+      if (regressionSelectionEnabled) {
+        for (Map.Entry<String, List<RunRecord>> entry : regressionSuiteRuns.entrySet()) {
+          if (!criticalIds.contains(entry.getKey())) {
+            effectiveRegressionRuns.put(entry.getKey(), entry.getValue());
+          }
+        }
+      }
+
+      boolean awaiting =
+          regressionSelectionEnabled
+              && regressionSuitePool.isConfigured()
+              && effectiveRegressionRuns.isEmpty();
+      for (SuiteRunPool pool : suiteScopePools.values()) {
+        if (pool.isConfigured() && pool.isEmpty()) {
+          awaiting = true;
+          break;
+        }
+      }
+      return new CurrentSuiteRuns(effectiveRegressionRuns, scopeSuiteRuns, awaiting);
+    }
+
+    private List<String> currentRegressionSuiteRunIds() {
+      Set<String> criticalIds = currentCriticalSuiteRunIds(Map.of());
+      if (!regressionSelectionEnabled) {
+        return List.of();
+      }
+      return regressionSuitePool.getActiveIds().stream()
+          .filter(id -> !criticalIds.contains(id))
+          .toList();
+    }
+
+    private Map<String, List<String>> currentScopeSuiteRunIds() {
+      Map<String, List<String>> values = new LinkedHashMap<>();
+      for (Map.Entry<String, SuiteRunPool> entry : suiteScopePools.entrySet()) {
+        values.put(entry.getKey(), entry.getValue().getActiveIds());
+      }
+      return values;
+    }
+
+    private Set<String> currentCriticalSuiteRunIds(
+        Map<String, Map<String, List<RunRecord>>> refreshedScopeRuns) {
+      Set<String> ids = new LinkedHashSet<>();
+      for (OctaneGateScope scope : request.getScopes()) {
+        if (!"critical".equalsIgnoreCase(scope.getName()) || !scope.isSuiteRunScope()) {
+          continue;
+        }
+        Map<String, List<RunRecord>> refreshed = refreshedScopeRuns.get(scope.getName());
+        if (refreshed != null) {
+          ids.addAll(refreshed.keySet());
+        } else {
+          SuiteRunPool pool = suiteScopePools.get(scope.getName());
+          if (pool != null) {
+            ids.addAll(pool.getActiveIds());
+          }
+        }
+      }
+      return ids;
+    }
+
+    private final class SuiteRunPool {
+      private final String label;
+      private final SuiteRunSelector selector;
+      private final LinkedHashSet<String> activeIds = new LinkedHashSet<>();
+      private boolean initialized;
+
+      private SuiteRunPool(String label, SuiteRunSelector selector) {
+        this.label = label;
+        this.selector = selector;
+      }
+
+      private void preflight() throws IOException, InterruptedException {
+        if (!selector.isConfigured()) {
+          initialized = true;
+          return;
+        }
+        List<String> candidates = candidateIds();
+        Map<String, List<RunRecord>> available;
+        if (selector.isDynamic()) {
+          logListener.logDynamicSuiteSelector(
+              listener, label, selector.getReleaseName(), selector.getSprintName());
+          available = client.fetchAvailableSuiteChildRuns(sharedSpaceId, workspaceId, candidates);
+        } else {
+          available = client.fetchSuiteChildRuns(sharedSpaceId, workspaceId, candidates);
+        }
+        reconcile(available.keySet());
+        initialized = true;
+        if (selector.isDynamic() && activeIds.isEmpty()) {
+          logListener.logNoDynamicSuiteRuns(
+              listener, label, selector.getReleaseName(), selector.getSprintName());
+        }
+      }
+
+      private Map<String, List<RunRecord>> refresh() throws IOException, InterruptedException {
+        if (!selector.isConfigured()) {
+          return Map.of();
+        }
+        List<String> candidates = candidateIds();
+        Map<String, List<RunRecord>> available =
+            client.fetchAvailableSuiteChildRuns(sharedSpaceId, workspaceId, candidates);
+        reconcile(available.keySet());
+        return available;
+      }
+
+      private List<String> candidateIds() throws IOException, InterruptedException {
+        List<String> ids =
+            selector.isDynamic()
+                ? client.fetchSuiteRunIdsByReleaseAndSprint(
+                    sharedSpaceId, workspaceId, selector.getReleaseName(), selector.getSprintName())
+                : selector.getExplicitIds();
+        if (ids.size() > GateRequest.MAX_SUITE_RUN_IDS) {
+          throw new AbortException(
+              label
+                  + " release/sprint selection returned more than "
+                  + GateRequest.MAX_SUITE_RUN_IDS
+                  + " suite runs.");
+        }
+        return ids;
+      }
+
+      private void reconcile(Set<String> availableIds) {
+        LinkedHashSet<String> available = new LinkedHashSet<>(availableIds);
+        if (initialized) {
+          List<String> added = available.stream().filter(id -> !activeIds.contains(id)).toList();
+          List<String> removed = activeIds.stream().filter(id -> !available.contains(id)).toList();
+          if (!added.isEmpty()) {
+            logListener.logSuiteRunsAdded(listener, label, added);
+          }
+          if (!removed.isEmpty()) {
+            logListener.logSuiteRunsRemoved(listener, label, removed);
+          }
+        }
+        activeIds.clear();
+        activeIds.addAll(available);
+      }
+
+      private boolean isConfigured() {
+        return selector.isConfigured();
+      }
+
+      private boolean isEmpty() {
+        return activeIds.isEmpty();
+      }
+
+      private List<String> getActiveIds() {
+        return List.copyOf(activeIds);
+      }
+    }
+
+    private record CurrentSuiteRuns(
+        Map<String, List<RunRecord>> regressionSuiteRuns,
+        Map<String, Map<String, List<RunRecord>>> scopeSuiteRuns,
+        boolean awaitingSuiteDiscovery) {}
 
     @Override
     public void close() throws IOException {
@@ -440,6 +660,35 @@ public class OctaneGateRunner {
       throws IOException, InterruptedException {
     Map<String, List<RunRecord>> suiteRuns =
         fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, suiteRunIds);
+    return poll(
+        client,
+        request,
+        suiteRuns,
+        Map.of(),
+        !suiteRunIds.isEmpty(),
+        false,
+        sharedSpaceId,
+        workspaceId,
+        criteria,
+        classifier,
+        listener,
+        defectLedger);
+  }
+
+  private GateResult poll(
+      OctaneClient client,
+      GateRequest request,
+      Map<String, List<RunRecord>> suiteRuns,
+      Map<String, Map<String, List<RunRecord>>> suiteScopeRuns,
+      boolean regressionEvaluationEnabled,
+      boolean awaitingSuiteDiscovery,
+      String sharedSpaceId,
+      String workspaceId,
+      CriteriaExpression criteria,
+      StatusClassifier classifier,
+      TaskListener listener,
+      OctaneDefectLedger defectLedger)
+      throws IOException, InterruptedException {
     List<RunRecord> childRuns = flattenAndDedupeRuns(suiteRuns);
     GateMetrics regressionMetrics = GateMetrics.fromRuns(childRuns, classifier);
     List<String> childRunIds = runIds(childRuns);
@@ -448,7 +697,15 @@ public class OctaneGateRunner {
     Map<String, GateScopeResult> scopedResults = new LinkedHashMap<>();
     for (OctaneGateScope scope : request.getScopes()) {
       GateScopeResult scopeResult =
-          pollScope(client, sharedSpaceId, workspaceId, childRunIds, suiteRuns, classifier, scope);
+          pollScope(
+              client,
+              sharedSpaceId,
+              workspaceId,
+              childRunIds,
+              suiteRuns,
+              suiteScopeRuns.get(scope.getName()),
+              classifier,
+              scope);
       scopedMetrics.put(scope.getName(), scopeResult.getMetrics());
       scopedResults.put(scope.getName(), scopeResult);
     }
@@ -469,7 +726,6 @@ public class OctaneGateRunner {
         new DefectCriteriaMetrics(defectPollResult.severitySummary, request.getDefectGroups());
     MetricsContext metricsContext =
         new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
-    boolean regressionEvaluationEnabled = !suiteRunIds.isEmpty();
     String effectiveCriteria =
         regressionEvaluationEnabled
             ? request.getCriteria()
@@ -478,8 +734,9 @@ public class OctaneGateRunner {
         regressionEvaluationEnabled
             ? criteria.evaluateDetailed(metricsContext, true)
             : criteria.evaluateAppliedDetailed(metricsContext, false);
-    boolean passed = criteriaEvaluation.isPassed();
-    boolean terminal = !regressionEvaluationEnabled || regressionMetrics.isTerminal();
+    boolean passed = !awaitingSuiteDiscovery && criteriaEvaluation.isPassed();
+    boolean terminal =
+        !awaitingSuiteDiscovery && (!regressionEvaluationEnabled || regressionMetrics.isTerminal());
     for (GateMetrics scopedMetric : scopedMetrics.values()) {
       if (!Objects.requireNonNull(scopedMetric).isTerminal()) {
         terminal = false;
@@ -487,7 +744,7 @@ public class OctaneGateRunner {
       }
     }
     return new GateResult(
-        String.join(",", suiteRunIds),
+        String.join(",", suiteRuns.keySet()),
         effectiveCriteria,
         passed,
         terminal,
@@ -630,20 +887,23 @@ public class OctaneGateRunner {
       String workspaceId,
       List<String> childRunIds,
       Map<String, List<RunRecord>> regressionSuiteRuns,
+      Map<String, List<RunRecord>> resolvedScopeSuiteRuns,
       StatusClassifier classifier,
       OctaneGateScope scope)
       throws IOException, InterruptedException {
     if (scope.isSuiteRunScope()) {
       Map<String, List<RunRecord>> scopeSuiteRuns =
-          fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, scope.getSuiteRunIds());
+          resolvedScopeSuiteRuns == null
+              ? fetchSuiteChildRuns(client, sharedSpaceId, workspaceId, scope.getSuiteRunIds())
+              : resolvedScopeSuiteRuns;
       List<RunRecord> scopeRuns = flattenAndDedupeRuns(scopeSuiteRuns);
       GateMetrics metrics = GateMetrics.fromRuns(scopeRuns, classifier);
       return new GateScopeResult(
           scope.getName(),
           "",
           List.of(),
-          scope.getSuiteRunId(),
-          scope.getSuiteRunIds(),
+          String.join(",", scopeSuiteRuns.keySet()),
+          List.copyOf(scopeSuiteRuns.keySet()),
           metrics,
           scopeRuns,
           scopeSuiteRuns);
@@ -738,6 +998,21 @@ public class OctaneGateRunner {
         .toList();
   }
 
+  static boolean regressionSelectionEnabled(GateRequest request) {
+    SuiteRunSelector regressionSelector = request.getSuiteRunSelector();
+    if (!regressionSelector.isConfigured()) {
+      return false;
+    }
+    for (OctaneGateScope scope : request.getScopes()) {
+      if ("critical".equalsIgnoreCase(scope.getName())
+          && scope.isSuiteRunScope()
+          && regressionSelector.equals(scope.getSuiteRunSelector())) {
+        return false;
+      }
+    }
+    return regressionSelector.isDynamic() || !regressionSuiteRunIdsForCriteria(request).isEmpty();
+  }
+
   private static Set<String> criticalSuiteRunIds(GateRequest request) {
     Set<String> criticalSuiteRunIds = new LinkedHashSet<>();
     for (OctaneGateScope scope : request.getScopes()) {
@@ -752,7 +1027,9 @@ public class OctaneGateRunner {
     if (Util.isBlank(request.getServerId())) {
       throw new AbortException("Octane server ID is required.");
     }
-    List<String> requestedSuiteRunIds = request.getSuiteRunIds();
+    SuiteRunSelector requestSelector =
+        validatedSelector("Suite run selection", request.getSuiteRunId());
+    List<String> requestedSuiteRunIds = requestSelector.getExplicitIds();
     validateSuiteRunSources(request);
     if (requestedSuiteRunIds.size() > GateRequest.MAX_SUITE_RUN_IDS) {
       throw new AbortException(
@@ -760,9 +1037,6 @@ public class OctaneGateRunner {
     }
     validateNumericId("Shared space ID", request.getSharedSpaceId());
     validateNumericId("Workspace ID", request.getWorkspaceId());
-    for (String suiteRunId : requestedSuiteRunIds) {
-      validateNumericId("Suite run ID", suiteRunId);
-    }
     if (request.getScopes().size() > MAX_SCOPES) {
       throw new AbortException("At most " + MAX_SCOPES + " Octane scopes are supported.");
     }
@@ -777,9 +1051,14 @@ public class OctaneGateRunner {
   }
 
   static void validateSuiteRunSources(GateRequest request) throws AbortException {
-    if (request.getSuiteRunIds().isEmpty() && criticalSuiteRunIds(request).isEmpty()) {
+    boolean primaryConfigured = request.getSuiteRunSelector().isConfigured();
+    boolean criticalConfigured =
+        request.getScopes().stream()
+            .anyMatch(
+                scope -> "critical".equalsIgnoreCase(scope.getName()) && scope.isSuiteRunScope());
+    if (!primaryConfigured && !criticalConfigured) {
       throw new AbortException(
-          "A critical Octane suite run ID is required when regression suite run IDs are empty.");
+          "A critical Octane suite run selection is required when the regression selection is empty.");
     }
   }
 
@@ -818,7 +1097,11 @@ public class OctaneGateRunner {
               + scope.getName()
               + "' must define either suite run ID(s) or an Octane query, not both.");
     }
-    if (scope.getSuiteRunIds().size() > GateRequest.MAX_SUITE_RUN_IDS) {
+    SuiteRunSelector selector =
+        hasSuiteRunIds
+            ? validatedSelector("Suite run selection", scope.getSuiteRunId())
+            : SuiteRunSelector.parse("");
+    if (selector.getExplicitIds().size() > GateRequest.MAX_SUITE_RUN_IDS) {
       throw new AbortException(
           "Octane scope '"
               + scope.getName()
@@ -826,9 +1109,22 @@ public class OctaneGateRunner {
               + GateRequest.MAX_SUITE_RUN_IDS
               + " suite run ID limit.");
     }
-    for (String suiteRunId : scope.getSuiteRunIds()) {
-      validateNumericId("Suite run ID", suiteRunId);
+  }
+
+  private SuiteRunSelector validatedSelector(String label, String value) throws AbortException {
+    try {
+      return SuiteRunSelector.parse(value);
+    } catch (IllegalArgumentException e) {
+      throw new AbortException(label + " is invalid: " + e.getMessage());
     }
+  }
+
+  private String displayScopeName(String scopeName) {
+    String name = Util.trimToEmpty(scopeName);
+    if (name.isEmpty()) {
+      return "Scope";
+    }
+    return name.substring(0, 1).toUpperCase(Locale.ROOT) + name.substring(1);
   }
 
   private void validateNumericId(String label, String value) throws AbortException {

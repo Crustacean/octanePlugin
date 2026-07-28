@@ -81,10 +81,30 @@ public class OctaneGateLogListenerTest {
     String log = output.toString(StandardCharsets.UTF_8);
     assertTrue(
         log.contains(
-            "[INFO/AUDIT] OCTANE_REGRESSION_SUITE_RUN_ID is empty/omitted. "
-                + "Skipping regression evaluation and criteria checks."));
+            "[INFO/AUDIT] Regression suite-run evaluation is disabled because its selection is "
+                + "empty or entirely owned by the critical scope. Skipping regression criteria."));
     assertFalse(log.contains("Regressions suite runs: execution"));
     assertTrue(log.contains("Critical suite runs: execution"));
+  }
+
+  @Test
+  public void logsDynamicDiscoveryWarningsAndPoolAudits() {
+    OctaneGateLogListener logListener = new OctaneGateLogListener();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    TaskListener listener = new CapturingTaskListener(output);
+
+    logListener.logDynamicSuiteSelector(listener, "Critical", "Release 2.4", "Sprint 3");
+    logListener.logNoDynamicSuiteRuns(listener, "Critical", "Release 2.4", "Sprint 3");
+    logListener.logSuiteRunsAdded(listener, "Critical", List.of("55", "56"));
+    logListener.logSuiteRunsRemoved(listener, "Critical", List.of("55"));
+
+    String log = output.toString(StandardCharsets.UTF_8);
+    assertTrue(
+        log.contains("continuous discovery for release 'Release 2.4' and sprint 'Sprint 3'"));
+    assertTrue(log.contains("No active Critical suite runs were found"));
+    assertTrue(log.contains("Use Jenkins Abort/Cancel to stop this pipeline"));
+    assertTrue(log.contains("suite run pool added: 55, 56"));
+    assertTrue(log.contains("removed unreachable/deleted run(s): 55"));
   }
 
   private GateResult resultWithCriticalScope() {

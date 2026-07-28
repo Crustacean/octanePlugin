@@ -109,16 +109,107 @@ public class OctaneClient implements AutoCloseable {
   public Map<String, List<RunRecord>> fetchSuiteChildRuns(
       String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
       throws IOException, InterruptedException {
+    return fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunIds, false);
+  }
+
+  /** Fetches all currently reachable suites while omitting suite runs confirmed as missing. */
+  public Map<String, List<RunRecord>> fetchAvailableSuiteChildRuns(
+      String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
+      throws IOException, InterruptedException {
+    return fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunIds, true);
+  }
+
+  /** Resolves suite runs assigned to the named release and sprint. */
+  public List<String> fetchSuiteRunIdsByReleaseAndSprint(
+      String sharedSpaceId, String workspaceId, String releaseName, String sprintName)
+      throws IOException, InterruptedException {
+    String relationshipQuery =
+        "release EQ {name EQ "
+            + octaneStringLiteral(releaseName)
+            + "};sprint EQ {name EQ "
+            + octaneStringLiteral(sprintName)
+            + "}";
+    String aggregateQuery =
+        "test EQ {subtype EQ ^test_suite^};release EQ {name EQ "
+            + octaneStringLiteral(releaseName)
+            + "};sprint EQ {name EQ "
+            + octaneStringLiteral(sprintName)
+            + "}";
+    try {
+      return fetchEntityIds(sharedSpaceId, workspaceId, "runs", aggregateQuery);
+    } catch (IOException aggregateFailure) {
+      try {
+        return fetchEntityIds(sharedSpaceId, workspaceId, "suite_runs", relationshipQuery);
+      } catch (IOException suiteRunsFailure) {
+        throw new AbortException(
+            "ALM Octane release/sprint suite discovery failed. Runs collection lookup failed: "
+                + aggregateFailure.getMessage()
+                + ". suite_runs fallback failed: "
+                + suiteRunsFailure.getMessage());
+      }
+    }
+  }
+
+  private List<String> fetchEntityIds(
+      String sharedSpaceId, String workspaceId, String entityName, String query)
+      throws IOException, InterruptedException {
+    LinkedHashSet<String> suiteRunIds = new LinkedHashSet<>();
+    int offset = 0;
+    while (true) {
+      String path =
+          workspacePath(sharedSpaceId, workspaceId)
+              + "/"
+              + entityName
+              + "?"
+              + parameter("query", quote(query))
+              + "&"
+              + parameter("fields", "id")
+              + "&"
+              + parameter("limit", Integer.toString(PAGE_SIZE))
+              + "&"
+              + parameter("offset", Integer.toString(offset));
+      JsonNode data = getJson(path).path("data");
+      if (!data.isArray() || data.isEmpty()) {
+        break;
+      }
+      for (JsonNode node : data) {
+        String id = node.path("id").asString();
+        if (!id.isEmpty()) {
+          suiteRunIds.add(safeEntityId(id));
+        }
+      }
+      if (data.size() < PAGE_SIZE) {
+        break;
+      }
+      offset += PAGE_SIZE;
+    }
+    return List.copyOf(suiteRunIds);
+  }
+
+  private Map<String, List<RunRecord>> fetchSuiteChildRuns(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      boolean tolerateMissingSuites)
+      throws IOException, InterruptedException {
     if (suiteRunIds.isEmpty()) {
       return Map.of();
     }
     String namespace =
-        baseUrl + "\u0000" + clientId + "\u0000" + sharedSpaceId + "\u0000" + workspaceId;
+        baseUrl
+            + "\u0000"
+            + clientId
+            + "\u0000"
+            + sharedSpaceId
+            + "\u0000"
+            + workspaceId
+            + (tolerateMissingSuites ? "\u0000available" : "\u0000strict");
     Map<String, List<String>> topology =
         OctaneSuiteTopologyCache.getAll(
             namespace,
             suiteRunIds,
-            missing -> fetchSuiteTopologies(sharedSpaceId, workspaceId, missing));
+            missing ->
+                fetchSuiteTopologies(sharedSpaceId, workspaceId, missing, tolerateMissingSuites));
     LinkedHashSet<String> childRunIds = new LinkedHashSet<>();
     for (String suiteRunId : suiteRunIds) {
       childRunIds.addAll(topology.getOrDefault(suiteRunId, List.of()));
@@ -131,12 +222,21 @@ public class OctaneClient implements AutoCloseable {
     }
     Map<String, List<RunRecord>> result = new LinkedHashMap<>();
     for (String suiteRunId : suiteRunIds) {
+      List<String> topologyRunIds = topology.getOrDefault(suiteRunId, List.of());
+      // Existing suites always retain their own run ID when no child runs are present. An empty
+      // topology therefore identifies a suite omitted by tolerant missing-suite resolution.
+      if (tolerateMissingSuites && topologyRunIds.isEmpty()) {
+        continue;
+      }
       List<RunRecord> runs = new ArrayList<>();
-      for (String runId : topology.getOrDefault(suiteRunId, List.of())) {
+      for (String runId : topologyRunIds) {
         RunRecord run = runsById.get(runId);
         if (run != null) {
           runs.add(run);
         }
+      }
+      if (tolerateMissingSuites && runs.isEmpty()) {
+        continue;
       }
       result.put(suiteRunId, List.copyOf(runs));
     }
@@ -275,7 +375,10 @@ public class OctaneClient implements AutoCloseable {
       JsonNode collection = getJson(path);
       JsonNode data = collection.path("data");
       if (data.isArray() && !data.isEmpty()) {
-        return data.get(0);
+        JsonNode candidate = data.get(0);
+        if (suiteRunId.equals(candidate.path("id").asString())) {
+          return candidate;
+        }
       }
     } catch (IOException | JacksonException e) {
       // Some Octane versions reject querying suite runs through the aggregate collection.
@@ -315,7 +418,10 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private Map<String, List<String>> fetchSuiteTopologies(
-      String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      boolean tolerateMissingSuites)
       throws IOException, InterruptedException {
     Map<String, List<String>> topology = new LinkedHashMap<>();
     for (int start = 0; start < suiteRunIds.size(); start += QUERY_CHUNK_SIZE) {
@@ -348,7 +454,15 @@ public class OctaneClient implements AutoCloseable {
         if (topology.containsKey(suiteRunId)) {
           continue;
         }
-        JsonNode suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
+        JsonNode suiteRun;
+        try {
+          suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
+        } catch (AbortException e) {
+          if (tolerateMissingSuites && isMissingSuiteRun(e)) {
+            continue;
+          }
+          throw e;
+        }
         List<String> runIds = parseRunsInSuite(suiteRun);
         topology.put(
             suiteRunId,
@@ -362,6 +476,11 @@ public class OctaneClient implements AutoCloseable {
 
   private boolean isNotFound(IOException exception) {
     return exception != null && Util.trimToEmpty(exception.getMessage()).contains("HTTP 404");
+  }
+
+  private boolean isMissingSuiteRun(AbortException exception) {
+    String message = Util.trimToEmpty(exception.getMessage());
+    return message.startsWith("ALM Octane suite run ") && message.contains(" was not found ");
   }
 
   private String suiteRunNotFoundMessage(
@@ -762,6 +881,19 @@ public class OctaneClient implements AutoCloseable {
 
   private String quote(String value) {
     return "\"" + value + "\"";
+  }
+
+  private String octaneStringLiteral(String value) {
+    String source = Util.trimToEmpty(value);
+    StringBuilder escaped = new StringBuilder(source.length() + 2).append('^');
+    for (int index = 0; index < source.length(); index++) {
+      char character = source.charAt(index);
+      if ("\\^\"'{}()[]?<>".indexOf(character) >= 0) {
+        escaped.append('\\');
+      }
+      escaped.append(character);
+    }
+    return escaped.append('^').toString();
   }
 
   private String encode(String value) {

@@ -421,7 +421,8 @@ public class OctaneEmailBodyRenderer {
       html.append("</tr>");
     }
     html.append("<tr>");
-    appendDefectRowHeader(html, "Total");
+    int totalDefects = priorityTotals[0] + priorityTotals[1] + priorityTotals[2];
+    appendDefectRowHeader(html, "Total (" + totalDefects + ")");
     for (int index = 0; index < priorityTotals.length; index++) {
       String priority = priorityLabel(index);
       appendDefectCell(html, priorityTotals[index], "All severities, " + priority + " priority");
@@ -439,15 +440,34 @@ public class OctaneEmailBodyRenderer {
       appendHeader(html, titleCase(column.label), "right");
     }
     html.append("</tr></thead><tbody>");
-    appendDefectStatusRow(html, "Open", summary, columns, DefectStatusCount.OPEN);
-    appendDefectStatusRow(html, "Closed", summary, columns, DefectStatusCount.CLOSED);
-    appendDefectStatusRow(html, "Total", summary, columns, DefectStatusCount.TOTAL);
+    appendDefectStatusRow(
+        html,
+        "Open (" + summary.getOpenTotal() + ")",
+        "Open",
+        summary,
+        columns,
+        DefectStatusCount.OPEN);
+    appendDefectStatusRow(
+        html,
+        "Closed (" + summary.getClosed() + ")",
+        "Closed",
+        summary,
+        columns,
+        DefectStatusCount.CLOSED);
+    appendDefectStatusRow(
+        html,
+        "Total (" + summary.getTotal() + ")",
+        "Total",
+        summary,
+        columns,
+        DefectStatusCount.TOTAL);
     html.append("</tbody></table>");
   }
 
   private void appendDefectStatusRow(
       StringBuilder html,
       String rowLabel,
+      String accessibleLabel,
       OctaneDefectSeveritySummary summary,
       List<DefectStatusColumn> columns,
       DefectStatusCount countType) {
@@ -455,7 +475,7 @@ public class OctaneEmailBodyRenderer {
     appendDefectRowHeader(html, rowLabel);
     for (DefectStatusColumn column : columns) {
       int count = defectStatusCount(summary, column.types, countType);
-      appendDefectCell(html, count, titleCase(column.label) + ", " + rowLabel);
+      appendDefectCell(html, count, titleCase(column.label) + ", " + accessibleLabel);
     }
     html.append("</tr>");
   }

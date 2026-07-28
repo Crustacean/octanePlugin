@@ -72,8 +72,26 @@ public class OctaneGateRunnerTest {
       OctaneGateRunner.validateSuiteRunSources(request);
       fail("Expected a critical suite run validation error.");
     } catch (hudson.AbortException e) {
-      assertTrue(e.getMessage().contains("critical Octane suite run ID is required"));
+      assertTrue(e.getMessage().contains("critical Octane suite run selection is required"));
     }
+  }
+
+  @Test
+  public void releaseSprintSelectionKeepsRegressionEvaluationEnabled() {
+    GateRequest request = new GateRequest("octane-prod", "Release 2.4, Sprint 3");
+
+    assertTrue(OctaneGateRunner.regressionSelectionEnabled(request));
+    assertTrue(OctaneGateRunner.regressionSuiteRunIdsForCriteria(request).isEmpty());
+  }
+
+  @Test
+  public void identicalReleaseSprintSelectionsAreEvaluatedAsCriticalOnly() {
+    GateRequest request = new GateRequest("octane-prod", "Release 2.4, Sprint 3");
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId("Release 2.4, Sprint 3");
+    request.setScopes(List.of(critical));
+
+    assertFalse(OctaneGateRunner.regressionSelectionEnabled(request));
   }
 
   @Test

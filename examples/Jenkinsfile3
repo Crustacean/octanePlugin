@@ -116,33 +116,24 @@ QA Automation Team''',
                 buildResult: 'FAILURE',
                 catchInterruptions: false,
                 stageResult: 'FAILURE') {
-              def suiteRunIds =
-                  (env.OCTANE_REGRESSION_SUITE_RUN_ID ?: '')
-                      .split(/[,\s]+/)
-                      .collect { it.trim() }
-                      .findAll { it }
-              def criticalSuiteRunIds =
-                  (env.OCTANE_CRITICAL_SUITE_RUN_ID ?: '')
-                      .split(/[,\s]+/)
-                      .collect { it.trim() }
-                      .findAll { it }
-              if (criticalSuiteRunIds.isEmpty()) {
-                error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain at least one ID.'
+              // Each source accepts numeric suite run IDs or "Release Name, Sprint Name".
+              def suiteRunSource = (env.OCTANE_REGRESSION_SUITE_RUN_ID ?: '').trim()
+              def criticalSuiteRunSource = (env.OCTANE_CRITICAL_SUITE_RUN_ID ?: '').trim()
+              if (!criticalSuiteRunSource) {
+                error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain a suite run selection.'
               }
 
               echo(
-                  'Octane regression suite run IDs: '
-                      + (suiteRunIds.isEmpty()
-                          ? '<none; evaluation skipped>'
-                          : suiteRunIds.join(', ')))
-              echo "Octane critical suite run IDs: ${criticalSuiteRunIds.join(', ')}"
+                  'Octane regression suite run selection: '
+                      + (suiteRunSource ? suiteRunSource : '<none; evaluation skipped>'))
+              echo "Octane critical suite run selection: ${criticalSuiteRunSource}"
 
               Map gateResult =
                   octaneSuiteGate(
                       serverId: 'octane-prod',
                       sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                       workspaceId: env.OCTANE_WORKSPACE_ID,
-                      suiteRunId: suiteRunIds.join(','),
+                      suiteRunId: suiteRunSource,
                       // Defect rates are open matching defects / total defects raised. The total
                       // is deduplicated by defect ID and includes defects closed during this gate
                       // session. Group names and types are case-insensitive.
@@ -161,7 +152,7 @@ QA Automation Team''',
                       scopes: [
                         octaneGateScope(
                             name: 'critical',
-                            suiteRunId: criticalSuiteRunIds.join(','))
+                            suiteRunId: criticalSuiteRunSource)
                       ],
                       pollIntervalSeconds: 30,
                       timeoutMinutes: timeoutMinutes,

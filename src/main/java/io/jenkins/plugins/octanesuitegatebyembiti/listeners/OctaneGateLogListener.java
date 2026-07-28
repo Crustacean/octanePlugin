@@ -8,6 +8,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public class OctaneGateLogListener {
   public void logWaiting(TaskListener listener, List<String> suiteRunIds) {
@@ -26,6 +27,14 @@ public class OctaneGateLogListener {
   }
 
   public void logWaiting(TaskListener listener, GateRequest request, List<String> suiteRunIds) {
+    logWaiting(listener, request, suiteRunIds, Map.of());
+  }
+
+  public void logWaiting(
+      TaskListener listener,
+      GateRequest request,
+      List<String> suiteRunIds,
+      Map<String, List<String>> scopeSuiteRunIds) {
     listener.getLogger().println("Waiting for ALM Octane suite run(s)");
     listener.getLogger().println("Regressions suite runs: " + describeIds(suiteRunIds));
     if (request == null) {
@@ -38,7 +47,9 @@ public class OctaneGateLogListener {
             .getLogger()
             .printf(
                 "%s suite runs: %s%n",
-                displayScopeName(scope.getName()), describeIds(scope.getSuiteRunIds()));
+                displayScopeName(scope.getName()),
+                describeIds(
+                    scopeSuiteRunIds.getOrDefault(scope.getName(), scope.getSuiteRunIds())));
       }
     }
 
@@ -54,12 +65,46 @@ public class OctaneGateLogListener {
     }
   }
 
+  public void logNoDynamicSuiteRuns(
+      TaskListener listener, String label, String releaseName, String sprintName) {
+    listener
+        .getLogger()
+        .printf(
+            "[WARNING/AUDIT] No active %s suite runs were found for release '%s' and sprint '%s'. "
+                + "Discovery will continue on every poll. Use Jenkins Abort/Cancel to stop this pipeline.%n",
+            label, releaseName, sprintName);
+  }
+
+  public void logDynamicSuiteSelector(
+      TaskListener listener, String label, String releaseName, String sprintName) {
+    listener
+        .getLogger()
+        .printf(
+            "[INFO/AUDIT] %s suite runs use continuous discovery for release '%s' and sprint '%s'.%n",
+            label, releaseName, sprintName);
+  }
+
+  public void logSuiteRunsAdded(TaskListener listener, String label, List<String> suiteRunIds) {
+    listener
+        .getLogger()
+        .printf(
+            "[INFO/AUDIT] %s suite run pool added: %s.%n", label, String.join(", ", suiteRunIds));
+  }
+
+  public void logSuiteRunsRemoved(TaskListener listener, String label, List<String> suiteRunIds) {
+    listener
+        .getLogger()
+        .printf(
+            "[WARNING/AUDIT] %s suite run pool removed unreachable/deleted run(s): %s.%n",
+            label, String.join(", ", suiteRunIds));
+  }
+
   public void logRegressionEvaluationSkipped(TaskListener listener) {
     listener
         .getLogger()
         .println(
-            "[INFO/AUDIT] OCTANE_REGRESSION_SUITE_RUN_ID is empty/omitted. "
-                + "Skipping regression evaluation and criteria checks.");
+            "[INFO/AUDIT] Regression suite-run evaluation is disabled because its selection is "
+                + "empty or entirely owned by the critical scope. Skipping regression criteria.");
   }
 
   public void logPollResult(TaskListener listener, GateResult result) {

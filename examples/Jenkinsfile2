@@ -40,13 +40,10 @@ pipeline {
           stageResult: 'FAILURE') {
           script {
           env.OCTANE_GATE_PASSED = 'false'
-          def suiteRunIds =
-              (env.OCTANE_REGRESSION_SUITE_RUN_ID ?: '')
-                  .split(/[,\s]+/)
-                  .collect { it.trim() }
-                  .findAll { it }
-          if (suiteRunIds.isEmpty()) {
-            error 'OCTANE_REGRESSION_SUITE_RUN_ID must contain at least one ID.'
+          // Accept numeric suite run IDs or "Release Name, Sprint Name".
+          def suiteRunSource = (env.OCTANE_REGRESSION_SUITE_RUN_ID ?: '').trim()
+          if (!suiteRunSource) {
+            error 'OCTANE_REGRESSION_SUITE_RUN_ID must contain a suite run selection.'
           }
 
           Map gateResult =
@@ -54,7 +51,7 @@ pipeline {
                   serverId: 'octane-prod',
                   sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                   workspaceId: env.OCTANE_WORKSPACE_ID,
-                  suiteRunId: suiteRunIds.join(','),
+                  suiteRunId: suiteRunSource,
                   // Defect groups and individual severity references are case-insensitive.
                   // Rates use open matching defects / total defects raised. The deduplicated total
                   // includes closed defects; append Count for a raw open count. Group and individual

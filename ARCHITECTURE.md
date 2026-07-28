@@ -700,6 +700,19 @@ The Pipeline return map includes both:
 - `suiteRunId`: original string value.
 - `suiteRunIds`: parsed list of suite run IDs.
 
+The same input can instead contain `Release Name, Sprint Name`. `SuiteRunSelector` preserves the
+two names and `OctaneClient` resolves suite-run IDs through the workspace `runs` aggregate (with a
+`suite_runs` compatibility fallback). Preflight validates explicit IDs strictly. Dynamic selectors
+may initially resolve to an empty pool; in that case the gate logs a warning, remains nonterminal,
+and points users to Jenkins Abort/Cancel rather than blocking discovery behind a Pipeline input.
+
+Each poll reconciles the selected pool before calculating metrics. Newly discovered suite runs are
+added, confirmed missing runs are dropped, and both changes are audit logged. Only confirmed
+not-found suites are suppressed; discovery transport and server failures remain build errors so an
+Octane outage cannot silently become a zero-valued report. Regression and scope metrics, defect
+linkage, charts, and criteria are all rebuilt from the reconciled maps, allowing totals to rise or
+fall between snapshots.
+
 ## Scopes
 
 Scopes are named metric buckets. A scope can be backed by its own suite run IDs

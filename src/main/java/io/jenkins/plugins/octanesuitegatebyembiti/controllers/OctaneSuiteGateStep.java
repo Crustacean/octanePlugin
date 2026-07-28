@@ -15,6 +15,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.SuiteRunSelector;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaExpression;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
@@ -615,16 +616,14 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     public FormValidation doCheckSuiteRunId(@QueryParameter String value) {
-      List<String> ids = Util.splitIdList(value);
-      if (ids.isEmpty()) {
-        return FormValidation.ok();
-      }
-      if (ids.size() > GateRequest.MAX_SUITE_RUN_IDS) {
-        return FormValidation.error(
-            "At most " + GateRequest.MAX_SUITE_RUN_IDS + " suite run IDs are supported.");
-      }
-      if (ids.stream().anyMatch(id -> !id.matches("[0-9]{1,18}"))) {
-        return FormValidation.error("Suite run IDs must contain 1 to 18 digits.");
+      try {
+        SuiteRunSelector selector = SuiteRunSelector.parse(value);
+        if (selector.getExplicitIds().size() > GateRequest.MAX_SUITE_RUN_IDS) {
+          return FormValidation.error(
+              "At most " + GateRequest.MAX_SUITE_RUN_IDS + " suite run IDs are supported.");
+        }
+      } catch (IllegalArgumentException e) {
+        return FormValidation.error(e.getMessage());
       }
       return FormValidation.ok();
     }
