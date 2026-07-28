@@ -195,6 +195,28 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void omitsInactiveScopeFromReportSections() {
+    GateResult activeRegressionOnly =
+        new GateResult(
+            "4501",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            new GateMetrics(1, 1, 1, 0, 0, 0),
+            List.of(new RunRecord("1", "one", "passed")),
+            Map.of("4501", List.of(new RunRecord("1", "one", "passed"))),
+            Map.of("critical", GateScopeResult.inactiveSuiteRunScope("critical")),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", activeRegressionOnly, classifier, 30);
+
+    assertEquals(1, snapshot.getSections().size());
+    assertEquals("regressions", snapshot.getSections().get(0).getSource());
+  }
+
+  @Test
   public void formatsLastUpdatedTimeInEastAfricaTimeWithoutMillis() {
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(

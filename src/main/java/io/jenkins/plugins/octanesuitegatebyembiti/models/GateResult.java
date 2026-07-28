@@ -221,7 +221,9 @@ public class GateResult implements Serializable {
   public Map<String, GateMetrics> getScopedMetrics() {
     Map<String, GateMetrics> scopedMetrics = new LinkedHashMap<>();
     for (Map.Entry<String, GateScopeResult> entry : scopedResults.entrySet()) {
-      scopedMetrics.put(entry.getKey(), entry.getValue().getMetrics());
+      if (entry.getValue().isActive()) {
+        scopedMetrics.put(entry.getKey(), entry.getValue().getMetrics());
+      }
     }
     return scopedMetrics;
   }
@@ -262,15 +264,16 @@ public class GateResult implements Serializable {
     result.put("regressionEvaluationEnabled", isRegressionEvaluationEnabled());
     result.put("polledAt", polledAt.toString());
     result.put("metrics", metrics.toMap());
-    result.put("regressions", metrics.toMap());
+    result.put("regressions", pipelineMetrics(metrics, isRegressionEvaluationEnabled()));
 
     Map<String, Object> scopes = new LinkedHashMap<>();
     Map<String, Object> scopeDetails = new LinkedHashMap<>();
     int perScopeDetailLimit =
         scopedResults.isEmpty() ? 0 : Math.max(1, PIPELINE_DETAIL_LIMIT / scopedResults.size());
     for (Map.Entry<String, GateScopeResult> entry : scopedResults.entrySet()) {
-      scopes.put(entry.getKey(), entry.getValue().getMetrics().toMap());
-      scopeDetails.put(entry.getKey(), entry.getValue().toMap(perScopeDetailLimit));
+      GateScopeResult scopeResult = entry.getValue();
+      scopes.put(entry.getKey(), pipelineMetrics(scopeResult.getMetrics(), scopeResult.isActive()));
+      scopeDetails.put(entry.getKey(), scopeResult.toMap(perScopeDetailLimit));
     }
     result.put("scopes", scopes);
     result.put("scopeDetails", scopeDetails);
@@ -284,6 +287,12 @@ public class GateResult implements Serializable {
     result.put("defects", getDefectMetrics().toMap());
     result.put("criteriaEvaluation", getCriteriaEvaluation().toMap());
     return result;
+  }
+
+  private static Map<String, Object> pipelineMetrics(GateMetrics metrics, boolean active) {
+    Map<String, Object> values = new LinkedHashMap<>(metrics.toMap());
+    values.put("active", active);
+    return values;
   }
 
   private static Map<String, GateScopeResult> toScopeResults(

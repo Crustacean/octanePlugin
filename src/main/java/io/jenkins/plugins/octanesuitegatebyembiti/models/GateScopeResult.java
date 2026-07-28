@@ -19,6 +19,7 @@ public class GateScopeResult implements Serializable {
   private final GateMetrics metrics;
   private final List<RunRecord> runs;
   private final Map<String, List<RunRecord>> suiteRuns;
+  private final boolean inactive;
 
   public GateScopeResult(
       String name, String query, List<String> queryIds, GateMetrics metrics, List<RunRecord> runs) {
@@ -34,6 +35,19 @@ public class GateScopeResult implements Serializable {
       GateMetrics metrics,
       List<RunRecord> runs,
       Map<String, List<RunRecord>> suiteRuns) {
+    this(name, query, queryIds, suiteRunId, suiteRunIds, metrics, runs, suiteRuns, false);
+  }
+
+  private GateScopeResult(
+      String name,
+      String query,
+      List<String> queryIds,
+      String suiteRunId,
+      List<String> suiteRunIds,
+      GateMetrics metrics,
+      List<RunRecord> runs,
+      Map<String, List<RunRecord>> suiteRuns,
+      boolean inactive) {
     this.name = name;
     this.query = query;
     this.queryIds = List.copyOf(queryIds);
@@ -42,6 +56,20 @@ public class GateScopeResult implements Serializable {
     this.metrics = metrics;
     this.runs = List.copyOf(runs);
     this.suiteRuns = GateResult.copySuiteRuns(suiteRuns);
+    this.inactive = inactive;
+  }
+
+  public static GateScopeResult inactiveSuiteRunScope(String name) {
+    return new GateScopeResult(
+        name,
+        "",
+        List.of(),
+        "",
+        List.of(),
+        new GateMetrics(0, 0, 0, 0, 0, 0),
+        List.of(),
+        Map.of(),
+        true);
   }
 
   public String getName() {
@@ -76,6 +104,10 @@ public class GateScopeResult implements Serializable {
     return GateResult.copySuiteRuns(suiteRuns);
   }
 
+  public boolean isActive() {
+    return !inactive;
+  }
+
   public boolean isSuiteRunScope() {
     return !suiteRunIds.isEmpty();
   }
@@ -91,6 +123,7 @@ public class GateScopeResult implements Serializable {
     values.put("queryIds", queryIds);
     values.put("suiteRunId", suiteRunId);
     values.put("suiteRunIds", suiteRunIds);
+    values.put("active", isActive());
     values.put("metrics", metrics.toMap());
 
     int safeLimit = Math.max(0, detailLimit);

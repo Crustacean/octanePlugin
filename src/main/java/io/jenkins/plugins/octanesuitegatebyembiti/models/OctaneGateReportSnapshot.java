@@ -228,7 +228,9 @@ public class OctaneGateReportSnapshot implements Serializable {
       sections.add(OctaneGateReportSection.regressions(result, classifier));
     }
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
-      sections.add(OctaneGateReportSection.scoped(scopeResult, classifier));
+      if (scopeResult.isActive()) {
+        sections.add(OctaneGateReportSection.scoped(scopeResult, classifier));
+      }
     }
     OctaneGateReportSnapshot snapshot =
         new OctaneGateReportSnapshot(

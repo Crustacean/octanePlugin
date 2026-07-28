@@ -16,6 +16,9 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectLedger;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
@@ -92,6 +95,30 @@ public class OctaneGateRunnerTest {
     request.setScopes(List.of(critical));
 
     assertFalse(OctaneGateRunner.regressionSelectionEnabled(request));
+  }
+
+  @Test
+  public void explicitIdPollingSurvivesCriticalBucketRemoval() throws Exception {
+    assertPollingSurvivesBucketRemoval("1001", "2001", "critical");
+  }
+
+  @Test
+  public void explicitIdPollingSurvivesRegressionBucketRemoval() throws Exception {
+    assertPollingSurvivesBucketRemoval("1001", "2001", "regressions");
+  }
+
+  @Test
+  public void releasePollingSurvivesCriticalBucketRemoval() throws Exception {
+    assertPollingSurvivesBucketRemoval(
+        "Regression Release, Regression Sprint", "Critical Release, Critical Sprint", "critical");
+  }
+
+  @Test
+  public void releasePollingSurvivesRegressionBucketRemoval() throws Exception {
+    assertPollingSurvivesBucketRemoval(
+        "Regression Release, Regression Sprint",
+        "Critical Release, Critical Sprint",
+        "regressions");
   }
 
   @Test
@@ -333,6 +360,79 @@ public class OctaneGateRunnerTest {
         Map.of("4501", runs),
         Map.of(),
         Instant.parse("2026-05-16T13:59:00Z"));
+  }
+
+  @SuppressWarnings("unchecked")
+  private void assertPollingSurvivesBucketRemoval(
+      String regressionSelector, String criticalSelector, String removedBucket) throws Exception {
+    GateRequest request = new GateRequest("octane-prod", regressionSelector);
+    request.setCriteria("regressions.executionRate == 100 AND critical.executionRate == 100");
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId(criticalSelector);
+    request.setScopes(List.of(critical));
+
+    boolean dynamicSelectors = regressionSelector.contains("Release");
+    assertEquals(dynamicSelectors, request.getSuiteRunSelector().isDynamic());
+    assertEquals(dynamicSelectors, critical.getSuiteRunSelector().isDynamic());
+
+    List<RunRecord> passedRuns = List.of(new RunRecord("run-1", "passed", "passed"));
+    boolean regressionRemoved = "regressions".equals(removedBucket);
+    boolean criticalRemoved = "critical".equals(removedBucket);
+    Map<String, List<RunRecord>> regressionRuns =
+        regressionRemoved ? Map.of() : Map.of("1001", passedRuns);
+    Map<String, Map<String, List<RunRecord>>> scopeRuns =
+        Map.of("critical", criticalRemoved ? Map.of() : Map.of("2001", passedRuns));
+
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+    GateResult result =
+        runner.poll(
+            new NoDefectOctaneClient(),
+            request,
+            regressionRuns,
+            scopeRuns,
+            true,
+            false,
+            "1001",
+            "2001",
+            CriteriaExpression.parse(request.getCriteria()),
+            request.createStatusClassifier(),
+            taskListener(new ByteArrayOutputStream()),
+            new OctaneDefectLedger());
+
+    assertTrue(result.isPassed());
+    assertTrue(result.isTerminal());
+    assertFalse(result.getCriteria().contains(removedBucket + "."));
+    assertEquals(1, result.getCriteriaEvaluation().getComparisons().size());
+
+    Map<String, Object> pipelineMap = result.toPipelineMap();
+    Map<String, Object> regressions = (Map<String, Object>) pipelineMap.get("regressions");
+    Map<String, Object> scopes = (Map<String, Object>) pipelineMap.get("scopes");
+    Map<String, Object> criticalMetrics = (Map<String, Object>) scopes.get("critical");
+    assertNotNull(criticalMetrics);
+
+    if (regressionRemoved) {
+      assertFalse(result.isRegressionEvaluationEnabled());
+      assertEquals(false, regressions.get("active"));
+      assertEquals(0.0, regressions.get("executionRate"));
+      assertEquals(true, criticalMetrics.get("active"));
+    } else {
+      assertTrue(result.isRegressionEvaluationEnabled());
+      assertEquals(true, regressions.get("active"));
+      assertEquals(false, criticalMetrics.get("active"));
+      assertEquals(0.0, criticalMetrics.get("executionRate"));
+      Map<String, Object> scopeDetails = (Map<String, Object>) pipelineMap.get("scopeDetails");
+      assertNotNull(scopeDetails.get("critical"));
+    }
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, request.createStatusClassifier(), 30);
+    assertEquals(1, snapshot.getSections().size());
+    assertEquals(
+        regressionRemoved ? "critical" : "regressions", snapshot.getSections().get(0).getSource());
   }
 
   private GateRequest criticalOnlyRequest(String regressionSuiteRunId) {

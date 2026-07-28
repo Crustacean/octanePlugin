@@ -671,7 +671,7 @@ public class OctaneGateRunner {
         defectLedger);
   }
 
-  private GateResult poll(
+  GateResult poll(
       OctaneClient client,
       GateRequest request,
       Map<String, List<RunRecord>> suiteRuns,
@@ -702,6 +702,7 @@ public class OctaneGateRunner {
           && currentScopeSuiteRuns != null
           && currentScopeSuiteRuns.isEmpty()) {
         inactiveMetricNamespaces.add(scope.getName());
+        scopedResults.put(scope.getName(), GateScopeResult.inactiveSuiteRunScope(scope.getName()));
         continue;
       }
       GateScopeResult scopeResult =

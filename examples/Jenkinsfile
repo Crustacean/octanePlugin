@@ -100,11 +100,16 @@ pipeline {
             echo "Regression execution rate: ${gateResult.regressions.executionRate}"
             echo "Regression pass rate: ${gateResult.regressions.passRate}"
           }
-          echo "Critical scope execution rate: ${gateResult.scopes.critical.executionRate}"
-          echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
-          echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"
-          def criticalChildRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
-          echo "Critical scope child run IDs: ${criticalChildRunIds}"
+          def criticalScope = gateResult.scopes.critical
+          if (criticalScope != null && criticalScope.active != false) {
+            echo "Critical scope execution rate: ${criticalScope.executionRate}"
+            echo "Critical scope pass rate: ${criticalScope.passRate}"
+            echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"
+            def criticalChildRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
+            echo "Critical scope child run IDs: ${criticalChildRunIds}"
+          } else {
+            echo 'Critical scope is inactive because no selected suite runs remain.'
+          }
           }
         }
       }

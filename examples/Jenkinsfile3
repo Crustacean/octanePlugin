@@ -171,10 +171,13 @@ QA Automation Team''',
                 echo "Regression execution rate: ${gateResult.regressions.executionRate}"
                 echo "Regression pass rate: ${gateResult.regressions.passRate}"
               }
-              echo(
-                  'Critical scope execution rate: '
-                      + "${gateResult.scopes.critical.executionRate}")
-              echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
+              def criticalScope = gateResult.scopes.critical
+              if (criticalScope != null && criticalScope.active != false) {
+                echo "Critical scope execution rate: ${criticalScope.executionRate}"
+                echo "Critical scope pass rate: ${criticalScope.passRate}"
+              } else {
+                echo 'Critical scope is inactive because no selected suite runs remain.'
+              }
             }
           }
         }

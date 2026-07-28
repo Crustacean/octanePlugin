@@ -414,7 +414,9 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     Map<String, RunRecord> values = new LinkedHashMap<>();
     addRuns(values, "regression", result.getRuns());
     for (Map.Entry<String, GateScopeResult> entry : result.getScopedResults().entrySet()) {
-      addRuns(values, "scope-" + entry.getKey(), entry.getValue().getRuns());
+      if (entry.getValue().isActive()) {
+        addRuns(values, "scope-" + entry.getKey(), entry.getValue().getRuns());
+      }
     }
     return List.copyOf(values.values());
   }

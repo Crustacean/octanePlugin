@@ -105,7 +105,7 @@ public class OctaneGateLogListener {
       logMetrics(listener, "Regressions suite runs", result.getMetrics());
     }
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
-      if (scopeResult.isSuiteRunScope()) {
+      if (scopeResult.isActive() && scopeResult.isSuiteRunScope()) {
         logMetrics(
             listener,
             displayScopeName(scopeResult.getName()) + " suite runs",
