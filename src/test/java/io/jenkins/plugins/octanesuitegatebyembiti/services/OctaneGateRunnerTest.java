@@ -101,7 +101,7 @@ public class OctaneGateRunnerTest {
     assertEquals(
         overlappingResult.getCriteriaEvaluation().toMap(),
         omittedResult.getCriteriaEvaluation().toMap());
-    assertEquals("critical.executionRate == 100%", overlappingResult.getCriteria());
+    assertEquals("critical.executionRate == 100", overlappingResult.getCriteria());
     assertEquals(overlappingResult.getCriteria(), omittedResult.getCriteria());
     assertFalse(overlappingResult.getCriteria().contains("regressions."));
   }
@@ -112,10 +112,6 @@ public class OctaneGateRunnerTest {
         "(critical.executionRate == 100 AND critical.passRate == 100) "
             + "AND (defects.major < 10% AND defects.minor < 20%) "
             + "AND (defects.Unspecified == 0%)";
-    String effectiveCriticalAndDefectCriteria =
-        "critical.executionRate == 100% AND critical.passRate == 100% "
-            + "AND defects.major < 10% AND defects.minor < 20% "
-            + "AND defects.Unspecified == 0%";
 
     GateResult identicalIds =
         refreshTaskCriteriaScenario(
@@ -138,10 +134,22 @@ public class OctaneGateRunnerTest {
                 + "AND (critical.passRate == 100 OR regressions.passRate >= 95) "
                 + "AND (defects.major < 10% AND defects.minor < 20%) "
                 + "AND (defects.Unspecified == 0%)");
+    GateResult mixedRegressionOrBranches =
+        refreshTaskCriteriaScenario(
+            "",
+            "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+                + "OR (critical.passRate == 100 OR regressions.passRate >= 95) "
+                + "AND (defects.major < 10% AND defects.minor < 20%) "
+                + "AND (defects.Unspecified == 0%)");
 
-    assertCriticalOnlyScenario(identicalIds, effectiveCriticalAndDefectCriteria);
-    assertCriticalOnlyScenario(omittedRegressionOr, effectiveCriticalAndDefectCriteria);
-    assertCriticalOnlyScenario(mixedRegressionBranches, effectiveCriticalAndDefectCriteria);
+    assertCriticalOnlyScenario(identicalIds, criticalAndDefectCriteria);
+    assertCriticalOnlyScenario(omittedRegressionOr, criticalAndDefectCriteria);
+    assertCriticalOnlyScenario(mixedRegressionBranches, criticalAndDefectCriteria);
+    assertCriticalOnlyScenario(
+        mixedRegressionOrBranches,
+        "(critical.executionRate == 100 OR critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)");
 
     assertTrue(distinctRegression.isRegressionEvaluationEnabled());
     assertTrue(distinctRegression.isPassed());

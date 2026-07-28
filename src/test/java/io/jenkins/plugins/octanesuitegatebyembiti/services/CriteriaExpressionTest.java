@@ -108,8 +108,82 @@ public class CriteriaExpressionTest {
                 + "AND defects.majorCount == 0");
 
     assertEquals(
-        "critical.passRate == 100% AND defects.majorCount == 0",
+        "(critical.passRate == 100) AND defects.majorCount == 0",
         criteria.effectiveExpression(context, false));
+  }
+
+  @Test
+  public void effectiveExpressionPreservesDistinctApplicableBuckets() {
+    String criteria =
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+            + "AND (critical.executionRate == 100 AND critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)";
+
+    assertEquals(
+        "(critical.executionRate == 100 AND critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)",
+        CriteriaExpression.parse(criteria).effectiveExpression(emptyContext(), false));
+  }
+
+  @Test
+  public void effectiveExpressionConsolidatesMixedCriticalBucketsWithAnd() {
+    String criteria =
+        "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+            + "AND (critical.passRate == 100 OR regressions.passRate >= 95) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)";
+
+    assertEquals(
+        "(critical.executionRate == 100 AND critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)",
+        CriteriaExpression.parse(criteria).effectiveExpression(emptyContext(), false));
+  }
+
+  @Test
+  public void effectiveExpressionConsolidatesMixedCriticalBucketsWithOr() {
+    String criteria =
+        "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+            + "OR (critical.passRate == 100 OR regressions.passRate >= 95) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)";
+
+    assertEquals(
+        "(critical.executionRate == 100 OR critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)",
+        CriteriaExpression.parse(criteria).effectiveExpression(emptyContext(), false));
+  }
+
+  @Test
+  public void appliedEvaluationUsesTheSameConsolidatedPrecedenceAsThePrintedExpression() {
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, Very High, High, Unspecified");
+    OctaneDefectGroup minor = new OctaneDefectGroup("minor");
+    minor.setTypes("Low, Medium");
+    DefectCriteriaMetrics defects =
+        new DefectCriteriaMetrics(
+            OctaneDefectSeveritySummary.fromDefects(
+                List.of(
+                    new DefectRecord(
+                        "1", "Critical", "Critical", "", "opened", "run", "test", "", ""))),
+            List.of(major, minor));
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(1, 1, 1, 0, 0, 0)),
+            defects);
+    CriteriaExpression criteria =
+        CriteriaExpression.parse(
+            "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+                + "OR (critical.passRate == 0 OR regressions.passRate >= 95) "
+                + "AND (defects.major < 10% AND defects.minor < 20%) "
+                + "AND (defects.Unspecified == 0%)");
+
+    assertTrue(criteria.evaluateDetailed(context, false).isPassed());
+    assertFalse(criteria.evaluateAppliedDetailed(context, false).isPassed());
   }
 
   @Test
@@ -413,5 +487,9 @@ public class CriteriaExpressionTest {
 
   private MetricsContext context(List<RunRecord> runs) {
     return new MetricsContext(GateMetrics.fromRuns(runs, classifier), Map.of());
+  }
+
+  private MetricsContext emptyContext() {
+    return new MetricsContext(new GateMetrics(0, 0, 0, 0, 0, 0), Map.of());
   }
 }

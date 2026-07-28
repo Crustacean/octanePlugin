@@ -49,9 +49,80 @@ public class CriteriaExpression implements Serializable {
     return CriteriaEvaluation.available(!evaluation.applicable || evaluation.passed, comparisons);
   }
 
+  public CriteriaEvaluation evaluateAppliedDetailed(
+      MetricsContext context, boolean regressionEvaluationEnabled) {
+    Node effectiveRoot = root.prune(regressionEvaluationEnabled);
+    if (effectiveRoot == null) {
+      return CriteriaEvaluation.available(true, List.of());
+    }
+    String appliedExpression = renderAppliedExpression(effectiveRoot, context);
+    return CriteriaExpression.parse(appliedExpression).evaluateDetailed(context, true);
+  }
+
   public String effectiveExpression(MetricsContext context, boolean regressionEvaluationEnabled) {
-    RenderedExpression rendered = root.render(context, regressionEvaluationEnabled);
-    return rendered == null ? "No applicable criteria." : rendered.text;
+    Node effectiveRoot = root.prune(regressionEvaluationEnabled);
+    if (effectiveRoot == null) {
+      return "No applicable criteria.";
+    }
+    return renderAppliedExpression(effectiveRoot, context);
+  }
+
+  private String renderAppliedExpression(Node effectiveRoot, MetricsContext context) {
+    List<Node> terms = new ArrayList<>();
+    List<TokenType> operators = new ArrayList<>();
+    flattenTopLevel(effectiveRoot, terms, operators);
+
+    List<AppliedTerm> appliedTerms = new ArrayList<>();
+    for (int index = 0; index < terms.size(); index++) {
+      Node node = terms.get(index);
+      TokenType connector = index == 0 ? null : operators.get(index - 1);
+      AppliedTerm current = AppliedTerm.from(node, connector, context);
+      if (!appliedTerms.isEmpty() && appliedTerms.get(appliedTerms.size() - 1).canMerge(current)) {
+        appliedTerms.get(appliedTerms.size() - 1).merge(current);
+      } else {
+        appliedTerms.add(current);
+      }
+    }
+
+    StringBuilder value = new StringBuilder();
+    for (AppliedTerm term : appliedTerms) {
+      if (value.length() > 0) {
+        value.append(' ').append(term.connector.name()).append(' ');
+      }
+      value.append(term.grouped ? "(" + term.text + ")" : term.text);
+    }
+    return value.toString();
+  }
+
+  private void flattenTopLevel(Node node, List<Node> terms, List<TokenType> operators) {
+    if (node instanceof LogicalNode logicalNode) {
+      flattenTopLevel(logicalNode.left, terms, operators);
+      operators.add(logicalNode.operator);
+      flattenTopLevel(logicalNode.right, terms, operators);
+      return;
+    }
+    terms.add(node);
+  }
+
+  private static Set<String> namespaces(Node node) {
+    Set<String> values = new LinkedHashSet<>();
+    collectNamespaces(node, values);
+    return values;
+  }
+
+  private static void collectNamespaces(Node node, Set<String> values) {
+    if (node instanceof ComparisonNode comparisonNode) {
+      values.add(comparisonNode.namespace());
+      return;
+    }
+    if (node instanceof GroupNode groupNode) {
+      collectNamespaces(groupNode.child, values);
+      return;
+    }
+    if (node instanceof LogicalNode logicalNode) {
+      collectNamespaces(logicalNode.left, values);
+      collectNamespaces(logicalNode.right, values);
+    }
   }
 
   public boolean usesMetricNamespace(String namespace) {
@@ -176,10 +247,12 @@ public class CriteriaExpression implements Serializable {
         index++;
       }
       String number = value.substring(start, index);
+      boolean percentage = false;
       if (index < value.length() && value.charAt(index) == '%') {
+        percentage = true;
         index++;
       }
-      addToken(TokenType.NUMBER, number, parseNumber(number));
+      addToken(TokenType.NUMBER, percentage ? number + "%" : number, parseNumber(number));
     }
 
     private void scanIdentifier() {
@@ -211,6 +284,8 @@ public class CriteriaExpression implements Serializable {
         boolean regressionEvaluationEnabled);
 
     RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled);
+
+    Node prune(boolean regressionEvaluationEnabled);
   }
 
   private static final class NodeEvaluation {
@@ -236,6 +311,61 @@ public class CriteriaExpression implements Serializable {
     private RenderedExpression(String text, int precedence) {
       this.text = text;
       this.precedence = precedence;
+    }
+  }
+
+  private static final class AppliedTerm {
+    private String text;
+    private int precedence;
+    private final boolean grouped;
+    private boolean filtered;
+    private final Set<String> namespaces;
+    private final TokenType connector;
+
+    private AppliedTerm(
+        String text,
+        int precedence,
+        boolean grouped,
+        boolean filtered,
+        Set<String> namespaces,
+        TokenType connector) {
+      this.text = text;
+      this.precedence = precedence;
+      this.grouped = grouped;
+      this.filtered = filtered;
+      this.namespaces = namespaces;
+      this.connector = connector;
+    }
+
+    private static AppliedTerm from(Node node, TokenType connector, MetricsContext context) {
+      boolean grouped = node instanceof GroupNode;
+      boolean filtered = grouped && ((GroupNode) node).filtered;
+      Node renderedNode = grouped ? ((GroupNode) node).child : node;
+      RenderedExpression rendered = renderedNode.render(context, true);
+      return new AppliedTerm(
+          rendered.text,
+          rendered.precedence,
+          grouped,
+          filtered,
+          namespaces(renderedNode),
+          connector);
+    }
+
+    private boolean canMerge(AppliedTerm next) {
+      return grouped
+          && next.grouped
+          && (filtered || next.filtered)
+          && namespaces.size() == 1
+          && namespaces.equals(next.namespaces);
+    }
+
+    private void merge(AppliedTerm next) {
+      int connectorPrecedence = next.connector == TokenType.AND ? 2 : 1;
+      String leftText = precedence < connectorPrecedence ? "(" + text + ")" : text;
+      String rightText = next.precedence < connectorPrecedence ? "(" + next.text + ")" : next.text;
+      text = leftText + " " + next.connector.name() + " " + rightText;
+      precedence = connectorPrecedence;
+      filtered = true;
     }
   }
 
@@ -290,8 +420,66 @@ public class CriteriaExpression implements Serializable {
       return new RenderedExpression(leftText + " " + operator.name() + " " + rightText, precedence);
     }
 
+    @Override
+    public Node prune(boolean regressionEvaluationEnabled) {
+      Node effectiveLeft = left.prune(regressionEvaluationEnabled);
+      Node effectiveRight = right.prune(regressionEvaluationEnabled);
+      if (effectiveLeft == null) {
+        return effectiveRight;
+      }
+      if (effectiveRight == null) {
+        return effectiveLeft;
+      }
+      if (effectiveLeft == left && effectiveRight == right) {
+        return this;
+      }
+      return new LogicalNode(operator, effectiveLeft, effectiveRight);
+    }
+
     private String parenthesizeWhenRequired(RenderedExpression expression, int precedence) {
       return expression.precedence < precedence ? "(" + expression.text + ")" : expression.text;
+    }
+  }
+
+  private static class GroupNode implements Node {
+    private static final long serialVersionUID = 1L;
+
+    private final Node child;
+    private final boolean filtered;
+
+    GroupNode(Node child) {
+      this(child, false);
+    }
+
+    private GroupNode(Node child, boolean filtered) {
+      this.child = child;
+      this.filtered = filtered;
+    }
+
+    @Override
+    public NodeEvaluation evaluate(
+        MetricsContext context,
+        List<CriteriaComparisonEvaluation> comparisonEvaluations,
+        boolean regressionEvaluationEnabled) {
+      return child.evaluate(context, comparisonEvaluations, regressionEvaluationEnabled);
+    }
+
+    @Override
+    public RenderedExpression render(MetricsContext context, boolean regressionEvaluationEnabled) {
+      RenderedExpression rendered = child.render(context, regressionEvaluationEnabled);
+      return rendered == null ? null : new RenderedExpression("(" + rendered.text + ")", 3);
+    }
+
+    @Override
+    public Node prune(boolean regressionEvaluationEnabled) {
+      Node effectiveChild = child.prune(regressionEvaluationEnabled);
+      if (effectiveChild == null) {
+        return null;
+      }
+      if (effectiveChild == child) {
+        return this;
+      }
+      return new GroupNode(effectiveChild, true);
     }
   }
 
@@ -301,11 +489,13 @@ public class CriteriaExpression implements Serializable {
     private final String metricName;
     private final String operator;
     private final double expectedValue;
+    private final String expectedLabel;
 
-    ComparisonNode(String metricName, String operator, double expectedValue) {
+    ComparisonNode(String metricName, String operator, double expectedValue, String expectedLabel) {
       this.metricName = metricName;
       this.operator = operator;
       this.expectedValue = expectedValue;
+      this.expectedLabel = expectedLabel;
     }
 
     @Override
@@ -334,15 +524,34 @@ public class CriteriaExpression implements Serializable {
       if (!regressionEvaluationEnabled && isRegressionMetric(metricName)) {
         return null;
       }
-      CriteriaComparisonEvaluation comparison =
-          new CriteriaComparisonEvaluation(
-              metricName,
-              operator,
-              expectedValue,
-              0.0,
-              context.isPercentageMetric(metricName),
-              true);
-      return new RenderedExpression(comparison.getCriterionLabel(), 3);
+      String appliedLabel = expectedLabel;
+      if (appliedLabel == null) {
+        CriteriaComparisonEvaluation comparison =
+            new CriteriaComparisonEvaluation(
+                metricName,
+                operator,
+                expectedValue,
+                0.0,
+                context.isPercentageMetric(metricName),
+                true);
+        return new RenderedExpression(comparison.getCriterionLabel(), 3);
+      }
+      return new RenderedExpression(metricName + " " + operator + " " + appliedLabel, 3);
+    }
+
+    @Override
+    public Node prune(boolean regressionEvaluationEnabled) {
+      return !regressionEvaluationEnabled && isRegressionMetric(metricName) ? null : this;
+    }
+
+    private String namespace() {
+      String normalized = Util.trimToEmpty(metricName).toLowerCase(Locale.ROOT);
+      int dot = normalized.indexOf('.');
+      if (dot < 0) {
+        return "regressions";
+      }
+      String namespace = normalized.substring(0, dot);
+      return "regression".equals(namespace) ? "regressions" : namespace;
     }
 
     private boolean isRegressionMetric(String reference) {
@@ -417,7 +626,7 @@ public class CriteriaExpression implements Serializable {
         try {
           Node node = parseExpression();
           expect(TokenType.RIGHT_PAREN);
-          return node;
+          return new GroupNode(node);
         } finally {
           nestingDepth--;
         }
@@ -429,7 +638,7 @@ public class CriteriaExpression implements Serializable {
       Token first = advance();
       if (first.type == TokenType.NUMBER) {
         Token metric = expect(TokenType.IDENTIFIER);
-        return new ComparisonNode(metric.text, ">=", first.number);
+        return new ComparisonNode(metric.text, ">=", first.number, first.text);
       }
       if (first.type != TokenType.IDENTIFIER) {
         throw new CriteriaException("Expected metric or threshold near: " + first.text);
@@ -437,7 +646,7 @@ public class CriteriaExpression implements Serializable {
 
       Token operator = expect(TokenType.OPERATOR);
       Token number = expect(TokenType.NUMBER);
-      return new ComparisonNode(first.text, operator.text, number.number);
+      return new ComparisonNode(first.text, operator.text, number.number, number.text);
     }
 
     private Token expect(TokenType expectedType) {

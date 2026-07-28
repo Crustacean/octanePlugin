@@ -105,7 +105,11 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(evaluationTable.contains("critical.executionRate == 100%"));
     assertFalse(evaluationTable.contains("regressions.executionRate"));
     assertTrue(html.contains("Criteria:</strong> <code"));
-    assertTrue(html.contains("critical.executionRate == 100%"));
+    int criteriaStart = html.indexOf("Criteria:</strong> <code");
+    int criteriaEnd = html.indexOf("</code>", criteriaStart);
+    String appliedCriteria = html.substring(criteriaStart, criteriaEnd);
+    assertTrue(appliedCriteria.contains("critical.executionRate == 100"));
+    assertFalse(appliedCriteria.contains("critical.executionRate == 100%"));
     assertFalse(html.contains("regressions.executionRate"));
   }
 

@@ -470,12 +470,14 @@ public class OctaneGateRunner {
     MetricsContext metricsContext =
         new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
     boolean regressionEvaluationEnabled = !suiteRunIds.isEmpty();
-    CriteriaEvaluation criteriaEvaluation =
-        criteria.evaluateDetailed(metricsContext, regressionEvaluationEnabled);
     String effectiveCriteria =
         regressionEvaluationEnabled
             ? request.getCriteria()
             : criteria.effectiveExpression(metricsContext, false);
+    CriteriaEvaluation criteriaEvaluation =
+        regressionEvaluationEnabled
+            ? criteria.evaluateDetailed(metricsContext, true)
+            : criteria.evaluateAppliedDetailed(metricsContext, false);
     boolean passed = criteriaEvaluation.isPassed();
     boolean terminal = !regressionEvaluationEnabled || regressionMetrics.isTerminal();
     for (GateMetrics scopedMetric : scopedMetrics.values()) {
