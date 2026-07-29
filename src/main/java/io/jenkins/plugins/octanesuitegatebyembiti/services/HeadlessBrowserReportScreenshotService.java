@@ -19,6 +19,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class HeadlessBrowserReportScreenshotService implements OctaneReportScreenshotService {
   public static final String REPORT_EMAIL_DIR = ".octane-suite-gate/report-email";
@@ -29,6 +31,8 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
   static final int SCREENSHOT_TIMEOUT_SECONDS = 60;
   static final int MAX_SCREENSHOT_HEIGHT = 16_384;
   private static final int MAX_BROWSER_PROBE_OUTPUT_BYTES = 64 * 1024;
+  private static final Pattern CAPTURE_HEIGHT_PATTERN =
+      Pattern.compile("data-octane-capture-height=[\\\"'](\\d{1,5})[\\\"']");
 
   private static final List<String> BROWSER_CANDIDATES =
       List.of("chromium", "chromium-browser", "google-chrome", "google-chrome-stable");
@@ -73,13 +77,24 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
         resolveBrowser(
             browserPath, envVars, launcher, listener, browserProfileDirectory.getRemote());
 
-    int height = estimateViewportHeight(snapshot, width);
+    String reportUrl = toFileUrl(htmlFile.getRemote());
+    int estimatedHeight = estimateViewportHeight(snapshot, width);
+    int height =
+        measureRenderedHeight(
+            browser,
+            browserProfileDirectory.getRemote(),
+            reportUrl,
+            width,
+            estimatedHeight,
+            outputDirectory,
+            launcher,
+            listener);
     List<String> command =
         screenshotCommand(
             browser,
             browserProfileDirectory.getRemote(),
             screenshotFile.getRemote(),
-            toFileUrl(htmlFile.getRemote()),
+            reportUrl,
             width,
             height);
 
@@ -210,6 +225,42 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     return command;
   }
 
+  List<String> measurementCommand(
+      String browser, String profileDirectory, String reportUrl, int width, int estimatedHeight) {
+    List<String> command = new ArrayList<>();
+    command.add(browser);
+    command.add("--headless");
+    command.add("--disable-gpu");
+    command.add("--disable-background-networking");
+    command.add("--disable-dev-shm-usage");
+    command.add("--disable-extensions");
+    command.add("--hide-scrollbars");
+    command.add("--no-first-run");
+    command.add("--no-default-browser-check");
+    command.add("--user-data-dir=" + profileDirectory);
+    command.add("--virtual-time-budget=3000");
+    command.add("--force-device-scale-factor=2");
+    command.add("--window-size=" + width + "," + estimatedHeight);
+    command.add("--dump-dom");
+    command.add(reportUrl);
+    return command;
+  }
+
+  int renderedHeightFromDom(String renderedDom, int fallbackHeight) {
+    Matcher matcher = CAPTURE_HEIGHT_PATTERN.matcher(Util.trimToEmpty(renderedDom));
+    if (!matcher.find()) {
+      return fallbackHeight;
+    }
+    try {
+      int measuredHeight = Integer.parseInt(matcher.group(1));
+      return measuredHeight > 0 && measuredHeight <= MAX_SCREENSHOT_HEIGHT
+          ? measuredHeight
+          : fallbackHeight;
+    } catch (NumberFormatException e) {
+      return fallbackHeight;
+    }
+  }
+
   boolean hasWebpSignature(FilePath screenshotFile) throws IOException, InterruptedException {
     try (InputStream input = screenshotFile.read()) {
       byte[] header = input.readNBytes(12);
@@ -249,6 +300,62 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
           exitCode == 0, timedOut, exitCode, output.toString(StandardCharsets.UTF_8));
     } catch (IOException e) {
       return new BrowserProbeResult(false, false, -1, e.getMessage());
+    }
+  }
+
+  private int measureRenderedHeight(
+      String browser,
+      String profileDirectory,
+      String reportUrl,
+      int width,
+      int estimatedHeight,
+      FilePath outputDirectory,
+      Launcher launcher,
+      TaskListener listener)
+      throws InterruptedException {
+    ByteArrayOutputStream output = new BoundedByteArrayOutputStream(MAX_BROWSER_PROBE_OUTPUT_BYTES);
+    ByteArrayOutputStream errorOutput =
+        new BoundedByteArrayOutputStream(MAX_BROWSER_PROBE_OUTPUT_BYTES);
+    try {
+      Proc process =
+          launcher
+              .launch()
+              .cmds(
+                  measurementCommand(browser, profileDirectory, reportUrl, width, estimatedHeight))
+              .pwd(outputDirectory)
+              .quiet(true)
+              .stdout(output)
+              .stderr(errorOutput)
+              .start();
+      int exitCode =
+          process.joinWithTimeout(
+              BROWSER_PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS, TaskListener.NULL);
+      if (exitCode != 0) {
+        listener
+            .getLogger()
+            .println(
+                "Unable to measure the rendered Octane report height; using the safe estimate."
+                    + formattedProbeOutput(errorOutput.toString(StandardCharsets.UTF_8)));
+        return estimatedHeight;
+      }
+      int measuredHeight =
+          renderedHeightFromDom(output.toString(StandardCharsets.UTF_8), estimatedHeight);
+      if (measuredHeight == estimatedHeight
+          && !CAPTURE_HEIGHT_PATTERN.matcher(output.toString(StandardCharsets.UTF_8)).find()) {
+        listener
+            .getLogger()
+            .println("Rendered Octane report height was unavailable; using the safe estimate.");
+      } else {
+        listener
+            .getLogger()
+            .println("Measured Octane report capture height: " + measuredHeight + "px.");
+      }
+      return measuredHeight;
+    } catch (IOException e) {
+      listener
+          .getLogger()
+          .println("Unable to measure the rendered Octane report height; using the safe estimate.");
+      return estimatedHeight;
     }
   }
 

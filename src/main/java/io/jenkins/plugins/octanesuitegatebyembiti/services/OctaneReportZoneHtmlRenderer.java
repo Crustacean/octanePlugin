@@ -48,6 +48,7 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<body>\n");
     int barChartWidth = emailBarChartWidth(viewportWidth);
     renderReportZone(html, safeSnapshot, maxVisibleBars(barChartWidth), barChartWidth);
+    appendCaptureMeasurementScript(html);
     html.append("</body>\n");
     html.append("</html>\n");
     return html.toString();
@@ -159,7 +160,6 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           flex-wrap: wrap;
           gap: 16px;
-          min-height: 100vh;
           padding: 16px;
           width: 100%;
         }
@@ -657,6 +657,25 @@ public class OctaneReportZoneHtmlRenderer {
       html.append("</section>\n");
     }
     html.append("</div>\n");
+  }
+
+  private void appendCaptureMeasurementScript(StringBuilder html) {
+    html.append(
+        """
+        <script>
+          (() => {
+            const reportZone = document.getElementById("octane-report-zone");
+            if (!reportZone) {
+              return;
+            }
+            const renderedBottom = reportZone.getBoundingClientRect().bottom;
+            document.documentElement.setAttribute(
+              "data-octane-capture-height",
+              String(Math.ceil(renderedBottom))
+            );
+          })();
+        </script>
+        """);
   }
 
   private void renderDistributionCard(StringBuilder html, OctaneGateReportSection section) {
