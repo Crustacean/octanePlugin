@@ -55,7 +55,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("border: 1px solid var(--octane-page-background)"));
     assertTrue(html.matches("(?s).*body \\{[^}]*margin: 0;[^}]*padding: 0;[^}]*}.*"));
     assertTrue(
-        html.matches("(?s).*\\.octane-report-zone \\{[^}]*gap: 16px;[^}]*padding: 16px;[^}]*}.*"));
+        html.matches(
+            "(?s).*\\.octane-report-zone \\{[^}]*gap: 16px;[^}]*min-height: 100vh;"
+                + "[^}]*padding: 16px;[^}]*}.*"));
     assertTrue(html.contains("aria-label=\"Move widget\""));
     assertTrue(html.contains("octane-grabber-icon"));
     assertTrue(html.contains("Use arrow keys to reorder"));

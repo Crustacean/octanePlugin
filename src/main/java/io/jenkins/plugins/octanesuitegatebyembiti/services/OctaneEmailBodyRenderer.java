@@ -793,17 +793,17 @@ public class OctaneEmailBodyRenderer {
     appendSpacer(html, 28);
     html.append(
             "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
-                + "style=\"border-collapse:collapse;width:100%;\"><tr><td style=\""
+                + "style=\"border-collapse:collapse;margin:0;width:100%;\"><tr><td style=\""
                 + SECTION_TITLE_STYLE
-                + "\">Execution graph</td></tr><tr><td>")
+                + "\">Execution graph</td></tr><tr><td "
+                + "style=\"font-size:0;line-height:0;padding:0;\">")
         .append("<img src=\"cid:")
         .append(escape(normalizedContentId))
         .append("\" alt=\"")
         .append(escape(defaultText(projectName, "Octane")))
         .append(
             " gate execution report charts\" style=\"border:0;display:block;height:auto;"
-                + "max-width:100%;width:100%;\"></td></tr></table>");
-    appendSpacer(html, 12);
+                + "margin:0;max-width:100%;padding:0;width:100%;\"></td></tr></table>");
     return html.toString();
   }
 

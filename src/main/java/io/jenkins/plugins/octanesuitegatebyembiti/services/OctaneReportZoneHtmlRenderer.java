@@ -159,6 +159,7 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           flex-wrap: wrap;
           gap: 16px;
+          min-height: 100vh;
           padding: 16px;
           width: 100%;
         }
