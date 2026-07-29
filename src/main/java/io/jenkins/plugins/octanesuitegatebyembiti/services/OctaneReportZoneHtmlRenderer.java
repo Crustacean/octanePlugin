@@ -150,7 +150,7 @@ public class OctaneReportZoneHtmlRenderer {
           color: var(--octane-text);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           margin: 0;
-          padding: 16px;
+          padding: 0;
         }
         .octane-report-zone {
           align-items: stretch;

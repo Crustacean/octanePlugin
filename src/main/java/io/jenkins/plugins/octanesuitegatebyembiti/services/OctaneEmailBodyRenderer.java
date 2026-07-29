@@ -803,7 +803,7 @@ public class OctaneEmailBodyRenderer {
         .append(
             " gate execution report charts\" style=\"border:0;display:block;height:auto;"
                 + "max-width:100%;width:100%;\"></td></tr></table>");
-    appendSpacer(html, 24);
+    appendSpacer(html, 12);
     return html.toString();
   }
 

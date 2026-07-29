@@ -239,6 +239,8 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("font-size:15px;font-weight:400;line-height:1.4"));
     assertTrue(html.contains("padding:4px 8px"));
     assertTrue(html.contains("height:28px;line-height:1px;"));
+    assertTrue(html.contains("height:12px;line-height:1px;"));
+    assertFalse(html.contains("height:24px;line-height:1px;"));
     assertTrue(html.contains("table-layout:fixed"));
     assertTrue(html.contains("<colgroup>"));
     assertTrue(html.contains("src=\"cid:octane-report-zone.png\""));
