@@ -12,8 +12,10 @@ const jelly = readFileSync(
     "utf8");
 const context = {window: {}};
 vm.runInNewContext(source, context);
-const sortFailureDefects =
-    context.window.OctaneTestManagement.sortFailureDefects;
+const testManagement = context.window.OctaneTestManagement;
+const failureAxisMaximum = testManagement.failureAxisMaximum;
+const integerAxisTicks = testManagement.integerAxisTicks;
+const sortFailureDefects = testManagement.sortFailureDefects;
 
 test("renders ten discrete execution intervals in bottom-up status order", () => {
   assert.match(
@@ -49,6 +51,47 @@ test("renders dynamic failure clusters and keeps a valid category selected", () 
   assert.match(source, /data-management-category-filter/);
   assert.match(source, /setSelectedCategory\(zone, category\)/);
   assert.match(source, /__octaneTestManagementOnCategorySelect/);
+});
+
+test("uses a dynamic maximum one above the largest failure category total", () => {
+  assert.equal(failureAxisMaximum([]), 1);
+  assert.equal(failureAxisMaximum([{open: 1, closed: 0}]), 2);
+  assert.equal(
+      failureAxisMaximum([
+        {open: 2, closed: 3},
+        {open: 1, closed: 1}
+      ]),
+      6);
+  assert.equal(failureAxisMaximum([{open: 3000, closed: 0}]), 3001);
+
+  const expandedMaximum = failureAxisMaximum([{open: 7, closed: 3}]);
+  const reducedMaximum = failureAxisMaximum([{open: 1, closed: 1}]);
+  assert.equal(expandedMaximum, 11);
+  assert.equal(reducedMaximum, 3);
+});
+
+test("generates distinct integer failure ticks from the ceiling to zero", () => {
+  assert.deepEqual(Array.from(integerAxisTicks(2)), [2, 1, 0]);
+  assert.deepEqual(Array.from(integerAxisTicks(6)), [6, 5, 4, 3, 2, 1, 0]);
+
+  const largeTicks = Array.from(integerAxisTicks(3001));
+  assert.equal(largeTicks[0], 3001);
+  assert.equal(largeTicks.at(-1), 0);
+  assert.equal(new Set(largeTicks).size, largeTicks.length);
+  assert.ok(largeTicks.length <= 10);
+  assert.ok(largeTicks.every(Number.isInteger));
+  assert.ok(largeTicks.every((tick, index) => index === 0 || tick < largeTicks[index - 1]));
+});
+
+test("binds failure labels and grid lines to the same axis positions", () => {
+  assert.match(source, /function failureAxisPosition\(value, maximum\)/);
+  assert.match(source, /setFailureYAxisLabels\(yLabels, ticks, maximum\)/);
+  assert.match(source, /renderFailureGridLines\(chart, ticks, maximum\)/);
+  assert.match(source, /data-management-axis-value/);
+  assert.match(source, /data-management-grid-value/);
+  assert.match(
+      source,
+      /--octane-management-axis-position[\s\S]*?failureAxisPosition\(tick, maximum\) \+ "%"/);
 });
 
 test("reveals the clicked failure bar and matching tab after individual focus opens", () => {
@@ -194,11 +237,18 @@ test("keeps standard grid axes, rounded metric tiles, and capsule pills", () => 
   assert.match(
       jelly,
       /\.octane-management-state-bars\s*\{[^}]*border-bottom: 1px solid/s);
-  assert.match(jelly, /\.octane-management-failure-chart::before/);
+  assert.match(jelly, /\.octane-management-failure-grid-lines/);
+  assert.match(jelly, /\.octane-management-failure-grid-line/);
   assert.match(jelly, /\.octane-management-failure-chart::after/);
   assert.match(
       jelly,
-      /\.octane-management-failure-axis-layout\s*\{[^}]*--octane-management-failure-axis-row: 1\.65rem/s);
+      /\.octane-management-failure-axis-layout\s*\{[^}]*--octane-management-failure-axis-row: 1\.65rem;[^}]*grid-template-rows:\s*minmax\(0, 1fr\) var\(--octane-management-failure-axis-row\)/s);
+  assert.match(
+      jelly,
+      /\.octane-management-failure-axis-layout\s*> \.octane-management-y-labels\s*\{[^}]*display: block;[^}]*overflow: visible;[^}]*padding: 0;[^}]*position: relative;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-failure-axis-layout[\s\S]*?> \.octane-management-y-labels \.octane-management-axis-value\s*\{[^}]*top: var\(--octane-management-axis-position\);[^}]*transform: translateY\(-50%\);/s);
   assert.match(
       jelly,
       /\.octane-management-failure-group\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) var\(--octane-management-failure-axis-row\)/s);

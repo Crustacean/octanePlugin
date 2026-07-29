@@ -292,9 +292,22 @@ function managementCard(index, title) {
               octane-management-failure-axis-layout">
             <div class="octane-management-y-axis-title">Defects</div>
             <div class="octane-management-y-labels">
-              <span>10</span><span>5</span><span>0</span>
+              <span class="octane-management-axis-value" data-management-axis-value="10"
+                  style="--octane-management-axis-position: 0%">10</span>
+              <span class="octane-management-axis-value" data-management-axis-value="5"
+                  style="--octane-management-axis-position: 50%">5</span>
+              <span class="octane-management-axis-value" data-management-axis-value="0"
+                  style="--octane-management-axis-position: 100%">0</span>
             </div>
             <div class="octane-management-failure-chart">
+              <span class="octane-management-failure-grid-lines" aria-hidden="true">
+                <span class="octane-management-failure-grid-line"
+                    data-management-grid-value="10"
+                    style="--octane-management-axis-position: 0%"></span>
+                <span class="octane-management-failure-grid-line"
+                    data-management-grid-value="5"
+                    style="--octane-management-axis-position: 50%"></span>
+              </span>
               ${Array.from({length: 8}, (_, category) => `
                 <button class="octane-management-failure-group" type="button">
                   <span class="octane-management-failure-bars">
@@ -614,12 +627,13 @@ async function constrainedManagementBarMetrics(driver) {
     var failureGroupStyle = getComputedStyle(failureGroup);
     var failureGridRows = failureGroupStyle.gridTemplateRows.trim().split(" ");
     var failureAxisRow = parseFloat(failureGridRows[failureGridRows.length - 1]);
+    var failureAxisY = failureRect.bottom - failureAxisRow;
     var failureBarsRect = failureGroup
         .querySelector(".octane-management-failure-bars")
         .getBoundingClientRect();
     var failureLabelRect = label.getBoundingClientRect();
     return {
-      failureAxisY: failureRect.bottom - failureAxisRow,
+      failureAxisY: failureAxisY,
       failureAxisRow: failureAxisRow,
       failureBarBottoms: Array.prototype.map.call(
           failure.querySelectorAll(".octane-management-failure-bar"),
@@ -635,6 +649,23 @@ async function constrainedManagementBarMetrics(driver) {
       failureLabelHeight: failureLabelRect.height,
       failurePlotBottom: failureBarsRect.bottom,
       failureScrollWidth: failure.scrollWidth,
+      failureTickAlignment: Array.prototype.map.call(
+          document.querySelectorAll(
+              ".octane-management-failure-axis-layout "
+              + "[data-management-axis-value]"),
+          function (tick) {
+            var value = tick.getAttribute("data-management-axis-value");
+            var line = failure.querySelector(
+                '[data-management-grid-value="' + value + '"]');
+            var tickRect = tick.getBoundingClientRect();
+            var targetY = value === "0"
+                ? failureAxisY
+                : line.getBoundingClientRect().top + (line.getBoundingClientRect().height / 2);
+            return {
+              delta: Math.abs((tickRect.top + (tickRect.height / 2)) - targetY),
+              value: Number(value)
+            };
+          }),
       labelClientWidth: label.clientWidth,
       labelOverflow: labelStyle.overflow,
       labelScrollWidth: label.scrollWidth,
@@ -1100,6 +1131,14 @@ test(
                   bottom => Math.abs(bottom - barMetrics.failureAxisY) <= 1),
               `${viewport.name}: failure bars are not anchored above the x-axis: `
                   + JSON.stringify(barMetrics));
+          assert.deepEqual(
+              barMetrics.failureTickAlignment.map(metric => metric.value),
+              [10, 5, 0],
+              `${viewport.name}: failure tick order changed`);
+          assert.ok(
+              barMetrics.failureTickAlignment.every(metric => metric.delta <= 1),
+              `${viewport.name}: failure labels do not align with their grid lines: `
+                  + JSON.stringify(barMetrics.failureTickAlignment));
           assert.ok(
               barMetrics.stateScrollWidth > barMetrics.stateClientWidth,
               `${viewport.name}: state x-axis did not overflow cleanly`);

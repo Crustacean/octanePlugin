@@ -406,6 +406,61 @@
     }
   }
 
+  function failureAxisMaximum(categories) {
+    var maximum = array(categories).reduce(function (highest, category) {
+      var categoryTotal = nonNegative(category.open) + nonNegative(category.closed);
+      return Math.max(highest, Math.ceil(categoryTotal));
+    }, 0);
+    return maximum + 1;
+  }
+
+  function integerAxisTicks(maximum) {
+    var ceiling = Math.max(1, Math.ceil(nonNegative(maximum)));
+    var step = Math.max(1, Math.ceil(ceiling / 8));
+    var ticks = [ceiling];
+    for (var value = ceiling - 1; value > 0; value -= 1) {
+      if (value % step === 0) {
+        ticks.push(value);
+      }
+    }
+    ticks.push(0);
+    return ticks;
+  }
+
+  function failureAxisPosition(value, maximum) {
+    return ((maximum - value) / maximum) * 100;
+  }
+
+  function setFailureYAxisLabels(container, ticks, maximum) {
+    clear(container);
+    ticks.forEach(function (tick) {
+      var label = createElement("span", "octane-management-axis-value");
+      label.textContent = String(tick);
+      label.setAttribute("data-management-axis-value", String(tick));
+      label.style.setProperty(
+          "--octane-management-axis-position",
+          failureAxisPosition(tick, maximum) + "%");
+      container.appendChild(label);
+    });
+  }
+
+  function renderFailureGridLines(chart, ticks, maximum) {
+    var grid = createElement("span", "octane-management-failure-grid-lines");
+    grid.setAttribute("aria-hidden", "true");
+    ticks.forEach(function (tick) {
+      if (tick === 0) {
+        return;
+      }
+      var line = createElement("span", "octane-management-failure-grid-line");
+      line.setAttribute("data-management-grid-value", String(tick));
+      line.style.setProperty(
+          "--octane-management-axis-position",
+          failureAxisPosition(tick, maximum) + "%");
+      grid.appendChild(line);
+    });
+    chart.appendChild(grid);
+  }
+
   function clockLabel(startedAt, offsetMillis) {
     var timestamp = Date.parse(startedAt || "");
     if (!Number.isFinite(timestamp)) {
@@ -546,11 +601,10 @@
     var chart = panel.querySelector("[data-management-failure-bars]");
     var yLabels = panel.querySelector("[data-management-y-labels]");
     var switcher = zone.querySelector("[data-management-failure-switcher]");
-    var maximum = 1;
-    categories.forEach(function (category) {
-      maximum = Math.max(maximum, nonNegative(category.open) + nonNegative(category.closed));
-    });
+    var maximum = failureAxisMaximum(categories);
+    var ticks = integerAxisTicks(maximum);
     clear(chart);
+    renderFailureGridLines(chart, ticks, maximum);
     categories.forEach(function (category) {
       var button = createElement("button", "octane-management-failure-group");
       button.type = "button";
@@ -589,7 +643,7 @@
       button.appendChild(label);
       chart.appendChild(button);
     });
-    setYAxisLabels(yLabels, maximum);
+    setFailureYAxisLabels(yLabels, ticks, maximum);
     renderLegend(
         legendForPanel(panel),
         [
@@ -1044,6 +1098,8 @@
   }
 
   global.OctaneTestManagement = {
+    failureAxisMaximum: failureAxisMaximum,
+    integerAxisTicks: integerAxisTicks,
     mount: mount,
     render: render,
     revealFailureCategory: scheduleFailureCategoryReveal,

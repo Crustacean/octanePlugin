@@ -2798,10 +2798,22 @@
         }
         .octane-management-failure-axis-layout {
           --octane-management-failure-axis-row: 1.65rem;
+          grid-template-rows:
+            minmax(0, 1fr) var(--octane-management-failure-axis-row);
           min-height: 0;
         }
         .octane-management-failure-axis-layout > .octane-management-y-labels {
-          padding-bottom: var(--octane-management-failure-axis-row);
+          display: block;
+          overflow: visible;
+          padding: 0;
+          position: relative;
+        }
+        .octane-management-failure-axis-layout
+            > .octane-management-y-labels .octane-management-axis-value {
+          inset-inline-end: 0;
+          position: absolute;
+          top: var(--octane-management-axis-position);
+          transform: translateY(-50%);
         }
         .octane-management-failure-chart {
           --octane-management-bar-gap: clamp(2px, 1cqw, 40px);
@@ -2844,22 +2856,24 @@
             border-radius: 999px;
           }
         }
-        .octane-management-failure-chart::before {
-          background-image:
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
-          background-position: left 0, left 25%, left 50%, left 75%;
-          background-repeat: repeat-x;
-          background-size: 9px 1px;
+        .octane-management-failure-grid-lines {
           bottom: var(--octane-management-failure-axis-row);
-          content: "";
-          left: 0;
+          inset-inline: 0;
           pointer-events: none;
           position: absolute;
-          right: 0;
           top: 0;
+          z-index: 0;
+        }
+        .octane-management-failure-grid-line {
+          background-image:
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
+          background-repeat: repeat-x;
+          background-size: 9px 1px;
+          height: 1px;
+          inset-inline: 0;
+          position: absolute;
+          top: var(--octane-management-axis-position);
+          transform: translateY(-0.5px);
         }
         .octane-management-failure-chart::after {
           background: var(--input-border);
