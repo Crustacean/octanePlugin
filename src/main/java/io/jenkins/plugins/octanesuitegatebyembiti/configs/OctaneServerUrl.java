@@ -13,25 +13,90 @@ public final class OctaneServerUrl {
     if (candidate.isEmpty()) {
       throw new IllegalArgumentException("Base URL is required.");
     }
-    final URI uri;
+    URI uri = parse(candidate);
+    validateScheme(uri);
+    validateAuthority(uri);
+    validateBaseComponents(uri);
+    return candidate;
+  }
+
+  private static URI parse(String candidate) {
     try {
-      uri = new URI(candidate);
+      return new URI(candidate);
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException("Base URL is not a valid URI.", e);
     }
+  }
+
+  private static void validateScheme(URI uri) {
     String scheme = uri.getScheme();
     if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
       throw new IllegalArgumentException("Base URL must start with http:// or https://.");
     }
+  }
+
+  private static void validateAuthority(URI uri) {
     if (Util.isBlank(uri.getHost())) {
       throw new IllegalArgumentException("Base URL must include a host.");
     }
     if (uri.getUserInfo() != null) {
       throw new IllegalArgumentException("Base URL must not contain embedded credentials.");
     }
+  }
+
+  private static void validateBaseComponents(URI uri) {
     if (uri.getQuery() != null || uri.getFragment() != null) {
       throw new IllegalArgumentException("Base URL must not contain a query or fragment.");
     }
-    return candidate;
+  }
+
+  public static URI requireAllowedRequest(String configuredBaseUrl, URI requestUri) {
+    URI baseUri = URI.create(normalize(configuredBaseUrl));
+    if (!hasConfiguredOrigin(baseUri, requestUri)) {
+      throw new IllegalArgumentException(
+          "ALM Octane request must use the administrator-configured server origin.");
+    }
+    if (!hasConfiguredBasePath(baseUri, requestUri)) {
+      throw new IllegalArgumentException(
+          "ALM Octane request must stay under the administrator-configured base path.");
+    }
+    if (hasForbiddenRequestComponents(requestUri)) {
+      throw new IllegalArgumentException("ALM Octane request URI contains forbidden components.");
+    }
+    return requestUri;
+  }
+
+  private static boolean hasConfiguredOrigin(URI baseUri, URI requestUri) {
+    return requestUri != null
+        && baseUri.getScheme().equalsIgnoreCase(requestUri.getScheme())
+        && baseUri.getHost().equalsIgnoreCase(requestUri.getHost())
+        && effectivePort(baseUri) == effectivePort(requestUri);
+  }
+
+  private static boolean hasConfiguredBasePath(URI baseUri, URI requestUri) {
+    String basePath = normalizedPath(baseUri.getPath());
+    String requestPath = normalizedPath(requestUri.getPath());
+    return "/".equals(basePath)
+        || requestPath.equals(basePath)
+        || requestPath.startsWith(basePath + "/");
+  }
+
+  private static boolean hasForbiddenRequestComponents(URI requestUri) {
+    return requestUri.getUserInfo() != null || requestUri.getFragment() != null;
+  }
+
+  private static int effectivePort(URI uri) {
+    if (uri.getPort() >= 0) {
+      return uri.getPort();
+    }
+    return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+  }
+
+  private static String normalizedPath(String value) {
+    String path = value == null || value.isEmpty() ? "/" : value;
+    while (path.length() > 1 && path.endsWith("/")) {
+      path = path.substring(0, path.length() - 1);
+    }
+    return path;
   }
 }

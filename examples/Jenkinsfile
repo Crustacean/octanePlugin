@@ -42,32 +42,24 @@ pipeline {
           stageResult: 'FAILURE') {
           script {
           env.OCTANE_GATE_PASSED = 'false'
-          def suiteRunIds =
-              env.OCTANE_REGRESSION_SUITE_RUN_ID
-                  .split(/[,\s]+/)
-                  .collect { it.trim() }
-                  .findAll { it }
-          def criticalSuiteRunIds =
-              env.OCTANE_CRITICAL_SUITE_RUN_ID
-                  .split(/[,\s]+/)
-                  .collect { it.trim() }
-                  .findAll { it }
-          if (suiteRunIds.isEmpty()) {
-            error 'OCTANE_REGRESSION_SUITE_RUN_ID must contain at least one ID.'
-          }
-          if (criticalSuiteRunIds.isEmpty()) {
-            error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain at least one ID.'
+          // Each source accepts numeric suite run IDs or "Release Name, Sprint Name".
+          def suiteRunSource = (env.OCTANE_REGRESSION_SUITE_RUN_ID ?: '').trim()
+          def criticalSuiteRunSource = (env.OCTANE_CRITICAL_SUITE_RUN_ID ?: '').trim()
+          if (!criticalSuiteRunSource) {
+            error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain a suite run selection.'
           }
 
-          echo "Octane regression suite run IDs: ${suiteRunIds.join(', ')}"
-          echo "Octane critical suite run IDs: ${criticalSuiteRunIds.join(', ')}"
+          echo(
+              'Octane regression suite run selection: '
+                  + (suiteRunSource ? suiteRunSource : '<none; evaluation skipped>'))
+          echo "Octane critical suite run selection: ${criticalSuiteRunSource}"
 
           Map gateResult =
               octaneSuiteGate(
                   serverId: 'octane-prod',
                   sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                   workspaceId: env.OCTANE_WORKSPACE_ID,
-                  suiteRunId: suiteRunIds.join(','),
+                  suiteRunId: suiteRunSource,
                   // Defect rates are open matching defects / total defects raised. The total is
                   // deduplicated by defect ID and includes defects closed during this gate session.
                   // Group names and types are case-insensitive. Supported individual types are
@@ -89,7 +81,7 @@ pipeline {
                   scopes: [
                     octaneGateScope(
                         name: 'critical',
-                        suiteRunId: criticalSuiteRunIds.join(','))
+                        suiteRunId: criticalSuiteRunSource)
                   ],
                   pollIntervalSeconds: 30,
                   timeoutMinutes: 120,
@@ -104,13 +96,20 @@ pipeline {
           env.OCTANE_GATE_PASSED = gateResult.passed == true ? 'true' : 'false'
           echo "Octane criteria verdict: ${gateResult.passed ? 'PASS' : 'FAIL'}"
           echo "Octane suite run IDs: ${gateResult.suiteRunIds.join(', ')}"
-          echo "Regression execution rate: ${gateResult.regressions.executionRate}"
-          echo "Regression pass rate: ${gateResult.regressions.passRate}"
-          echo "Critical scope execution rate: ${gateResult.scopes.critical.executionRate}"
-          echo "Critical scope pass rate: ${gateResult.scopes.critical.passRate}"
-          echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"
-          def criticalChildRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
-          echo "Critical scope child run IDs: ${criticalChildRunIds}"
+          if (gateResult.regressionEvaluationEnabled) {
+            echo "Regression execution rate: ${gateResult.regressions.executionRate}"
+            echo "Regression pass rate: ${gateResult.regressions.passRate}"
+          }
+          def criticalScope = gateResult.scopes.critical
+          if (criticalScope != null && criticalScope.active != false) {
+            echo "Critical scope execution rate: ${criticalScope.executionRate}"
+            echo "Critical scope pass rate: ${criticalScope.passRate}"
+            echo "Critical scope suite run IDs: ${gateResult.scopeDetails.critical.suiteRunIds.join(', ')}"
+            def criticalChildRunIds = gateResult.scopeDetails.critical.runIds.join(', ')
+            echo "Critical scope child run IDs: ${criticalChildRunIds}"
+          } else {
+            echo 'Critical scope is inactive because no selected suite runs remain.'
+          }
           }
         }
       }

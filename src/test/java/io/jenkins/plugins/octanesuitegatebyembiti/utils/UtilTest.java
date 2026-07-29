@@ -1,13 +1,17 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.utils;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class UtilTest {
+class UtilTest {
   @Test
-  public void splitsIdListsOnCommasAndWhitespace() {
-    assertEquals(List.of("1196", "1200", "1201"), Util.splitIdList("1196, 1200\n1201 1200"));
+  void logValuesAreSingleLineAndBounded() {
+    assertEquals("release forged entry", Util.forLog("release\nforged\rentry"));
+
+    String safe = Util.forLog("x".repeat(3_000));
+    assertEquals(2_051, safe.length());
+    assertTrue(safe.endsWith("..."));
   }
 }

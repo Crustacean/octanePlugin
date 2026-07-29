@@ -125,6 +125,36 @@ public class OctaneSuiteTopologyCacheTest {
   }
 
   @Test
+  public void missingSuiteTopologyCanBeRepopulatedOnTheNextPoll() throws Exception {
+    AtomicInteger loads = new AtomicInteger();
+
+    Map<String, List<String>> missing =
+        OctaneSuiteTopologyCache.getAll(
+            "server/workspace",
+            List.of("suite-1"),
+            ids -> {
+              loads.incrementAndGet();
+              return Map.of();
+            },
+            1_000L);
+    Map<String, List<String>> repopulated =
+        OctaneSuiteTopologyCache.getAll(
+            "server/workspace",
+            List.of("suite-1"),
+            ids -> {
+              loads.incrementAndGet();
+              return Map.of("suite-1", List.of("run-2"));
+            },
+            1_001L);
+
+    assertEquals(List.of(), missing.get("suite-1"));
+    assertEquals(List.of("run-2"), repopulated.get("suite-1"));
+    assertEquals(2, loads.get());
+    assertEquals(0L, OctaneSuiteTopologyCache.metrics().hits());
+    assertEquals(2L, OctaneSuiteTopologyCache.metrics().misses());
+  }
+
+  @Test
   public void isolatesIdenticalSuiteIdsByServerWorkspaceNamespace() throws Exception {
     AtomicInteger loads = new AtomicInteger();
 

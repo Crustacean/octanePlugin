@@ -94,4 +94,15 @@ public class HeadlessBrowserReportScreenshotServiceTest {
         HeadlessBrowserReportScreenshotService.MAX_SCREENSHOT_HEIGHT,
         HeadlessBrowserReportScreenshotService.estimateViewportHeightForCards(10_000, 1400));
   }
+
+  @Test
+  public void cropsSingleSectionCaptureToItsActiveCardRow() {
+    assertEquals(
+        500,
+        HeadlessBrowserReportScreenshotService.estimateSingleSectionViewportHeightForCards(
+            2, 1400));
+    assertEquals(
+        880,
+        HeadlessBrowserReportScreenshotService.estimateSingleSectionViewportHeightForCards(2, 600));
+  }
 }

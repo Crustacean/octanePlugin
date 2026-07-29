@@ -53,6 +53,11 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("color-scheme: light"));
     assertTrue(html.contains("--octane-page-background: #f5f7fb"));
     assertTrue(html.contains("border: 1px solid var(--octane-page-background)"));
+    assertTrue(html.matches("(?s).*body \\{[^}]*margin: 0;[^}]*padding: 0;[^}]*}.*"));
+    assertTrue(
+        html.matches(
+            "(?s).*\\.octane-report-zone \\{[^}]*gap: 16px;[^}]*min-height: 100vh;"
+                + "[^}]*padding: 16px;[^}]*}.*"));
     assertTrue(html.contains("aria-label=\"Move widget\""));
     assertTrue(html.contains("octane-grabber-icon"));
     assertTrue(html.contains("Use arrow keys to reorder"));
@@ -378,6 +383,9 @@ public class OctaneReportZoneHtmlRendererTest {
 
     String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
 
+    assertTrue(snapshot.isCriticalOnlyReport());
+    assertEquals(1, snapshot.getSections().size());
+    assertTrue(html.contains("octane-report-zone-critical-only"));
     assertFalse(html.contains("REGRESSION Tests Status Distribution</h2>"));
     assertFalse(html.contains("Testing progress per Tester Suite Runs_REGRESSIONS</h2>"));
     assertTrue(html.contains("CRITICAL Tests Status Distribution"));

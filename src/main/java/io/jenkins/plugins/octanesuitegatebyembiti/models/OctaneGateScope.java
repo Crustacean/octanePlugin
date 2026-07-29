@@ -4,6 +4,7 @@ import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneQueryValidator;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -46,7 +47,7 @@ public class OctaneGateScope implements Describable<OctaneGateScope>, Serializab
 
   @DataBoundSetter
   public void setQuery(String query) {
-    this.query = Util.trimToEmpty(query);
+    this.query = OctaneQueryValidator.normalize(query, "Scope query");
   }
 
   public String getSuiteRunId() {
@@ -59,7 +60,11 @@ public class OctaneGateScope implements Describable<OctaneGateScope>, Serializab
   }
 
   public List<String> getSuiteRunIds() {
-    return Util.splitIdList(suiteRunId);
+    return getSuiteRunSelector().getExplicitIds();
+  }
+
+  public SuiteRunSelector getSuiteRunSelector() {
+    return SuiteRunSelector.parse(suiteRunId);
   }
 
   public boolean isQueryScope() {
@@ -67,7 +72,7 @@ public class OctaneGateScope implements Describable<OctaneGateScope>, Serializab
   }
 
   public boolean isSuiteRunScope() {
-    return !getSuiteRunIds().isEmpty();
+    return !Util.isBlank(suiteRunId);
   }
 
   public List<String> getReferencedIds() {
@@ -105,13 +110,26 @@ public class OctaneGateScope implements Describable<OctaneGateScope>, Serializab
     }
 
     private FormValidation checkScopeSource(String suiteRunId, String query) {
-      boolean hasSuiteRunId = !Util.splitIdList(suiteRunId).isEmpty();
+      boolean hasSuiteRunId = !Util.isBlank(suiteRunId);
       boolean hasQuery = !Util.isBlank(query);
       if (!hasSuiteRunId && !hasQuery) {
         return FormValidation.error("Either suite run ID(s) or an Octane query is required.");
       }
       if (hasSuiteRunId && hasQuery) {
         return FormValidation.error("Use either suite run ID(s) or an Octane query, not both.");
+      }
+      if (hasSuiteRunId) {
+        try {
+          SuiteRunSelector.parse(suiteRunId);
+        } catch (IllegalArgumentException e) {
+          return FormValidation.error(e.getMessage());
+        }
+      } else {
+        try {
+          OctaneQueryValidator.normalize(query, "Scope query");
+        } catch (IllegalArgumentException e) {
+          return FormValidation.error(e.getMessage());
+        }
       }
       return FormValidation.ok();
     }

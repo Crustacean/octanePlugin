@@ -2,6 +2,13 @@
   "use strict";
 
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+  var TIMELINE_BOUNDS = {
+    bottom: 360,
+    left: 80,
+    right: 920,
+    top: 20,
+    width: 1000
+  };
   var SYSTEM_COLORS = {
     blue: "#4391F5",
     gray: "#8E8E93",
@@ -386,24 +393,106 @@
     return Math.max(1, Math.ceil(maximum));
   }
 
+  function timelineAxisScale(maximum) {
+    var highest = Math.max(1, Math.ceil(nonNegative(maximum)));
+    var intervals = Math.min(4, highest);
+    var step = Math.max(1, Math.ceil(highest / intervals));
+    var scaledMaximum = step * intervals;
+    var ticks = [];
+    for (var index = intervals; index >= 0; index -= 1) {
+      ticks.push(index * step);
+    }
+    return {maximum: scaledMaximum, step: step, ticks: ticks};
+  }
+
+  function timelineXFor(elapsedMillis, durationMillis) {
+    var duration = Math.max(1, durationMillis);
+    var ratio = Math.min(1, nonNegative(elapsedMillis) / duration);
+    return TIMELINE_BOUNDS.left
+        + ratio * (TIMELINE_BOUNDS.right - TIMELINE_BOUNDS.left);
+  }
+
+  function timelineYFor(value, maximum) {
+    var ratio = Math.min(1, nonNegative(value) / Math.max(1, maximum));
+    return TIMELINE_BOUNDS.bottom
+        - ratio * (TIMELINE_BOUNDS.bottom - TIMELINE_BOUNDS.top);
+  }
+
   function pathFor(points, key, maximum, durationMillis) {
     if (!points.length) {
       return "";
     }
     return points.map(function (point, index) {
-      var x = Math.min(1000, (point.elapsedMillis / durationMillis) * 1000);
-      var y = 360 - (nonNegative(point[key]) / maximum) * 340;
+      var x = timelineXFor(point.elapsedMillis, durationMillis);
+      var y = timelineYFor(point[key], maximum);
       return (index === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
     }).join("");
   }
 
-  function setYAxisLabels(container, maximum) {
+  function setYAxisLabels(container, ticks) {
     clear(container);
-    for (var index = 4; index >= 0; index -= 1) {
+    array(ticks).forEach(function (tick) {
       var label = createElement("span", "octane-management-axis-value");
-      label.textContent = String(Math.round((maximum * index) / 4));
+      label.textContent = String(tick);
       container.appendChild(label);
+    });
+  }
+
+  function failureAxisMaximum(categories) {
+    var maximum = array(categories).reduce(function (highest, category) {
+      var categoryTotal = nonNegative(category.open) + nonNegative(category.closed);
+      return Math.max(highest, Math.ceil(categoryTotal));
+    }, 0);
+    return maximum + 1;
+  }
+
+  function integerAxisTicks(maximum) {
+    var ceiling = Math.max(1, Math.ceil(nonNegative(maximum)));
+    var step = Math.max(1, Math.ceil(ceiling / 8));
+    var ticks = [ceiling];
+    for (var value = ceiling - 1; value > 0; value -= 1) {
+      if (value % step === 0) {
+        ticks.push(value);
+      }
     }
+    ticks.push(0);
+    return ticks;
+  }
+
+  function failureAxisPosition(value, maximum) {
+    return ((maximum - value) / maximum) * 100;
+  }
+
+  function setFailureYAxisLabels(container, ticks, maximum) {
+    clear(container);
+    var track = createElement("span", "octane-management-failure-axis-track");
+    ticks.forEach(function (tick) {
+      var label = createElement("span", "octane-management-axis-value");
+      label.textContent = String(tick);
+      label.setAttribute("data-management-axis-value", String(tick));
+      label.style.setProperty(
+          "--octane-management-axis-position",
+          failureAxisPosition(tick, maximum) + "%");
+      track.appendChild(label);
+    });
+    container.appendChild(track);
+  }
+
+  function renderFailureGridLines(chart, ticks, maximum) {
+    var grid = createElement("span", "octane-management-failure-grid-lines");
+    grid.setAttribute("aria-hidden", "true");
+    ticks.forEach(function (tick) {
+      if (tick === 0) {
+        return;
+      }
+      var line = createElement("span", "octane-management-failure-grid-line");
+      line.setAttribute("data-management-grid-value", String(tick));
+      line.style.setProperty(
+          "--octane-management-axis-position",
+          failureAxisPosition(tick, maximum) + "%");
+      grid.appendChild(line);
+    });
+    chart.appendChild(grid);
   }
 
   function clockLabel(startedAt, offsetMillis) {
@@ -435,6 +524,64 @@
     svg.appendChild(path);
   }
 
+  function appendTimelineSvgLine(svg, className, x1, x2, y) {
+    var line = createSvgElement("line", className);
+    line.setAttribute("x1", String(x1));
+    line.setAttribute("x2", String(x2));
+    line.setAttribute("y1", String(y));
+    line.setAttribute("y2", String(y));
+    line.setAttribute("vector-effect", "non-scaling-stroke");
+    svg.appendChild(line);
+  }
+
+  function renderTimelineSvgAxes(svg, scale) {
+    scale.ticks.forEach(function (tick) {
+      if (tick > 0) {
+        appendTimelineSvgLine(
+            svg,
+            "octane-management-grid-line",
+            TIMELINE_BOUNDS.left,
+            TIMELINE_BOUNDS.right,
+            timelineYFor(tick, scale.maximum));
+      }
+    });
+    appendTimelineSvgLine(
+        svg,
+        "octane-management-timeline-axis-line octane-management-timeline-axis-dotted",
+        0,
+        TIMELINE_BOUNDS.left,
+        TIMELINE_BOUNDS.bottom);
+    appendTimelineSvgLine(
+        svg,
+        "octane-management-timeline-axis-line",
+        TIMELINE_BOUNDS.left,
+        TIMELINE_BOUNDS.right,
+        TIMELINE_BOUNDS.bottom);
+    appendTimelineSvgLine(
+        svg,
+        "octane-management-timeline-axis-line octane-management-timeline-axis-dotted",
+        TIMELINE_BOUNDS.right,
+        TIMELINE_BOUNDS.width,
+        TIMELINE_BOUNDS.bottom);
+  }
+
+  function renderTimelineHtmlGrid(plot, scale) {
+    var grid = createElement("span", "octane-management-timeline-grid-lines");
+    grid.setAttribute("aria-hidden", "true");
+    scale.ticks.forEach(function (tick) {
+      if (tick <= 0) {
+        return;
+      }
+      var line = createElement("span", "octane-management-timeline-grid-line");
+      line.setAttribute("data-management-grid-value", String(tick));
+      line.style.setProperty(
+          "--octane-management-grid-position",
+          ((scale.maximum - tick) / scale.maximum) * 100 + "%");
+      grid.appendChild(line);
+    });
+    plot.appendChild(grid);
+  }
+
   function renderBurnDown(zone, payload, colors) {
     var panel = zone.querySelector("[data-management-burndown]");
     if (!panel) {
@@ -444,28 +591,21 @@
     var yLabels = panel.querySelector("[data-management-y-labels]");
     var xLabels = panel.querySelector("[data-management-x-labels]");
     var points = normalizedPoints(payload);
-    var maximum = chartMaximum(points, ["total", "executed", "passed"]);
+    var scale = timelineAxisScale(
+        chartMaximum(points, ["total", "executed", "passed"]));
     var duration = Math.max(1, nonNegative(payload.durationMillis));
     clear(svg);
-    for (var gridIndex = 0; gridIndex < 5; gridIndex += 1) {
-      var gridLine = createSvgElement("line", "octane-management-grid-line");
-      var y = 20 + gridIndex * 85;
-      gridLine.setAttribute("x1", "0");
-      gridLine.setAttribute("x2", "1000");
-      gridLine.setAttribute("y1", String(y));
-      gridLine.setAttribute("y2", String(y));
-      svg.appendChild(gridLine);
-    }
+    renderTimelineSvgAxes(svg, scale);
     renderLineSeries(
-        svg, points, "total", maximum, duration, colors.planned,
+        svg, points, "total", scale.maximum, duration, colors.planned,
         "octane-management-line octane-management-line-planned");
     renderLineSeries(
-        svg, points, "executed", maximum, duration, colors.executed,
+        svg, points, "executed", scale.maximum, duration, colors.executed,
         "octane-management-line octane-management-line-executed");
     renderLineSeries(
-        svg, points, "passed", maximum, duration, colors.passed,
+        svg, points, "passed", scale.maximum, duration, colors.passed,
         "octane-management-line octane-management-line-passed");
-    setYAxisLabels(yLabels, maximum);
+    setYAxisLabels(yLabels, scale.ticks);
     setTimelineLabels(xLabels, payload);
     renderLegend(
         legendForPanel(panel),
@@ -492,7 +632,9 @@
         intervals.reduce(function (highest, interval) {
           return Math.max(highest, interval.total);
         }, 0));
+    var scale = timelineAxisScale(maximum);
     clear(plot);
+    renderTimelineHtmlGrid(plot, scale);
     intervals.forEach(function (interval, partIndex) {
       var column = createElement("div", "octane-management-state-column");
       column.setAttribute(
@@ -503,13 +645,14 @@
         var segment = createElement("span", "octane-management-state-segment");
         segment.setAttribute("data-status", key);
         segment.style.setProperty("--octane-segment-color", colors[key]);
-        segment.style.setProperty("--octane-segment-size", ((count / maximum) * 100) + "%");
+        segment.style.setProperty(
+            "--octane-segment-size", ((count / scale.maximum) * 100) + "%");
         segment.title = STATE_LABELS[key] + ": " + count;
         column.appendChild(segment);
       });
       plot.appendChild(column);
     });
-    setYAxisLabels(yLabels, maximum);
+    setYAxisLabels(yLabels, scale.ticks);
     setTimelineLabels(xLabels, payload);
     renderLegend(
         legendForPanel(panel),
@@ -546,11 +689,10 @@
     var chart = panel.querySelector("[data-management-failure-bars]");
     var yLabels = panel.querySelector("[data-management-y-labels]");
     var switcher = zone.querySelector("[data-management-failure-switcher]");
-    var maximum = 1;
-    categories.forEach(function (category) {
-      maximum = Math.max(maximum, nonNegative(category.open) + nonNegative(category.closed));
-    });
+    var maximum = failureAxisMaximum(categories);
+    var ticks = integerAxisTicks(maximum);
     clear(chart);
+    renderFailureGridLines(chart, ticks, maximum);
     categories.forEach(function (category) {
       var button = createElement("button", "octane-management-failure-group");
       button.type = "button";
@@ -589,7 +731,7 @@
       button.appendChild(label);
       chart.appendChild(button);
     });
-    setYAxisLabels(yLabels, maximum);
+    setFailureYAxisLabels(yLabels, ticks, maximum);
     renderLegend(
         legendForPanel(panel),
         [
@@ -1044,11 +1186,14 @@
   }
 
   global.OctaneTestManagement = {
+    failureAxisMaximum: failureAxisMaximum,
+    integerAxisTicks: integerAxisTicks,
     mount: mount,
     render: render,
     revealFailureCategory: scheduleFailureCategoryReveal,
     setSelectedCategory: setSelectedCategory,
     sortFailureDefects: sortFailureDefects,
+    timelineAxisScale: timelineAxisScale,
     update: update
   };
 })(window);

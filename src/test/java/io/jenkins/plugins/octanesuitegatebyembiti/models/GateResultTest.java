@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
@@ -204,6 +205,35 @@ public class GateResultTest {
     Map<String, Object> criticalSuiteRuns = (Map<String, Object>) criticalDetails.get("suiteRuns");
     assertTrue(criticalSuiteRuns.containsKey("450303"));
     assertTrue(criticalSuiteRuns.containsKey("450204"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void preservesInactiveScopeAsSafeZeroValuedPipelineResult() {
+    GateResult result =
+        new GateResult(
+            "1196",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            new GateMetrics(1, 1, 1, 0, 0, 0),
+            List.of(new RunRecord("101", "regression", "passed")),
+            Map.of("1196", List.of(new RunRecord("101", "regression", "passed"))),
+            Map.of("critical", GateScopeResult.inactiveSuiteRunScope("critical")),
+            Instant.parse("2026-05-13T00:00:00Z"));
+
+    Map<String, Object> pipelineMap = result.toPipelineMap();
+    Map<String, Object> scopes = (Map<String, Object>) pipelineMap.get("scopes");
+    Map<String, Object> critical = (Map<String, Object>) scopes.get("critical");
+    Map<String, Object> scopeDetails = (Map<String, Object>) pipelineMap.get("scopeDetails");
+    Map<String, Object> criticalDetails = (Map<String, Object>) scopeDetails.get("critical");
+
+    assertEquals(false, critical.get("active"));
+    assertEquals(0.0, critical.get("executionRate"));
+    assertEquals(0.0, critical.get("passRate"));
+    assertEquals(false, criticalDetails.get("active"));
+    assertEquals(List.of(), criticalDetails.get("suiteRunIds"));
+    assertFalse(result.getScopedMetrics().containsKey("critical"));
   }
 
   @Test

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.util.List;
 import org.junit.Test;
 
@@ -50,7 +51,38 @@ public class OctaneDefectLedgerTest {
     assertFalse(ledger.getDefects().get(0).isOpen());
   }
 
+  @Test
+  public void purgesOpenAndClosedDefectsThatOnlyBelongToDeletedSuiteRuns() {
+    OctaneDefectLedger ledger = new OctaneDefectLedger();
+    DefectRecord survivingOpen = defect("901", "High", "opened", "run-1", "test-1");
+    DefectRecord deletedOpen = defect("902", "Critical", "opened", "run-2", "test-2");
+    DefectRecord deletedClosed = defect("903", "Medium", "closed", "run-2", "test-2");
+    ledger.merge(List.of(survivingOpen, deletedOpen, deletedClosed));
+
+    ledger.retainLinkedTo(
+        List.of(new RunRecord("run-1", "Run 1", "passed", "", "test-1", "", "", "")),
+        List.of(survivingOpen));
+
+    assertEquals(List.of("901"), ledger.getDefectIds());
+  }
+
+  @Test
+  public void retainsCurrentDefectsWhenOctaneOmitsRelationshipFields() {
+    OctaneDefectLedger ledger = new OctaneDefectLedger();
+    DefectRecord current = defect("904", "Low", "opened", "", "");
+    ledger.merge(List.of(current));
+
+    ledger.retainLinkedTo(List.of(), List.of(current));
+
+    assertEquals(List.of("904"), ledger.getDefectIds());
+  }
+
   private DefectRecord defect(String id, String severity, String phase) {
-    return new DefectRecord(id, "Defect " + id, severity, "", phase, "run", "test", "", "");
+    return defect(id, severity, phase, "run", "test");
+  }
+
+  private DefectRecord defect(
+      String id, String severity, String phase, String runId, String testId) {
+    return new DefectRecord(id, "Defect " + id, severity, "", phase, runId, testId, "", "");
   }
 }

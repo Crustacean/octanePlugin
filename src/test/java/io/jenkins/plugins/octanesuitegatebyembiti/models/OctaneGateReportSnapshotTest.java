@@ -195,6 +195,28 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void omitsInactiveScopeFromReportSections() {
+    GateResult activeRegressionOnly =
+        new GateResult(
+            "4501",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            new GateMetrics(1, 1, 1, 0, 0, 0),
+            List.of(new RunRecord("1", "one", "passed")),
+            Map.of("4501", List.of(new RunRecord("1", "one", "passed"))),
+            Map.of("critical", GateScopeResult.inactiveSuiteRunScope("critical")),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", activeRegressionOnly, classifier, 30);
+
+    assertEquals(1, snapshot.getSections().size());
+    assertEquals("regressions", snapshot.getSections().get(0).getSource());
+  }
+
+  @Test
   public void formatsLastUpdatedTimeInEastAfricaTimeWithoutMillis() {
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(
@@ -405,6 +427,41 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void criticalOnlySnapshotDoesNotCreateARegressionSection() {
+    List<RunRecord> criticalRuns = List.of(new RunRecord("1", "critical", "passed"));
+    GateScopeResult critical =
+        new GateScopeResult(
+            "critical",
+            "",
+            List.of(),
+            "75295",
+            List.of("75295"),
+            new GateMetrics(1, 1, 1, 0, 0, 0),
+            criticalRuns,
+            Map.of("75295", criticalRuns));
+    GateResult result =
+        new GateResult(
+            "",
+            "critical.passRate == 100",
+            true,
+            true,
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of("critical", critical),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+
+    assertTrue(snapshot.isCriticalOnlyReport());
+    assertEquals(1, snapshot.getSections().size());
+    assertEquals("critical", snapshot.getSections().get(0).getSource());
+    assertEquals(1, snapshot.getProjectTestTotal());
+  }
+
+  @Test
   public void calculatesTestMetricsFromCurrentSnapshotAndPreviousCycle() {
     OctaneGateReportSnapshot previous =
         OctaneGateReportSnapshot.fromResult(
@@ -465,7 +522,7 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
-  public void reportSectionsHideEmptySectionsButKeepValidData() {
+  public void reportSectionsOmitBypassedRegressionAndKeepCriticalData() {
     Map<String, List<RunRecord>> criticalSuiteRuns = new LinkedHashMap<>();
     criticalSuiteRuns.put(
         "4502",
@@ -498,7 +555,7 @@ public class OctaneGateReportSnapshotTest {
         OctaneGateReportSnapshot.fromResult(
             OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
 
-    assertEquals(2, snapshot.getSections().size());
+    assertEquals(1, snapshot.getSections().size());
     assertEquals(1, snapshot.getReportSections().size());
     assertEquals("critical", snapshot.getReportSections().get(0).getSource());
     assertTrue(snapshot.hasReportSections());

@@ -6,8 +6,10 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public class OctaneGateLogListener {
   public void logWaiting(TaskListener listener, List<String> suiteRunIds) {
@@ -26,6 +28,14 @@ public class OctaneGateLogListener {
   }
 
   public void logWaiting(TaskListener listener, GateRequest request, List<String> suiteRunIds) {
+    logWaiting(listener, request, suiteRunIds, Map.of());
+  }
+
+  public void logWaiting(
+      TaskListener listener,
+      GateRequest request,
+      List<String> suiteRunIds,
+      Map<String, List<String>> scopeSuiteRunIds) {
     listener.getLogger().println("Waiting for ALM Octane suite run(s)");
     listener.getLogger().println("Regressions suite runs: " + describeIds(suiteRunIds));
     if (request == null) {
@@ -38,26 +48,67 @@ public class OctaneGateLogListener {
             .getLogger()
             .printf(
                 "%s suite runs: %s%n",
-                displayScopeName(scope.getName()), describeIds(scope.getSuiteRunIds()));
+                Util.forLog(displayScopeName(scope.getName())),
+                describeIds(
+                    scopeSuiteRunIds.getOrDefault(scope.getName(), scope.getSuiteRunIds())));
       }
     }
 
-    listener.getLogger().println("Criteria: " + request.getCriteria());
+    listener.getLogger().println("Criteria: " + Util.forLog(request.getCriteria()));
     for (OctaneGateScope scope : request.getScopes()) {
       if (scope.isQueryScope()) {
         listener
             .getLogger()
             .printf(
                 "Query scope '%s': IDs %s, query %s%n",
-                scope.getName(), describeIds(scope.getReferencedIds()), scope.getQuery());
+                Util.forLog(scope.getName()),
+                describeIds(scope.getReferencedIds()),
+                Util.forLog(scope.getQuery()));
       }
     }
   }
 
+  public void logNoDynamicSuiteRuns(
+      TaskListener listener, String label, String releaseName, String sprintName) {
+    listener
+        .getLogger()
+        .printf(
+            "[WARNING/AUDIT] No active %s suite runs were found for release '%s' and sprint '%s'. "
+                + "Discovery will continue on every poll. Use Jenkins Abort/Cancel to stop this pipeline.%n",
+            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
+  }
+
+  public void logDynamicSuiteSelector(
+      TaskListener listener, String label, String releaseName, String sprintName) {
+    listener
+        .getLogger()
+        .printf(
+            "[INFO/AUDIT] %s suite runs use continuous discovery for release '%s' and sprint '%s'.%n",
+            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
+  }
+
+  public void logSuiteRunsAdded(TaskListener listener, String label, List<String> suiteRunIds) {
+    listener.getLogger().printf("%s [ADDED]%n", Util.forLog(String.join(",", suiteRunIds)));
+  }
+
+  public void logSuiteRunsRemoved(TaskListener listener, String label, List<String> suiteRunIds) {
+    listener.getLogger().printf("%s [DELETED]%n", Util.forLog(String.join(",", suiteRunIds)));
+  }
+
+  public void logRegressionEvaluationSkipped(TaskListener listener) {
+    listener
+        .getLogger()
+        .println(
+            "[INFO/AUDIT] Regression suite-run evaluation is disabled because its selection is "
+                + "empty or entirely owned by the critical scope. Skipping regression criteria.");
+  }
+
   public void logPollResult(TaskListener listener, GateResult result) {
-    logMetrics(listener, "Regressions suite runs", result.getMetrics());
+    if (result.isRegressionEvaluationEnabled()) {
+      logMetrics(listener, "Regressions suite runs", result.getMetrics());
+    }
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
-      if (scopeResult.isSuiteRunScope()) {
+      if (scopeResult.isActive() && scopeResult.isSuiteRunScope()) {
         logMetrics(
             listener,
             displayScopeName(scopeResult.getName()) + " suite runs",
@@ -77,7 +128,9 @@ public class OctaneGateLogListener {
   }
 
   public void logFinalRefreshSkipped(TaskListener listener, IOException e) {
-    listener.getLogger().println("Skipped final ALM Octane refresh: " + e.getMessage());
+    listener
+        .getLogger()
+        .println("Skipped final ALM Octane refresh: " + Util.forLog(e.getMessage()));
   }
 
   public void logExtendedTimeStarted(TaskListener listener, int timeoutMinutesExtended) {
@@ -104,7 +157,7 @@ public class OctaneGateLogListener {
   }
 
   public void logReportLink(TaskListener listener, String reportUrl) {
-    listener.getLogger().println("Octane Gate Report: " + reportUrl);
+    listener.getLogger().println("Octane Gate Report: " + Util.forLog(reportUrl));
   }
 
   private void logMetrics(TaskListener listener, String label, GateMetrics metrics) {
@@ -135,6 +188,6 @@ public class OctaneGateLogListener {
     if (ids.isEmpty()) {
       return "<none>";
     }
-    return String.join(", ", ids);
+    return Util.forLog(String.join(", ", ids));
   }
 }

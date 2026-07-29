@@ -31,32 +31,39 @@ final class OctaneRequestCoordinator {
     state.maximumInFlight.accumulateAndGet(current, Math::max);
     state.requests.incrementAndGet();
     long started = System.nanoTime();
-    CompletableFuture<HttpResponse<T>> response = null;
+    CompletableFuture<HttpResponse<T>> response = client.sendAsync(request, bodyHandler);
     try {
-      response = client.sendAsync(request, bodyHandler);
-      return response.get();
-    } catch (InterruptedException e) {
-      if (response != null) {
-        response.cancel(true);
-      }
-      throw e;
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof IOException ioException) {
-        throw ioException;
-      }
-      if (cause instanceof RuntimeException runtimeException) {
-        throw runtimeException;
-      }
-      if (cause instanceof Error error) {
-        throw error;
-      }
-      throw new IOException("ALM Octane asynchronous request failed.", cause);
+      return await(response);
     } finally {
       state.totalNanos.addAndGet(System.nanoTime() - started);
       state.inFlight.decrementAndGet();
       state.permits.release();
     }
+  }
+
+  private static <T> HttpResponse<T> await(CompletableFuture<HttpResponse<T>> response)
+      throws IOException, InterruptedException {
+    try {
+      return response.get();
+    } catch (InterruptedException e) {
+      response.cancel(true);
+      throw e;
+    } catch (ExecutionException e) {
+      throw mappedFailure(e.getCause());
+    }
+  }
+
+  private static IOException mappedFailure(Throwable cause) {
+    if (cause instanceof IOException ioException) {
+      return ioException;
+    }
+    if (cause instanceof RuntimeException runtimeException) {
+      throw runtimeException;
+    }
+    if (cause instanceof Error error) {
+      throw error;
+    }
+    return new IOException("ALM Octane asynchronous request failed.", cause);
   }
 
   static Metrics metrics(String serverKey) {

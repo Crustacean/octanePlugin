@@ -19,9 +19,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class OctaneProgressEmailScheduler {
   public static final int THREAD_COUNT = 4;
-  public static final int MAX_ACTIVE_SCHEDULES = 256;
+  public static final int MAX_ACTIVE_SCHEDULES = 1_024;
   public static final Duration MINIMUM_EMAIL_INTERVAL = Duration.ofMinutes(1L);
-  static final Duration MAXIMUM_TRIGGER_LATENESS = Duration.ofMinutes(1L);
+  static final Duration MAXIMUM_TRIGGER_LATENESS = Duration.ofHours(24L);
 
   private static final OctaneProgressEmailScheduler INSTANCE = createShared();
 

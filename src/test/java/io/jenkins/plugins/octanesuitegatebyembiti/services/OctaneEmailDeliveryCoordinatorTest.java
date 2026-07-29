@@ -7,11 +7,13 @@ import static org.junit.Assert.assertTrue;
 import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -47,6 +49,43 @@ public class OctaneEmailDeliveryCoordinatorTest {
       assertTrue(acquired.await(2, TimeUnit.SECONDS));
     }
 
+    assertEquals(0, OctaneEmailDeliveryCoordinator.activeEntryCount());
+  }
+
+  @Test(timeout = 20_000L)
+  public void serializesOneHundredSameBuildCapturesWithoutRegistryLeak() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    FilePath workspace = jenkins.jenkins.getWorkspaceFor(project);
+    AtomicInteger active = new AtomicInteger();
+    AtomicInteger maximumActive = new AtomicInteger();
+    List<Future<?>> captures = new java.util.ArrayList<>();
+
+    try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      for (int capture = 0; capture < 100; capture++) {
+        captures.add(
+            executor.submit(
+                () -> {
+                  try (OctaneEmailDeliveryCoordinator.Lease ignored =
+                      OctaneEmailDeliveryCoordinator.acquire(build, workspace)) {
+                    int current = active.incrementAndGet();
+                    maximumActive.accumulateAndGet(current, Math::max);
+                    try {
+                      Thread.sleep(1L);
+                    } finally {
+                      active.decrementAndGet();
+                    }
+                  }
+                  return null;
+                }));
+      }
+      for (Future<?> capture : captures) {
+        capture.get(10L, TimeUnit.SECONDS);
+      }
+    }
+
+    assertEquals(1, maximumActive.get());
+    assertEquals(0, active.get());
     assertEquals(0, OctaneEmailDeliveryCoordinator.activeEntryCount());
   }
 }

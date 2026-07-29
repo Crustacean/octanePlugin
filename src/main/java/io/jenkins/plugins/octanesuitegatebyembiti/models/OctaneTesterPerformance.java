@@ -31,6 +31,9 @@ public class OctaneTesterPerformance implements Serializable {
     addResultRuns(testers, "regressions", result.getSuiteRuns(), result.getRuns(), classifier);
     for (Map.Entry<String, GateScopeResult> entry : result.getScopedResults().entrySet()) {
       GateScopeResult scope = entry.getValue();
+      if (!scope.isActive()) {
+        continue;
+      }
       addResultRuns(
           testers, "scope-" + entry.getKey(), scope.getSuiteRuns(), scope.getRuns(), classifier);
     }

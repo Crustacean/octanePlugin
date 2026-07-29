@@ -150,7 +150,7 @@ public class OctaneReportZoneHtmlRenderer {
           color: var(--octane-text);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           margin: 0;
-          padding: 16px;
+          padding: 0;
         }
         .octane-report-zone {
           align-items: stretch;
@@ -159,6 +159,7 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           flex-wrap: wrap;
           gap: 16px;
+          min-height: 100vh;
           padding: 16px;
           width: 100%;
         }
@@ -629,7 +630,11 @@ public class OctaneReportZoneHtmlRenderer {
       OctaneGateReportSnapshot snapshot,
       Integer maxVisibleBars,
       Integer barChartWidth) {
-    html.append("<div class=\"octane-report-zone octane-card-zone\" id=\"octane-report-zone\">\n");
+    html.append("<div class=\"octane-report-zone octane-card-zone");
+    if (snapshot.isCriticalOnlyReport()) {
+      html.append(" octane-report-zone-critical-only");
+    }
+    html.append("\" id=\"octane-report-zone\">\n");
     if (snapshot.hasReportSections()) {
       for (OctaneGateReportSection section : snapshot.getReportSections()) {
         renderDistributionCard(html, section);

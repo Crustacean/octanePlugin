@@ -340,6 +340,40 @@ public class OctaneTestManagementAnalyticsTest {
   }
 
   @Test
+  public void reconcilesClosedDefectsAgainstFinalRerunStatuses() {
+    OctaneTestManagementAnalytics initial =
+        analyticsAt(
+            "2026-07-23T08:01:00Z",
+            List.of(
+                run("1", "failed", "Tester Alpha", "test-1"),
+                run("2", "blocked", "Tester Alpha", "test-2")),
+            List.of(
+                defect("d1", "Failure one", "high", "new", "1", "test-1"),
+                defect("d2", "Failure two", "medium", "new", "2", "test-2")),
+            CriteriaEvaluation.unavailable());
+    OctaneTestManagementAnalytics finalRerun =
+        analyticsAt(
+            "2026-07-23T08:02:00Z",
+            List.of(
+                run("1", "passed", "Tester Alpha", "test-1"),
+                run("2", "passed", "Tester Alpha", "test-2")),
+            List.of(
+                defect("d1", "Failure one", "high", "closed", "1", "test-1"),
+                defect("d2", "Failure two", "medium", "fixed", "2", "test-2")),
+            CriteriaEvaluation.unavailable());
+
+    OctaneTestManagementAnalytics reconciled = initial.appendLatest(finalRerun);
+
+    assertEquals(0, reconciled.getExpectedOpenDefects());
+    assertEquals(0, reconciled.getOpenDefects());
+    assertEquals(2, reconciled.getClosedDefects());
+    assertTrue(reconciled.isDefectCompliant());
+    assertEquals("No open defects", reconciled.getMetricQuadrants().get(0).getValue());
+    assertEquals("0 expected | 0 open", reconciled.getMetricQuadrants().get(0).getDetail());
+    assertEquals("neutral", reconciled.getMetricQuadrants().get(0).getTone());
+  }
+
+  @Test
   public void appliesWarningThroughSeventyPercentAndActionAboveSeventyPercent() {
     List<RunRecord> runs =
         List.of(

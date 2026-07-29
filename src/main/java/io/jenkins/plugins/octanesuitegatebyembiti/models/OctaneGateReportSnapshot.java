@@ -224,9 +224,13 @@ public class OctaneGateReportSnapshot implements Serializable {
       int timeoutExtendedSeconds,
       String startedAt) {
     List<OctaneGateReportSection> sections = new ArrayList<>();
-    sections.add(OctaneGateReportSection.regressions(result, classifier));
+    if (result.isRegressionEvaluationEnabled()) {
+      sections.add(OctaneGateReportSection.regressions(result, classifier));
+    }
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
-      sections.add(OctaneGateReportSection.scoped(scopeResult, classifier));
+      if (scopeResult.isActive()) {
+        sections.add(OctaneGateReportSection.scoped(scopeResult, classifier));
+      }
     }
     OctaneGateReportSnapshot snapshot =
         new OctaneGateReportSnapshot(
@@ -463,6 +467,23 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public List<String> getSuiteRunIds() {
     return Util.splitIdList(suiteRunId);
+  }
+
+  public boolean isRegressionEvaluationEnabled() {
+    return !getSuiteRunIds().isEmpty();
+  }
+
+  public boolean isCriticalOnlyReport() {
+    if (isRegressionEvaluationEnabled()) {
+      return false;
+    }
+    List<OctaneGateReportSection> reportSections = getReportSections();
+    return reportSections.size() == 1
+        && "critical".equalsIgnoreCase(reportSections.get(0).getSource());
+  }
+
+  public boolean isSingleSectionReport() {
+    return getReportSections().size() == 1;
   }
 
   public int getRefreshSeconds() {

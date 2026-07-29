@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.Test;
 
 public class CriteriaExpressionTest {
@@ -46,6 +47,192 @@ public class CriteriaExpressionTest {
         "regressions.passRate >= 95%", evaluation.getComparisons().get(1).getCriterionLabel());
     assertEquals("50%", evaluation.getComparisons().get(1).getActualLabel());
     assertEquals("NOT OK", evaluation.getComparisons().get(1).getResultLabel());
+  }
+
+  @Test
+  public void skipsRegressionComparisonsWithoutChangingRemainingAndSemantics() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 2, 0, 0, 0)));
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("regressions.executionRate == 100 AND critical.passRate == 100")
+            .evaluateDetailed(context, false);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals(1, evaluation.getComparisons().size());
+    assertEquals("critical.passRate", evaluation.getComparisons().get(0).getMetricReference());
+  }
+
+  @Test
+  public void removesRegressionBranchInsteadOfMakingOrExpressionPass() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(1, 1, 1, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 1, 1, 0, 0)));
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("regressions.passRate == 100 OR critical.passRate == 100")
+            .evaluateDetailed(context, false);
+
+    assertFalse(evaluation.isPassed());
+    assertEquals(1, evaluation.getComparisons().size());
+    assertEquals("critical.passRate", evaluation.getComparisons().get(0).getMetricReference());
+  }
+
+  @Test
+  public void skipsUnqualifiedRegressionShorthandWhenRegressionIsBypassed() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(1, 1, 1, 0, 0, 0)));
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse("100% execution AND critical.executionRate == 100")
+            .evaluateDetailed(context, false);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals(1, evaluation.getComparisons().size());
+    assertEquals("critical.executionRate", evaluation.getComparisons().get(0).getMetricReference());
+  }
+
+  @Test
+  public void effectiveExpressionDropsRegressionRulesAndPreservesRemainingLogic() {
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 2, 0, 0, 0)));
+    CriteriaExpression criteria =
+        CriteriaExpression.parse(
+            "(regressions.executionRate == 100 OR critical.passRate == 100) "
+                + "AND defects.majorCount == 0");
+
+    assertEquals(
+        "(critical.passRate == 100) AND defects.majorCount == 0",
+        criteria.effectiveExpression(context, false));
+  }
+
+  @Test
+  public void effectiveExpressionPreservesDistinctApplicableBuckets() {
+    String criteria =
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+            + "AND (critical.executionRate == 100 AND critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)";
+
+    assertEquals(
+        "(critical.executionRate == 100 AND critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)",
+        CriteriaExpression.parse(criteria).effectiveExpression(emptyContext(), false));
+  }
+
+  @Test
+  public void effectiveExpressionDropsDeletedCriticalBucketAndKeepsRegressionRules() {
+    String criteria =
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+            + "AND (critical.executionRate == 100 AND critical.passRate == 100)";
+    MetricsContext context = new MetricsContext(new GateMetrics(2, 2, 2, 0, 0, 0), Map.of());
+
+    CriteriaExpression expression = CriteriaExpression.parse(criteria);
+
+    assertEquals(
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95)",
+        expression.effectiveExpression(context, Set.of("critical")));
+    CriteriaEvaluation evaluation = expression.evaluateAppliedDetailed(context, Set.of("CRITICAL"));
+    assertTrue(evaluation.isPassed());
+    assertEquals(2, evaluation.getComparisons().size());
+  }
+
+  @Test
+  public void effectiveExpressionDropsDeletedRegressionBucketAndKeepsCriticalRules() {
+    String criteria =
+        "(regressions.executionRate == 100 AND regressions.passRate >= 95) "
+            + "AND (critical.executionRate == 100 AND critical.passRate == 100)";
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(2, 2, 2, 0, 0, 0)));
+
+    CriteriaExpression expression = CriteriaExpression.parse(criteria);
+
+    assertEquals(
+        "(critical.executionRate == 100 AND critical.passRate == 100)",
+        expression.effectiveExpression(context, Set.of("regression")));
+    CriteriaEvaluation evaluation =
+        expression.evaluateAppliedDetailed(context, Set.of("regressions"));
+    assertTrue(evaluation.isPassed());
+    assertEquals(2, evaluation.getComparisons().size());
+  }
+
+  @Test
+  public void effectiveExpressionConsolidatesMixedCriticalBucketsWithAnd() {
+    String criteria =
+        "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+            + "AND (critical.passRate == 100 OR regressions.passRate >= 95) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)";
+
+    assertEquals(
+        "(critical.executionRate == 100 AND critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)",
+        CriteriaExpression.parse(criteria).effectiveExpression(emptyContext(), false));
+  }
+
+  @Test
+  public void effectiveExpressionConsolidatesMixedCriticalBucketsWithOr() {
+    String criteria =
+        "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+            + "OR (critical.passRate == 100 OR regressions.passRate >= 95) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)";
+
+    assertEquals(
+        "(critical.executionRate == 100 OR critical.passRate == 100) "
+            + "AND (defects.major < 10% AND defects.minor < 20%) "
+            + "AND (defects.Unspecified == 0%)",
+        CriteriaExpression.parse(criteria).effectiveExpression(emptyContext(), false));
+  }
+
+  @Test
+  public void appliedEvaluationUsesTheSameConsolidatedPrecedenceAsThePrintedExpression() {
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, Very High, High, Unspecified");
+    OctaneDefectGroup minor = new OctaneDefectGroup("minor");
+    minor.setTypes("Low, Medium");
+    DefectCriteriaMetrics defects =
+        new DefectCriteriaMetrics(
+            OctaneDefectSeveritySummary.fromDefects(
+                List.of(
+                    new DefectRecord(
+                        "1", "Critical", "Critical", "", "opened", "run", "test", "", ""))),
+            List.of(major, minor));
+    MetricsContext context =
+        new MetricsContext(
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            Map.of("critical", new GateMetrics(1, 1, 1, 0, 0, 0)),
+            defects);
+    CriteriaExpression criteria =
+        CriteriaExpression.parse(
+            "(regressions.executionRate == 100 AND critical.executionRate == 100) "
+                + "OR (critical.passRate == 0 OR regressions.passRate >= 95) "
+                + "AND (defects.major < 10% AND defects.minor < 20%) "
+                + "AND (defects.Unspecified == 0%)");
+
+    assertTrue(criteria.evaluateDetailed(context, false).isPassed());
+    assertFalse(criteria.evaluateAppliedDetailed(context, false).isPassed());
+  }
+
+  @Test
+  public void effectiveExpressionReportsWhenEveryRuleWasBypassed() {
+    MetricsContext context = new MetricsContext(new GateMetrics(0, 0, 0, 0, 0, 0), Map.of());
+
+    assertEquals(
+        "No applicable criteria.",
+        CriteriaExpression.parse("100% execution AND regressions.passRate == 100")
+            .effectiveExpression(context, false));
   }
 
   @Test
@@ -339,5 +526,9 @@ public class CriteriaExpressionTest {
 
   private MetricsContext context(List<RunRecord> runs) {
     return new MetricsContext(GateMetrics.fromRuns(runs, classifier), Map.of());
+  }
+
+  private MetricsContext emptyContext() {
+    return new MetricsContext(new GateMetrics(0, 0, 0, 0, 0, 0), Map.of());
   }
 }

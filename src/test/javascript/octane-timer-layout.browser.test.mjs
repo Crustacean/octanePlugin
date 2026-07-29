@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import {spawn, spawnSync} from "node:child_process";
-import {existsSync, readFileSync} from "node:fs";
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from "node:fs";
 import {createServer} from "node:net";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import test from "node:test";
+import {pathToFileURL} from "node:url";
 
 const jellyPath =
     "src/main/resources/io/jenkins/plugins/octanesuitegatebyembiti/actions/"
@@ -292,9 +295,24 @@ function managementCard(index, title) {
               octane-management-failure-axis-layout">
             <div class="octane-management-y-axis-title">Defects</div>
             <div class="octane-management-y-labels">
-              <span>10</span><span>5</span><span>0</span>
+              <span class="octane-management-failure-axis-track">
+                <span class="octane-management-axis-value" data-management-axis-value="10"
+                    style="--octane-management-axis-position: 0%">10</span>
+                <span class="octane-management-axis-value" data-management-axis-value="5"
+                    style="--octane-management-axis-position: 50%">5</span>
+                <span class="octane-management-axis-value" data-management-axis-value="0"
+                    style="--octane-management-axis-position: 100%">0</span>
+              </span>
             </div>
             <div class="octane-management-failure-chart">
+              <span class="octane-management-failure-grid-lines" aria-hidden="true">
+                <span class="octane-management-failure-grid-line"
+                    data-management-grid-value="10"
+                    style="--octane-management-axis-position: 0%"></span>
+                <span class="octane-management-failure-grid-line"
+                    data-management-grid-value="5"
+                    style="--octane-management-axis-position: 50%"></span>
+              </span>
               ${Array.from({length: 8}, (_, category) => `
                 <button class="octane-management-failure-group" type="button">
                   <span class="octane-management-failure-bars">
@@ -474,6 +492,46 @@ function fixtureHtml() {
     </html>`;
 }
 
+function chromiumFixtureHtml() {
+  return fixtureHtml().replace("</body>", `
+    <script>
+      (function () {
+            var zone = document.getElementById("octane-timer-zone");
+            var cards = Array.prototype.slice.call(
+                zone.querySelectorAll(":scope > .octane-chart-card"));
+            function graphsFit(candidateCards) {
+              return candidateCards.length > 0 && candidateCards.every(function (card) {
+                var body = card.querySelector(".octane-flip-face-body");
+                var graph = card.querySelector(".octane-timer-donut");
+                var bodyRect = body.getBoundingClientRect();
+                var graphRect = graph.getBoundingClientRect();
+                var style = getComputedStyle(graph);
+                return style.display !== "none"
+                    && style.visibility === "visible"
+                    && Number(style.opacity) > 0
+                    && graphRect.width >= 24
+                    && graphRect.height >= 24
+                    && Math.abs(graphRect.width - graphRect.height) <= 1.5
+                    && graphRect.left >= bodyRect.left - 1
+                    && graphRect.right <= bodyRect.right + 1
+                    && graphRect.top >= bodyRect.top - 1
+                    && graphRect.bottom <= bodyRect.bottom + 1;
+              });
+            }
+            var checks = [cards.length === 4 && graphsFit(cards)];
+            zone.classList.add("octane-zone-focused");
+            checks.push(graphsFit(cards));
+            zone.classList.remove("octane-zone-focused");
+            cards[0].classList.add("octane-expanded");
+            checks.push(graphsFit([cards[0]]));
+            document.body.setAttribute("data-chromium-checks", checks.join(","));
+            document.body.setAttribute(
+                "data-chromium-layout", checks.every(Boolean) ? "pass" : "fail");
+      })();
+    </script>
+  </body>`);
+}
+
 async function execute(driver, script, args = []) {
   return webdriverRequest(
       driver.baseUrl,
@@ -614,12 +672,16 @@ async function constrainedManagementBarMetrics(driver) {
     var failureGroupStyle = getComputedStyle(failureGroup);
     var failureGridRows = failureGroupStyle.gridTemplateRows.trim().split(" ");
     var failureAxisRow = parseFloat(failureGridRows[failureGridRows.length - 1]);
+    var failureAxisY = failureRect.bottom - failureAxisRow;
     var failureBarsRect = failureGroup
         .querySelector(".octane-management-failure-bars")
         .getBoundingClientRect();
+    var failureTopLineRect = failure
+        .querySelector('[data-management-grid-value="10"]')
+        .getBoundingClientRect();
     var failureLabelRect = label.getBoundingClientRect();
     return {
-      failureAxisY: failureRect.bottom - failureAxisRow,
+      failureAxisY: failureAxisY,
       failureAxisRow: failureAxisRow,
       failureBarBottoms: Array.prototype.map.call(
           failure.querySelectorAll(".octane-management-failure-bar"),
@@ -635,6 +697,24 @@ async function constrainedManagementBarMetrics(driver) {
       failureLabelHeight: failureLabelRect.height,
       failurePlotBottom: failureBarsRect.bottom,
       failureScrollWidth: failure.scrollWidth,
+      failureTickAlignment: Array.prototype.map.call(
+          document.querySelectorAll(
+              ".octane-management-failure-axis-layout "
+              + "[data-management-axis-value]"),
+          function (tick) {
+            var value = tick.getAttribute("data-management-axis-value");
+            var line = failure.querySelector(
+                '[data-management-grid-value="' + value + '"]');
+            var tickRect = tick.getBoundingClientRect();
+            var targetY = value === "0"
+                ? failureAxisY
+                : line.getBoundingClientRect().top + (line.getBoundingClientRect().height / 2);
+            return {
+              delta: Math.abs((tickRect.top + (tickRect.height / 2)) - targetY),
+              value: Number(value)
+            };
+          }),
+      failureTopInset: failureTopLineRect.top - failureRect.top,
       labelClientWidth: label.clientWidth,
       labelOverflow: labelStyle.overflow,
       labelScrollWidth: label.scrollWidth,
@@ -1056,6 +1136,41 @@ function assertVisibleGraphs(metrics, label, minimumSize = 24) {
 const browserAvailable =
     (existsSync(snapGeckodriver) || executableAvailable("geckodriver"))
     && executableAvailable("firefox");
+const chromiumAvailable = executableAvailable("google-chrome");
+
+test(
+    "timer graphs remain visible in Chromium normal, focused, and expanded modes",
+    {skip: !chromiumAvailable, timeout: 60000},
+    () => {
+      const directory = mkdtempSync(join(tmpdir(), "octane-chromium-layout-"));
+      const fixturePath = join(directory, "fixture.html");
+      writeFileSync(fixturePath, chromiumFixtureHtml(), "utf8");
+      try {
+        for (const viewport of [viewports[0], viewports[3]]) {
+          const result = spawnSync(
+              "google-chrome",
+              [
+                "--headless=new",
+                "--no-sandbox",
+                "--disable-gpu",
+                `--user-data-dir=${join(directory, `profile-${viewport.name}`)}`,
+                `--window-size=${viewport.width},${viewport.height}`,
+                "--virtual-time-budget=2000",
+                "--dump-dom",
+                pathToFileURL(fixturePath).href
+              ],
+              {encoding: "utf8", maxBuffer: 8 * 1024 * 1024, timeout: 30000});
+          assert.equal(result.status, 0, result.error || result.stderr);
+          const modeChecks = result.stdout.match(/data-chromium-checks="([^"]+)"/)?.[1];
+          assert.match(
+              result.stdout,
+              /data-chromium-layout="pass"/,
+              `${viewport.name}: Chromium layout checks were ${modeChecks || "missing"}`);
+        }
+      } finally {
+        rmSync(directory, {force: true, recursive: true});
+      }
+    });
 
 test(
     "all timer graphs render and scale in normal, focused, and expanded modes",
@@ -1099,6 +1214,18 @@ test(
               barMetrics.failureBarBottoms.every(
                   bottom => Math.abs(bottom - barMetrics.failureAxisY) <= 1),
               `${viewport.name}: failure bars are not anchored above the x-axis: `
+                  + JSON.stringify(barMetrics));
+          assert.deepEqual(
+              barMetrics.failureTickAlignment.map(metric => metric.value),
+              [10, 5, 0],
+              `${viewport.name}: failure tick order changed`);
+          assert.ok(
+              barMetrics.failureTickAlignment.every(metric => metric.delta <= 1),
+              `${viewport.name}: failure labels do not align with their grid lines: `
+                  + JSON.stringify(barMetrics.failureTickAlignment));
+          assert.ok(
+              barMetrics.failureTopInset >= 3 && barMetrics.failureTopInset <= 16,
+              `${viewport.name}: failure ceiling clearance is not about one character: `
                   + JSON.stringify(barMetrics));
           assert.ok(
               barMetrics.stateScrollWidth > barMetrics.stateClientWidth,

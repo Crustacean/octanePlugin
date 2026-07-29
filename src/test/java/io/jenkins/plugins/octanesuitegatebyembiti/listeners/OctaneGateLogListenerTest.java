@@ -58,6 +58,55 @@ public class OctaneGateLogListenerTest {
     assertFalse(log.contains("suite run IDs 450306 metrics"));
   }
 
+  @Test
+  public void logsCriticalOnlyAuditAndOmitsRegressionPollMetrics() {
+    OctaneGateLogListener logListener = new OctaneGateLogListener();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    TaskListener listener = new CapturingTaskListener(output);
+
+    logListener.logRegressionEvaluationSkipped(listener);
+    GateResult result =
+        new GateResult(
+            "",
+            "critical.passRate == 100",
+            true,
+            true,
+            new GateMetrics(0, 0, 0, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            resultWithCriticalScope().getScopedResults(),
+            Instant.parse("2026-05-13T00:00:00Z"));
+    logListener.logPollResult(listener, result);
+
+    String log = output.toString(StandardCharsets.UTF_8);
+    assertTrue(
+        log.contains(
+            "[INFO/AUDIT] Regression suite-run evaluation is disabled because its selection is "
+                + "empty or entirely owned by the critical scope. Skipping regression criteria."));
+    assertFalse(log.contains("Regressions suite runs: execution"));
+    assertTrue(log.contains("Critical suite runs: execution"));
+  }
+
+  @Test
+  public void logsDynamicDiscoveryWarningsAndPoolAudits() {
+    OctaneGateLogListener logListener = new OctaneGateLogListener();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    TaskListener listener = new CapturingTaskListener(output);
+
+    logListener.logDynamicSuiteSelector(listener, "Critical", "Release 2.4", "Sprint 3");
+    logListener.logNoDynamicSuiteRuns(listener, "Critical", "Release 2.4", "Sprint 3");
+    logListener.logSuiteRunsAdded(listener, "Critical", List.of("55", "56"));
+    logListener.logSuiteRunsRemoved(listener, "Critical", List.of("55"));
+
+    String log = output.toString(StandardCharsets.UTF_8);
+    assertTrue(
+        log.contains("continuous discovery for release 'Release 2.4' and sprint 'Sprint 3'"));
+    assertTrue(log.contains("No active Critical suite runs were found"));
+    assertTrue(log.contains("Use Jenkins Abort/Cancel to stop this pipeline"));
+    assertTrue(log.contains("55,56 [ADDED]"));
+    assertTrue(log.contains("55 [DELETED]"));
+  }
+
   private GateResult resultWithCriticalScope() {
     return new GateResult(
         "450312,450309",

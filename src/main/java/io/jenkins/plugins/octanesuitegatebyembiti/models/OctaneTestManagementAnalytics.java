@@ -276,16 +276,20 @@ public final class OctaneTestManagementAnalytics implements Serializable {
   }
 
   public boolean isDefectCompliant() {
-    return openDefects == getExpectedOpenDefects();
+    return getDefectLoggingCompliance().isCompliant();
   }
 
   public int getExpectedOpenDefects() {
-    TimelinePoint latest = latestPoint();
-    return latest.getFailed() + latest.getBlocked();
+    return getDefectLoggingCompliance().getExpectedDefects();
   }
 
   public int getOpenDefectVariance() {
-    return openDefects - getExpectedOpenDefects();
+    return getDefectLoggingCompliance().getVariance();
+  }
+
+  public DefectLoggingCompliance getDefectLoggingCompliance() {
+    TimelinePoint latest = latestPoint();
+    return DefectLoggingCompliance.from(latest.getBlocked(), latest.getFailed(), openDefects);
   }
 
   public List<MetricQuadrant> getMetricQuadrants() {
@@ -332,17 +336,18 @@ public final class OctaneTestManagementAnalytics implements Serializable {
   }
 
   private MetricQuadrant defectComplianceMetric() {
-    int expected = getExpectedOpenDefects();
-    int variance = getOpenDefectVariance();
+    DefectLoggingCompliance compliance = getDefectLoggingCompliance();
+    int expected = compliance.getExpectedDefects();
+    int variance = compliance.getVariance();
     String value;
     String tone;
-    if (expected == 0 && openDefects == 0) {
+    if (compliance.hasNoOpenDefectsExpected()) {
       value = "No open defects";
       tone = "neutral";
-    } else if (variance == 0) {
+    } else if (compliance.isCompliant()) {
       value = "Compliant";
       tone = "good";
-    } else if (variance > 0) {
+    } else if (compliance.getStatus() == DefectLoggingCompliance.Status.SURPLUS) {
       value = variance + " surplus";
       tone = thresholdTone(Math.abs(variance), Math.max(expected, openDefects));
     } else {
@@ -409,7 +414,9 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     Map<String, RunRecord> values = new LinkedHashMap<>();
     addRuns(values, "regression", result.getRuns());
     for (Map.Entry<String, GateScopeResult> entry : result.getScopedResults().entrySet()) {
-      addRuns(values, "scope-" + entry.getKey(), entry.getValue().getRuns());
+      if (entry.getValue().isActive()) {
+        addRuns(values, "scope-" + entry.getKey(), entry.getValue().getRuns());
+      }
     }
     return List.copyOf(values.values());
   }

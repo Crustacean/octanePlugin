@@ -15,12 +15,14 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.SuiteRunSelector;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.CriteriaExpression;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateExecutors;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctanePollRefreshCoordinator;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneQueryValidator;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.time.Duration;
@@ -194,7 +196,8 @@ public class OctaneSuiteGateStep extends Step {
 
   @DataBoundSetter
   public void setRiskHeatMapDefectQuery(String riskHeatMapDefectQuery) {
-    this.riskHeatMapDefectQuery = Util.trimToEmpty(riskHeatMapDefectQuery);
+    this.riskHeatMapDefectQuery =
+        OctaneQueryValidator.normalize(riskHeatMapDefectQuery, "Risk heat map defect query");
   }
 
   public int getRiskHeatMapMaxDefects() {
@@ -572,7 +575,7 @@ public class OctaneSuiteGateStep extends Step {
           Run<?, ?> run = getContext().get(Run.class);
           TaskListener listener = getContext().get(TaskListener.class);
           run.setResult(Result.UNSTABLE);
-          listener.getLogger().println(exception.getMessage());
+          listener.getLogger().println(Util.forLog(exception.getMessage()));
           completeSuccessfully(exception.getResult());
         } else {
           completeWithFailure(exception);
@@ -615,16 +618,14 @@ public class OctaneSuiteGateStep extends Step {
     }
 
     public FormValidation doCheckSuiteRunId(@QueryParameter String value) {
-      List<String> ids = Util.splitIdList(value);
-      if (ids.isEmpty()) {
-        return FormValidation.error("At least one suite run ID is required.");
-      }
-      if (ids.size() > GateRequest.MAX_SUITE_RUN_IDS) {
-        return FormValidation.error(
-            "At most " + GateRequest.MAX_SUITE_RUN_IDS + " suite run IDs are supported.");
-      }
-      if (ids.stream().anyMatch(id -> !id.matches("[0-9]{1,18}"))) {
-        return FormValidation.error("Suite run IDs must contain 1 to 18 digits.");
+      try {
+        SuiteRunSelector selector = SuiteRunSelector.parse(value);
+        if (selector.getExplicitIds().size() > GateRequest.MAX_SUITE_RUN_IDS) {
+          return FormValidation.error(
+              "At most " + GateRequest.MAX_SUITE_RUN_IDS + " suite run IDs are supported.");
+        }
+      } catch (IllegalArgumentException e) {
+        return FormValidation.error(e.getMessage());
       }
       return FormValidation.ok();
     }

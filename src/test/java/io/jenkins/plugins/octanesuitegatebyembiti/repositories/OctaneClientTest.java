@@ -98,6 +98,158 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void discoversSuiteRunsByReleaseAndSprintWithEscapedNames() throws Exception {
+    AtomicInteger requests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          requests.incrementAndGet();
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          assertTrue(query.contains("fields=id"));
+          assertTrue(query.contains("test EQ {subtype EQ ^test_suite^}"));
+          assertTrue(query.contains("release EQ {name EQ ^Release \\^2.4^}"));
+          assertTrue(query.contains("sprint EQ {name EQ ^Sprint 3^}"));
+          json(exchange, 200, "{\"data\":[{\"id\":\"55\"},{\"id\":\"56\"}]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(
+          List.of("55", "56"),
+          client.fetchSuiteRunIdsByReleaseAndSprint("1001", "2002", "Release ^2.4", "Sprint 3"));
+      assertEquals(1, requests.get());
+    }
+  }
+
+  @Test
+  public void tolerantSuitePollingOmitsConfirmedMissingRuns() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (query.contains("id EQ 55") && query.contains("id EQ 99")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\",\"name\":\"suite\","
+                    + "\"native_status\":{\"logical_name\":\"passed\"}}]}");
+          } else {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\",\"name\":\"suite\","
+                    + "\"native_status\":{\"logical_name\":\"passed\"}}]}");
+          }
+        });
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/99",
+        exchange -> json(exchange, 404, "{\"description\":\"HTTP 404 Not Found\"}"));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      Map<String, List<RunRecord>> runs =
+          client.fetchAvailableSuiteChildRuns("1001", "2002", List.of("55", "99"));
+
+      assertEquals(List.of("55"), List.copyOf(runs.keySet()));
+      assertEquals(1, runs.get("55").size());
+    }
+  }
+
+  @Test
+  public void repeatedDiscoveryAllowsSuitePoolTotalsToRiseAndFall() throws Exception {
+    AtomicInteger discoveryPoll = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (query.contains("release EQ")) {
+            int poll = discoveryPoll.incrementAndGet();
+            if (poll == 1) {
+              json(exchange, 200, "{\"data\":[{\"id\":\"55\"}]}");
+            } else if (poll == 2) {
+              json(exchange, 200, "{\"data\":[{\"id\":\"55\"},{\"id\":\"56\"}]}");
+            } else {
+              json(exchange, 200, "{\"data\":[{\"id\":\"56\"}]}");
+            }
+            return;
+          }
+          List<String> ids = idsFromQuery(exchange);
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < ids.size(); index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            body.append("{\"id\":\"")
+                .append(ids.get(index))
+                .append("\",\"native_status\":{\"logical_name\":\"planned\"}}");
+          }
+          json(exchange, 200, body.append("]}").toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(List.of("55"), discoverAvailableIds(client));
+      assertEquals(List.of("55", "56"), discoverAvailableIds(client));
+      assertEquals(List.of("56"), discoverAvailableIds(client));
+    }
+  }
+
+  @Test
+  public void releaseDiscoveryFindsNewSuitesAfterTheSelectionWasEmpty() throws Exception {
+    AtomicInteger discoveryPoll = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (query.contains("release EQ")) {
+            int poll = discoveryPoll.incrementAndGet();
+            if (poll == 1) {
+              json(exchange, 200, "{\"data\":[{\"id\":\"55\"}]}");
+            } else if (poll == 2) {
+              json(exchange, 200, "{\"data\":[]}");
+            } else {
+              json(exchange, 200, "{\"data\":[{\"id\":\"56\"}]}");
+            }
+            return;
+          }
+          List<String> ids = idsFromQuery(exchange);
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < ids.size(); index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            body.append("{\"id\":\"")
+                .append(ids.get(index))
+                .append("\",\"native_status\":{\"logical_name\":\"planned\"}}");
+          }
+          json(exchange, 200, body.append("]}").toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(List.of("55"), discoverAvailableIds(client));
+      assertEquals(List.of(), discoverAvailableIds(client));
+      assertEquals(List.of("56"), discoverAvailableIds(client));
+    }
+  }
+
+  @Test
   public void rejectsUnsafeEntityIdsBeforeBuildingOctaneQueries() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
@@ -724,6 +876,12 @@ public class OctaneClientTest {
       ids.add(matcher.group(1).trim());
     }
     return ids;
+  }
+
+  private List<String> discoverAvailableIds(OctaneClient client) throws Exception {
+    List<String> discovered =
+        client.fetchSuiteRunIdsByReleaseAndSprint("1001", "2002", "Release 2.4", "Sprint 3");
+    return List.copyOf(client.fetchAvailableSuiteChildRuns("1001", "2002", discovered).keySet());
   }
 
   private void json(HttpExchange exchange, int status, String body) throws IOException {

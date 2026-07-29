@@ -46,13 +46,20 @@ public class OctaneClient implements AutoCloseable {
   private static final String RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
           + "test{id,name},product_areas{id,name},runs_in_suite";
+  private static final String EXTENDED_DEFECT_FIELDS =
+      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
+          + "run{id,name},detected_in_run{id,name},test{id,name},owner_test{id,name},"
+          + "product_areas{id,name}";
   private static final String DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
           + "run{id,name},test{id,name},product_areas{id,name}";
   private static final String MINIMAL_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name}";
   private static final HttpClient SHARED_HTTP_CLIENT =
-      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
+      HttpClient.newBuilder()
+          .connectTimeout(Duration.ofSeconds(30))
+          .followRedirects(HttpClient.Redirect.NEVER)
+          .build();
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -78,7 +85,7 @@ public class OctaneClient implements AutoCloseable {
     payload.put("client_secret", clientSecret);
 
     HttpRequest request =
-        HttpRequest.newBuilder(URI.create(baseUrl + "/authentication/sign_in"))
+        requestBuilder(baseUrl + "/authentication/sign_in")
             .timeout(Duration.ofSeconds(60))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
@@ -109,16 +116,107 @@ public class OctaneClient implements AutoCloseable {
   public Map<String, List<RunRecord>> fetchSuiteChildRuns(
       String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
       throws IOException, InterruptedException {
+    return fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunIds, false);
+  }
+
+  /** Fetches all currently reachable suites while omitting suite runs confirmed as missing. */
+  public Map<String, List<RunRecord>> fetchAvailableSuiteChildRuns(
+      String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
+      throws IOException, InterruptedException {
+    return fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunIds, true);
+  }
+
+  /** Resolves suite runs assigned to the named release and sprint. */
+  public List<String> fetchSuiteRunIdsByReleaseAndSprint(
+      String sharedSpaceId, String workspaceId, String releaseName, String sprintName)
+      throws IOException, InterruptedException {
+    String relationshipQuery =
+        "release EQ {name EQ "
+            + octaneStringLiteral(releaseName)
+            + "};sprint EQ {name EQ "
+            + octaneStringLiteral(sprintName)
+            + "}";
+    String aggregateQuery =
+        "test EQ {subtype EQ ^test_suite^};release EQ {name EQ "
+            + octaneStringLiteral(releaseName)
+            + "};sprint EQ {name EQ "
+            + octaneStringLiteral(sprintName)
+            + "}";
+    try {
+      return fetchEntityIds(sharedSpaceId, workspaceId, "runs", aggregateQuery);
+    } catch (IOException aggregateFailure) {
+      try {
+        return fetchEntityIds(sharedSpaceId, workspaceId, "suite_runs", relationshipQuery);
+      } catch (IOException suiteRunsFailure) {
+        throw new AbortException(
+            "ALM Octane release/sprint suite discovery failed. Runs collection lookup failed: "
+                + aggregateFailure.getMessage()
+                + ". suite_runs fallback failed: "
+                + suiteRunsFailure.getMessage());
+      }
+    }
+  }
+
+  private List<String> fetchEntityIds(
+      String sharedSpaceId, String workspaceId, String entityName, String query)
+      throws IOException, InterruptedException {
+    LinkedHashSet<String> suiteRunIds = new LinkedHashSet<>();
+    int offset = 0;
+    while (true) {
+      String path =
+          workspacePath(sharedSpaceId, workspaceId)
+              + "/"
+              + entityName
+              + "?"
+              + parameter("query", quote(query))
+              + "&"
+              + parameter("fields", "id")
+              + "&"
+              + parameter("limit", Integer.toString(PAGE_SIZE))
+              + "&"
+              + parameter("offset", Integer.toString(offset));
+      JsonNode data = getJson(path).path("data");
+      if (!data.isArray() || data.isEmpty()) {
+        break;
+      }
+      for (JsonNode node : data) {
+        String id = node.path("id").asString();
+        if (!id.isEmpty()) {
+          suiteRunIds.add(safeEntityId(id));
+        }
+      }
+      if (data.size() < PAGE_SIZE) {
+        break;
+      }
+      offset += PAGE_SIZE;
+    }
+    return List.copyOf(suiteRunIds);
+  }
+
+  private Map<String, List<RunRecord>> fetchSuiteChildRuns(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      boolean tolerateMissingSuites)
+      throws IOException, InterruptedException {
     if (suiteRunIds.isEmpty()) {
       return Map.of();
     }
     String namespace =
-        baseUrl + "\u0000" + clientId + "\u0000" + sharedSpaceId + "\u0000" + workspaceId;
+        baseUrl
+            + "\u0000"
+            + clientId
+            + "\u0000"
+            + sharedSpaceId
+            + "\u0000"
+            + workspaceId
+            + (tolerateMissingSuites ? "\u0000available" : "\u0000strict");
     Map<String, List<String>> topology =
         OctaneSuiteTopologyCache.getAll(
             namespace,
             suiteRunIds,
-            missing -> fetchSuiteTopologies(sharedSpaceId, workspaceId, missing));
+            missing ->
+                fetchSuiteTopologies(sharedSpaceId, workspaceId, missing, tolerateMissingSuites));
     LinkedHashSet<String> childRunIds = new LinkedHashSet<>();
     for (String suiteRunId : suiteRunIds) {
       childRunIds.addAll(topology.getOrDefault(suiteRunId, List.of()));
@@ -131,12 +229,21 @@ public class OctaneClient implements AutoCloseable {
     }
     Map<String, List<RunRecord>> result = new LinkedHashMap<>();
     for (String suiteRunId : suiteRunIds) {
+      List<String> topologyRunIds = topology.getOrDefault(suiteRunId, List.of());
+      // Existing suites always retain their own run ID when no child runs are present. An empty
+      // topology therefore identifies a suite omitted by tolerant missing-suite resolution.
+      if (tolerateMissingSuites && topologyRunIds.isEmpty()) {
+        continue;
+      }
       List<RunRecord> runs = new ArrayList<>();
-      for (String runId : topology.getOrDefault(suiteRunId, List.of())) {
+      for (String runId : topologyRunIds) {
         RunRecord run = runsById.get(runId);
         if (run != null) {
           runs.add(run);
         }
+      }
+      if (tolerateMissingSuites && runs.isEmpty()) {
+        continue;
       }
       result.put(suiteRunId, List.copyOf(runs));
     }
@@ -193,6 +300,8 @@ public class OctaneClient implements AutoCloseable {
         defectQuery,
         maxDefects,
         recordsById);
+    fetchDefectsForRelation(
+        sharedSpaceId, workspaceId, "owner_test", testIds, defectQuery, maxDefects, recordsById);
     return new ArrayList<>(recordsById.values());
   }
 
@@ -275,7 +384,10 @@ public class OctaneClient implements AutoCloseable {
       JsonNode collection = getJson(path);
       JsonNode data = collection.path("data");
       if (data.isArray() && !data.isEmpty()) {
-        return data.get(0);
+        JsonNode candidate = data.get(0);
+        if (suiteRunId.equals(candidate.path("id").asString())) {
+          return candidate;
+        }
       }
     } catch (IOException | JacksonException e) {
       // Some Octane versions reject querying suite runs through the aggregate collection.
@@ -315,7 +427,10 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private Map<String, List<String>> fetchSuiteTopologies(
-      String sharedSpaceId, String workspaceId, List<String> suiteRunIds)
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      boolean tolerateMissingSuites)
       throws IOException, InterruptedException {
     Map<String, List<String>> topology = new LinkedHashMap<>();
     for (int start = 0; start < suiteRunIds.size(); start += QUERY_CHUNK_SIZE) {
@@ -348,7 +463,15 @@ public class OctaneClient implements AutoCloseable {
         if (topology.containsKey(suiteRunId)) {
           continue;
         }
-        JsonNode suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
+        JsonNode suiteRun;
+        try {
+          suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
+        } catch (AbortException e) {
+          if (tolerateMissingSuites && isMissingSuiteRun(e)) {
+            continue;
+          }
+          throw e;
+        }
         List<String> runIds = parseRunsInSuite(suiteRun);
         topology.put(
             suiteRunId,
@@ -362,6 +485,11 @@ public class OctaneClient implements AutoCloseable {
 
   private boolean isNotFound(IOException exception) {
     return exception != null && Util.trimToEmpty(exception.getMessage()).contains("HTTP 404");
+  }
+
+  private boolean isMissingSuiteRun(AbortException exception) {
+    String message = Util.trimToEmpty(exception.getMessage());
+    return message.startsWith("ALM Octane suite run ") && message.contains(" was not found ");
   }
 
   private String suiteRunNotFoundMessage(
@@ -544,13 +672,22 @@ public class OctaneClient implements AutoCloseable {
       String sharedSpaceId, String workspaceId, String query, int limit, int offset)
       throws IOException, InterruptedException {
     try {
-      return getJson(defectsPath(sharedSpaceId, workspaceId, query, DEFECT_FIELDS, limit, offset));
+      return getJson(
+          defectsPath(sharedSpaceId, workspaceId, query, EXTENDED_DEFECT_FIELDS, limit, offset));
     } catch (IOException e) {
       if (!isUnknownFieldFailure(e)) {
         throw e;
       }
-      return getJson(
-          defectsPath(sharedSpaceId, workspaceId, query, MINIMAL_DEFECT_FIELDS, limit, offset));
+      try {
+        return getJson(
+            defectsPath(sharedSpaceId, workspaceId, query, DEFECT_FIELDS, limit, offset));
+      } catch (IOException fallbackError) {
+        if (!isUnknownFieldFailure(fallbackError)) {
+          throw fallbackError;
+        }
+        return getJson(
+            defectsPath(sharedSpaceId, workspaceId, query, MINIMAL_DEFECT_FIELDS, limit, offset));
+      }
     }
   }
 
@@ -631,8 +768,9 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private HttpRequest.Builder requestBuilder(String uri) {
+    URI requestUri = OctaneServerUrl.requireAllowedRequest(baseUrl, URI.create(uri));
     HttpRequest.Builder builder =
-        HttpRequest.newBuilder(URI.create(uri))
+        HttpRequest.newBuilder(requestUri)
             .timeout(Duration.ofSeconds(60))
             .header("Accept", "application/json")
             .header(TECH_PREVIEW_HEADER, "true");
@@ -764,6 +902,19 @@ public class OctaneClient implements AutoCloseable {
     return "\"" + value + "\"";
   }
 
+  private String octaneStringLiteral(String value) {
+    String source = Util.trimToEmpty(value);
+    StringBuilder escaped = new StringBuilder(source.length() + 2).append('^');
+    for (int index = 0; index < source.length(); index++) {
+      char character = source.charAt(index);
+      if ("\\^\"'{}()[]?<>".indexOf(character) >= 0) {
+        escaped.append('\\');
+      }
+      escaped.append(character);
+    }
+    return escaped.append('^').toString();
+  }
+
   private String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
@@ -795,8 +946,8 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private DefectRecord parseDefect(JsonNode node) {
-    EntityReference run = readEntity(node.path("run"));
-    EntityReference test = readEntity(node.path("test"));
+    EntityReference run = readFirstEntity(node, List.of("run", "detected_in_run"));
+    EntityReference test = readFirstEntity(node, List.of("test", "owner_test"));
     EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
     return new DefectRecord(
         node.path("id").asString(),

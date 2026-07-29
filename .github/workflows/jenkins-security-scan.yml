@@ -1,0 +1,23 @@
+# Jenkins' Stapler-aware CodeQL rules complement the dependency scanners in dependency-security.yml.
+name: Jenkins Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  security-events: write
+  contents: read
+  actions: read
+
+jobs:
+  security-scan:
+    uses: jenkins-infra/jenkins-security-scan/.github/workflows/jenkins-security-scan.yaml@v2
+    with:
+      java-cache: maven
+      java-version: 25

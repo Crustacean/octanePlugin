@@ -20,6 +20,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -224,7 +225,7 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
     } catch (GateFailedException e) {
       if (delegate.isMarkUnstable()) {
         run.setResult(Result.UNSTABLE);
-        listener.getLogger().println(e.getMessage());
+        listener.getLogger().println(Util.forLog(e.getMessage()));
       } else {
         throw e;
       }
