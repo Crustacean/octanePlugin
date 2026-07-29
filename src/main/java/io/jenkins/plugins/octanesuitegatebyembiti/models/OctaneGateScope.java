@@ -4,6 +4,7 @@ import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneQueryValidator;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -46,7 +47,7 @@ public class OctaneGateScope implements Describable<OctaneGateScope>, Serializab
 
   @DataBoundSetter
   public void setQuery(String query) {
-    this.query = Util.trimToEmpty(query);
+    this.query = OctaneQueryValidator.normalize(query, "Scope query");
   }
 
   public String getSuiteRunId() {
@@ -120,6 +121,12 @@ public class OctaneGateScope implements Describable<OctaneGateScope>, Serializab
       if (hasSuiteRunId) {
         try {
           SuiteRunSelector.parse(suiteRunId);
+        } catch (IllegalArgumentException e) {
+          return FormValidation.error(e.getMessage());
+        }
+      } else {
+        try {
+          OctaneQueryValidator.normalize(query, "Scope query");
         } catch (IllegalArgumentException e) {
           return FormValidation.error(e.getMessage());
         }

@@ -1,4 +1,5 @@
 target/
+target-m2e/
 .idea/
 *.iml
 .classpath
@@ -18,3 +19,4 @@ STRATEGIC_RECOMMENDATIONS.md
 skills-lock.json
 skills.json
 skills/
+docs

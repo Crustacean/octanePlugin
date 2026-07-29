@@ -762,6 +762,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-timer-unit-compact=\"true\" x=\"120\" y=\"132.4\""));
     assertTrue(xml.contains("container-name: octane-timer-display"));
     String timerWrapRule = cssRule(xml, ".octane-timer-wrap");
+    assertTrue(timerWrapRule.contains("container-type: size"));
     assertTrue(timerWrapRule.contains("flex: 1 1 auto"));
     assertTrue(timerWrapRule.contains("height: 100%"));
     assertTrue(timerWrapRule.contains("min-height: 0"));
@@ -769,15 +770,15 @@ public class OctaneGateReportActionTest {
     assertTrue(timerWrapRule.contains("width: 100%"));
     String timerDonutRule = cssRule(xml, ".octane-timer-donut");
     assertTrue(timerDonutRule.contains("aspect-ratio: 1 / 1"));
-    assertTrue(timerDonutRule.contains("height: min(100%, 220px)"));
+    assertTrue(timerDonutRule.contains("height: min(100cqw, 100cqh, 220px)"));
     assertTrue(timerDonutRule.contains("max-height: 220px"));
     assertTrue(timerDonutRule.contains("max-width: 220px"));
     assertTrue(
         cssRule(xml, ".octane-zone-focused .octane-timer-donut")
-            .contains("height: min(100%, 38vh, 38vw)"));
+            .contains("height: min(100cqw, 100cqh, 38vh, 38vw)"));
     assertTrue(
         cssRule(xml, ".octane-chart-card.octane-expanded .octane-timer-donut")
-            .contains("height: min(100%, 76vh, 76vw)"));
+            .contains("height: min(100cqw, 100cqh, 76vh, 76vw)"));
     assertTrue(xml.contains("@container octane-timer-display (max-width: 18rem)"));
     assertTrue(xml.contains("@media (max-width: 480px)"));
     assertTrue(xml.contains("minutes + seconds"));
@@ -871,6 +872,15 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("fetchSnapshot"));
     assertTrue(xml.contains("beginSnapshotRefresh"));
     assertTrue(xml.contains("retryDelayMillis: 500"));
+    assertTrue(xml.contains("id=\"octane-connectivity-status\""));
+    assertTrue(xml.contains("aria-live=\"polite\""));
+    assertTrue(xml.contains("function snapshotRequestFailed"));
+    assertTrue(xml.contains("maximumRetryDelayMillis: 15000"));
+    assertTrue(xml.contains("The last good report remains visible."));
+    assertTrue(xml.contains("document.hidden"));
+    assertTrue(xml.contains("window.addEventListener(\"offline\""));
+    assertTrue(xml.contains("window.addEventListener(\"online\""));
+    assertFalse(xml.contains("updateRiskHeatMap({riskHeatMapHtml: \"\"})"));
     assertTrue(xml.contains("createExpandButton"));
     assertTrue(xml.contains("createZoneFocusButton"));
     assertTrue(xml.contains("removeZoneFocusButton"));

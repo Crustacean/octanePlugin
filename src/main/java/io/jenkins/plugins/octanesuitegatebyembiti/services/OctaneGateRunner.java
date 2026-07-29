@@ -193,43 +193,76 @@ public class OctaneGateRunner {
               state.getDefectLedger());
       logListener.logPollResult(listener, result);
       publishPollResult(reportPublisher, result, classifier, state.isExtendedTimeActive());
-      if (!extendedTimeoutConfigured && result.isPassed()) {
-        result = refreshCurrentPassedResult(result);
+      result = refreshPassedResultWhenRequired(result);
+
+      PollOutcome outcome = finishWithoutExtendedTimeout(result);
+      if (outcome != null) {
+        return outcome;
       }
-      if (!extendedTimeoutConfigured && result.isPassed()) {
+
+      Instant now = clock.instant();
+      transitionAtPrimaryDeadline(result, now);
+
+      outcome = finishExtendedTimeWhenRequired(result, now);
+      if (outcome != null) {
+        return outcome;
+      }
+
+      Duration delay =
+          waitDuration(request, state.isExtendedTimeActive() ? extendedDeadline : primaryDeadline);
+      return PollOutcome.continueAfter(delay);
+    }
+
+    private GateResult refreshPassedResultWhenRequired(GateResult result)
+        throws InterruptedException {
+      return !extendedTimeoutConfigured && result.isPassed()
+          ? refreshCurrentPassedResult(result)
+          : result;
+    }
+
+    private PollOutcome finishWithoutExtendedTimeout(GateResult result) throws GateFailedException {
+      if (extendedTimeoutConfigured) {
+        return null;
+      }
+      if (result.isPassed()) {
         return PollOutcome.complete(passGate(listener, reportPublisher, result, classifier));
       }
-      if (!extendedTimeoutConfigured && result.isTerminal()) {
+      if (result.isTerminal()) {
         String message = "ALM Octane suite gate failed.";
         reportPublisher.onFinal(failureState(request), message, result, classifier);
         throw new GateFailedException(message, result);
       }
-      Instant now = clock.instant();
-      if (!state.isExtendedTimeActive() && !now.isBefore(primaryDeadline)) {
-        if (!extendedTimeoutConfigured) {
-          String message = "Timed out waiting for ALM Octane suite gate.";
-          reportPublisher.onFinal(timeoutState(request), message, result, classifier);
-          throw new GateFailedException(message, result);
-        }
-        state.setExtendedTimeActive(true);
-        logListener.logExtendedTimeStarted(listener, request.getTimeoutMinutesExtended());
-        reportPublisher.onExtendedTime(result, classifier);
+      return null;
+    }
+
+    private void transitionAtPrimaryDeadline(GateResult result, Instant now)
+        throws GateFailedException {
+      if (state.isExtendedTimeActive() || now.isBefore(primaryDeadline)) {
+        return;
       }
-      if (state.isExtendedTimeActive()
-          && (reportPublisher.isManualExitRequested() || !now.isBefore(extendedDeadline))) {
-        logManualExitFinalizingIfNeeded();
-        return PollOutcome.complete(
-            finishExtendedGate(
-                request,
-                listener,
-                reportPublisher,
-                result,
-                classifier,
-                reportPublisher.isManualExitRequested()));
+      if (!extendedTimeoutConfigured) {
+        String message = "Timed out waiting for ALM Octane suite gate.";
+        reportPublisher.onFinal(timeoutState(request), message, result, classifier);
+        throw new GateFailedException(message, result);
       }
-      Duration delay =
-          waitDuration(request, state.isExtendedTimeActive() ? extendedDeadline : primaryDeadline);
-      return PollOutcome.continueAfter(delay);
+      state.setExtendedTimeActive(true);
+      logListener.logExtendedTimeStarted(listener, request.getTimeoutMinutesExtended());
+      reportPublisher.onExtendedTime(result, classifier);
+    }
+
+    private PollOutcome finishExtendedTimeWhenRequired(GateResult result, Instant now)
+        throws GateFailedException {
+      if (!state.isExtendedTimeActive()) {
+        return null;
+      }
+      boolean manualExitRequested = reportPublisher.isManualExitRequested();
+      if (!manualExitRequested && now.isBefore(extendedDeadline)) {
+        return null;
+      }
+      logManualExitFinalizingIfNeeded();
+      return PollOutcome.complete(
+          finishExtendedGate(
+              request, listener, reportPublisher, result, classifier, manualExitRequested));
     }
 
     private void logManualExitFinalizingIfNeeded() {
@@ -836,14 +869,13 @@ public class OctaneGateRunner {
       if (defectCriteriaRequired) {
         listener
             .getLogger()
-            .println(
-                "Octane defect criteria data unavailable: " + Util.trimToEmpty(e.getMessage()));
+            .println("Octane defect criteria data unavailable: " + Util.forLog(e.getMessage()));
         throw new AbortException(
             "Defect criteria could not be evaluated because current ALM Octane defect data is unavailable.");
       }
       listener
           .getLogger()
-          .println("Octane risk heat map unavailable: " + Util.trimToEmpty(e.getMessage()));
+          .println("Octane risk heat map unavailable: " + Util.forLog(e.getMessage()));
       return new DefectPollResult(
           OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage()),
           OctaneDefectSeveritySummary.empty(),
@@ -1091,26 +1123,38 @@ public class OctaneGateRunner {
   }
 
   private void validateScope(OctaneGateScope scope) throws AbortException {
-    if (Util.isBlank(scope.getName())) {
+    validateScopeName(scope);
+    validateScopeMode(scope);
+    SuiteRunSelector selector =
+        scope.isSuiteRunScope()
+            ? validatedSelector("Suite run selection", scope.getSuiteRunId())
+            : SuiteRunSelector.parse("");
+    validateScopeSuiteRunLimit(scope, selector);
+  }
+
+  private void validateScopeName(OctaneGateScope scope) throws AbortException {
+    if (scope == null || Util.isBlank(scope.getName())) {
       throw new AbortException("Octane scope name is required.");
     }
+  }
 
-    boolean hasSuiteRunIds = scope.isSuiteRunScope();
-    boolean hasQuery = scope.isQueryScope();
-    if (!hasSuiteRunIds && !hasQuery) {
+  private void validateScopeMode(OctaneGateScope scope) throws AbortException {
+    boolean suiteRunScope = scope.isSuiteRunScope();
+    boolean queryScope = scope.isQueryScope();
+    if (!suiteRunScope && !queryScope) {
       throw new AbortException(
           "Octane scope '" + scope.getName() + "' must define suite run ID(s) or an Octane query.");
     }
-    if (hasSuiteRunIds && hasQuery) {
+    if (suiteRunScope && queryScope) {
       throw new AbortException(
           "Octane scope '"
               + scope.getName()
               + "' must define either suite run ID(s) or an Octane query, not both.");
     }
-    SuiteRunSelector selector =
-        hasSuiteRunIds
-            ? validatedSelector("Suite run selection", scope.getSuiteRunId())
-            : SuiteRunSelector.parse("");
+  }
+
+  private void validateScopeSuiteRunLimit(OctaneGateScope scope, SuiteRunSelector selector)
+      throws AbortException {
     if (selector.getExplicitIds().size() > GateRequest.MAX_SUITE_RUN_IDS) {
       throw new AbortException(
           "Octane scope '"

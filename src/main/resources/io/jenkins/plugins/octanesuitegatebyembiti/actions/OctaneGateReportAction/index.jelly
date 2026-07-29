@@ -31,6 +31,24 @@
         .octane-live-update-last-updated {
           text-transform: uppercase;
         }
+        .octane-connectivity-status {
+          background: var(--card-background, var(--background, #ffffff));
+          border: 1px solid var(--octane-system-red);
+          color: var(--text-color, #1f2328);
+          flex: 1 0 100%;
+          font-size: 0.875rem;
+          font-weight: 600;
+          padding: 0.55rem 0.75rem;
+          position: sticky;
+          top: 0.5rem;
+          z-index: 100;
+        }
+        .octane-connectivity-status[data-state="restored"] {
+          border-color: var(--octane-system-green);
+        }
+        .octane-connectivity-status[hidden] {
+          display: none;
+        }
         .octane-dashboard {
           --octane-system-blue: #007AFF;
           --octane-system-gray: #8E8E93;
@@ -276,10 +294,10 @@
           height: auto;
         }
         .octane-zone-focused .octane-timer-donut {
-          height: min(100%, 38vh, 38vw);
+          height: min(100cqw, 100cqh, 38vh, 38vw);
           max-height: min(38vh, 38vw);
           max-width: min(38vh, 38vw);
-          width: auto;
+          width: min(100cqw, 100cqh, 38vh, 38vw);
         }
         .octane-zone-focused .octane-timer-wrap {
           height: 100%;
@@ -1759,10 +1777,10 @@
           height: auto;
         }
         .octane-chart-card.octane-expanded .octane-timer-donut {
-          height: min(100%, 76vh, 76vw);
+          height: min(100cqw, 100cqh, 76vh, 76vw);
           max-height: min(76vh, 76vw);
           max-width: min(76vh, 76vw);
-          width: auto;
+          width: min(100cqw, 100cqh, 76vh, 76vw);
         }
         .octane-chart-card.octane-expanded .octane-timer-wrap {
           height: 100%;
@@ -1797,7 +1815,7 @@
         .octane-timer-wrap {
           align-items: center;
           container-name: octane-timer-display;
-          container-type: inline-size;
+          container-type: size;
           display: flex;
           flex: 1 1 auto;
           height: 100%;
@@ -1809,12 +1827,12 @@
         .octane-timer-donut {
           aspect-ratio: 1 / 1;
           display: block;
-          height: min(100%, 220px);
+          height: min(100cqw, 100cqh, 220px);
           max-height: 220px;
           max-width: 220px;
           overflow: visible;
           shape-rendering: geometricPrecision;
-          width: auto;
+          width: min(100cqw, 100cqh, 220px);
         }
         .octane-timer-track {
           fill: none;
@@ -3462,7 +3480,11 @@
             grid-template-columns: minmax(0, 1fr);
           }
           .octane-timer-zone.octane-zone-focused {
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+          }
+          .octane-timer-zone.octane-zone-focused > .octane-chart-card {
+            min-width: 0;
           }
           .octane-test-management-zone.octane-zone-focused {
             grid-template-columns: minmax(0, 1fr);
@@ -3537,6 +3559,9 @@
             data-snapshot-url="snapshot">
           <div id="octane-reorder-status" class="octane-visually-hidden"
               aria-live="polite" aria-atomic="true"></div>
+          <div id="octane-connectivity-status" class="octane-connectivity-status"
+              data-state="online" role="status" aria-live="polite" aria-atomic="true"
+              hidden="hidden"></div>
           <div class="octane-timer-zone octane-card-zone" id="octane-timer-zone"
               data-zone-key="timers">
             <section class="octane-chart-card octane-timer-card" draggable="true"
@@ -5052,7 +5077,7 @@
             return reducedMotionQuery && reducedMotionQuery.matches;
           }
           function scheduleTimerFrame(callback) {
-            if (prefersReducedMotion()) {
+            if (prefersReducedMotion() || document.hidden) {
               return window.setTimeout(callback, 1000);
             }
             return requestFrame(callback);
@@ -5073,13 +5098,49 @@
               : null;
           var exitFinalizingStatus = document.querySelector("[data-exit-finalizing-status]");
           var reorderStatus = document.getElementById("octane-reorder-status");
+          var connectivityStatus = document.getElementById("octane-connectivity-status");
           var liveRefresh = {
+            consecutiveFailures: 0,
             fetching: false,
+            maximumRetryDelayMillis: 15000,
             retryDelayMillis: 500,
+            retryTimer: 0,
             stopped: dashboard.getAttribute("data-report-building") !== "true",
             waiting: false,
             waitingSince: 0
           };
+          function setConnectivityStatus(state, message) {
+            if (!connectivityStatus) {
+              return;
+            }
+            connectivityStatus.setAttribute("data-state", state);
+            connectivityStatus.textContent = message || "";
+            connectivityStatus.hidden = !message;
+          }
+          function snapshotRequestSucceeded() {
+            var recovered = liveRefresh.consecutiveFailures > 0;
+            liveRefresh.consecutiveFailures = 0;
+            liveRefresh.retryDelayMillis = 500;
+            if (recovered) {
+              setConnectivityStatus("restored", "Connection restored. Live updates resumed.");
+              window.setTimeout(function () {
+                if (liveRefresh.consecutiveFailures === 0) {
+                  setConnectivityStatus("online", "");
+                }
+              }, 2500);
+            }
+          }
+          function snapshotRequestFailed() {
+            liveRefresh.consecutiveFailures += 1;
+            liveRefresh.retryDelayMillis = Math.min(
+                liveRefresh.maximumRetryDelayMillis,
+                500 * Math.pow(2, Math.min(5, liveRefresh.consecutiveFailures - 1)));
+            setConnectivityStatus(
+                "degraded",
+                navigator.onLine === false
+                    ? "Live updates paused while this browser is offline. The last good report remains visible."
+                    : "Live data is temporarily unavailable. Retrying while the last good report remains visible.");
+          }
           var completionAutoFlipState = {};
           var TIMER_ACTIVE_OPACITY = "1";
           var COLOR_GOOD = "--octane-color-good";
@@ -6928,7 +6989,9 @@
             if (liveRefresh.stopped) {
               return;
             }
-            window.setTimeout(fetchSnapshot, liveRefresh.retryDelayMillis);
+            window.clearTimeout(liveRefresh.retryTimer);
+            liveRefresh.retryTimer =
+                window.setTimeout(fetchSnapshot, liveRefresh.retryDelayMillis);
           }
           function isFreshSnapshot(payload) {
             if (!payload) {
@@ -7177,6 +7240,7 @@
               return response.json();
             }).then(function (payload) {
               liveRefresh.fetching = false;
+              snapshotRequestSucceeded();
               if (!payload) {
                 scheduleSnapshotRetry();
                 return;
@@ -7188,7 +7252,8 @@
               scheduleSnapshotRetry();
             }).catch(function () {
               liveRefresh.fetching = false;
-              setLiveUpdateStatus("...", false);
+              snapshotRequestFailed();
+              setLiveUpdateStatus("Retrying...", false);
               scheduleSnapshotRetry();
             });
           }
@@ -7207,6 +7272,7 @@
               }
               return response.json();
             }).then(function (payload) {
+              snapshotRequestSucceeded();
               updateRiskHeatMap(payload);
               updateTestMetrics(payload);
               updateExecutionStatusDistribution(payload);
@@ -7214,7 +7280,7 @@
               updateTestManagement(payload);
               runCompletionAutoFlips(payload);
             }).catch(function () {
-              updateRiskHeatMap({riskHeatMapHtml: ""});
+              snapshotRequestFailed();
             });
           }
           function animateTimers() {
@@ -7247,6 +7313,21 @@
           if (timers.length > 0) {
             scheduleTimerAnimation();
           }
+          document.addEventListener("visibilitychange", function () {
+            if (!document.hidden && hasActiveTimer) {
+              scheduleTimerAnimation();
+            }
+          });
+          window.addEventListener("offline", function () {
+            snapshotRequestFailed();
+          });
+          window.addEventListener("online", function () {
+            if (!liveRefresh.stopped) {
+              window.clearTimeout(liveRefresh.retryTimer);
+              liveRefresh.fetching = false;
+              fetchSnapshot();
+            }
+          });
           if (exitExtendedSubmitForm) {
             exitExtendedSubmitForm.addEventListener("submit", function () {
               var requestedAt = currentWallTime();

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import {spawn, spawnSync} from "node:child_process";
-import {existsSync, readFileSync} from "node:fs";
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from "node:fs";
 import {createServer} from "node:net";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import test from "node:test";
+import {pathToFileURL} from "node:url";
 
 const jellyPath =
     "src/main/resources/io/jenkins/plugins/octanesuitegatebyembiti/actions/"
@@ -485,6 +488,46 @@ function fixtureHtml() {
         </script>
       </body>
     </html>`;
+}
+
+function chromiumFixtureHtml() {
+  return fixtureHtml().replace("</body>", `
+    <script>
+      (function () {
+            var zone = document.getElementById("octane-timer-zone");
+            var cards = Array.prototype.slice.call(
+                zone.querySelectorAll(":scope > .octane-chart-card"));
+            function graphsFit(candidateCards) {
+              return candidateCards.length > 0 && candidateCards.every(function (card) {
+                var body = card.querySelector(".octane-flip-face-body");
+                var graph = card.querySelector(".octane-timer-donut");
+                var bodyRect = body.getBoundingClientRect();
+                var graphRect = graph.getBoundingClientRect();
+                var style = getComputedStyle(graph);
+                return style.display !== "none"
+                    && style.visibility === "visible"
+                    && Number(style.opacity) > 0
+                    && graphRect.width >= 24
+                    && graphRect.height >= 24
+                    && Math.abs(graphRect.width - graphRect.height) <= 1.5
+                    && graphRect.left >= bodyRect.left - 1
+                    && graphRect.right <= bodyRect.right + 1
+                    && graphRect.top >= bodyRect.top - 1
+                    && graphRect.bottom <= bodyRect.bottom + 1;
+              });
+            }
+            var checks = [cards.length === 4 && graphsFit(cards)];
+            zone.classList.add("octane-zone-focused");
+            checks.push(graphsFit(cards));
+            zone.classList.remove("octane-zone-focused");
+            cards[0].classList.add("octane-expanded");
+            checks.push(graphsFit([cards[0]]));
+            document.body.setAttribute("data-chromium-checks", checks.join(","));
+            document.body.setAttribute(
+                "data-chromium-layout", checks.every(Boolean) ? "pass" : "fail");
+      })();
+    </script>
+  </body>`);
 }
 
 async function execute(driver, script, args = []) {
@@ -1087,6 +1130,41 @@ function assertVisibleGraphs(metrics, label, minimumSize = 24) {
 const browserAvailable =
     (existsSync(snapGeckodriver) || executableAvailable("geckodriver"))
     && executableAvailable("firefox");
+const chromiumAvailable = executableAvailable("google-chrome");
+
+test(
+    "timer graphs remain visible in Chromium normal, focused, and expanded modes",
+    {skip: !chromiumAvailable, timeout: 60000},
+    () => {
+      const directory = mkdtempSync(join(tmpdir(), "octane-chromium-layout-"));
+      const fixturePath = join(directory, "fixture.html");
+      writeFileSync(fixturePath, chromiumFixtureHtml(), "utf8");
+      try {
+        for (const viewport of [viewports[0], viewports[3]]) {
+          const result = spawnSync(
+              "google-chrome",
+              [
+                "--headless=new",
+                "--no-sandbox",
+                "--disable-gpu",
+                `--user-data-dir=${join(directory, `profile-${viewport.name}`)}`,
+                `--window-size=${viewport.width},${viewport.height}`,
+                "--virtual-time-budget=2000",
+                "--dump-dom",
+                pathToFileURL(fixturePath).href
+              ],
+              {encoding: "utf8", maxBuffer: 8 * 1024 * 1024, timeout: 30000});
+          assert.equal(result.status, 0, result.error || result.stderr);
+          const modeChecks = result.stdout.match(/data-chromium-checks="([^"]+)"/)?.[1];
+          assert.match(
+              result.stdout,
+              /data-chromium-layout="pass"/,
+              `${viewport.name}: Chromium layout checks were ${modeChecks || "missing"}`);
+        }
+      } finally {
+        rmSync(directory, {force: true, recursive: true});
+      }
+    });
 
 test(
     "all timer graphs render and scale in normal, focused, and expanded modes",

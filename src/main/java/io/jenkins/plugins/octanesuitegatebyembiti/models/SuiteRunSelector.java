@@ -138,5 +138,10 @@ public final class SuiteRunSelector implements Serializable {
     if (value.indexOf('*') >= 0) {
       throw new IllegalArgumentException(label + " cannot contain wildcard characters.");
     }
+    for (int index = 0; index < value.length(); index++) {
+      if (Character.isISOControl(value.charAt(index))) {
+        throw new IllegalArgumentException(label + " cannot contain control characters.");
+      }
+    }
   }
 }

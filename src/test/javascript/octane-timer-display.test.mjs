@@ -106,15 +106,15 @@ test("renders full and compact labels with component and mobile breakpoints", ()
   assert.match(timerWrapRule, /min-width:\s*0/);
   assert.match(timerWrapRule, /width:\s*100%/);
   assert.match(timerDonutRule, /aspect-ratio:\s*1 \/ 1/);
-  assert.match(timerDonutRule, /height:\s*min\(100%,\s*220px\)/);
+  assert.match(timerDonutRule, /height:\s*min\(100cqw,\s*100cqh,\s*220px\)/);
   assert.match(timerDonutRule, /max-height:\s*220px/);
   assert.match(timerDonutRule, /max-width:\s*220px/);
   assert.match(
       cssRule(".octane-zone-focused .octane-timer-donut"),
-      /height:\s*min\(100%,\s*38vh,\s*38vw\)/);
+      /height:\s*min\(100cqw,\s*100cqh,\s*38vh,\s*38vw\)/);
   assert.match(
       cssRule(".octane-chart-card.octane-expanded .octane-timer-donut"),
-      /height:\s*min\(100%,\s*76vh,\s*76vw\)/);
+      /height:\s*min\(100cqw,\s*100cqh,\s*76vh,\s*76vw\)/);
   assert.match(jelly, /@container octane-timer-display \(max-width: 18rem\)/);
   assert.match(jelly, /@media \(max-width: 480px\)/);
   assert.match(jelly, /\.octane-timer-unit-compact\s*{\s*display:\s*none;/);

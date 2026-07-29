@@ -43,4 +43,11 @@ public class SuiteRunSelectorTest {
     assertThrows(
         IllegalArgumentException.class, () -> SuiteRunSelector.parse("Release *, Sprint 3"));
   }
+
+  @Test
+  public void rejectsControlCharactersInDynamicSelectors() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SuiteRunSelector.parse("Release 2.4\nforged, Sprint 3"));
+  }
 }

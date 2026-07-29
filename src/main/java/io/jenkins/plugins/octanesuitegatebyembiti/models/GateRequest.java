@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneQueryValidator;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -167,7 +168,8 @@ public class GateRequest implements Serializable {
   }
 
   public void setRiskHeatMapDefectQuery(String riskHeatMapDefectQuery) {
-    this.riskHeatMapDefectQuery = Util.trimToEmpty(riskHeatMapDefectQuery);
+    this.riskHeatMapDefectQuery =
+        OctaneQueryValidator.normalize(riskHeatMapDefectQuery, "Risk heat map defect query");
   }
 
   public int getRiskHeatMapMaxDefects() {

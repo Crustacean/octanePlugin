@@ -56,7 +56,10 @@ public class OctaneClient implements AutoCloseable {
   private static final String MINIMAL_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name}";
   private static final HttpClient SHARED_HTTP_CLIENT =
-      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
+      HttpClient.newBuilder()
+          .connectTimeout(Duration.ofSeconds(30))
+          .followRedirects(HttpClient.Redirect.NEVER)
+          .build();
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -82,7 +85,7 @@ public class OctaneClient implements AutoCloseable {
     payload.put("client_secret", clientSecret);
 
     HttpRequest request =
-        HttpRequest.newBuilder(URI.create(baseUrl + "/authentication/sign_in"))
+        requestBuilder(baseUrl + "/authentication/sign_in")
             .timeout(Duration.ofSeconds(60))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
@@ -765,8 +768,9 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private HttpRequest.Builder requestBuilder(String uri) {
+    URI requestUri = OctaneServerUrl.requireAllowedRequest(baseUrl, URI.create(uri));
     HttpRequest.Builder builder =
-        HttpRequest.newBuilder(URI.create(uri))
+        HttpRequest.newBuilder(requestUri)
             .timeout(Duration.ofSeconds(60))
             .header("Accept", "application/json")
             .header(TECH_PREVIEW_HEADER, "true");

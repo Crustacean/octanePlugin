@@ -14,6 +14,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import org.junit.Test;
 
 public class OctaneProgressEmailSchedulerTest {
@@ -92,6 +93,59 @@ public class OctaneProgressEmailSchedulerTest {
   @Test
   public void productionSchedulerAllowsOneDeliveryPerCronMinute() {
     assertEquals(Duration.ofMinutes(1L), OctaneProgressEmailScheduler.MINIMUM_EMAIL_INTERVAL);
+    assertTrue(OctaneProgressEmailScheduler.MAX_ACTIVE_SCHEDULES >= 500);
+  }
+
+  @Test(timeout = 30_000L)
+  public void dispatchesFiveHundredRegistrationsOnceWithoutDropsDuplicatesOrQueueLeaks()
+      throws Exception {
+    int jobs = 500;
+    OctaneProgressEmailScheduler scheduler =
+        OctaneProgressEmailScheduler.createForTests(
+            OctaneProgressEmailScheduler.THREAD_COUNT,
+            600,
+            Duration.ofMinutes(1L),
+            Duration.ofMinutes(5L));
+    CountDownLatch completed = new CountDownLatch(jobs);
+    AtomicIntegerArray deliveriesByJob = new AtomicIntegerArray(jobs);
+    List<OctaneProgressEmailScheduler.Delivery> deliveries = new ArrayList<>();
+    List<OctaneProgressEmailScheduler.Registration> registrations = new ArrayList<>();
+    long started = System.nanoTime();
+    try {
+      for (int job = 0; job < jobs; job++) {
+        int jobIndex = job;
+        OctaneProgressEmailScheduler.Delivery delivery =
+            occurrence -> {
+              deliveriesByJob.incrementAndGet(jobIndex);
+              completed.countDown();
+            };
+        deliveries.add(delivery);
+        registrations.add(
+            scheduler.schedule(
+                "enterprise-email-" + job,
+                "enterprise-build-" + job,
+                new ImmediateThenDailySchedule(),
+                delivery));
+      }
+
+      assertTrue(completed.await(20L, TimeUnit.SECONDS));
+      assertEquals(jobs, scheduler.activeScheduleCount());
+      assertTrue(scheduler.largestPoolSize() <= OctaneProgressEmailScheduler.THREAD_COUNT);
+      for (int job = 0; job < jobs; job++) {
+        assertEquals("delivery count for job " + job, 1, deliveriesByJob.get(job));
+      }
+      long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+      System.out.printf(
+          "ENTERPRISE_EMAIL_BENCHMARK jobs=%d elapsed_ms=%d max_threads=%d deliveries=%d%n",
+          jobs, elapsedMillis, scheduler.largestPoolSize(), jobs);
+    } finally {
+      for (OctaneProgressEmailScheduler.Registration registration : registrations) {
+        registration.cancel();
+      }
+      assertEquals(0, scheduler.activeScheduleCount());
+      assertEquals(0, scheduler.queuedTaskCount());
+      scheduler.shutdownForTests();
+    }
   }
 
   @Test

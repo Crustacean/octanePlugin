@@ -6,6 +6,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 public final class Util {
+  private static final int MAX_LOG_VALUE_LENGTH = 2_048;
+
   private Util() {}
 
   public static String trimToEmpty(String value) {
@@ -59,5 +61,19 @@ public final class Util {
 
   public static boolean isBlank(String value) {
     return trimToEmpty(value).isEmpty();
+  }
+
+  /** Keeps untrusted values on one bounded Jenkins console line. */
+  public static String forLog(String value) {
+    String source = value == null ? "" : value;
+    StringBuilder safe = new StringBuilder(Math.min(source.length(), MAX_LOG_VALUE_LENGTH));
+    for (int index = 0; index < source.length() && safe.length() < MAX_LOG_VALUE_LENGTH; index++) {
+      char character = source.charAt(index);
+      safe.append(Character.isISOControl(character) ? ' ' : character);
+    }
+    if (source.length() > MAX_LOG_VALUE_LENGTH) {
+      safe.append("...");
+    }
+    return safe.toString();
   }
 }

@@ -22,6 +22,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateExecutors;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctanePollRefreshCoordinator;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneQueryValidator;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.time.Duration;
@@ -195,7 +196,8 @@ public class OctaneSuiteGateStep extends Step {
 
   @DataBoundSetter
   public void setRiskHeatMapDefectQuery(String riskHeatMapDefectQuery) {
-    this.riskHeatMapDefectQuery = Util.trimToEmpty(riskHeatMapDefectQuery);
+    this.riskHeatMapDefectQuery =
+        OctaneQueryValidator.normalize(riskHeatMapDefectQuery, "Risk heat map defect query");
   }
 
   public int getRiskHeatMapMaxDefects() {
@@ -573,7 +575,7 @@ public class OctaneSuiteGateStep extends Step {
           Run<?, ?> run = getContext().get(Run.class);
           TaskListener listener = getContext().get(TaskListener.class);
           run.setResult(Result.UNSTABLE);
-          listener.getLogger().println(exception.getMessage());
+          listener.getLogger().println(Util.forLog(exception.getMessage()));
           completeSuccessfully(exception.getResult());
         } else {
           completeWithFailure(exception);

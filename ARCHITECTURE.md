@@ -923,6 +923,15 @@ such as `enabled`, `available`, `riskScore`, `fetchedDefectCount`,
 The plugin never logs the Octane client secret. Credentials are resolved through
 Jenkins Credentials APIs and used only to authenticate against Octane.
 
+Every `OctaneClient` request is checked against the administrator-configured server origin and base
+path immediately before building the HTTP request. Scheme, host, and effective port must match,
+embedded credentials/fragments are forbidden, and HTTP redirects are disabled. This preserves
+private/on-premise Octane support while preventing a Pipeline job from changing the egress target.
+
+User-controlled log values pass through a bounded single-line formatter. Custom scope/defect queries
+are length-bounded and reject control characters; release/sprint selections and suite/workspace IDs
+retain typed validation. Dynamic report content remains escaped or inserted with safe DOM text APIs.
+
 Connectivity validation and credential listing require Jenkins administrator
 permission.
 
@@ -966,6 +975,22 @@ containing API secrets are not logged.
 | `services.JenkinsMailerOctaneReportSender` | Sends HTML and the inline screenshot through Jenkins Mailer. |
 | `listeners.OctaneProgressEmailRunListener` | Cancels any remaining schedules when a run completes or is deleted. |
 
+## Enterprise Quality Controls
+
+- JaCoCo line/branch reports are produced during Maven `verify`.
+- PMD complexity reporting uses `config/pmd/complexity.xml`; findings are retained for incremental
+  remediation rather than suppressed.
+- The official Jenkins reusable security scanner runs in
+  `.github/workflows/jenkins-security-scan.yml`; dependency/OSV/NVD scanning remains in the existing
+  dependency-security workflow.
+- The shared progress-email scheduler admits up to 1,024 active schedules on four daemon workers.
+  Per-build screenshot/email access is serialized and registry entries are removed after use.
+- Live dashboards retain the last good snapshot during connectivity loss, announce degraded/restored
+  state through an accessible status region, use bounded exponential retry, and throttle hidden-tab
+  timer animation.
+- `docs/audits/` records the security assessment, performance evidence, ISTQB structural audit, and
+  conditional enterprise release sign-off.
+
 ## Examples
 
 - `examples/Jenkinsfile`: regression and critical suite-run gate with optional heat map.
@@ -992,6 +1017,10 @@ The test suite covers:
 - risk heat-map hierarchy, scoring, and rendering
 - optional `octaneEmailReport` failure handling
 - cron parsing, five-minute throttling, blank bypass, bounded concurrent delivery, and timer cleanup
+- 500-job polling and email-dispatch stress, per-build screenshot serialization, and an opt-in
+  24-hour deadlock/thread/heap soak harness
+- same-origin/base-path egress enforcement, hardcoded-secret scanning, query/log-forgery rejection
+- Firefox and Chromium responsive graph visibility across normal, focused, and expanded modes
 - Pipeline result map shape
 
 Run:

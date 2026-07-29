@@ -6,6 +6,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -47,20 +48,22 @@ public class OctaneGateLogListener {
             .getLogger()
             .printf(
                 "%s suite runs: %s%n",
-                displayScopeName(scope.getName()),
+                Util.forLog(displayScopeName(scope.getName())),
                 describeIds(
                     scopeSuiteRunIds.getOrDefault(scope.getName(), scope.getSuiteRunIds())));
       }
     }
 
-    listener.getLogger().println("Criteria: " + request.getCriteria());
+    listener.getLogger().println("Criteria: " + Util.forLog(request.getCriteria()));
     for (OctaneGateScope scope : request.getScopes()) {
       if (scope.isQueryScope()) {
         listener
             .getLogger()
             .printf(
                 "Query scope '%s': IDs %s, query %s%n",
-                scope.getName(), describeIds(scope.getReferencedIds()), scope.getQuery());
+                Util.forLog(scope.getName()),
+                describeIds(scope.getReferencedIds()),
+                Util.forLog(scope.getQuery()));
       }
     }
   }
@@ -72,7 +75,7 @@ public class OctaneGateLogListener {
         .printf(
             "[WARNING/AUDIT] No active %s suite runs were found for release '%s' and sprint '%s'. "
                 + "Discovery will continue on every poll. Use Jenkins Abort/Cancel to stop this pipeline.%n",
-            label, releaseName, sprintName);
+            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
   }
 
   public void logDynamicSuiteSelector(
@@ -81,15 +84,15 @@ public class OctaneGateLogListener {
         .getLogger()
         .printf(
             "[INFO/AUDIT] %s suite runs use continuous discovery for release '%s' and sprint '%s'.%n",
-            label, releaseName, sprintName);
+            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
   }
 
   public void logSuiteRunsAdded(TaskListener listener, String label, List<String> suiteRunIds) {
-    listener.getLogger().printf("%s [ADDED]%n", String.join(",", suiteRunIds));
+    listener.getLogger().printf("%s [ADDED]%n", Util.forLog(String.join(",", suiteRunIds)));
   }
 
   public void logSuiteRunsRemoved(TaskListener listener, String label, List<String> suiteRunIds) {
-    listener.getLogger().printf("%s [DELETED]%n", String.join(",", suiteRunIds));
+    listener.getLogger().printf("%s [DELETED]%n", Util.forLog(String.join(",", suiteRunIds)));
   }
 
   public void logRegressionEvaluationSkipped(TaskListener listener) {
@@ -125,7 +128,9 @@ public class OctaneGateLogListener {
   }
 
   public void logFinalRefreshSkipped(TaskListener listener, IOException e) {
-    listener.getLogger().println("Skipped final ALM Octane refresh: " + e.getMessage());
+    listener
+        .getLogger()
+        .println("Skipped final ALM Octane refresh: " + Util.forLog(e.getMessage()));
   }
 
   public void logExtendedTimeStarted(TaskListener listener, int timeoutMinutesExtended) {
@@ -152,7 +157,7 @@ public class OctaneGateLogListener {
   }
 
   public void logReportLink(TaskListener listener, String reportUrl) {
-    listener.getLogger().println("Octane Gate Report: " + reportUrl);
+    listener.getLogger().println("Octane Gate Report: " + Util.forLog(reportUrl));
   }
 
   private void logMetrics(TaskListener listener, String label, GateMetrics metrics) {
@@ -183,6 +188,6 @@ public class OctaneGateLogListener {
     if (ids.isEmpty()) {
       return "<none>";
     }
-    return String.join(", ", ids);
+    return Util.forLog(String.join(", ", ids));
   }
 }

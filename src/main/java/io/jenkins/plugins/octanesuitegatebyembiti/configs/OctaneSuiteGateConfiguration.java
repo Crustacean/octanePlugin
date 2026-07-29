@@ -65,20 +65,33 @@ public class OctaneSuiteGateConfiguration extends GlobalConfiguration {
   private void validateServers(List<OctaneServer> configuredServers) throws FormException {
     Set<String> serverIds = new LinkedHashSet<>();
     for (OctaneServer server : configuredServers) {
-      if (server == null || server.getServerId().isBlank()) {
-        throw new FormException("Server ID is required.", "servers");
-      }
-      if (!serverIds.add(server.getServerId())) {
-        throw new FormException("Server IDs must be unique.", "servers");
-      }
-      if (server.getCredentialsId().isBlank()) {
-        throw new FormException("Credentials are required.", "servers");
-      }
-      try {
-        OctaneServerUrl.normalize(server.getBaseUrl());
-      } catch (IllegalArgumentException e) {
-        throw new FormException(e.getMessage(), "servers");
-      }
+      validateServerIdentity(server, serverIds);
+      validateServerCredentials(server);
+      validateServerUrl(server);
+    }
+  }
+
+  private void validateServerIdentity(OctaneServer server, Set<String> serverIds)
+      throws FormException {
+    if (server == null || server.getServerId().isBlank()) {
+      throw new FormException("Server ID is required.", "servers");
+    }
+    if (!serverIds.add(server.getServerId())) {
+      throw new FormException("Server IDs must be unique.", "servers");
+    }
+  }
+
+  private void validateServerCredentials(OctaneServer server) throws FormException {
+    if (server.getCredentialsId().isBlank()) {
+      throw new FormException("Credentials are required.", "servers");
+    }
+  }
+
+  private void validateServerUrl(OctaneServer server) throws FormException {
+    try {
+      OctaneServerUrl.normalize(server.getBaseUrl());
+    } catch (IllegalArgumentException e) {
+      throw new FormException(e.getMessage(), "servers");
     }
   }
 
