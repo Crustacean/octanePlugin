@@ -16,6 +16,7 @@ const testManagement = context.window.OctaneTestManagement;
 const failureAxisMaximum = testManagement.failureAxisMaximum;
 const integerAxisTicks = testManagement.integerAxisTicks;
 const sortFailureDefects = testManagement.sortFailureDefects;
+const timelineAxisScale = testManagement.timelineAxisScale;
 
 test("renders ten discrete execution intervals in bottom-up status order", () => {
   assert.match(
@@ -92,6 +93,51 @@ test("binds failure labels and grid lines to the same axis positions", () => {
   assert.match(
       source,
       /--octane-management-axis-position[\s\S]*?failureAxisPosition\(tick, maximum\) \+ "%"/);
+});
+
+test("keeps the failure ceiling line and label one character below the header", () => {
+  assert.match(source, /octane-management-failure-axis-track/);
+  assert.match(
+      jelly,
+      /\.octane-management-failure-axis-track\s*\{[^}]*inset: 1ch 0 0;[^}]*position: absolute;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-failure-grid-lines\s*\{[^}]*top: 1ch;/s);
+});
+
+test("uses whole-number management ticks above a solid zero baseline", () => {
+  assert.deepEqual(
+      JSON.parse(JSON.stringify(timelineAxisScale(1))),
+      {maximum: 1, step: 1, ticks: [1, 0]});
+  assert.deepEqual(
+      JSON.parse(JSON.stringify(timelineAxisScale(5))),
+      {maximum: 8, step: 2, ticks: [8, 6, 4, 2, 0]});
+  assert.match(source, /if \(tick > 0\)/);
+  assert.match(source, /octane-management-timeline-axis-line/);
+  assert.match(source, /octane-management-timeline-axis-dotted/);
+  assert.match(
+      source,
+      /TIMELINE_BOUNDS\.left,[\s\S]*?TIMELINE_BOUNDS\.right,[\s\S]*?TIMELINE_BOUNDS\.bottom/);
+});
+
+test("adds dotted real-time lead and tail tracks to schedule and sprint charts", () => {
+  assert.match(
+      source,
+      /left: 80,[\s\S]*?right: 920,[\s\S]*?width: 1000/);
+  assert.match(source, /renderTimelineSvgAxes\(svg, scale\)/);
+  assert.match(source, /renderTimelineHtmlGrid\(plot, scale\)/);
+  assert.match(
+      jelly,
+      /\.octane-management-timeline-axis-dotted\s*\{[^}]*stroke-dasharray: 3 7;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-state-bars::before\s*\{[^}]*background-image:[^}]*inset-inline: 0;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-state-bars::after\s*\{[^}]*background: var\(--input-border\);[^}]*inset-inline: 8%;/s);
+  assert.match(
+      jelly,
+      /\.octane-management-x-labels\s*\{[^}]*padding: 0\.25rem 8% 0;/s);
 });
 
 test("reveals the clicked failure bar and matching tab after individual focus opens", () => {
@@ -234,9 +280,8 @@ test("keeps standard grid axes, rounded metric tiles, and capsule pills", () => 
   assert.match(
       jelly,
       /\.octane-bar-graph\s*\{[^}]*column-gap: 0\.09rem;[^}]*grid-template-columns: 1\.35rem max-content minmax\(0, 1fr\)/s);
-  assert.match(
-      jelly,
-      /\.octane-management-state-bars\s*\{[^}]*border-bottom: 1px solid/s);
+  assert.match(jelly, /\.octane-management-timeline-axis-line/);
+  assert.match(jelly, /\.octane-management-state-bars::after/);
   assert.match(jelly, /\.octane-management-failure-grid-lines/);
   assert.match(jelly, /\.octane-management-failure-grid-line/);
   assert.match(jelly, /\.octane-management-failure-chart::after/);
@@ -248,7 +293,7 @@ test("keeps standard grid axes, rounded metric tiles, and capsule pills", () => 
       /\.octane-management-failure-axis-layout\s*> \.octane-management-y-labels\s*\{[^}]*display: block;[^}]*overflow: visible;[^}]*padding: 0;[^}]*position: relative;/s);
   assert.match(
       jelly,
-      /\.octane-management-failure-axis-layout[\s\S]*?> \.octane-management-y-labels \.octane-management-axis-value\s*\{[^}]*top: var\(--octane-management-axis-position\);[^}]*transform: translateY\(-50%\);/s);
+      /\.octane-management-failure-axis-layout[\s\S]*?> \.octane-management-y-labels[\s\S]*?\.octane-management-failure-axis-track \.octane-management-axis-value\s*\{[^}]*top: var\(--octane-management-axis-position\);[^}]*transform: translateY\(-50%\);/s);
   assert.match(
       jelly,
       /\.octane-management-failure-group\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) var\(--octane-management-failure-axis-row\)/s);

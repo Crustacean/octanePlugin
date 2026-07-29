@@ -2719,7 +2719,7 @@
           grid-row: 1;
           justify-content: space-between;
           line-height: 1;
-          padding: 0 0 0.1rem;
+          padding: 1ch 0 0.1rem;
           text-align: right;
         }
         .octane-management-svg-wrap {
@@ -2742,6 +2742,14 @@
           stroke-width: 1;
           vector-effect: non-scaling-stroke;
         }
+        .octane-management-timeline-axis-line {
+          stroke: var(--input-border);
+          stroke-width: 1;
+          vector-effect: non-scaling-stroke;
+        }
+        .octane-management-timeline-axis-dotted {
+          stroke-dasharray: 3 7;
+        }
         .octane-management-line {
           fill: none;
           stroke-linecap: round;
@@ -2761,21 +2769,12 @@
           grid-row: 2;
           justify-content: space-between;
           line-height: 1.1;
-          padding-top: 0.25rem;
+          padding: 0.25rem 8% 0;
         }
         .octane-management-state-bars {
           --octane-management-bar-gap: clamp(2px, 1cqw, 40px);
           --octane-management-bar-width: clamp(8px, 4cqw, 100px);
           align-items: end;
-          background-image:
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px),
-            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
-          background-position: left 0, left 25%, left 50%, left 75%;
-          background-repeat: repeat-x;
-          background-size: 9px 1px;
-          border-bottom: 1px solid var(--input-border);
           display: flex;
           gap: var(--octane-management-bar-gap);
           grid-column: 3;
@@ -2786,8 +2785,46 @@
           overflow-x: auto;
           overflow-y: hidden;
           overscroll-behavior-inline: contain;
-          padding: 0 clamp(0.15rem, 0.8cqi, 0.4rem);
+          padding: 1ch 8% 0;
+          position: relative;
           scrollbar-width: thin;
+        }
+        .octane-management-state-bars::before,
+        .octane-management-state-bars::after {
+          bottom: 0;
+          content: "";
+          height: 1px;
+          pointer-events: none;
+          position: absolute;
+          z-index: 0;
+        }
+        .octane-management-state-bars::before {
+          background-image:
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
+          background-repeat: repeat-x;
+          background-size: 9px 1px;
+          inset-inline: 0;
+        }
+        .octane-management-state-bars::after {
+          background: var(--input-border);
+          inset-inline: 8%;
+        }
+        .octane-management-timeline-grid-lines {
+          inset: 1ch 8% 0;
+          pointer-events: none;
+          position: absolute;
+          z-index: 0;
+        }
+        .octane-management-timeline-grid-line {
+          background-image:
+            linear-gradient(to right, var(--input-border) 0 3px, transparent 3px);
+          background-repeat: repeat-x;
+          background-size: 9px 1px;
+          height: 1px;
+          inset-inline: 0;
+          position: absolute;
+          top: var(--octane-management-grid-position);
+          transform: translateY(-0.5px);
         }
         .octane-management-state-column {
           display: flex;
@@ -2797,7 +2834,9 @@
           justify-content: flex-start;
           max-width: 100px;
           min-width: 8px;
+          position: relative;
           width: var(--octane-management-bar-width);
+          z-index: 1;
         }
         .octane-management-state-segment {
           background: var(--octane-segment-color);
@@ -2826,8 +2865,13 @@
           padding: 0;
           position: relative;
         }
+        .octane-management-failure-axis-track {
+          inset: 1ch 0 0;
+          position: absolute;
+        }
         .octane-management-failure-axis-layout
-            > .octane-management-y-labels .octane-management-axis-value {
+            > .octane-management-y-labels
+            .octane-management-failure-axis-track .octane-management-axis-value {
           inset-inline-end: 0;
           position: absolute;
           top: var(--octane-management-axis-position);
@@ -2876,10 +2920,12 @@
         }
         .octane-management-failure-grid-lines {
           bottom: var(--octane-management-failure-axis-row);
+          font-family: Inter, "Segoe UI", Arial, sans-serif;
+          font-size: clamp(0.58rem, 1.8cqi, 0.75rem);
           inset-inline: 0;
           pointer-events: none;
           position: absolute;
-          top: 0;
+          top: 1ch;
           z-index: 0;
         }
         .octane-management-failure-grid-line {
@@ -4453,7 +4499,7 @@
                     <div class="octane-management-y-labels"
                         data-management-y-labels="true"></div>
                     <div class="octane-management-svg-wrap">
-                      <svg class="octane-management-svg" viewBox="0 0 1000 380"
+                      <svg class="octane-management-svg" viewBox="0 0 1000 360"
                           preserveAspectRatio="none" role="img"
                           aria-label="Planned, executed, and passed tests over the gate timeline">
                       </svg>

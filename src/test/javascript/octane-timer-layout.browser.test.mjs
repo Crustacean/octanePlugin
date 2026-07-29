@@ -295,12 +295,14 @@ function managementCard(index, title) {
               octane-management-failure-axis-layout">
             <div class="octane-management-y-axis-title">Defects</div>
             <div class="octane-management-y-labels">
-              <span class="octane-management-axis-value" data-management-axis-value="10"
-                  style="--octane-management-axis-position: 0%">10</span>
-              <span class="octane-management-axis-value" data-management-axis-value="5"
-                  style="--octane-management-axis-position: 50%">5</span>
-              <span class="octane-management-axis-value" data-management-axis-value="0"
-                  style="--octane-management-axis-position: 100%">0</span>
+              <span class="octane-management-failure-axis-track">
+                <span class="octane-management-axis-value" data-management-axis-value="10"
+                    style="--octane-management-axis-position: 0%">10</span>
+                <span class="octane-management-axis-value" data-management-axis-value="5"
+                    style="--octane-management-axis-position: 50%">5</span>
+                <span class="octane-management-axis-value" data-management-axis-value="0"
+                    style="--octane-management-axis-position: 100%">0</span>
+              </span>
             </div>
             <div class="octane-management-failure-chart">
               <span class="octane-management-failure-grid-lines" aria-hidden="true">
@@ -674,6 +676,9 @@ async function constrainedManagementBarMetrics(driver) {
     var failureBarsRect = failureGroup
         .querySelector(".octane-management-failure-bars")
         .getBoundingClientRect();
+    var failureTopLineRect = failure
+        .querySelector('[data-management-grid-value="10"]')
+        .getBoundingClientRect();
     var failureLabelRect = label.getBoundingClientRect();
     return {
       failureAxisY: failureAxisY,
@@ -709,6 +714,7 @@ async function constrainedManagementBarMetrics(driver) {
               value: Number(value)
             };
           }),
+      failureTopInset: failureTopLineRect.top - failureRect.top,
       labelClientWidth: label.clientWidth,
       labelOverflow: labelStyle.overflow,
       labelScrollWidth: label.scrollWidth,
@@ -1217,6 +1223,10 @@ test(
               barMetrics.failureTickAlignment.every(metric => metric.delta <= 1),
               `${viewport.name}: failure labels do not align with their grid lines: `
                   + JSON.stringify(barMetrics.failureTickAlignment));
+          assert.ok(
+              barMetrics.failureTopInset >= 3 && barMetrics.failureTopInset <= 16,
+              `${viewport.name}: failure ceiling clearance is not about one character: `
+                  + JSON.stringify(barMetrics));
           assert.ok(
               barMetrics.stateScrollWidth > barMetrics.stateClientWidth,
               `${viewport.name}: state x-axis did not overflow cleanly`);
