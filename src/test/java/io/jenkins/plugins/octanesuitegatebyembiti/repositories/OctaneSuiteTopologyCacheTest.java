@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneSuiteTopologyCache.Topology;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -32,7 +33,7 @@ public class OctaneSuiteTopologyCacheTest {
     CountDownLatch loaderStarted = new CountDownLatch(1);
     CountDownLatch releaseLoader = new CountDownLatch(1);
     try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      Future<Map<String, List<String>>> first =
+      Future<Map<String, Topology>> first =
           executor.submit(
               () ->
                   OctaneSuiteTopologyCache.getAll(
@@ -42,10 +43,10 @@ public class OctaneSuiteTopologyCacheTest {
                         loads.incrementAndGet();
                         loaderStarted.countDown();
                         assertTrue(releaseLoader.await(5, TimeUnit.SECONDS));
-                        return Map.of("suite-1", List.of("run-1"));
+                        return Map.of("suite-1", topology("run-1"));
                       }));
       assertTrue(loaderStarted.await(5, TimeUnit.SECONDS));
-      Future<Map<String, List<String>>> second =
+      Future<Map<String, Topology>> second =
           executor.submit(
               () ->
                   OctaneSuiteTopologyCache.getAll(
@@ -53,13 +54,14 @@ public class OctaneSuiteTopologyCacheTest {
                       List.of("suite-1"),
                       ids -> {
                         loads.incrementAndGet();
-                        return Map.of("suite-1", List.of("duplicate"));
+                        return Map.of("suite-1", topology("duplicate"));
                       }));
 
       releaseLoader.countDown();
 
-      assertEquals(List.of("run-1"), first.get(5, TimeUnit.SECONDS).get("suite-1"));
-      assertEquals(List.of("run-1"), second.get(5, TimeUnit.SECONDS).get("suite-1"));
+      assertEquals(List.of("run-1"), first.get(5, TimeUnit.SECONDS).get("suite-1").runIds());
+      assertEquals(List.of("run-1"), second.get(5, TimeUnit.SECONDS).get("suite-1").runIds());
+      assertEquals("Owner", second.get(5, TimeUnit.SECONDS).get("suite-1").ownerName());
       assertEquals(1, loads.get());
     }
   }
@@ -69,18 +71,18 @@ public class OctaneSuiteTopologyCacheTest {
     CountDownLatch bothLoadersStarted = new CountDownLatch(2);
     CountDownLatch releaseLoaders = new CountDownLatch(1);
     try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      Future<Map<String, List<String>>> first =
+      Future<Map<String, Topology>> first =
           executor.submit(
               () -> loadAfterBarrier("suite-1", "run-1", bothLoadersStarted, releaseLoaders));
-      Future<Map<String, List<String>>> second =
+      Future<Map<String, Topology>> second =
           executor.submit(
               () -> loadAfterBarrier("suite-2", "run-2", bothLoadersStarted, releaseLoaders));
 
       assertTrue(bothLoadersStarted.await(5, TimeUnit.SECONDS));
       releaseLoaders.countDown();
 
-      assertEquals(List.of("run-1"), first.get(5, TimeUnit.SECONDS).get("suite-1"));
-      assertEquals(List.of("run-2"), second.get(5, TimeUnit.SECONDS).get("suite-2"));
+      assertEquals(List.of("run-1"), first.get(5, TimeUnit.SECONDS).get("suite-1").runIds());
+      assertEquals(List.of("run-2"), second.get(5, TimeUnit.SECONDS).get("suite-2").runIds());
     }
   }
 
@@ -89,16 +91,16 @@ public class OctaneSuiteTopologyCacheTest {
     AtomicInteger loads = new AtomicInteger();
     long loadedAt = 1_000L;
 
-    Map<String, List<String>> initial =
+    Map<String, Topology> initial =
         OctaneSuiteTopologyCache.getAll(
             "server/workspace",
             List.of("suite-1"),
             ids -> {
               loads.incrementAndGet();
-              return Map.of("suite-1", List.of("run-1"));
+              return Map.of("suite-1", topology("run-1"));
             },
             loadedAt);
-    Map<String, List<String>> beforeExpiry =
+    Map<String, Topology> beforeExpiry =
         OctaneSuiteTopologyCache.getAll(
             "server/workspace",
             List.of("suite-1"),
@@ -106,19 +108,19 @@ public class OctaneSuiteTopologyCacheTest {
               throw new AssertionError("A topology entry before its TTL must be reused.");
             },
             loadedAt + OctaneSuiteTopologyCache.ACTIVE_TTL.toNanos() - 1L);
-    Map<String, List<String>> atExpiry =
+    Map<String, Topology> atExpiry =
         OctaneSuiteTopologyCache.getAll(
             "server/workspace",
             List.of("suite-1"),
             ids -> {
               loads.incrementAndGet();
-              return Map.of("suite-1", List.of("run-2"));
+              return Map.of("suite-1", topology("run-2"));
             },
             loadedAt + OctaneSuiteTopologyCache.ACTIVE_TTL.toNanos());
 
-    assertEquals(List.of("run-1"), initial.get("suite-1"));
-    assertEquals(List.of("run-1"), beforeExpiry.get("suite-1"));
-    assertEquals(List.of("run-2"), atExpiry.get("suite-1"));
+    assertEquals(List.of("run-1"), initial.get("suite-1").runIds());
+    assertEquals(List.of("run-1"), beforeExpiry.get("suite-1").runIds());
+    assertEquals(List.of("run-2"), atExpiry.get("suite-1").runIds());
     assertEquals(2, loads.get());
     assertEquals(1L, OctaneSuiteTopologyCache.metrics().hits());
     assertEquals(2L, OctaneSuiteTopologyCache.metrics().misses());
@@ -128,7 +130,7 @@ public class OctaneSuiteTopologyCacheTest {
   public void missingSuiteTopologyCanBeRepopulatedOnTheNextPoll() throws Exception {
     AtomicInteger loads = new AtomicInteger();
 
-    Map<String, List<String>> missing =
+    Map<String, Topology> missing =
         OctaneSuiteTopologyCache.getAll(
             "server/workspace",
             List.of("suite-1"),
@@ -137,18 +139,18 @@ public class OctaneSuiteTopologyCacheTest {
               return Map.of();
             },
             1_000L);
-    Map<String, List<String>> repopulated =
+    Map<String, Topology> repopulated =
         OctaneSuiteTopologyCache.getAll(
             "server/workspace",
             List.of("suite-1"),
             ids -> {
               loads.incrementAndGet();
-              return Map.of("suite-1", List.of("run-2"));
+              return Map.of("suite-1", topology("run-2"));
             },
             1_001L);
 
-    assertEquals(List.of(), missing.get("suite-1"));
-    assertEquals(List.of("run-2"), repopulated.get("suite-1"));
+    assertEquals(List.of(), missing.get("suite-1").runIds());
+    assertEquals(List.of("run-2"), repopulated.get("suite-1").runIds());
     assertEquals(2, loads.get());
     assertEquals(0L, OctaneSuiteTopologyCache.metrics().hits());
     assertEquals(2L, OctaneSuiteTopologyCache.metrics().misses());
@@ -158,31 +160,31 @@ public class OctaneSuiteTopologyCacheTest {
   public void isolatesIdenticalSuiteIdsByServerWorkspaceNamespace() throws Exception {
     AtomicInteger loads = new AtomicInteger();
 
-    Map<String, List<String>> first =
+    Map<String, Topology> first =
         OctaneSuiteTopologyCache.getAll(
             "server-a/workspace-1",
             List.of("suite-1"),
             ids -> {
               loads.incrementAndGet();
-              return Map.of("suite-1", List.of("run-a"));
+              return Map.of("suite-1", topology("run-a"));
             },
             1_000L);
-    Map<String, List<String>> second =
+    Map<String, Topology> second =
         OctaneSuiteTopologyCache.getAll(
             "server-b/workspace-1",
             List.of("suite-1"),
             ids -> {
               loads.incrementAndGet();
-              return Map.of("suite-1", List.of("run-b"));
+              return Map.of("suite-1", topology("run-b"));
             },
             1_000L);
 
-    assertEquals(List.of("run-a"), first.get("suite-1"));
-    assertEquals(List.of("run-b"), second.get("suite-1"));
+    assertEquals(List.of("run-a"), first.get("suite-1").runIds());
+    assertEquals(List.of("run-b"), second.get("suite-1").runIds());
     assertEquals(2, loads.get());
   }
 
-  private Map<String, List<String>> loadAfterBarrier(
+  private Map<String, Topology> loadAfterBarrier(
       String suiteId,
       String runId,
       CountDownLatch bothLoadersStarted,
@@ -194,7 +196,11 @@ public class OctaneSuiteTopologyCacheTest {
         ids -> {
           bothLoadersStarted.countDown();
           assertTrue(releaseLoaders.await(5, TimeUnit.SECONDS));
-          return Map.of(suiteId, List.of(runId));
+          return Map.of(suiteId, topology(runId));
         });
+  }
+
+  private Topology topology(String runId) {
+    return new Topology(List.of(runId), "Owner");
   }
 }

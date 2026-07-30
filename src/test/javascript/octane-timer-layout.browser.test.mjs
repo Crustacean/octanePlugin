@@ -131,18 +131,40 @@ function timerCard(index, title) {
           </div>
           <div class="octane-flip-face-body" data-test-metrics-panel="true">
             <div class="octane-test-metrics-grid">
-              <article class="octane-test-metric-card octane-test-metric-avg-time">
-                <div class="octane-test-metric-heading"><span>Avg. Execution Time</span></div>
-                <div class="octane-test-metric-visual octane-test-metric-visual-sparkline">
-                  <div class="octane-test-metric-value">14m 22s</div>
-                  <svg class="octane-test-metric-sparkline" viewBox="0 0 56 40"
-                      preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                    <polyline points="4,32 20,24 36,29 52,8"></polyline>
-                  </svg>
+              <article class="octane-test-metric-card octane-test-metric-automation-usage">
+                <div class="octane-test-metric-heading"><span>Automation Usage</span></div>
+                <div class="octane-test-metric-visual octane-test-metric-visual-automation">
+                  <div class="octane-test-metric-value">80%</div>
+                  <div class="octane-test-metric-automation-segments"
+                      data-test-metric-segments="true">
+                    <div class="octane-test-metric-automation-track"
+                        aria-label="8/10 tests Automated" role="img">
+                      <span class="octane-test-metric-automation-color
+                          octane-test-metric-automation-automated"
+                          style="--octane-test-metric-segment-share:80%"></span>
+                      <span class="octane-test-metric-automation-color
+                          octane-test-metric-automation-manual"
+                          style="--octane-test-metric-segment-share:20%"></span>
+                    </div>
+                    <div class="octane-test-metric-automation-labels">
+                      <div class="octane-test-metric-automation-segment"
+                          data-test-metric-segment="true" data-full-label="🔥 Automated"
+                          data-short-label="🔥"
+                          style="--octane-test-metric-segment-share:80%">
+                        <span class="octane-test-metric-segment-label">🔥 Automated</span>
+                      </div>
+                      <div class="octane-test-metric-automation-segment"
+                          data-test-metric-segment="true" data-full-label="🐢 Manual"
+                          data-short-label="🐢"
+                          style="--octane-test-metric-segment-share:20%">
+                        <span class="octane-test-metric-segment-label">🐢 Manual</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="octane-test-metric-detail">779 executed tests</div>
-                <div class="octane-test-metric-trend octane-test-metric-trend-neutral">
-                  No change from last cycle
+                <div class="octane-test-metric-detail">8/10 tests Automated</div>
+                <div class="octane-test-metric-trend octane-test-metric-trend-positive">
+                  Target achieved
                 </div>
               </article>
               <article class="octane-test-metric-card octane-test-metric-success-rate">
@@ -518,15 +540,28 @@ function chromiumFixtureHtml() {
                     && graphRect.bottom <= bodyRect.bottom + 1;
               });
             }
-            var checks = [cards.length === 4 && graphsFit(cards)];
-            zone.classList.add("octane-zone-focused");
-            checks.push(graphsFit(cards));
-            zone.classList.remove("octane-zone-focused");
-            cards[0].classList.add("octane-expanded");
-            checks.push(graphsFit([cards[0]]));
-            document.body.setAttribute("data-chromium-checks", checks.join(","));
-            document.body.setAttribute(
-                "data-chromium-layout", checks.every(Boolean) ? "pass" : "fail");
+            function afterPaint(callback) {
+              setTimeout(function () {
+                void zone.offsetHeight;
+                callback();
+              }, 0);
+            }
+            var checks = [];
+            afterPaint(function () {
+              checks.push(cards.length === 4 && graphsFit(cards));
+              zone.classList.add("octane-zone-focused");
+              afterPaint(function () {
+                checks.push(graphsFit(cards));
+                zone.classList.remove("octane-zone-focused");
+                cards[0].classList.add("octane-expanded");
+                afterPaint(function () {
+                  checks.push(graphsFit([cards[0]]));
+                  document.body.setAttribute("data-chromium-checks", checks.join(","));
+                  document.body.setAttribute(
+                      "data-chromium-layout", checks.every(Boolean) ? "pass" : "fail");
+                });
+              });
+            });
       })();
     </script>
   </body>`);
@@ -846,7 +881,7 @@ async function testMetricLayout(driver, expanded, focused) {
         });
     var title = card.querySelector(".octane-flip-face-metrics .octane-card-title");
     var subtitle = card.querySelector(".octane-flip-face-metrics .octane-muted");
-    var sparkline = card.querySelector(".octane-test-metric-sparkline");
+    var automationTrack = card.querySelector(".octane-test-metric-automation-track");
     var gauge = card.querySelector(".octane-test-metric-gauge-svg");
     var gaugePath = card.querySelector(".octane-test-metric-gauge-fill");
     var gaugeValue = card.querySelector(".octane-test-metric-gauge-value");
@@ -886,7 +921,7 @@ async function testMetricLayout(driver, expanded, focused) {
     var containedElements = card.querySelectorAll(
               ".octane-test-metric-heading, .octane-test-metric-value, "
               + ".octane-test-metric-detail, .octane-test-metric-trend, "
-              + ".octane-test-metric-sparkline, .octane-test-metric-gauge-svg, "
+              + ".octane-test-metric-automation-segments, .octane-test-metric-gauge-svg, "
               + ".octane-test-metric-progress, .octane-test-metric-defect-segments");
     var escapedContent = Array.prototype.filter.call(containedElements, function (element) {
       var rect = element.getBoundingClientRect();
@@ -944,9 +979,13 @@ async function testMetricLayout(driver, expanded, focused) {
           && executionValue.scrollWidth <= executionValue.clientWidth + 1,
       executionValueFontSize: parseFloat(executionValueStyle.fontSize),
       executionValueLineHeight: parseFloat(executionValueStyle.lineHeight),
-      labels: Array.prototype.map.call(
+      automationLabels: Array.prototype.map.call(
+          card.querySelectorAll(".octane-test-metric-segment-label"),
+          function (label) { return label.textContent.trim(); }),
+      defectLabels: Array.prototype.map.call(
           card.querySelectorAll(".octane-test-metric-defect-label"),
           function (label) { return label.textContent.trim(); }),
+      automationRatio: ratio(automationTrack),
       progressRatio: ratio(progress),
       segmentRadii: Array.prototype.map.call(colors, function (color) {
         var style = getComputedStyle(color);
@@ -957,7 +996,6 @@ async function testMetricLayout(driver, expanded, focused) {
           topRight: parseFloat(style.borderTopRightRadius)
         };
       }),
-      sparklineRatio: ratio(sparkline),
       subtitleFontSize: parseFloat(getComputedStyle(subtitle).fontSize),
       titleFontSize: parseFloat(getComputedStyle(title).fontSize),
       trends: Array.prototype.map.call(
@@ -1265,8 +1303,9 @@ test(
               `${viewport.name}: Test Metrics content escaped its card: `
                   + JSON.stringify(testMetrics));
           assert.ok(
-              Math.abs(testMetrics.sparklineRatio - 1.4) <= 0.08,
-              `${viewport.name}: sparkline aspect ratio changed: ${JSON.stringify(testMetrics)}`);
+              Math.abs(testMetrics.automationRatio - 34) <= 1,
+              `${viewport.name}: automation bar aspect ratio changed: `
+                  + JSON.stringify(testMetrics));
           assert.ok(
               Math.abs(testMetrics.gaugeRatio - 1.75) <= 0.08,
               `${viewport.name}: gauge aspect ratio changed: ${JSON.stringify(testMetrics)}`);
@@ -1332,7 +1371,8 @@ test(
                 {left: false, right: true}],
               `${viewport.name}: defect segment outer corners are incorrect`);
           testMetricSizes[viewport.name] = {
-            labels: testMetrics.labels,
+            automationLabels: testMetrics.automationLabels,
+            defectLabels: testMetrics.defectLabels,
             subtitle: testMetrics.subtitleFontSize,
             title: testMetrics.titleFontSize
           };
@@ -1481,11 +1521,19 @@ test(
                 && testMetricSizes.wide.subtitle > testMetricSizes.compact.subtitle,
             `Test Metrics header typography did not scale: ${JSON.stringify(testMetricSizes)}`);
         assert.ok(
-            testMetricSizes.compact.labels.some(label => /^[A-Z] \(\d+\)$/.test(label)),
+            testMetricSizes.compact.defectLabels.some(label => /^[A-Z] \(\d+\)$/.test(label)),
             `Compact defect labels were not abbreviated: ${JSON.stringify(testMetricSizes)}`);
         assert.deepEqual(
-            testMetricSizes.wide.labels,
+            testMetricSizes.wide.defectLabels,
             ["Major (14)", "Medium (9)", "Unspecified (5)"],
             `Wide defect labels were not restored: ${JSON.stringify(testMetricSizes)}`);
+        assert.ok(
+            testMetricSizes.compact.automationLabels.includes("🐢"),
+            `Compact automation labels did not fall back to emojis: `
+                + JSON.stringify(testMetricSizes));
+        assert.deepEqual(
+            testMetricSizes.wide.automationLabels,
+            ["🔥 Automated", "🐢 Manual"],
+            `Wide automation labels were not restored: ${JSON.stringify(testMetricSizes)}`);
       });
     });

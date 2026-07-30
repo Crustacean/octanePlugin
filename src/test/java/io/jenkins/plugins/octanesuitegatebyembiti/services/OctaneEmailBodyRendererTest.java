@@ -394,6 +394,21 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void placesAutomationUsageBelowPassRateAndPaintsItsTargetStatus() {
+    String achieved = renderExecutionDetails(automationSnapshot(8, 2, 80), OctaneReportTheme.LIGHT);
+    String warning = renderExecutionDetails(automationSnapshot(7, 3, 80), OctaneReportTheme.DARK);
+    String action = renderExecutionDetails(automationSnapshot(6, 4, 80), OctaneReportTheme.LIGHT);
+    String unavailable =
+        renderExecutionDetails(automationSnapshot(0, 0, 80), OctaneReportTheme.LIGHT);
+
+    assertTrue(achieved.indexOf("Pass Rate") < achieved.indexOf("Automation Usage"));
+    assertAutomationUsageCell(achieved, "80%", "#34C759", "#ffffff", true);
+    assertAutomationUsageCell(warning, "70%", "#FF9F0A", "#ffffff", true);
+    assertAutomationUsageCell(action, "60%", "#FF3B30", "#ffffff", true);
+    assertAutomationUsageCell(unavailable, "0%", "transparent", "inherit", false);
+  }
+
+  @Test
   public void conditionallyRendersDefectGroupsBelowCriteria() {
     String template =
         """
@@ -504,6 +519,18 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(row.contains("background-color:" + backgroundColor + ";"));
     assertTrue(row.contains("color:" + fontColor + ";"));
     assertTrue(row.contains(">90%</td>"));
+  }
+
+  private void assertAutomationUsageCell(
+      String html, String value, String backgroundColor, String fontColor, boolean expectsBgcolor) {
+    String row = detailRow(html, "Automation Usage");
+    assertEquals(expectsBgcolor, row.contains("bgcolor="));
+    if (expectsBgcolor) {
+      assertTrue(row.contains("bgcolor=\"" + backgroundColor + "\""));
+    }
+    assertTrue(row.contains("background-color:" + backgroundColor + ";"));
+    assertTrue(row.contains("color:" + fontColor + ";"));
+    assertTrue(row.contains(">" + value + "</td>"));
   }
 
   private String passRateRow(String html) {
@@ -631,6 +658,53 @@ public class OctaneEmailBodyRendererTest {
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(
         state, "Reconciliation snapshot.", result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot automationSnapshot(int automated, int manual, int target) {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < automated; index++) {
+      runs.add(
+          new RunRecord(
+              "automated-" + index,
+              "Automated " + index,
+              "passed",
+              "Jenkins Agent",
+              "Assigned Tester",
+              "test-a-" + index,
+              "Test",
+              "",
+              ""));
+    }
+    for (int index = 0; index < manual; index++) {
+      runs.add(
+          new RunRecord(
+              "manual-" + index,
+              "Manual " + index,
+              "passed",
+              "Assigned Tester",
+              "Assigned Tester",
+              "test-m-" + index,
+              "Test",
+              "",
+              ""));
+    }
+    GateResult result =
+        new GateResult(
+            "suite-1",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("suite-1", runs),
+            Map.of(),
+            Instant.parse("2026-06-30T12:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Gate passed.", result, classifier, 30);
+    return snapshot
+        .withTestMetrics(snapshot.getTestMetrics().withAutomatedTestingTarget(target))
+        .withCalculatedTestMetrics(null);
   }
 
   private OctaneDefectGroup defectGroup(String name, String types) {

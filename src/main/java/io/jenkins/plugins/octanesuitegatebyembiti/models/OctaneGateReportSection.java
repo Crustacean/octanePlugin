@@ -245,7 +245,7 @@ public class OctaneGateReportSection implements Serializable {
         continue;
       }
       for (RunRecord run : entry.getValue()) {
-        String label = runByLabel(run, entry.getKey());
+        String label = assignedUserLabel(run, entry.getKey());
         String key = groupKey(label);
         groups.putIfAbsent(key, new RunByGroup(label));
         groups.get(key).addSuiteRunId(entry.getKey());
@@ -255,9 +255,9 @@ public class OctaneGateReportSection implements Serializable {
     return List.copyOf(groups.values());
   }
 
-  private static String runByLabel(RunRecord run, String suiteRunId) {
-    if (!Util.isBlank(run.getRunByName())) {
-      return run.getRunByName();
+  private static String assignedUserLabel(RunRecord run, String suiteRunId) {
+    if (!Util.isBlank(run.getAssignedToName())) {
+      return run.getAssignedToName();
     }
     if (Util.isBlank(suiteRunId)) {
       return "Unassigned";

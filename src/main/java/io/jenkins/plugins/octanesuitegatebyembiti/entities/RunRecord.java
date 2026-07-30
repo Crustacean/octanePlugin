@@ -12,6 +12,7 @@ public class RunRecord implements Serializable {
   private final String name;
   private final String status;
   private final String runByName;
+  private final String assignedToName;
   private final String testId;
   private final String testName;
   private final String projectId;
@@ -22,7 +23,7 @@ public class RunRecord implements Serializable {
   }
 
   public RunRecord(String id, String name, String status, String runByName) {
-    this(id, name, status, runByName, "", "", "", "");
+    this(id, name, status, runByName, runByName, "", "", "", "");
   }
 
   public RunRecord(
@@ -34,10 +35,24 @@ public class RunRecord implements Serializable {
       String testName,
       String projectId,
       String projectName) {
+    this(id, name, status, runByName, runByName, testId, testName, projectId, projectName);
+  }
+
+  public RunRecord(
+      String id,
+      String name,
+      String status,
+      String runByName,
+      String assignedToName,
+      String testId,
+      String testName,
+      String projectId,
+      String projectName) {
     this.id = Util.trimToEmpty(id);
     this.name = Util.trimToEmpty(name);
     this.status = Util.trimToEmpty(status);
     this.runByName = Util.trimToEmpty(runByName);
+    this.assignedToName = Util.trimToEmpty(assignedToName);
     this.testId = Util.trimToEmpty(testId);
     this.testName = Util.trimToEmpty(testName);
     this.projectId = Util.trimToEmpty(projectId);
@@ -58,6 +73,15 @@ public class RunRecord implements Serializable {
 
   public String getRunByName() {
     return runByName;
+  }
+
+  public String getAssignedToName() {
+    return assignedToName;
+  }
+
+  public RunRecord withAssignedToName(String assignedToName) {
+    return new RunRecord(
+        id, name, status, runByName, assignedToName, testId, testName, projectId, projectName);
   }
 
   public String getTestId() {
@@ -82,6 +106,7 @@ public class RunRecord implements Serializable {
     values.put("name", name);
     values.put("status", status);
     values.put("runByName", runByName);
+    values.put("assignedToName", getAssignedToName());
     values.put("testId", testId);
     values.put("testName", testName);
     values.put("projectId", projectId);

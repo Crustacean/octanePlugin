@@ -659,7 +659,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       List<RunRecord> runs, StatusClassifier classifier) {
     Map<String, TesterAccumulator> testers = new LinkedHashMap<>();
     for (RunRecord run : runs) {
-      String name = Util.isBlank(run.getRunByName()) ? "Unassigned" : run.getRunByName();
+      String name = Util.isBlank(run.getAssignedToName()) ? "Unassigned" : run.getAssignedToName();
       String key = name.toLowerCase(Locale.ROOT);
       testers.computeIfAbsent(key, ignored -> new TesterAccumulator(name)).addRun(run, classifier);
     }
@@ -671,7 +671,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     Map<String, Set<String>> testerKeysByRun = new LinkedHashMap<>();
     Map<String, Set<String>> testerKeysByTest = new LinkedHashMap<>();
     for (RunRecord run : runs) {
-      String name = Util.isBlank(run.getRunByName()) ? "Unassigned" : run.getRunByName();
+      String name = Util.isBlank(run.getAssignedToName()) ? "Unassigned" : run.getAssignedToName();
       String testerKey = name.toLowerCase(Locale.ROOT);
       if (!Util.isBlank(run.getId())) {
         testerKeysByRun

@@ -159,7 +159,8 @@ public class OctaneGateReportSnapshot implements Serializable {
             Instant.now().toString(),
             List.of(),
             request.isRiskHeatMap() ? OctaneRiskHeatMap.waiting() : OctaneRiskHeatMap.disabled(),
-            OctaneTestMetrics.empty(),
+            OctaneTestMetrics.empty()
+                .withAutomatedTestingTarget(request.getAutomatedTestingTarget()),
             OctaneDefectTrend.start(
                 startedAt,
                 (toSeconds(request.getTimeoutMinutes())
@@ -245,7 +246,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             result.getPolledAt().toString(),
             sections,
             result.getRiskHeatMap(),
-            OctaneTestMetrics.empty(),
+            OctaneTestMetrics.fromResult(result),
             OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L),
             OctaneTestManagementAnalytics.fromResult(
                 startedAt,

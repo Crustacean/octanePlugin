@@ -1,7 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class OctaneTestMetrics implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -20,24 +21,36 @@ public class OctaneTestMetrics implements Serializable {
   private static final String NEGATIVE = "negative";
   private static final String WARNING = "warning";
   private static final double ACTION_DEGRADATION_PERCENT = 30.0;
+  private static final Pattern AUTOMATED_RUNNER =
+      Pattern.compile("jenkins", Pattern.CASE_INSENSITIVE);
 
   private final List<OctaneTestMetricCard> cards;
+  private final int automatedTestCount;
+  private final int manualTestCount;
+  private final int automatedTestingTarget;
 
-  private OctaneTestMetrics(List<OctaneTestMetricCard> cards) {
+  private OctaneTestMetrics(
+      List<OctaneTestMetricCard> cards,
+      int automatedTestCount,
+      int manualTestCount,
+      int automatedTestingTarget) {
     this.cards = List.copyOf(cards);
+    this.automatedTestCount = Math.max(0, automatedTestCount);
+    this.manualTestCount = Math.max(0, manualTestCount);
+    this.automatedTestingTarget = percentageTarget(automatedTestingTarget);
   }
 
   public static OctaneTestMetrics empty() {
     return new OctaneTestMetrics(
         List.of(
             card(
-                "avg-time",
-                "Avg. Execution Time",
-                "N/A",
-                "0 executed tests",
-                NO_BASELINE,
+                "automation-usage",
+                "Automation Usage",
+                "0%",
+                "0/0 tests automated. Target 100%",
+                "Waiting for run data",
                 NEUTRAL,
-                "timer"),
+                "automation"),
             card(
                 "success-rate",
                 "Success Rate",
@@ -61,7 +74,42 @@ public class OctaneTestMetrics implements Serializable {
                 "Risk heat map unavailable",
                 NO_BASELINE,
                 NEUTRAL,
-                "defect")));
+                "defect")),
+        0,
+        0,
+        GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET);
+  }
+
+  public static OctaneTestMetrics fromResult(GateResult result) {
+    if (result == null) {
+      return empty();
+    }
+    Map<String, RunRecord> uniqueRuns = new LinkedHashMap<>();
+    collectRuns(uniqueRuns, result.getRuns());
+    for (List<RunRecord> suiteRuns : result.getSuiteRuns().values()) {
+      collectRuns(uniqueRuns, suiteRuns);
+    }
+    for (GateScopeResult scope : result.getScopedResults().values()) {
+      if (!scope.isActive()) {
+        continue;
+      }
+      collectRuns(uniqueRuns, scope.getRuns());
+      for (List<RunRecord> suiteRuns : scope.getSuiteRuns().values()) {
+        collectRuns(uniqueRuns, suiteRuns);
+      }
+    }
+
+    int automated = 0;
+    int manual = 0;
+    for (RunRecord run : uniqueRuns.values()) {
+      if (AUTOMATED_RUNNER.matcher(run.getRunByName()).find()) {
+        automated++;
+      } else {
+        manual++;
+      }
+    }
+    return new OctaneTestMetrics(
+        List.of(), automated, manual, GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET);
   }
 
   public static OctaneTestMetrics fromSnapshots(
@@ -70,16 +118,55 @@ public class OctaneTestMetrics implements Serializable {
       return empty();
     }
 
+    OctaneTestMetrics usage = current.getTestMetrics();
+    OctaneTestMetrics previousUsage = previous == null ? null : previous.getTestMetrics();
     List<OctaneTestMetricCard> cards = new ArrayList<>();
-    cards.add(avgExecutionTime(current, previous));
+    cards.add(automationUsage(usage, previousUsage));
     cards.add(successRate(current, previous));
     cards.add(executionCompletion(current, previous));
     cards.add(openDefects(current, previous));
-    return new OctaneTestMetrics(cards);
+    return new OctaneTestMetrics(
+        cards,
+        usage.getAutomatedTestCount(),
+        usage.getManualTestCount(),
+        usage.getAutomatedTestingTarget());
   }
 
   public List<OctaneTestMetricCard> getCards() {
     return cards;
+  }
+
+  public int getAutomatedTestCount() {
+    return automatedTestCount;
+  }
+
+  public int getManualTestCount() {
+    return manualTestCount;
+  }
+
+  public int getAutomationTestTotal() {
+    return automatedTestCount + manualTestCount;
+  }
+
+  public int getAutomationPercentage() {
+    int total = getAutomationTestTotal();
+    return total == 0 ? 0 : (int) Math.round(automatedTestCount * 100.0 / total);
+  }
+
+  public String getAutomationPercentageText() {
+    return getAutomationPercentage() + "%";
+  }
+
+  public int getAutomatedTestingTarget() {
+    return percentageTarget(automatedTestingTarget);
+  }
+
+  public String getAutomationTone() {
+    return automationTargetTone(this);
+  }
+
+  public OctaneTestMetrics withAutomatedTestingTarget(int target) {
+    return new OctaneTestMetrics(cards, automatedTestCount, manualTestCount, target);
   }
 
   public Map<String, Object> toMap() {
@@ -89,34 +176,33 @@ public class OctaneTestMetrics implements Serializable {
       cardValues.add(card.toMap());
     }
     values.put("cards", cardValues);
+    values.put("automatedTestCount", automatedTestCount);
+    values.put("manualTestCount", manualTestCount);
+    values.put("automationTestTotal", getAutomationTestTotal());
+    values.put("automationPercentage", getAutomationPercentage());
+    values.put("automatedTestingTarget", getAutomatedTestingTarget());
     return values;
   }
 
-  private static OctaneTestMetricCard avgExecutionTime(
-      OctaneGateReportSnapshot current, OctaneGateReportSnapshot previous) {
-    int executed = current.getExecutedTestCount();
-    Long currentAverage = executed == 0 ? null : current.getTestingElapsedMillis() / executed;
-    Long previousAverage =
-        previous == null || previous.getExecutedTestCount() == 0
-            ? null
-            : previous.getTestingElapsedMillis() / previous.getExecutedTestCount();
-    String value = currentAverage == null ? "N/A" : formatDuration(currentAverage);
-    String detail = executed + " executed " + (executed == 1 ? "test" : "tests");
-    Trend trend =
-        currentAverage == null
-            ? Trend.neutral("Awaiting executed tests")
-            : durationTrend(currentAverage, previousAverage, false);
+  private static OctaneTestMetricCard automationUsage(
+      OctaneTestMetrics usage, OctaneTestMetrics previousUsage) {
+    Trend trend = automationCycleTrend(usage, previousUsage);
     return card(
-        "avg-time",
-        "Avg. Execution Time",
-        value,
-        detail,
+        "automation-usage",
+        "Automation Usage",
+        usage.getAutomationPercentageText(),
+        usage.getAutomatedTestCount()
+            + "/"
+            + usage.getAutomationTestTotal()
+            + " tests automated. Target "
+            + usage.getAutomatedTestingTarget()
+            + "%",
         trend.text,
         trend.tone,
-        "timer",
-        0.0,
-        sparklinePoints(currentAverage, previousAverage),
-        List.of());
+        "automation",
+        usage.getAutomationPercentage(),
+        "",
+        automationSegments(usage));
   }
 
   private static OctaneTestMetricCard successRate(
@@ -194,6 +280,86 @@ public class OctaneTestMetrics implements Serializable {
         defectSegments(current));
   }
 
+  private static Trend automationCycleTrend(
+      OctaneTestMetrics usage, OctaneTestMetrics previousUsage) {
+    int total = usage.getAutomationTestTotal();
+    if (total == 0) {
+      return Trend.neutral("Waiting for run data");
+    }
+    String targetTone = automationTargetTone(usage);
+    if (previousUsage == null || previousUsage.getAutomationTestTotal() == 0) {
+      return Trend.of(NO_BASELINE, targetTone);
+    }
+    int delta = usage.getAutomationPercentage() - previousUsage.getAutomationPercentage();
+    if (delta == 0) {
+      return Trend.of("No change from last cycle", targetTone);
+    }
+    return Trend.of((delta > 0 ? "+" : "") + delta + "% from last cycle", targetTone);
+  }
+
+  private static String automationTargetTone(OctaneTestMetrics usage) {
+    if (usage.getAutomationTestTotal() == 0) {
+      return NEUTRAL;
+    }
+    int difference = usage.getAutomationPercentage() - usage.getAutomatedTestingTarget();
+    if (difference >= 0) {
+      return POSITIVE;
+    }
+    int deficit = Math.abs(difference);
+    return deficit <= 10 ? WARNING : NEGATIVE;
+  }
+
+  private static List<OctaneTestMetricSegment> automationSegments(OctaneTestMetrics usage) {
+    int total = usage.getAutomationTestTotal();
+    if (total == 0) {
+      return List.of();
+    }
+    List<OctaneTestMetricSegment> segments = new ArrayList<>();
+    if (usage.getAutomatedTestCount() > 0) {
+      segments.add(
+          new OctaneTestMetricSegment(
+              "🔥 Automated",
+              "🔥",
+              usage.getAutomatedTestCount(),
+              usage.getAutomatedTestCount() * 100.0 / total,
+              "automated",
+              0));
+    }
+    if (usage.getManualTestCount() > 0) {
+      segments.add(
+          new OctaneTestMetricSegment(
+              "🐢 Manual",
+              "🐢",
+              usage.getManualTestCount(),
+              usage.getManualTestCount() * 100.0 / total,
+              "manual",
+              1));
+    }
+    return List.copyOf(segments);
+  }
+
+  private static void collectRuns(Map<String, RunRecord> uniqueRuns, List<RunRecord> runs) {
+    for (RunRecord run : runs) {
+      if (run == null) {
+        continue;
+      }
+      String id = run.getId();
+      String key =
+          id.isBlank()
+              ? String.join(
+                  "\u0000", run.getName(), run.getTestId(), run.getStatus(), run.getRunByName())
+              : id;
+      uniqueRuns.putIfAbsent(key, run);
+    }
+  }
+
+  private static int percentageTarget(int value) {
+    if (value <= 0) {
+      return GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET;
+    }
+    return Math.min(100, value);
+  }
+
   private static OctaneTestMetricCard card(
       String key,
       String title,
@@ -256,20 +422,6 @@ public class OctaneTestMetrics implements Serializable {
         trendTone(current, previous.doubleValue(), higherIsBetter));
   }
 
-  private static Trend durationTrend(long current, Long previous, boolean higherIsBetter) {
-    if (previous == null) {
-      return Trend.neutral(NO_BASELINE);
-    }
-    long delta = current - previous;
-    if (Math.abs(delta) < 1000L) {
-      return Trend.neutral("No change from last cycle");
-    }
-    String sign = delta > 0 ? "+" : "-";
-    return Trend.of(
-        sign + formatDuration(Math.abs(delta)) + " from last cycle",
-        trendTone(current, previous.doubleValue(), higherIsBetter));
-  }
-
   private static String trendTone(double current, double previous, boolean higherIsBetter) {
     double delta = current - previous;
     boolean good = higherIsBetter ? delta > 0 : delta < 0;
@@ -279,27 +431,6 @@ public class OctaneTestMetrics implements Serializable {
     double degradationPercent =
         previous == 0.0 ? 100.0 : Math.abs(delta) * 100.0 / Math.abs(previous);
     return degradationPercent > ACTION_DEGRADATION_PERCENT ? NEGATIVE : WARNING;
-  }
-
-  private static String sparklinePoints(Long current, Long previous) {
-    if (current == null) {
-      return "4,32 20,32 36,32 52,32";
-    }
-    double start = previous == null ? current.doubleValue() : previous.doubleValue();
-    double end = current.doubleValue();
-    double maximum = Math.max(1.0, Math.max(start, end));
-    StringBuilder points = new StringBuilder();
-    for (int index = 0; index < 4; index++) {
-      double ratio = index / 3.0;
-      double value = start + ((end - start) * ratio);
-      int x = 4 + (index * 16);
-      int y = (int) Math.round(36.0 - ((value / maximum) * 28.0));
-      if (index > 0) {
-        points.append(' ');
-      }
-      points.append(x).append(',').append(Math.max(4, Math.min(36, y)));
-    }
-    return points.toString();
   }
 
   private static List<OctaneTestMetricSegment> defectSegments(OctaneGateReportSnapshot snapshot) {
@@ -416,16 +547,6 @@ public class OctaneTestMetrics implements Serializable {
 
   private static String formatPercent(double value) {
     return String.format(Locale.ROOT, "%.1f%%", value);
-  }
-
-  private static String formatDuration(long millis) {
-    Duration duration = Duration.ofMillis(Math.max(0L, millis));
-    long minutes = duration.toMinutes();
-    long seconds = duration.minusMinutes(minutes).toSeconds();
-    if (minutes <= 0) {
-      return seconds + "s";
-    }
-    return minutes + "m " + seconds + "s";
   }
 
   private static class Trend {

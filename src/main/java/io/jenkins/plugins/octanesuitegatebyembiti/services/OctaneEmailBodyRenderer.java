@@ -693,6 +693,10 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "Skipped test cases", statusCount(snapshot, "Skipped"));
     appendDetailRow(html, "Execution rate", executionRate);
     appendDetailRow(html, "Pass Rate", passRate, passRateStyle);
+    String automationUsage =
+        snapshot == null ? "0%" : snapshot.getTestMetrics().getAutomationPercentageText();
+    appendDetailRow(
+        html, "Automation Usage", automationUsage, automationUsageCellStyle(snapshot, theme));
     html.append("</tbody></table>");
   }
 
@@ -768,6 +772,27 @@ public class OctaneEmailBodyRenderer {
       }
     }
     return EmailValueCellStyle.fallbackStyle();
+  }
+
+  private EmailValueCellStyle automationUsageCellStyle(
+      OctaneGateReportSnapshot snapshot, String theme) {
+    if (snapshot == null || snapshot.getTestMetrics().getAutomationTestTotal() == 0) {
+      return EmailValueCellStyle.fallbackStyle();
+    }
+    boolean darkTheme = emailTheme(theme) == OctaneReportTheme.DARK;
+    switch (snapshot.getTestMetrics().getAutomationTone()) {
+      case "positive":
+        return EmailValueCellStyle.painted(
+            darkTheme ? DARK_SYSTEM_GREEN : LIGHT_SYSTEM_GREEN, "#ffffff");
+      case "warning":
+        return EmailValueCellStyle.painted(
+            darkTheme ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE, "#ffffff");
+      case "negative":
+        return EmailValueCellStyle.painted(
+            darkTheme ? DARK_SYSTEM_RED : LIGHT_SYSTEM_RED, "#ffffff");
+      default:
+        return EmailValueCellStyle.fallbackStyle();
+    }
   }
 
   private OctaneReportTheme emailTheme(String theme) {

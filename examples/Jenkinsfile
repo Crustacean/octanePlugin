@@ -8,6 +8,7 @@ pipeline {
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
     OCTANE_PROJECT_NAME = 'Business Payments Secure Checkout'
     OCTANE_DOMAIN_NAME = 'FS_TRIBE_DOMAIN'
+    AUTOMATED_TESTING_TARGET = '80'
   }
 
   stages {

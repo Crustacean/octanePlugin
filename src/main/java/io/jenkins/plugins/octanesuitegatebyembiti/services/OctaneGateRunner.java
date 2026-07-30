@@ -965,6 +965,7 @@ public class OctaneGateRunner {
               + scopeQueryHint(scope)
               + e.getMessage());
     }
+    scopedRuns = applySuiteAttribution(regressionSuiteRuns, scopedRuns);
     GateMetrics metrics = GateMetrics.fromRuns(scopedRuns, classifier);
     return new GateScopeResult(
         scope.getName(),
@@ -975,6 +976,22 @@ public class OctaneGateRunner {
         metrics,
         scopedRuns,
         groupScopedRunsBySuiteRun(regressionSuiteRuns, scopedRuns));
+  }
+
+  private List<RunRecord> applySuiteAttribution(
+      Map<String, List<RunRecord>> suiteRuns, List<RunRecord> scopedRuns) {
+    Map<String, String> assignedUsersByRunId = new LinkedHashMap<>();
+    for (List<RunRecord> runs : suiteRuns.values()) {
+      for (RunRecord run : runs) {
+        assignedUsersByRunId.putIfAbsent(run.getId(), run.getAssignedToName());
+      }
+    }
+    return scopedRuns.stream()
+        .map(
+            run ->
+                run.withAssignedToName(
+                    assignedUsersByRunId.getOrDefault(run.getId(), run.getAssignedToName())))
+        .toList();
   }
 
   private OctaneGateReportState failureState(GateRequest request) {

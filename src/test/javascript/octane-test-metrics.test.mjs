@@ -98,6 +98,22 @@ test("uses the compact defect label when the rendered segment is narrow", () => 
   assert.equal(segment.label.title, "Unspecified (5)");
 });
 
+test("falls back to automation emojis when a segment cannot fit its name", () => {
+  const segment = metricSegment({
+    availableWidth: 34,
+    fullLabel: "🔥 Automated",
+    fullWidth: 96,
+    shortLabel: "🔥",
+    shortWidth: 18
+  });
+  const {context, root} = contextFor([segment]);
+
+  context.fitTestMetricSegmentLabels(root);
+
+  assert.equal(segment.label.textContent, "🔥");
+  assert.equal(segment.label.title, "🔥 Automated");
+});
+
 test("retains responsive and polling hooks for refreshed metric markup", () => {
   assert.match(jelly, /new window\.ResizeObserver/);
   assert.match(jelly, /testMetricSegmentResizeObserver\.disconnect\(\)/);
@@ -106,7 +122,6 @@ test("retains responsive and polling hooks for refreshed metric markup", () => {
   assert.match(jelly, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(jelly, /grid-template-rows: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(jelly, /\.octane-test-metric-card \{[\s\S]*?overflow: hidden/);
-  assert.match(jelly, /\.octane-test-metric-sparkline \{[\s\S]*?aspect-ratio: 7 \/ 5/);
   assert.match(jelly, /\.octane-test-metric-gauge-svg \{[\s\S]*?aspect-ratio: 7 \/ 4/);
   assert.match(jelly, /container-name: octane-test-metric-gauge/);
   assert.match(jelly, /width: min\(92cqw, 175cqh, 28rem\)/);
@@ -116,6 +131,16 @@ test("retains responsive and polling hooks for refreshed metric markup", () => {
   assert.match(jelly, /<text class="octane-test-metric-gauge-value" x="42" y="43">/);
   assert.match(jelly, /\.octane-test-metric-progress-wrap \{[\s\S]*?aspect-ratio: 34 \/ 1/);
   assert.match(jelly, /\.octane-test-metric-defect-track \{[\s\S]*?aspect-ratio: 34 \/ 1/);
+  assert.match(jelly, /\.octane-test-metric-automation-track/);
+  assert.match(jelly, /--octane-system-good: #0f766e/);
+  assert.match(jelly, /--octane-system-bad: #4338ca/);
+  assert.match(jelly, /--octane-system-good: #198980/);
+  assert.match(jelly, /--octane-system-bad: #7268ED/);
+  assert.match(jelly, /\.octane-test-metric-automation-automated[\s\S]*?var\(--octane-system-good\)/);
+  assert.match(jelly, /\.octane-test-metric-automation-manual[\s\S]*?var\(--octane-system-bad\)/);
+  assert.match(
+      jelly,
+      /\.octane-test-metric-segment-label, \.octane-test-metric-defect-label/);
   assert.match(jelly, /\.octane-test-metric-trend \{[\s\S]*?display: inline-flex/);
   assert.match(jelly, /\.octane-test-metric-trend \{[\s\S]*?white-space: nowrap/);
   assert.match(jelly, /\.octane-test-metric-defect-color:only-child/);

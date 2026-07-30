@@ -49,6 +49,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private volatile int timeoutExtendedSeconds = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED * 60;
   private volatile int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
   private volatile int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
+  private volatile int automatedTestingTarget = GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET;
   private volatile String startedAt = Instant.now().toString();
   private volatile boolean manualExitRequested;
   private volatile long manualExitRequestedAtMillis;
@@ -551,6 +552,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     timeoutExtendedSeconds = Math.max(0, request.getTimeoutMinutesExtended()) * 60;
     basePassrateFigure = request.getBasePassrateFigure();
     baseExecutionFigure = request.getBaseExecutionFigure();
+    automatedTestingTarget = request.getAutomatedTestingTarget();
     startedAt = Instant.now().toString();
     manualExitRequested = false;
     manualExitRequestedAtMillis = 0L;
@@ -627,6 +629,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
     return current
         .withTesterThresholds(basePassrateFigure, baseExecutionFigure)
+        .withTestMetrics(
+            current.getTestMetrics().withAutomatedTestingTarget(automatedTestingTarget))
         .withCalculatedTestMetrics(previousCompletedSnapshot());
   }
 

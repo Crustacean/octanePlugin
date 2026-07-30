@@ -101,6 +101,27 @@ public class OctaneTestManagementAnalyticsTest {
   }
 
   @Test
+  public void attributesDashboardTesterMetricsToSuiteOwnerInsteadOfChildRunner() {
+    RunRecord childRun =
+        new RunRecord(
+            "1",
+            "Automated child",
+            "passed",
+            "Jenkins Agent",
+            "Suite Owner",
+            "test-1",
+            "Test 1",
+            "",
+            "");
+
+    OctaneTestManagementAnalytics analytics =
+        analyticsAt(
+            "2026-07-23T08:01:00Z", List.of(childRun), List.of(), CriteriaEvaluation.unavailable());
+
+    assertEquals("Suite Owner", analytics.getTopVolumeTesters().get(0).getName());
+  }
+
+  @Test
   public void aggregatesOnlyPositiveExecutionDeltasIntoTenDiscreteIntervals() {
     List<RunRecord> firstRuns =
         List.of(

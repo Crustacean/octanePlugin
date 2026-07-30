@@ -52,6 +52,8 @@
         .octane-dashboard {
           --octane-system-blue: #007AFF;
           --octane-system-gray: #8E8E93;
+          --octane-system-good: #0f766e;
+          --octane-system-bad: #4338ca;
           --octane-system-green: #34C759;
           --octane-system-orange: #FF9500;
           --octane-system-purple: #AF52DE;
@@ -82,6 +84,8 @@
         @media (prefers-color-scheme: dark) {
           .octane-dashboard {
             --octane-system-blue: #0A84FF;
+            --octane-system-good: #198980;
+            --octane-system-bad: #7268ED;
             --octane-system-green: #30D158;
             --octane-system-orange: #FF9F0A;
             --octane-system-purple: #BF5AF2;
@@ -96,6 +100,8 @@
         .jenkins-theme-dark .octane-dashboard,
         .theme-dark .octane-dashboard {
           --octane-system-blue: #0A84FF;
+          --octane-system-good: #198980;
+          --octane-system-bad: #7268ED;
           --octane-system-green: #30D158;
           --octane-system-orange: #FF9F0A;
           --octane-system-purple: #BF5AF2;
@@ -109,6 +115,8 @@
         .jenkins-theme-light .octane-dashboard,
         .theme-light .octane-dashboard {
           --octane-system-blue: #007AFF;
+          --octane-system-good: #0f766e;
+          --octane-system-bad: #4338ca;
           --octane-system-green: #34C759;
           --octane-system-orange: #FF9500;
           --octane-system-purple: #AF52DE;
@@ -1317,27 +1325,6 @@
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .octane-test-metric-visual-sparkline {
-          gap: clamp(0.5rem, 3cqw, 2rem);
-        }
-        .octane-test-metric-sparkline {
-          aspect-ratio: 7 / 5;
-          color: var(--text-color);
-          flex: 0 1 min(34%, 9rem);
-          height: auto;
-          max-width: 34%;
-          min-width: 2.5rem;
-          overflow: visible;
-          width: min(34%, 9rem);
-        }
-        .octane-test-metric-sparkline polyline {
-          fill: none;
-          stroke: currentColor;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          stroke-width: 2.4;
-          vector-effect: non-scaling-stroke;
-        }
         .octane-test-metric-gauge {
           align-items: center;
           container-name: octane-test-metric-gauge;
@@ -1377,6 +1364,7 @@
           letter-spacing: 0;
           text-anchor: middle;
         }
+        .octane-test-metric-visual-automation,
         .octane-test-metric-visual-progress,
         .octane-test-metric-visual-defects {
           flex-direction: column;
@@ -1417,6 +1405,7 @@
           background: var(--octane-system-green);
           border-radius: 999px;
         }
+        .octane-test-metric-automation-segments,
         .octane-test-metric-defect-segments {
           display: flex;
           flex: 0 0 auto;
@@ -1427,6 +1416,7 @@
           min-width: 0;
           width: min(82%, 30rem);
         }
+        .octane-test-metric-automation-track,
         .octane-test-metric-defect-track {
           aspect-ratio: 34 / 1;
           display: flex;
@@ -1434,6 +1424,7 @@
           min-width: 0;
           width: 100%;
         }
+        .octane-test-metric-automation-labels,
         .octane-test-metric-defect-labels {
           display: flex;
           gap: 2px;
@@ -1441,6 +1432,7 @@
           min-width: 0;
           width: 100%;
         }
+        .octane-test-metric-automation-empty-track,
         .octane-test-metric-defect-empty-track {
           background: rgba(142, 142, 147, 0.38);
           background: color-mix(in srgb, var(--text-color-secondary) 38%, transparent);
@@ -1449,6 +1441,7 @@
           height: 100%;
           width: 100%;
         }
+        .octane-test-metric-automation-segment,
         .octane-test-metric-defect-segment {
           flex: 0 1 var(--octane-test-metric-segment-share);
           min-width: 0;
@@ -1460,6 +1453,33 @@
           flex: 0 1 var(--octane-test-metric-segment-share);
           height: 100%;
           min-width: 0;
+        }
+        .octane-test-metric-automation-color {
+          border-radius: 0;
+          display: block;
+          flex: 0 1 var(--octane-test-metric-segment-share);
+          height: 100%;
+          min-width: 0;
+        }
+        .octane-test-metric-automation-track
+          .octane-test-metric-automation-color:first-child {
+          border-bottom-left-radius: 999px;
+          border-top-left-radius: 999px;
+        }
+        .octane-test-metric-automation-track
+          .octane-test-metric-automation-color:last-child {
+          border-bottom-right-radius: 999px;
+          border-top-right-radius: 999px;
+        }
+        .octane-test-metric-automation-track
+          .octane-test-metric-automation-color:only-child {
+          border-radius: 999px;
+        }
+        .octane-test-metric-automation-automated {
+          background: var(--octane-system-good);
+        }
+        .octane-test-metric-automation-manual {
+          background: var(--octane-system-bad);
         }
         .octane-test-metric-defect-track
           .octane-test-metric-defect-color:first-child {
@@ -1493,7 +1513,8 @@
         .octane-test-metric-defect-color-unspecified {
           background: var(--octane-severity-unspecified);
         }
-        .octane-test-metric-defect-label {
+        .octane-test-metric-defect-label,
+        .octane-test-metric-segment-label {
           color: var(--text-color-secondary);
           display: block;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
@@ -3726,6 +3747,12 @@
                             data-test-metric-key="${metric.key}">
                           <div class="octane-test-metric-heading">
                             <j:choose>
+                              <j:when test="${metric.icon == 'automation'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
+                                </svg>
+                              </j:when>
                               <j:when test="${metric.icon == 'chart'}">
                                 <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
                                     aria-hidden="true">
@@ -3761,13 +3788,41 @@
                             <span>${metric.title}</span>
                           </div>
                           <j:choose>
-                            <j:when test="${metric.key == 'avg-time'}">
-                              <div class="octane-test-metric-visual octane-test-metric-visual-sparkline">
+                            <j:when test="${metric.key == 'automation-usage'}">
+                              <div class="octane-test-metric-visual octane-test-metric-visual-automation">
                                 <div class="octane-test-metric-value">${metric.value}</div>
-                                <svg class="octane-test-metric-sparkline" viewBox="0 0 56 40"
-                                    preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                                  <polyline points="${metric.sparklinePoints}" />
-                                </svg>
+                                <div class="octane-test-metric-automation-segments"
+                                    data-test-metric-segments="true" role="img"
+                                    aria-label="${metric.detail}">
+                                  <j:if test="${!metric.segmented}">
+                                    <div class="octane-test-metric-automation-track"
+                                        aria-hidden="true">
+                                      <span class="octane-test-metric-automation-empty-track"></span>
+                                    </div>
+                                  </j:if>
+                                  <j:if test="${metric.segmented}">
+                                    <div class="octane-test-metric-automation-track"
+                                        aria-hidden="true">
+                                      <j:forEach var="segment" items="${metric.segments}">
+                                        <span class="octane-test-metric-automation-color octane-test-metric-automation-${segment.severityKey}"
+                                            style="--octane-test-metric-segment-share:${segment.percentageText}%"></span>
+                                      </j:forEach>
+                                    </div>
+                                  </j:if>
+                                  <div class="octane-test-metric-automation-labels">
+                                    <j:forEach var="segment" items="${metric.segments}">
+                                      <div class="octane-test-metric-automation-segment"
+                                          data-test-metric-segment="true"
+                                          data-full-label="${segment.label}"
+                                          data-short-label="${segment.shortLabel}"
+                                          style="--octane-test-metric-segment-share:${segment.percentageText}%">
+                                        <span class="octane-test-metric-segment-label">
+                                          ${segment.label}
+                                        </span>
+                                      </div>
+                                    </j:forEach>
+                                  </div>
+                                </div>
                               </div>
                             </j:when>
                             <j:when test="${metric.key == 'success-rate'}">
@@ -5531,7 +5586,8 @@
             var segments = scope.querySelectorAll("[data-test-metric-segment]");
             for (var index = 0; index < segments.length; index += 1) {
               var segment = segments[index];
-              var label = segment.querySelector(".octane-test-metric-defect-label");
+              var label = segment.querySelector(
+                  ".octane-test-metric-segment-label, .octane-test-metric-defect-label");
               if (!label) {
                 continue;
               }

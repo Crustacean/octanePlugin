@@ -39,7 +39,7 @@ public class OctaneRiskHeatMapBuilder {
         String projectLabel = projectLabel(workspaceId, run, defectsByRunId, defectsByTestId);
         NodeAccumulator project = root.child("project", projectLabel);
         NodeAccumulator suite = project.child("suite", "Suite " + suiteRunId);
-        NodeAccumulator runner = suite.child("runner", runByLabel(run));
+        NodeAccumulator runner = suite.child("runner", assignedUserLabel(run));
         NodeAccumulator test = runner.child("test", testLabel(run));
         test.addStatus(classifier.classify(run.getStatus()));
 
@@ -151,9 +151,9 @@ public class OctaneRiskHeatMapBuilder {
     return Util.isBlank(workspaceId) ? "Workspace" : "Workspace " + workspaceId;
   }
 
-  private String runByLabel(RunRecord run) {
-    if (!Util.isBlank(run.getRunByName())) {
-      return run.getRunByName();
+  private String assignedUserLabel(RunRecord run) {
+    if (!Util.isBlank(run.getAssignedToName())) {
+      return run.getAssignedToName();
     }
     return "Unassigned";
   }

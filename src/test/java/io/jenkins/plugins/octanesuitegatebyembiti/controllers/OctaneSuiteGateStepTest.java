@@ -1,7 +1,10 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import hudson.AbortException;
+import hudson.EnvVars;
 import hudson.util.FormValidation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
@@ -78,5 +81,79 @@ public class OctaneSuiteGateStepTest {
         FormValidation.Kind.OK, descriptor.doCheckSuiteRunId("Release 2.4, Sprint 3").kind);
     assertEquals(FormValidation.Kind.OK, descriptor.doCheckSuiteRunId("1196,1200").kind);
     assertEquals(FormValidation.Kind.ERROR, descriptor.doCheckSuiteRunId("Release 2.4,").kind);
+  }
+
+  @Test
+  public void readsAndValidatesAutomationTargetFromEnvironment() throws Exception {
+    assertEquals(100, OctaneSuiteGateStep.automatedTestingTarget(null));
+    assertEquals(100, OctaneSuiteGateStep.automatedTestingTarget(new EnvVars()));
+    assertEquals(
+        80,
+        OctaneSuiteGateStep.automatedTestingTarget(
+            new EnvVars(GateRequest.AUTOMATED_TESTING_TARGET_ENV, "80")));
+    assertEquals(
+        100,
+        OctaneSuiteGateStep.automatedTestingTarget(
+            new EnvVars(GateRequest.AUTOMATED_TESTING_TARGET_ENV, "101")));
+    assertEquals(
+        100,
+        OctaneSuiteGateStep.automatedTestingTarget(
+            new EnvVars(GateRequest.AUTOMATED_TESTING_TARGET_ENV, "500")));
+
+    EnvVars globalTarget = new EnvVars(GateRequest.GLOBAL_AUTOMATED_TESTING_TARGET_ENV, "75");
+    assertEquals(75, OctaneSuiteGateStep.automatedTestingTarget(globalTarget));
+
+    EnvVars blankLocalTarget =
+        new EnvVars(
+            GateRequest.AUTOMATED_TESTING_TARGET_ENV,
+            "",
+            GateRequest.GLOBAL_AUTOMATED_TESTING_TARGET_ENV,
+            "85");
+    assertEquals(85, OctaneSuiteGateStep.automatedTestingTarget(blankLocalTarget));
+
+    EnvVars nullLocalTarget =
+        new EnvVars(
+            GateRequest.AUTOMATED_TESTING_TARGET_ENV,
+            "null",
+            GateRequest.GLOBAL_AUTOMATED_TESTING_TARGET_ENV,
+            "90");
+    assertEquals(90, OctaneSuiteGateStep.automatedTestingTarget(nullLocalTarget));
+
+    EnvVars undefinedLocalTarget =
+        new EnvVars(
+            GateRequest.AUTOMATED_TESTING_TARGET_ENV,
+            "undefined",
+            GateRequest.GLOBAL_AUTOMATED_TESTING_TARGET_ENV,
+            "95");
+    assertEquals(95, OctaneSuiteGateStep.automatedTestingTarget(undefinedLocalTarget));
+
+    EnvVars localOverride =
+        new EnvVars(
+            GateRequest.AUTOMATED_TESTING_TARGET_ENV,
+            "80",
+            GateRequest.GLOBAL_AUTOMATED_TESTING_TARGET_ENV,
+            "75");
+    assertEquals(80, OctaneSuiteGateStep.automatedTestingTarget(localOverride));
+
+    assertInvalidAutomationTarget("0");
+    assertInvalidAutomationTarget("80.5");
+    assertInvalidAutomationTarget("high");
+  }
+
+  @Test
+  public void declaresEnvironmentAsRequiredPipelineContext() {
+    assertTrue(
+        new OctaneSuiteGateStep.DescriptorImpl().getRequiredContext().contains(EnvVars.class));
+  }
+
+  private void assertInvalidAutomationTarget(String value) throws Exception {
+    try {
+      OctaneSuiteGateStep.automatedTestingTarget(
+          new EnvVars(GateRequest.AUTOMATED_TESTING_TARGET_ENV, value));
+    } catch (AbortException e) {
+      assertEquals("AUTOMATED_TESTING_TARGET must be a positive whole number.", e.getMessage());
+      return;
+    }
+    throw new AssertionError("Expected invalid target to be rejected: " + value);
   }
 }

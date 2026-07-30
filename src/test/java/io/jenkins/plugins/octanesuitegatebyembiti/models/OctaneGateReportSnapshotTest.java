@@ -133,6 +133,77 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void parentOwnerProducesOneBarWhileChildRunnersDriveAutomationUsage() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord(
+                "1", "automated", "passed", "Jenkins Agent", "Suite Owner", "", "", "", ""),
+            new RunRecord(
+                "2", "manual", "failed", "Default Manual Runner", "Suite Owner", "", "", "", ""));
+    GateResult result =
+        new GateResult(
+            "55",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(2, 2, 1, 1, 0, 0),
+            runs,
+            Map.of("55", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
+    assertEquals(1, charts.size());
+    assertEquals("Suite Owner", charts.get(0).getDisplayName());
+    assertEquals(2, charts.get(0).getTotal());
+    assertEquals(1, snapshot.getTestMetrics().getAutomatedTestCount());
+    assertEquals(1, snapshot.getTestMetrics().getManualTestCount());
+  }
+
+  @Test
+  public void assignedAndUnassignedSuiteRunsRenderAsSeparateTesterBars() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord("1", "assigned", "passed", "Jenkins Agent", "Ada Owner", "", "", "", ""),
+            new RunRecord(
+                "2",
+                "unassigned",
+                "failed",
+                "Default Manual Runner",
+                "Unassigned (55)",
+                "",
+                "",
+                "",
+                ""));
+    GateResult result =
+        new GateResult(
+            "55",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(2, 2, 1, 1, 0, 0),
+            runs,
+            Map.of("55", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
+    assertEquals(2, charts.size());
+    assertEquals(
+        List.of("Ada Owner", "Unassigned (55)"),
+        charts.stream().map(OctaneGateSuiteRunChart::getDisplayName).toList());
+    assertEquals(List.of(1, 1), charts.stream().map(OctaneGateSuiteRunChart::getTotal).toList());
+  }
+
+  @Test
   public void donutSlicesUseBoundedGeometryWithoutExternalLabelCoordinates() {
     Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
     suiteRuns.put(
@@ -483,10 +554,11 @@ public class OctaneGateReportSnapshotTest {
                 "2026-05-14T23:50:00Z")
             .withCalculatedTestMetrics(previous);
 
-    assertEquals("2m 0s", metric(current, "avg-time").getValue());
-    assertEquals("5 executed tests", metric(current, "avg-time").getDetail());
-    assertEquals("-1m 0s from last cycle", metric(current, "avg-time").getTrendText());
-    assertEquals("positive", metric(current, "avg-time").getTrendTone());
+    assertEquals("0%", metric(current, "automation-usage").getValue());
+    assertEquals(
+        "0/6 tests automated. Target 100%", metric(current, "automation-usage").getDetail());
+    assertEquals("No change from last cycle", metric(current, "automation-usage").getTrendText());
+    assertEquals("negative", metric(current, "automation-usage").getTrendTone());
     assertEquals("50.0%", metric(current, "success-rate").getValue());
     assertEquals("3 / 6 passed", metric(current, "success-rate").getDetail());
     assertEquals("83.3%", metric(current, "execution").getValue());
@@ -513,8 +585,8 @@ public class OctaneGateReportSnapshotTest {
         OctaneGateReportSnapshot.fromResult(
             OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
 
-    assertEquals("N/A", metric(snapshot, "avg-time").getValue());
-    assertEquals("Awaiting executed tests", metric(snapshot, "avg-time").getTrendText());
+    assertEquals("0%", metric(snapshot, "automation-usage").getValue());
+    assertEquals("Waiting for run data", metric(snapshot, "automation-usage").getTrendText());
     assertEquals("0.0%", metric(snapshot, "success-rate").getValue());
     assertEquals("0.0%", metric(snapshot, "execution").getValue());
     assertEquals("N/A", metric(snapshot, "defects").getValue());

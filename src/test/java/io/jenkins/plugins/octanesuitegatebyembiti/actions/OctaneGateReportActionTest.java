@@ -124,7 +124,7 @@ public class OctaneGateReportActionTest {
     assertFalse(text.contains("Testing Time Remaining"));
     assertTrue(text.contains("Test Metrics"));
     assertTrue(text.contains("Current Job Analytics"));
-    assertTrue(text.contains("Avg. Execution Time"));
+    assertTrue(text.contains("Automation Usage"));
     assertTrue(text.contains("Success Rate"));
     assertTrue(text.contains("Execution Completion"));
     assertTrue(text.contains("Open Defects"));
@@ -507,11 +507,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("border-radius: 12px"));
     assertFalse(xml.contains(".octane-test-metric-card:nth-child(3)"));
     assertFalse(xml.contains(".octane-test-metric-card:nth-child(4)"));
-    assertTrue(xml.contains("data-test-metric-key=\"avg-time\""));
+    assertTrue(xml.contains("data-test-metric-key=\"automation-usage\""));
     assertTrue(xml.contains("data-test-metric-key=\"success-rate\""));
     assertTrue(xml.contains("data-test-metric-key=\"execution\""));
     assertTrue(xml.contains("data-test-metric-key=\"defects\""));
-    assertTrue(xml.contains("octane-test-metric-sparkline"));
+    assertTrue(xml.contains("octane-test-metric-automation-track"));
     assertTrue(xml.contains("octane-test-metric-gauge-fill"));
     assertTrue(xml.contains("octane-test-metric-progress"));
     assertTrue(xml.contains("data-test-metric-segments=\"true\""));
@@ -1057,6 +1057,9 @@ public class OctaneGateReportActionTest {
     assertTrue(
         payload.getString("executionStatusDistributionHtml").contains("x=\"160\" y=\"172\""));
     assertEquals(4, payload.getJSONObject("testMetrics").getJSONArray("cards").size());
+    assertEquals(2, payload.getJSONObject("testMetrics").getInt("automationTestTotal"));
+    assertEquals(0, payload.getJSONObject("testMetrics").getInt("automationPercentage"));
+    assertTrue(payload.getString("testMetricsHtml").contains("0/2 tests automated. Target 100%"));
     assertTrue(
         payload
             .getJSONObject("testMetrics")

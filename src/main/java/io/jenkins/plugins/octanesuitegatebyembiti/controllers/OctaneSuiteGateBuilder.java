@@ -218,6 +218,7 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
       TaskListener listener)
       throws InterruptedException, IOException {
     GateRequest request = delegate.toRequest();
+    request.setAutomatedTestingTarget(OctaneSuiteGateStep.automatedTestingTarget(environment));
     OctaneGateReportAction reportAction = OctaneGateReportAction.attachTo(run, request);
     new OctaneGateLogListener().logReportLink(listener, reportAction.getReportUrl());
     try {
