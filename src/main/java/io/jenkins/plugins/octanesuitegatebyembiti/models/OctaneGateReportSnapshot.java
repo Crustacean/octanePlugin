@@ -23,6 +23,8 @@ public class OctaneGateReportSnapshot implements Serializable {
   public static final int CLIENT_RENDER_BAR_THRESHOLD = 80;
   private static final DateTimeFormatter EAT_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
+  private static final DateTimeFormatter EAT_DATE_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
 
   private final OctaneGateReportState state;
   private final String message;
@@ -491,6 +493,10 @@ public class OctaneGateReportSnapshot implements Serializable {
     return refreshSeconds;
   }
 
+  public String getRefreshCountdownText() {
+    return String.format(Locale.ROOT, "%02d:%02d", refreshSeconds / 60, refreshSeconds % 60);
+  }
+
   public int getTimeoutSeconds() {
     return timeoutSeconds;
   }
@@ -513,6 +519,24 @@ public class OctaneGateReportSnapshot implements Serializable {
     } catch (RuntimeException e) {
       return updatedAt;
     }
+  }
+
+  public String getUpdatedAtDateTimeText() {
+    try {
+      return EAT_DATE_TIME_FORMATTER.format(Instant.parse(updatedAt));
+    } catch (RuntimeException e) {
+      return updatedAt;
+    }
+  }
+
+  public String getJobStateLabel() {
+    if (state == OctaneGateReportState.WAITING) {
+      return "Started";
+    }
+    if (state.isBuilding()) {
+      return "In Progress";
+    }
+    return state.getLabel();
   }
 
   public List<OctaneGateReportSection> getSections() {
@@ -709,6 +733,10 @@ public class OctaneGateReportSnapshot implements Serializable {
     return String.format(Locale.ROOT, "%.0f%%", getExecutionProgress());
   }
 
+  public String getExecutionProgressTwoDecimalText() {
+    return formatTwoDecimalPercentage(getExecutionProgress());
+  }
+
   public int getPassRateTotal() {
     return projectProgressCounts().total;
   }
@@ -729,8 +757,20 @@ public class OctaneGateReportSnapshot implements Serializable {
     return String.format(Locale.ROOT, "%.0f%%", getPassRateProgress());
   }
 
+  public String getPassRateProgressTwoDecimalText() {
+    return formatTwoDecimalPercentage(getPassRateProgress());
+  }
+
+  public String getAutomationProgressTwoDecimalText() {
+    return formatTwoDecimalPercentage(getTestMetrics().getAutomationPercentage());
+  }
+
   public String getPassRateLabel() {
     return "All Testcase Pass Rate (" + getPassRatePassed() + " / " + getPassRateTotal() + ")";
+  }
+
+  private static String formatTwoDecimalPercentage(double value) {
+    return String.format(Locale.ROOT, "%.2f%%", value);
   }
 
   public int getProjectTestTotal() {

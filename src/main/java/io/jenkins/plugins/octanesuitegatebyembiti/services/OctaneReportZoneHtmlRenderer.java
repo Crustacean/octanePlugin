@@ -260,10 +260,11 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-donut {
+          aspect-ratio: 1 / 1;
           display: block;
-          height: 100%;
-          max-height: none;
-          max-width: none;
+          height: auto;
+          max-height: 248.1804px;
+          max-width: 248.1804px;
           overflow: hidden;
           shape-rendering: geometricPrecision;
           width: 100%;
@@ -707,7 +708,7 @@ public class OctaneReportZoneHtmlRenderer {
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSlice(html, slice);
     }
-    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"29\" />\n");
+    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"37.36\" />\n");
     html.append(
         "<text class=\"octane-donut-center-value\" x=\"50\" y=\"46\" "
             + "dominant-baseline=\"central\" text-anchor=\"middle\">");

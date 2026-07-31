@@ -116,7 +116,9 @@ public class OctaneGateReportActionTest {
     String text = page.asNormalizedText();
     String xml = page.asXml();
     assertTrue(text.contains("Octane Gate Report"));
-    assertTrue(text.contains("Last update: 03:00:00"));
+    assertTrue(text.contains("Passed"));
+    assertTrue(text.contains("Last Update:"));
+    assertTrue(text.contains("03:00:00"));
     assertFalse(text.contains("Last update (EAT)"));
     assertTrue(text.contains("REGRESSION Tests Status Distribution"));
     assertTrue(text.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
@@ -128,7 +130,8 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Success Rate"));
     assertTrue(text.contains("Execution Completion"));
     assertTrue(text.contains("Open Defects"));
-    assertTrue(text.contains("Status Check"));
+    assertTrue(text.contains("Execution Activity Rings"));
+    assertFalse(text.contains("Target Achievement"));
     assertTrue(text.contains("Session Time Remaining"));
     assertTrue(text.contains("Execution Progress"));
     assertTrue(text.contains("All Testcase execution"));
@@ -156,6 +159,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-card-key=\"test-management-current-state\""));
     assertTrue(xml.contains("data-card-key=\"test-management-failures\""));
     assertTrue(xml.contains("data-card-key=\"test-management-metrics\""));
+    assertTrue(xml.contains("function installAnalyticsComponentSwap(root)"));
+    assertTrue(xml.contains("data-card-key=\"test-management-defects\""));
+    assertTrue(xml.contains("metricsRoot: managementMetricsRoot"));
     assertTrue(xml.contains("data-management-failure-switcher=\"true\""));
     assertTrue(xml.contains("data-management-defect-list=\"true\""));
     assertTrue(xml.contains("function updateTestManagement(payload)"));
@@ -232,7 +238,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("padding: 5px"));
     assertTrue(xml.contains("height: calc(260px + var(--octane-axis-label-row))"));
     assertTrue(xml.contains("<path d=") || xml.contains("r=\"46\" fill="));
-    assertTrue(xml.contains("r=\"29\""));
+    assertTrue(xml.contains("r=\"37.36\""));
+    assertTrue(xml.contains("max-height: 248.1804px"));
+    assertTrue(xml.contains("max-width: 248.1804px"));
     assertTrue(text.contains("Total test cases"));
     assertTrue(text.contains("Total test cases: 2"));
     assertTrue(text.contains("50.00%"));
@@ -311,11 +319,41 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-target-view=\"metrics\""));
     assertTrue(xml.contains("data-target-view-label=\"test metrics\""));
     assertTrue(xml.contains("octane-icon-metrics"));
+    assertEquals(
+        3,
+        page.getByXPath("//section[@data-card-key='timer-poll']" + "//*[@data-activity-ring]")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='timer-poll']"
+                    + "//*[@data-activity-ring='execution' and @r='84']")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='timer-poll']"
+                    + "//*[@data-activity-ring='pass' and @r='63']")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='timer-poll']"
+                    + "//*[@data-activity-ring='automation' and @r='42']")
+            .size());
+    assertTrue(xml.contains("stroke-width: 16"));
+    assertTrue(xml.contains("opacity: 0.8"));
+    assertTrue(xml.contains("stroke: #ED0143"));
+    assertTrue(xml.contains("stroke: #60D200"));
+    assertTrue(xml.contains("stroke: #02CCCE"));
+    assertTrue(xml.contains("octane-activity-legend-full"));
+    assertTrue(xml.contains("octane-activity-legend-compact"));
+    assertTrue(xml.contains("@container octane-activity-legend (max-width: 34rem)"));
     assertTrue(xml.contains("data-target-view=\"breakdown\""));
     assertTrue(xml.contains("data-target-view-label=\"status breakdown\""));
     assertTrue(xml.contains("octane-icon-breakdown"));
-    assertTrue(xml.contains("data-target-view=\"defects\""));
-    assertTrue(xml.contains("data-target-view-label=\"execution defect rate\""));
+    assertTrue(xml.contains("data-target-view=\"metrics\""));
+    assertTrue(xml.contains("data-target-view-label=\"QA health and compliance\""));
     assertTrue(xml.contains("octane-icon-defects"));
     assertTrue(xml.contains("octane-flip-face-defects"));
     assertTrue(xml.contains("octane-defect-face-header"));
@@ -329,7 +367,7 @@ public class OctaneGateReportActionTest {
     assertEquals(
         1,
         page.getByXPath(
-                "//section[@data-card-key='progress-pass-rate']"
+                "//section[@data-card-key='test-management-defects']"
                     + "//div[contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-defect-face-header ')]"
                     + "/*[1][contains(concat(' ', normalize-space(@class), ' '),"
@@ -338,7 +376,7 @@ public class OctaneGateReportActionTest {
     assertEquals(
         1,
         page.getByXPath(
-                "//section[@data-card-key='progress-pass-rate']"
+                "//section[@data-card-key='test-management-defects']"
                     + "//div[contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-defect-face-header ')]"
                     + "/*[2][contains(concat(' ', normalize-space(@class), ' '),"
@@ -347,16 +385,16 @@ public class OctaneGateReportActionTest {
     assertEquals(
         1,
         page.getByXPath(
-                "//section[@data-card-key='progress-pass-rate']"
+                "//section[@data-card-key='test-management-defects']"
                     + "//div[contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-defect-face-header ')]"
                     + "/*[3][contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-defect-face-actions ')]")
             .size());
     assertEquals(
-        1,
+        0,
         page.getByXPath(
-                "//section[@data-card-key='progress-pass-rate']"
+                "//section[@data-card-key='test-management-defects']"
                     + "//div[contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-defect-face-actions ')]"
                     + "/button[contains(concat(' ', normalize-space(@class), ' '),"
@@ -365,7 +403,7 @@ public class OctaneGateReportActionTest {
     assertEquals(
         1,
         page.getByXPath(
-                "//section[@data-card-key='progress-pass-rate']"
+                "//section[@data-card-key='test-management-defects']"
                     + "//div[contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-defect-face-actions ')]"
                     + "/button[contains(concat(' ', normalize-space(@class), ' '),"
@@ -374,11 +412,18 @@ public class OctaneGateReportActionTest {
     assertEquals(
         1,
         page.getByXPath(
-                "//section[@data-card-key='progress-pass-rate']"
+                "//section[@data-card-key='test-management-defects']"
                     + "//div[contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-defect-face-actions ')]"
                     + "/button[contains(concat(' ', normalize-space(@class), ' '),"
                     + " ' octane-card-tools ')]")
+            .size());
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='progress-pass-rate']"
+                    + "//*[@data-card-view='metrics']"
+                    + "//*[@data-management-metrics='true']")
             .size());
     assertEquals(
         0,
@@ -725,17 +770,17 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("http-equiv=\"refresh\""));
     assertTrue(xml.contains("data-snapshot-url=\"snapshot\""));
     assertTrue(xml.contains("data-current-updated-at=\"2026-05-15T00:00:00Z\""));
-    assertTrue(xml.contains("data-live-update-line=\"true\""));
-    assertTrue(xml.contains("data-live-update-title=\"true\""));
-    assertTrue(xml.contains("data-live-update-status=\"true\""));
-    assertTrue(xml.contains("octane-live-update-last-updated"));
-    assertTrue(xml.contains("LAST UPDATED:"));
+    assertTrue(xml.contains("data-report-status=\"true\""));
+    assertTrue(xml.contains("data-report-state-label=\"true\""));
+    assertTrue(xml.contains("data-report-updated-at=\"true\""));
+    assertTrue(xml.contains("Passed"));
+    assertTrue(xml.contains("Last Update: 2026/05/15 03:00:00"));
+    assertTrue(xml.contains("Status Check In :"));
+    assertTrue(xml.contains("Updating ... "));
     assertTrue(xml.contains("display: inline"));
     assertTrue(xml.contains("white-space: nowrap"));
-    assertFalse(xml.contains(".octane-live-update {\n          margin-top"));
+    assertTrue(xml.contains("function renderReportStatus(now)"));
     assertTrue(xml.contains("setLiveUpdateStatus(\"...\", false)"));
-    assertTrue(xml.contains("\"+\" + (waitedMillis / 1000).toFixed(1) + \"s\""));
-    assertTrue(xml.contains("formatLastUpdatedStatus(payload)"));
     assertFalse(xml.contains(": \"Done.\""));
     assertFalse(xml.contains("Updating report..."));
     assertFalse(xml.contains("Report updated in "));
@@ -896,7 +941,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("function autoShowHeatMapOnCompletion"));
     assertTrue(xml.contains("function autoShowTestMetricsOnCompletion"));
     assertTrue(xml.contains("function autoShowExecutionBreakdownOnCompletion"));
-    assertTrue(xml.contains("function autoShowDefectTrendOnCompletion"));
+    assertTrue(xml.contains("function autoShowQaHealthMetricsOnCompletion"));
     assertTrue(xml.contains("function completionReached"));
     assertTrue(xml.contains("function manualExitRequested"));
     assertTrue(xml.contains("function primaryTimeoutReached"));
@@ -918,7 +963,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("autoShowCardViewOnce(payload, \"timer-timeout\", \"metrics\")"));
     assertTrue(
         xml.contains("autoShowCardViewOnce(payload, \"progress-execution\", \"breakdown\")"));
-    assertTrue(xml.contains("autoShowCardViewOnce(payload, \"progress-pass-rate\", \"defects\")"));
+    assertTrue(xml.contains("autoShowCardViewOnce(payload, \"progress-pass-rate\", \"metrics\")"));
     assertTrue(xml.contains("runCompletionAutoFlips(currentReportPayload())"));
     assertTrue(xml.contains("runCompletionAutoFlips(payload)"));
     assertTrue(xml.contains("button.getAttribute(\"data-target-view\")"));
@@ -1032,9 +1077,11 @@ public class OctaneGateReportActionTest {
     assertTrue(jsonPage.getWebResponse().getContentType().contains("application/json"));
     assertEquals("2026-05-15T00:00:00Z", payload.getString("updatedAt"));
     assertEquals("03:00:00", payload.getString("updatedAtText"));
+    assertEquals("2026/05/15 03:00:00", payload.getString("updatedAtDateTimeText"));
     assertTrue(payload.containsKey("startedAt"));
     assertFalse(payload.getBoolean("building"));
     assertEquals("Passed", payload.getString("stateLabel"));
+    assertEquals("Passed", payload.getString("jobStateLabel"));
     assertEquals(15, payload.getInt("refreshSeconds"));
     assertEquals(7200, payload.getInt("timeoutSeconds"));
     assertEquals(0, payload.getInt("timeoutExtendedSeconds"));
@@ -1124,7 +1171,7 @@ public class OctaneGateReportActionTest {
     HtmlPage page = jenkins.createWebClient().getPage(build, OctaneGateReportAction.URL_NAME);
     String xml = page.asXml();
 
-    assertTrue(xml.contains("Extended time"));
+    assertTrue(xml.contains("data-job-state-label=\"In Progress\""));
     assertTrue(xml.contains("data-extended-time=\"true\""));
     assertTrue(xml.contains("data-extended-total-seconds=\"600\""));
     assertTrue(xml.contains("data-extended-active=\"true\""));

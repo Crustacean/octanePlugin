@@ -1045,7 +1045,8 @@
   }
 
   function renderMetrics(zone, payload) {
-    var grid = zone.querySelector("[data-management-metrics]");
+    var metricsRoot = zone.__octaneTestManagementMetricsRoot || zone;
+    var grid = metricsRoot.querySelector("[data-management-metrics]");
     if (!grid) {
       return;
     }
@@ -1173,6 +1174,8 @@
     zone.__octaneTestManagementPayload = payload || {};
     zone.__octaneTestManagementOnCategorySelect =
         options && options.onCategorySelect ? options.onCategorySelect : null;
+    zone.__octaneTestManagementMetricsRoot =
+        options && options.metricsRoot ? options.metricsRoot : zone;
     bindInteractions(zone);
     render(zone);
   }

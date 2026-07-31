@@ -16,6 +16,7 @@
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
   var DONUT_CENTER = 50;
   var DONUT_RADIUS = 46;
+  var DONUT_HOLE_RADIUS = 37.36;
   var mountedZones = typeof WeakMap === "function" ? new WeakMap() : null;
 
   function computeVisibleBarCount(width, totalBars) {
@@ -237,7 +238,7 @@
     var hole = createSvgElement("circle", "octane-donut-hole");
     hole.setAttribute("cx", "50");
     hole.setAttribute("cy", "50");
-    hole.setAttribute("r", "29");
+    hole.setAttribute("r", String(DONUT_HOLE_RADIUS));
     svg.appendChild(hole);
     var value = appendSvgText(svg, "octane-donut-center-value", total, "50", "46");
     value.setAttribute("dominant-baseline", "central");
@@ -765,6 +766,7 @@
 
   return {
     MAX_VISIBLE_BARS: MAX_VISIBLE_BARS,
+    DONUT_HOLE_RADIUS: DONUT_HOLE_RADIUS,
     OVERFLOW_WIDTH_PX: OVERFLOW_WIDTH_PX,
     computeDonutSlices: computeDonutSlices,
     computeVisibleBarCount: computeVisibleBarCount,

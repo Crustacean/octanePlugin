@@ -44,11 +44,16 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(1).getBarHeightStyle());
     assertEquals(83.333, snapshot.getExecutionProgress(), 0.001);
     assertEquals("83%", snapshot.getExecutionProgressText());
+    assertEquals("83.33%", snapshot.getExecutionProgressTwoDecimalText());
     assertEquals(6, snapshot.getPassRateTotal());
     assertEquals(3, snapshot.getPassRatePassed());
     assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
     assertEquals("50%", snapshot.getPassRateProgressText());
+    assertEquals("50.00%", snapshot.getPassRateProgressTwoDecimalText());
+    assertEquals("0.00%", snapshot.getAutomationProgressTwoDecimalText());
     assertEquals("All Testcase Pass Rate (3 / 6)", snapshot.getPassRateLabel());
+    assertEquals("In Progress", snapshot.getJobStateLabel());
+    assertEquals("2026/05/15 03:00:00", snapshot.getUpdatedAtDateTimeText());
     assertFalse(regressions.getPieSlices().isEmpty());
   }
 
@@ -394,6 +399,8 @@ public class OctaneGateReportSnapshotTest {
         OctaneGateReportSnapshot.waiting(request, 17, "2026-05-15T00:00:00Z");
 
     assertEquals(17, snapshot.getRefreshSeconds());
+    assertEquals("00:17", snapshot.getRefreshCountdownText());
+    assertEquals("Started", snapshot.getJobStateLabel());
     assertEquals(2700, snapshot.getTimeoutSeconds());
     assertEquals(720, snapshot.getTimeoutExtendedSeconds());
     assertEquals("2026-05-15T00:00:00Z", snapshot.getStartedAt());
@@ -527,6 +534,7 @@ public class OctaneGateReportSnapshotTest {
             OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
 
     assertTrue(snapshot.isCriticalOnlyReport());
+    assertEquals("Passed", snapshot.getJobStateLabel());
     assertEquals(1, snapshot.getSections().size());
     assertEquals("critical", snapshot.getSections().get(0).getSource());
     assertEquals(1, snapshot.getProjectTestTotal());

@@ -307,6 +307,12 @@
           max-width: min(38vh, 38vw);
           width: min(100cqw, 100cqh, 38vh, 38vw);
         }
+        .octane-zone-focused .octane-activity-rings-svg {
+          height: min(100cqw, 100cqh, 38vh, 38vw);
+          max-height: min(38vh, 38vw);
+          max-width: min(38vh, 38vw);
+          width: min(100cqw, 100cqh, 38vh, 38vw);
+        }
         .octane-zone-focused .octane-timer-wrap {
           height: 100%;
         }
@@ -523,6 +529,7 @@
         .octane-chart-card[data-active-view="timer"] .octane-flip-face-timer,
         .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap,
         .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics,
+        .octane-chart-card[data-active-view="metrics"] .octane-flip-face-management-metrics,
         .octane-chart-card[data-active-view="breakdown"] .octane-flip-face-breakdown,
         .octane-chart-card[data-active-view="defects"] .octane-flip-face-defects {
           opacity: 1;
@@ -576,6 +583,23 @@
           .octane-flip-face-body {
           align-items: stretch;
           justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-pass-rate"][data-active-view="metrics"]
+          .octane-management-metrics-face-body,
+        .octane-test-management-defects-card .octane-management-card-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-pass-rate"]
+          .octane-management-metrics-grid {
+          height: 100%;
+        }
+        .octane-test-management-defects-card .octane-defect-face-header {
+          flex: 0 0 auto;
+          width: 100%;
+        }
+        .octane-test-management-defects-card .octane-defect-face-actions {
+          margin-left: auto;
         }
         .octane-chart-card[data-card-key="progress-pass-rate"][data-active-view="defects"]
           > .octane-card-actions {
@@ -1803,6 +1827,12 @@
           max-width: min(76vh, 76vw);
           width: min(100cqw, 100cqh, 76vh, 76vw);
         }
+        .octane-chart-card.octane-expanded .octane-activity-rings-svg {
+          height: min(100cqw, 100cqh, 76vh, 76vw);
+          max-height: min(76vh, 76vw);
+          max-width: min(76vh, 76vw);
+          width: min(100cqw, 100cqh, 76vh, 76vw);
+        }
         .octane-chart-card.octane-expanded .octane-timer-wrap {
           height: 100%;
         }
@@ -1845,6 +1875,37 @@
           min-width: 0;
           width: 100%;
         }
+        .octane-report-status {
+          align-items: baseline;
+          display: flex;
+          flex-wrap: wrap;
+          font-variant-numeric: tabular-nums;
+          gap: 0.35rem;
+        }
+        .octane-report-status-separator {
+          color: var(--text-color-secondary);
+        }
+        .octane-activity-rings {
+          box-sizing: border-box;
+          container-name: octane-activity-rings;
+          container-type: size;
+          display: grid;
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          place-items: center;
+          padding: 0;
+          width: 100%;
+        }
+        .octane-activity-rings-graphic {
+          align-items: center;
+          display: flex;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
         .octane-timer-donut {
           aspect-ratio: 1 / 1;
           display: block;
@@ -1854,6 +1915,83 @@
           overflow: visible;
           shape-rendering: geometricPrecision;
           width: min(100cqw, 100cqh, 220px);
+        }
+        .octane-activity-rings-svg {
+          aspect-ratio: 1;
+          display: block;
+          height: min(100cqw, 100cqh, 220px);
+          max-height: 220px;
+          max-width: 220px;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: min(100cqw, 100cqh, 220px);
+        }
+        .octane-activity-ring-track,
+        .octane-activity-ring-progress {
+          fill: none;
+          stroke-linecap: round;
+          stroke-width: 16;
+        }
+        .octane-activity-ring-track {
+          opacity: 0.8;
+        }
+        .octane-activity-ring-execution {
+          stroke: #ED0143;
+        }
+        .octane-activity-ring-pass {
+          stroke: #60D200;
+        }
+        .octane-activity-ring-automation {
+          stroke: #02CCCE;
+        }
+        .octane-activity-subtitle {
+          container-name: octane-activity-legend;
+          container-type: inline-size;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-activity-inline-legend {
+          align-items: center;
+          display: flex;
+          flex-wrap: nowrap;
+          font-variant-numeric: tabular-nums;
+          gap: 0.24rem 0.45rem;
+          min-width: 0;
+          overflow: hidden;
+        }
+        .octane-activity-legend-item {
+          align-items: center;
+          display: inline-flex;
+          gap: 0.18rem;
+          white-space: nowrap;
+        }
+        .octane-activity-legend-compact {
+          display: none;
+        }
+        .octane-activity-ring-swatch {
+          border-radius: 50%;
+          display: inline-block;
+          flex: 0 0 auto;
+          height: 0.56rem;
+          margin-right: 0.08rem;
+          width: 0.56rem;
+        }
+        .octane-activity-ring-swatch.octane-activity-ring-execution {
+          background: #ED0143;
+        }
+        .octane-activity-ring-swatch.octane-activity-ring-pass {
+          background: #60D200;
+        }
+        .octane-activity-ring-swatch.octane-activity-ring-automation {
+          background: #02CCCE;
+        }
+        @container octane-activity-legend (max-width: 34rem) {
+          .octane-activity-legend-full {
+            display: none;
+          }
+          .octane-activity-legend-compact {
+            display: inline;
+          }
         }
         .octane-timer-track {
           fill: none;
@@ -1933,10 +2071,11 @@
           width: 100%;
         }
         .octane-donut {
+          aspect-ratio: 1 / 1;
           display: block;
-          height: 100%;
-          max-height: none;
-          max-width: none;
+          height: auto;
+          max-height: 248.1804px;
+          max-width: 248.1804px;
           overflow: hidden;
           shape-rendering: geometricPrecision;
           width: 100%;
@@ -3591,9 +3730,19 @@
       <j:set var="snapshot" value="${it.snapshot}" />
       <div class="octane-report">
         <h1>Octane Gate Report</h1>
-        <p class="octane-muted">
-          State: <span data-report-state-label="true">${snapshot.stateLabel}</span> |
-          Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
+        <p class="octane-muted octane-report-status" data-report-status="true">
+          <span data-report-state-label="true">${snapshot.jobStateLabel}</span>
+          <span class="octane-report-status-separator" aria-hidden="true">|</span>
+          <span data-report-updated-at="true">
+            <j:choose>
+              <j:when test="${snapshot.building}">
+                Status Check In : ${snapshot.refreshCountdownText}
+              </j:when>
+              <j:otherwise>
+                Last Update: ${snapshot.updatedAtDateTimeText}
+              </j:otherwise>
+            </j:choose>
+          </span>
         </p>
         <p data-report-message="true">${snapshot.message}</p>
           <div class="octane-exit-extended-form" data-exit-extended-form="true"
@@ -3619,6 +3768,9 @@
 
         <div class="octane-dashboard octane-card-zone" id="octane-dashboard"
             data-current-updated-at="${snapshot.updatedAt}"
+            data-current-updated-at-text="${snapshot.updatedAtDateTimeText}"
+            data-job-state-label="${snapshot.jobStateLabel}"
+            data-refresh-seconds="${snapshot.refreshSeconds}"
             data-report-building="${snapshot.building}"
             data-extended-time="${snapshot.extendedTime}"
             data-manual-exit-requested="${it.manualExitRequested}"
@@ -3960,59 +4112,61 @@
                 <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
                   <div class="octane-flip-face-header">
                     <div>
-                      <h2 class="octane-card-title">Status Check</h2>
-                      <j:choose>
-                        <j:when test="${snapshot.building}">
-                          <div class="octane-muted" data-live-update-line="true">
-                            <span data-live-update-title="true">Polling interval</span>
-                            <span class="octane-live-update" data-live-update-status="true"></span>
-                          </div>
-                        </j:when>
-                        <j:otherwise>
-                          <div class="octane-muted octane-live-update-last-updated"
-                              data-live-update-line="true">
-                            <span data-live-update-title="true">
-                              LAST UPDATED: ${snapshot.updatedAtText}
-                            </span>
-                            <span class="octane-live-update" data-live-update-status="true"></span>
-                          </div>
-                        </j:otherwise>
-                      </j:choose>
+                      <h2 class="octane-card-title">Execution Activity Rings</h2>
+                      <div class="octane-muted octane-activity-subtitle">
+                        <span class="octane-activity-inline-legend"
+                            aria-label="Execution Rate ${snapshot.executionProgressTwoDecimalText} Pass Rate ${snapshot.passRateProgressTwoDecimalText} Automation Usage ${snapshot.automationProgressTwoDecimalText}">
+                          <span class="octane-activity-legend-item">
+                            <span class="octane-activity-ring-swatch octane-activity-ring-execution"
+                                aria-hidden="true"></span>
+                            <span class="octane-activity-legend-full">Execution Rate</span>
+                            <span class="octane-activity-legend-compact" aria-hidden="true">Execution</span>
+                            (<span data-activity-rate="execution">${snapshot.executionProgressTwoDecimalText}</span>)
+                          </span>
+                          <span class="octane-activity-legend-item">
+                            <span class="octane-activity-ring-swatch octane-activity-ring-pass"
+                                aria-hidden="true"></span>
+                            <span class="octane-activity-legend-full">Pass Rate</span>
+                            <span class="octane-activity-legend-compact" aria-hidden="true">Pass</span>
+                            (<span data-activity-rate="pass">${snapshot.passRateProgressTwoDecimalText}</span>)
+                          </span>
+                          <span class="octane-activity-legend-item">
+                            <span class="octane-activity-ring-swatch octane-activity-ring-automation"
+                                aria-hidden="true"></span>
+                            <span class="octane-activity-legend-full">Automation Usage</span>
+                            <span class="octane-activity-legend-compact" aria-hidden="true">Automation</span>
+                            (<span data-activity-rate="automation">${snapshot.automationProgressTwoDecimalText}</span>)
+                          </span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
-                    <div class="octane-timer-wrap">
-                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                          aria-label="Status Check">
-                        <defs>
-                          <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208"
-                              y2="32" gradientUnits="userSpaceOnUse">
-                            <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                                offset="0%" stop-color="#007AFF" />
-                            <stop data-timer-gradient-stop="true" offset="20%"
-                                stop-color="#007AFF" />
-                            <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                                offset="40%" stop-color="#007AFF" />
-                            <stop data-timer-gradient-stop="true" offset="60%"
-                                stop-color="#007AFF" />
-                            <stop data-timer-gradient-stop="true" offset="80%"
-                                stop-color="#007AFF" />
-                            <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                                offset="100%" stop-color="#007AFF" />
-                          </linearGradient>
-                        </defs>
-                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <path class="octane-timer-progress" data-timer-progress="true"
-                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
-                            pathLength="100" stroke="url(#octane-poll-gradient)"
-                            stroke-dasharray="100 100" stroke-linecap="round" />
-                        <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
-                          --
-                        </text>
-                        <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
-                          seconds
-                        </text>
-                      </svg>
+                    <div class="octane-activity-rings" data-activity-rings="true">
+                      <div class="octane-activity-rings-graphic">
+                        <svg class="octane-activity-rings-svg" viewBox="0 0 240 240" role="img"
+                            aria-label="Execution rate ${snapshot.executionProgressTwoDecimalText}, pass rate ${snapshot.passRateProgressTwoDecimalText}, automation usage ${snapshot.automationProgressTwoDecimalText}">
+                          <circle class="octane-activity-ring-track octane-activity-ring-execution"
+                              cx="120" cy="120" r="84" pathLength="100" />
+                          <circle class="octane-activity-ring-progress octane-activity-ring-execution"
+                              data-activity-ring="execution" cx="120" cy="120" r="84"
+                              pathLength="100" stroke-dasharray="${snapshot.executionProgress} 100"
+                              transform="rotate(-90 120 120)" />
+                          <circle class="octane-activity-ring-track octane-activity-ring-pass"
+                              cx="120" cy="120" r="63" pathLength="100" />
+                          <circle class="octane-activity-ring-progress octane-activity-ring-pass"
+                              data-activity-ring="pass" cx="120" cy="120" r="63"
+                              pathLength="100" stroke-dasharray="${snapshot.passRateProgress} 100"
+                              transform="rotate(-90 120 120)" />
+                          <circle class="octane-activity-ring-track octane-activity-ring-automation"
+                              cx="120" cy="120" r="42" pathLength="100" />
+                          <circle class="octane-activity-ring-progress octane-activity-ring-automation"
+                              data-activity-ring="automation" cx="120" cy="120" r="42"
+                              pathLength="100"
+                              stroke-dasharray="${snapshot.testMetrics.automationPercentage} 100"
+                              transform="rotate(-90 120 120)" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4216,12 +4370,16 @@
                 data-active-view="timer">
               <div class="octane-card-actions">
                 <button class="octane-view-toggle octane-view-toggle-root" type="button"
-                    data-target-view="defects" data-target-view-label="execution defect rate"
-                    aria-label="Show execution defect rate" title="Show execution defect rate">
-                  <svg class="octane-action-icon octane-icon-defects" viewBox="0 0 24 24"
+                    data-target-view="metrics" data-target-view-label="QA health and compliance"
+                    aria-label="Show QA health and compliance"
+                    title="Show QA health and compliance">
+                  <svg class="octane-action-icon octane-icon-metrics" viewBox="0 0 24 24"
                       aria-hidden="true" focusable="false">
-                    <path d="M4 18l4-5 4 2 4-8 4 3" />
-                    <path d="M4 20h16" />
+                    <path d="M4 19V5" />
+                    <path d="M4 19h16" />
+                    <path d="M8 15h2" />
+                    <path d="M12 11h2" />
+                    <path d="M16 7h2" />
                   </svg>
                   <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
                       aria-hidden="true" focusable="false">
@@ -4846,7 +5004,7 @@
                                 </j:otherwise>
                               </j:choose>
                             </j:forEach>
-                            <circle class="octane-donut-hole" cx="50" cy="50" r="29" />
+                            <circle class="octane-donut-hole" cx="50" cy="50" r="37.36" />
                             <text class="octane-donut-center-value" x="50" y="46"
                                 dominant-baseline="central" text-anchor="middle">
                               ${section.metrics.total}
@@ -5186,12 +5344,17 @@
           var snapshotUrl = dashboard.getAttribute("data-snapshot-url") || "snapshot";
           var snapshotEtag = "";
           var currentUpdatedAt = dashboard.getAttribute("data-current-updated-at") || "";
+          var currentUpdatedAtDateTimeText =
+              dashboard.getAttribute("data-current-updated-at-text") || "";
+          var currentJobStateLabel = dashboard.getAttribute("data-job-state-label") || "Started";
+          var currentRefreshSeconds = parseInt(
+              dashboard.getAttribute("data-refresh-seconds") || "1", 10);
+          if (isNaN(currentRefreshSeconds)) {
+            currentRefreshSeconds = 1;
+          }
           var stateLabel = document.querySelector("[data-report-state-label]");
           var updatedAtLabel = document.querySelector("[data-report-updated-at]");
           var messageLabel = document.querySelector("[data-report-message]");
-          var liveUpdateLine = dashboard.querySelector("[data-live-update-line]");
-          var liveUpdateTitle = dashboard.querySelector("[data-live-update-title]");
-          var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
           var exitExtendedForm = document.querySelector("[data-exit-extended-form]");
           var exitExtendedCommand = document.querySelector("[data-exit-extended-command]");
           var exitExtendedSubmitForm = exitExtendedCommand
@@ -5328,22 +5491,46 @@
               stops[index].setAttribute("stop-color", stopColorAt(colors, index, stops.length));
             }
           }
-          function formatLastUpdatedStatus(payload) {
-            var value = payload && (payload.updatedAtText || payload.updatedAt);
-            return "LAST UPDATED: " + (value || "UNKNOWN");
+          function formatClockDuration(milliseconds) {
+            var totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+            var minutes = Math.floor(totalSeconds / 60);
+            var seconds = totalSeconds % 60;
+            return String(minutes).padStart(2, "0") + ":"
+                + String(seconds).padStart(2, "0");
+          }
+          var lastRenderedReportStatus = "";
+          function renderReportStatus(now) {
+            if (!updatedAtLabel) {
+              return;
+            }
+            var building = dashboard.getAttribute("data-report-building") === "true";
+            var status;
+            if (!building) {
+              status = "Last Update: "
+                  + (currentUpdatedAtDateTimeText || currentUpdatedAt || "Unknown");
+            } else if (liveRefresh.fetching || liveRefresh.waiting) {
+              status = "Updating ... "
+                  + formatClockDuration(Math.max(0, now - liveRefresh.waitingSince));
+            } else {
+              var nextUpdateAt = parseTimestamp(currentUpdatedAt)
+                  + Math.max(1, currentRefreshSeconds) * 1000;
+              status = "Status Check In : "
+                  + formatClockDuration(Math.max(0, nextUpdateAt - now));
+            }
+            if (status !== lastRenderedReportStatus) {
+              updatedAtLabel.textContent = status;
+              lastRenderedReportStatus = status;
+            }
           }
           function setLiveUpdateStatus(message, isLastUpdated) {
-            if (liveUpdateLine) {
-              liveUpdateLine.classList.toggle(
-                  "octane-live-update-last-updated", isLastUpdated === true);
+            if (message === "Finalizing..." && !liveRefresh.waiting) {
+              liveRefresh.waiting = true;
+              liveRefresh.waitingSince = currentWallTime();
             }
-            if (liveUpdateTitle) {
-              liveUpdateTitle.textContent =
-                  isLastUpdated === true ? message || "" : "Polling interval";
+            if (isLastUpdated === true) {
+              liveRefresh.waiting = false;
             }
-            if (liveUpdateStatus) {
-              liveUpdateStatus.textContent = isLastUpdated === true ? "" : message || "";
-            }
+            renderReportStatus(currentWallTime());
           }
           function setExtendedExitVisibility(extendedTime, manualExit, building) {
             var pending = manualExit === true && building === true;
@@ -5643,6 +5830,43 @@
             if (panel) {
               panel.innerHTML = payload.testMetricsHtml;
               initializeTestMetricSegments(panel);
+            }
+          }
+          function updateActivityRings(payload) {
+            var component = dashboard.querySelector("[data-activity-rings]");
+            if (!component || !payload) {
+              return;
+            }
+            var automation = payload.testMetrics
+                ? Number(payload.testMetrics.automationPercentage || 0)
+                : 0;
+            var rates = {
+              automation: automation,
+              execution: Number(payload.executionProgress || 0),
+              pass: Number(payload.passRateProgress || 0)
+            };
+            var labels = [];
+            var accessibleNames = {
+              automation: "automation usage",
+              execution: "execution rate",
+              pass: "pass rate"
+            };
+            ["execution", "pass", "automation"].forEach(function (key) {
+              var rate = isFinite(rates[key]) ? clamp(rates[key], 0, 100) : 0;
+              var text = rate.toFixed(2) + "%";
+              var ring = component.querySelector('[data-activity-ring="' + key + '"]');
+              var label = component.querySelector('[data-activity-rate="' + key + '"]');
+              if (ring) {
+                ring.setAttribute("stroke-dasharray", trimNumber(rate) + " 100");
+              }
+              if (label) {
+                label.textContent = text;
+              }
+              labels.push(accessibleNames[key] + " " + text);
+            });
+            var graphic = component.querySelector(".octane-activity-rings-svg");
+            if (graphic) {
+              graphic.setAttribute("aria-label", labels.join(", "));
             }
           }
           function updateExecutionStatusDistribution(payload) {
@@ -6488,7 +6712,7 @@
             autoShowHeatMapOnCompletion(payload);
             autoShowTestMetricsOnCompletion(payload);
             autoShowExecutionBreakdownOnCompletion(payload);
-            autoShowDefectTrendOnCompletion(payload);
+            autoShowQaHealthMetricsOnCompletion(payload);
           }
           function autoShowHeatMapOnCompletion(payload) {
             autoShowCardViewOnce(payload, "timer-poll", "heatmap");
@@ -6499,11 +6723,8 @@
           function autoShowExecutionBreakdownOnCompletion(payload) {
             autoShowCardViewOnce(payload, "progress-execution", "breakdown");
           }
-          function autoShowDefectTrendOnCompletion(payload) {
-            var card = autoShowCardViewOnce(payload, "progress-pass-rate", "defects");
-            if (card) {
-              scheduleDefectTrendAnimation();
-            }
+          function autoShowQaHealthMetricsOnCompletion(payload) {
+            autoShowCardViewOnce(payload, "progress-pass-rate", "metrics");
           }
           function zoneKeyFor(zone) {
             if (!zone) {
@@ -6743,6 +6964,65 @@
               actions.appendChild(tools);
             }
           }
+          function installAnalyticsComponentSwap(root) {
+            if (!root) {
+              return null;
+            }
+            var passRateCard = root.querySelector('[data-card-key="progress-pass-rate"]');
+            var defectFace = passRateCard
+                ? passRateCard.querySelector('[data-card-view="defects"]')
+                : null;
+            var managementCard = root.querySelector(
+                '[data-card-key="test-management-metrics"]');
+            var passRateViewport = passRateCard
+                ? passRateCard.querySelector(".octane-flip-viewport")
+                : null;
+            var metricsHeader = managementCard
+                ? managementCard.querySelector(".octane-card-header")
+                : null;
+            var metricsBody = managementCard
+                ? managementCard.querySelector(".octane-management-card-body")
+                : null;
+            if (!passRateCard || !defectFace || !managementCard || !passRateViewport
+                || !metricsHeader || !metricsBody) {
+              return null;
+            }
+
+            var metricsHeaderActions = metricsHeader.querySelector(".octane-card-actions");
+            if (metricsHeaderActions) {
+              metricsHeaderActions.remove();
+            }
+            metricsHeader.className = "octane-flip-face-header";
+            metricsBody.className =
+                "octane-flip-face-body octane-management-metrics-face-body";
+            var metricsFace = document.createElement("div");
+            metricsFace.className =
+                "octane-flip-face octane-flip-face-management-metrics";
+            metricsFace.setAttribute("data-card-view", "metrics");
+            metricsFace.appendChild(metricsHeader);
+            metricsFace.appendChild(metricsBody);
+            passRateViewport.appendChild(metricsFace);
+
+            var defectHeader = defectFace.querySelector(".octane-defect-face-header");
+            var defectBody = defectFace.querySelector(".octane-flip-face-body");
+            var timerToggle = defectFace.querySelector(".octane-defect-main-view-toggle");
+            if (timerToggle) {
+              timerToggle.remove();
+            }
+            if (defectHeader) {
+              defectHeader.classList.add("octane-card-header");
+              managementCard.appendChild(defectHeader);
+            }
+            if (defectBody) {
+              defectBody.classList.add("octane-management-card-body");
+              managementCard.appendChild(defectBody);
+            }
+            defectFace.remove();
+            managementCard.setAttribute("data-card-key", "test-management-defects");
+            managementCard.classList.add("octane-test-management-defects-card");
+            return passRateCard;
+          }
+          var managementMetricsRoot = installAnalyticsComponentSwap(dashboard);
           decorateCardZones(dashboard);
           var testManagementZone = document.getElementById("octane-test-management-zone");
           function initialTestManagementPayload() {
@@ -6773,7 +7053,10 @@
             window.OctaneTestManagement.mount(
                 testManagementZone,
                 initialTestManagementPayload(),
-                {onCategorySelect: expandFailureCategory});
+                {
+                  metricsRoot: managementMetricsRoot,
+                  onCategorySelect: expandFailureCategory
+                });
           }
           function updateTestManagement(payload) {
             if (!testManagementZone || !window.OctaneTestManagement
@@ -7114,6 +7397,8 @@
             if (isNaN(refreshSeconds)) {
               refreshSeconds = 1;
             }
+            currentRefreshSeconds = Math.max(1, refreshSeconds);
+            dashboard.setAttribute("data-refresh-seconds", String(currentRefreshSeconds));
             var timeoutSeconds = parseInt(payload.timeoutSeconds || "1", 10);
             if (isNaN(timeoutSeconds)) {
               timeoutSeconds = 1;
@@ -7190,7 +7475,15 @@
           }
           function applySnapshot(payload) {
             currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
+            currentUpdatedAtDateTimeText =
+                payload.updatedAtDateTimeText || currentUpdatedAtDateTimeText;
+            currentJobStateLabel = payload.jobStateLabel
+                || (payload.building === true ? "In Progress" : payload.stateLabel)
+                || currentJobStateLabel;
             dashboard.setAttribute("data-current-updated-at", currentUpdatedAt);
+            dashboard.setAttribute(
+                "data-current-updated-at-text", currentUpdatedAtDateTimeText);
+            dashboard.setAttribute("data-job-state-label", currentJobStateLabel);
             dashboard.setAttribute("data-report-building", String(payload.building === true));
             dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
             dashboard.setAttribute(
@@ -7206,16 +7499,14 @@
                 payload.manualExitRequested === true,
                 payload.building === true);
             if (stateLabel) {
-              stateLabel.textContent = payload.stateLabel || "";
-            }
-            if (updatedAtLabel) {
-              updatedAtLabel.textContent = payload.updatedAtText || payload.updatedAt || "";
+              stateLabel.textContent = currentJobStateLabel;
             }
             if (messageLabel) {
               messageLabel.textContent = payload.message || "";
             }
             updateRiskHeatMap(payload);
             updateTestMetrics(payload);
+            updateActivityRings(payload);
             updateExecutionStatusDistribution(payload);
             updateDefectTrend(payload);
             updateTestManagement(payload);
@@ -7312,7 +7603,7 @@
                     ? "Finalizing..."
                     : payload.building === true
                     ? "+" + (waitedMillis / 1000).toFixed(1) + "s"
-                    : formatLastUpdatedStatus(payload),
+                    : "",
                 payload.building !== true);
             if (payload.building === true) {
               scheduleTimerAnimation();
@@ -7377,6 +7668,7 @@
               snapshotRequestSucceeded();
               updateRiskHeatMap(payload);
               updateTestMetrics(payload);
+              updateActivityRings(payload);
               updateExecutionStatusDistribution(payload);
               updateDefectTrend(payload);
               updateTestManagement(payload);
@@ -7387,6 +7679,7 @@
           }
           function animateTimers() {
             var now = currentWallTime();
+            renderReportStatus(now);
             var activeTimerStillRunning = false;
             for (var index = 0; index < timers.length; index += 1) {
               var remaining = remainingMillis(timers[index], now);

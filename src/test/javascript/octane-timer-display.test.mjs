@@ -119,3 +119,60 @@ test("renders full and compact labels with component and mobile breakpoints", ()
   assert.match(jelly, /@media \(max-width: 480px\)/);
   assert.match(jelly, /\.octane-timer-unit-compact\s*{\s*display:\s*none;/);
 });
+
+test("renders the dynamic job and polling status state machine", () => {
+  assert.match(jelly, /data-report-status="true"/);
+  assert.match(jelly, /Status Check In :/);
+  assert.match(jelly, /Updating \.\.\. /);
+  assert.match(jelly, /Last Update: /);
+  assert.match(jelly, /function formatClockDuration\(milliseconds\)/);
+  assert.match(jelly, /function renderReportStatus\(now\)/);
+  assert.match(jelly, /payload\.jobStateLabel/);
+  assert.match(jelly, /payload\.updatedAtDateTimeText/);
+  assert.doesNotMatch(jelly, /formatLastUpdatedStatus/);
+});
+
+test("uses three equal activity rings with exact five-pixel edge gaps", () => {
+  const radii = [...jelly.matchAll(/data-activity-ring="[^"]+"[^>]*r="(\d+)"/g)]
+      .map(match => Number(match[1]));
+  assert.deepEqual(radii, [84, 63, 42]);
+  assert.equal(radii[0] - radii[1] - 16, 5);
+  assert.equal(radii[1] - radii[2] - 16, 5);
+  assert.match(jelly, /\.octane-activity-ring-track,[\s\S]*?stroke-width: 16;/);
+  assert.match(jelly, /\.octane-activity-ring-track\s*{\s*opacity: 0\.8;/);
+  assert.match(jelly, /stroke-linecap: round/);
+  assert.match(jelly, /stroke: #ED0143/);
+  assert.match(jelly, /stroke: #60D200/);
+  assert.match(jelly, /stroke: #02CCCE/);
+});
+
+test("matches the timer ring bounds and centers the activity rings", () => {
+  const timerRule = cssRule(".octane-timer-donut");
+  const activityRule = cssRule(".octane-activity-rings-svg");
+  const activityContainerRule = cssRule(".octane-activity-rings");
+
+  for (const property of [
+    /height:\s*min\(100cqw,\s*100cqh,\s*220px\)/,
+    /max-height:\s*220px/,
+    /max-width:\s*220px/,
+    /width:\s*min\(100cqw,\s*100cqh,\s*220px\)/
+  ]) {
+    assert.match(timerRule, property);
+    assert.match(activityRule, property);
+  }
+  assert.match(activityContainerRule, /place-items:\s*center/);
+  assert.match(activityContainerRule, /padding:\s*0/);
+});
+
+test("renders a two-decimal activity legend with a container-aware compact form", () => {
+  assert.doesNotMatch(jelly, /Target Achievement/);
+  assert.match(jelly, /octane-activity-subtitle/);
+  assert.match(jelly, />Execution Rate<\/span>/);
+  assert.match(jelly, />Pass Rate<\/span>/);
+  assert.match(jelly, />Automation Usage<\/span>/);
+  assert.match(jelly, />Execution<\/span>/);
+  assert.match(jelly, />Pass<\/span>/);
+  assert.match(jelly, />Automation<\/span>/);
+  assert.match(jelly, /@container octane-activity-legend \(max-width: 34rem\)/);
+  assert.match(jelly, /rate\.toFixed\(2\) \+ "%"/);
+});
