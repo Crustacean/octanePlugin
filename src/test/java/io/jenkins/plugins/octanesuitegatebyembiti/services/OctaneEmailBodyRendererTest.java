@@ -386,10 +386,10 @@ public class OctaneEmailBodyRendererTest {
         renderExecutionDetails(
             snapshot(OctaneGateReportState.ERROR, "Gate error."), OctaneReportTheme.LIGHT);
 
-    assertPassRateCell(lightPass, "#34C759", "#FFFFFF", true);
-    assertPassRateCell(lightFail, "#FF3B30", "#FFFFFF", true);
+    assertPassRateCell(lightPass, "#34C759", "#000000", true);
+    assertPassRateCell(lightFail, "#FF3B30", "#000000", true);
     assertPassRateCell(darkPass, "#30D158", "#000000", true);
-    assertPassRateCell(darkFail, "#FF453A", "#FFFFFF", true);
+    assertPassRateCell(darkFail, "#FF453A", "#000000", true);
     assertPassRateCell(fallback, "transparent", "inherit", false);
   }
 
@@ -402,9 +402,9 @@ public class OctaneEmailBodyRendererTest {
         renderExecutionDetails(automationSnapshot(0, 0, 80), OctaneReportTheme.LIGHT);
 
     assertTrue(achieved.indexOf("Pass Rate") < achieved.indexOf("Automation Usage"));
-    assertAutomationUsageCell(achieved, "80%", "#34C759", "#ffffff", true);
-    assertAutomationUsageCell(warning, "70%", "#FF9F0A", "#ffffff", true);
-    assertAutomationUsageCell(action, "60%", "#FF3B30", "#ffffff", true);
+    assertAutomationUsageCell(achieved, "80%", "#34C759", "#000000", true);
+    assertAutomationUsageCell(warning, "70%", "#FF9F0A", "#000000", true);
+    assertAutomationUsageCell(action, "60%", "#FF3B30", "#000000", true);
     assertAutomationUsageCell(unavailable, "0%", "transparent", "inherit", false);
   }
 

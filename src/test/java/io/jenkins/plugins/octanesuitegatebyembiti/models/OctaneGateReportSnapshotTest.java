@@ -199,8 +199,8 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(2, charts.size());
     assertEquals(
         List.of("Ada Owner", "Unassigned (55)"),
-        charts.stream().map(OctaneGateSuiteRunChart::getDisplayName).toList());
-    assertEquals(List.of(1, 1), charts.stream().map(OctaneGateSuiteRunChart::getTotal).toList());
+        charts.stream().map(chart -> chart.getDisplayName()).toList());
+    assertEquals(List.of(1, 1), charts.stream().map(chart -> chart.getTotal()).toList());
   }
 
   @Test

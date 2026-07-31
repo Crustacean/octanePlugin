@@ -140,10 +140,10 @@ public class OctaneClientTest {
 
       assertEquals(
           List.of("Jenkins Agent", "Default Manual Runner"),
-          records.stream().map(RunRecord::getRunByName).toList());
+          records.stream().map(record -> record.getRunByName()).toList());
       assertEquals(
           List.of("Suite Owner", "Suite Owner"),
-          records.stream().map(RunRecord::getAssignedToName).toList());
+          records.stream().map(record -> record.getAssignedToName()).toList());
     }
   }
 
@@ -185,10 +185,10 @@ public class OctaneClientTest {
 
       assertEquals(
           List.of("ada@example.com", "ada@example.com"),
-          records.stream().map(RunRecord::getAssignedToName).toList());
+          records.stream().map(record -> record.getAssignedToName()).toList());
       assertEquals(
           List.of("Jenkins Agent", "Default Manual Runner"),
-          records.stream().map(RunRecord::getRunByName).toList());
+          records.stream().map(record -> record.getRunByName()).toList());
     }
   }
 
@@ -228,7 +228,7 @@ public class OctaneClientTest {
 
       assertEquals(
           List.of("Ada Owner", "Unassigned (55)"),
-          records.stream().map(RunRecord::getAssignedToName).toList());
+          records.stream().map(record -> record.getAssignedToName()).toList());
     }
   }
 

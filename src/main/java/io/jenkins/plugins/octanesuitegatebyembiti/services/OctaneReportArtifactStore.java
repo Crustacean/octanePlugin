@@ -167,10 +167,7 @@ public final class OctaneReportArtifactStore {
   }
 
   private static ObjectInputFilter.Status filterSnapshotObject(ObjectInputFilter.FilterInfo info) {
-    if (info.depth() > MAX_DESERIALIZATION_DEPTH
-        || info.references() > MAX_DESERIALIZED_REFERENCES
-        || info.streamBytes() > MAX_ARTIFACT_BYTES
-        || (info.arrayLength() >= 0 && info.arrayLength() > MAX_ARRAY_LENGTH)) {
+    if (exceedsDeserializationLimits(info)) {
       return ObjectInputFilter.Status.REJECTED;
     }
     Class<?> serialClass = info.serialClass();
@@ -180,18 +177,24 @@ public final class OctaneReportArtifactStore {
     while (serialClass.isArray()) {
       serialClass = serialClass.getComponentType();
     }
-    if (serialClass.isPrimitive()) {
-      return ObjectInputFilter.Status.ALLOWED;
-    }
-    String className = serialClass.getName();
-    if (className.startsWith("io.jenkins.plugins.octanesuitegatebyembiti.models.")
+    return serialClass.isPrimitive() || isAllowedSnapshotClass(serialClass.getName())
+        ? ObjectInputFilter.Status.ALLOWED
+        : ObjectInputFilter.Status.REJECTED;
+  }
+
+  private static boolean exceedsDeserializationLimits(ObjectInputFilter.FilterInfo info) {
+    return info.depth() > MAX_DESERIALIZATION_DEPTH
+        || info.references() > MAX_DESERIALIZED_REFERENCES
+        || info.streamBytes() > MAX_ARTIFACT_BYTES
+        || (info.arrayLength() >= 0 && info.arrayLength() > MAX_ARRAY_LENGTH);
+  }
+
+  private static boolean isAllowedSnapshotClass(String className) {
+    return className.startsWith("io.jenkins.plugins.octanesuitegatebyembiti.models.")
         || className.startsWith("io.jenkins.plugins.octanesuitegatebyembiti.entities.")
         || className.startsWith("java.lang.")
         || className.startsWith("java.time.")
-        || className.startsWith("java.util.")) {
-      return ObjectInputFilter.Status.ALLOWED;
-    }
-    return ObjectInputFilter.Status.REJECTED;
+        || className.startsWith("java.util.");
   }
 
   private void verifyArtifactSize(Path path) throws IOException {

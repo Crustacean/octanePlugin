@@ -34,6 +34,11 @@ public class StatusClassifier implements Serializable {
 
   Outcome classify(String status) {
     String normalized = Util.normalizeStatus(status);
+    Outcome configured = configuredOutcome(normalized);
+    return configured == null ? inferredOutcome(normalized) : configured;
+  }
+
+  private Outcome configuredOutcome(String normalized) {
     if (matches(passedStatuses, normalized)) {
       return Outcome.PASSED;
     }
@@ -46,19 +51,19 @@ public class StatusClassifier implements Serializable {
     if (matches(neutralStatuses, normalized)) {
       return Outcome.NEUTRAL;
     }
-    if (matches(runningStatuses, normalized)) {
-      return Outcome.RUNNING;
-    }
+    return matches(runningStatuses, normalized) ? Outcome.RUNNING : null;
+  }
+
+  private Outcome inferredOutcome(String normalized) {
     if (normalized.contains("pass")) {
       return Outcome.PASSED;
     }
     if (normalized.contains("fail") || normalized.contains("error")) {
       return Outcome.FAILED;
     }
-    if (normalized.contains("skip") || normalized.contains("not_completed")) {
-      return Outcome.NEUTRAL;
-    }
-    return Outcome.RUNNING;
+    return normalized.contains("skip") || normalized.contains("not_completed")
+        ? Outcome.NEUTRAL
+        : Outcome.RUNNING;
   }
 
   private boolean matches(Set<String> candidates, String normalizedStatus) {

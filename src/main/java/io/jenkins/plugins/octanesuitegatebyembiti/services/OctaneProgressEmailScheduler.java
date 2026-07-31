@@ -232,7 +232,7 @@ public final class OctaneProgressEmailScheduler {
       this.delivery = delivery;
     }
 
-    private void scheduleNext(Instant after) {
+    private synchronized void scheduleNext(Instant after) {
       if (cancelled.get()) {
         return;
       }
@@ -297,7 +297,7 @@ public final class OctaneProgressEmailScheduler {
       }
     }
 
-    private void cancel() {
+    private synchronized void cancel() {
       cancelled.set(true);
       ScheduledFuture<?> scheduled = future;
       if (scheduled != null) {

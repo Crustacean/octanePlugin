@@ -6,3 +6,8 @@ reason = "commons-lang:commons-lang:2.6 is inherited from Jenkins core as a prov
 id = "GHSA-93qh-vwrm-c5pw"
 ignoreUntil = 2026-12-31
 reason = "Jenkins 2.555.3 contains the official LTS backport for this issue, but OSV currently models only the weekly 2.568 fix and incorrectly lists 2.555.3 as affected."
+
+[[IgnoredVulns]]
+id = "GHSA-wxpp-56q6-5pcg"
+ignoreUntil = 2026-10-31
+reason = "spring-expression is inherited from Jenkins core with provided scope and is not packaged in this plugin HPI. The advisory requires evaluation of user-controlled SpEL; this plugin has no SpEL evaluation path. Jenkins controllers must still be upgraded to a core release carrying Spring Framework 6.2.19 or 7.0.8 before this exception expires."

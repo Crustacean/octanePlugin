@@ -148,6 +148,39 @@ public class OctaneProgressEmailSchedulerTest {
     }
   }
 
+  @Test(timeout = 15_000L)
+  public void cancellationCannotRaceWithPostDeliveryRescheduling() throws Exception {
+    OctaneProgressEmailScheduler scheduler =
+        OctaneProgressEmailScheduler.createForTests(4, 64, Duration.ZERO, Duration.ofMinutes(5L));
+    try {
+      for (int cycle = 0; cycle < 50; cycle++) {
+        int jobs = 16;
+        CountDownLatch completed = new CountDownLatch(jobs);
+        List<OctaneProgressEmailScheduler.Delivery> deliveries = new ArrayList<>(jobs);
+        List<OctaneProgressEmailScheduler.Registration> registrations = new ArrayList<>(jobs);
+        for (int job = 0; job < jobs; job++) {
+          OctaneProgressEmailScheduler.Delivery delivery = occurrence -> completed.countDown();
+          deliveries.add(delivery);
+          registrations.add(
+              scheduler.schedule(
+                  "cancel-race-" + cycle + "-" + job,
+                  "cancel-race-build-" + cycle,
+                  new ImmediateThenDailySchedule(),
+                  delivery));
+        }
+
+        assertTrue(completed.await(2L, TimeUnit.SECONDS));
+        for (OctaneProgressEmailScheduler.Registration registration : registrations) {
+          registration.cancel();
+        }
+        assertEquals(0, scheduler.activeScheduleCount());
+        assertEquals(0, scheduler.queuedTaskCount());
+      }
+    } finally {
+      scheduler.shutdownForTests();
+    }
+  }
+
   @Test
   public void boundsTwentyOverlappingPipelineSchedulesToFourThreads() throws Exception {
     OctaneProgressEmailScheduler scheduler =

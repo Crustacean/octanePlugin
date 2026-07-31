@@ -451,7 +451,10 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     }
     Map<String, SeverityPresentation> severityPresentations =
         severityPresentations(configuredGroups);
+    return failureCategories(clusterDocuments(defectDocuments(defects)), severityPresentations);
+  }
 
+  private static List<DefectDocument> defectDocuments(List<DefectRecord> defects) {
     List<Map<String, Integer>> tokenCounts = new ArrayList<>();
     Map<String, Integer> documentFrequencies = new LinkedHashMap<>();
     for (DefectRecord defect : defects) {
@@ -469,29 +472,40 @@ public final class OctaneTestManagementAnalytics implements Serializable {
               defects.get(index),
               tfIdfVector(tokenCounts.get(index), documentFrequencies, defects.size())));
     }
+    return documents;
+  }
 
+  private static List<DynamicCluster> clusterDocuments(List<DefectDocument> documents) {
     List<DynamicCluster> clusters = new ArrayList<>();
     for (DefectDocument document : documents) {
-      DynamicCluster closest = null;
-      double closestSimilarity = -1.0;
-      for (DynamicCluster cluster : clusters) {
-        double similarity = cosineSimilarity(document.vector, cluster.centroid());
-        if (similarity > closestSimilarity) {
-          closest = cluster;
-          closestSimilarity = similarity;
-        }
-      }
-      if (closest == null
-          || (closestSimilarity < CLUSTER_SIMILARITY_THRESHOLD
-              && clusters.size() < MAX_FAILURE_CLUSTERS)) {
+      ClusterMatch match = closestCluster(document, clusters);
+      if (match.requiresNewCluster(clusters.size())) {
         DynamicCluster cluster = new DynamicCluster();
         cluster.add(document);
         clusters.add(cluster);
       } else {
-        closest.add(document);
+        match.cluster().add(document);
       }
     }
+    return clusters;
+  }
 
+  private static ClusterMatch closestCluster(
+      DefectDocument document, List<DynamicCluster> clusters) {
+    DynamicCluster closest = null;
+    double closestSimilarity = -1.0;
+    for (DynamicCluster cluster : clusters) {
+      double similarity = cosineSimilarity(document.vector, cluster.centroid());
+      if (similarity > closestSimilarity) {
+        closest = cluster;
+        closestSimilarity = similarity;
+      }
+    }
+    return new ClusterMatch(closest, closestSimilarity);
+  }
+
+  private static List<FailureCategory> failureCategories(
+      List<DynamicCluster> clusters, Map<String, SeverityPresentation> severityPresentations) {
     Map<String, Integer> keyOccurrences = new LinkedHashMap<>();
     List<FailureCategory> categories = new ArrayList<>();
     for (DynamicCluster cluster : clusters) {
@@ -671,33 +685,52 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     Map<String, Set<String>> testerKeysByRun = new LinkedHashMap<>();
     Map<String, Set<String>> testerKeysByTest = new LinkedHashMap<>();
     for (RunRecord run : runs) {
-      String name = Util.isBlank(run.getAssignedToName()) ? "Unassigned" : run.getAssignedToName();
-      String testerKey = name.toLowerCase(Locale.ROOT);
-      if (!Util.isBlank(run.getId())) {
-        testerKeysByRun
-            .computeIfAbsent(run.getId(), ignored -> new LinkedHashSet<>())
-            .add(testerKey);
-      }
-      if (!Util.isBlank(run.getTestId())) {
-        testerKeysByTest
-            .computeIfAbsent(run.getTestId(), ignored -> new LinkedHashSet<>())
-            .add(testerKey);
-      }
+      indexTesterRun(run, testerKeysByRun, testerKeysByTest);
     }
     for (DefectRecord defect : defects) {
-      Set<String> matchingTesterKeys =
-          new LinkedHashSet<>(testerKeysByRun.getOrDefault(defect.getRunId(), Set.of()));
-      if (matchingTesterKeys.isEmpty()) {
-        matchingTesterKeys.addAll(testerKeysByTest.getOrDefault(defect.getTestId(), Set.of()));
-      }
-      if (matchingTesterKeys.isEmpty() && testers.size() == 1) {
-        matchingTesterKeys.add(testers.keySet().iterator().next());
-      }
-      for (String testerKey : matchingTesterKeys) {
-        TesterAccumulator tester = testers.get(testerKey);
-        if (tester != null) {
-          tester.addDefect(defect);
-        }
+      applyTesterDefect(
+          testers, defect, matchingTesterKeys(testers, defect, testerKeysByRun, testerKeysByTest));
+    }
+  }
+
+  private static void indexTesterRun(
+      RunRecord run,
+      Map<String, Set<String>> testerKeysByRun,
+      Map<String, Set<String>> testerKeysByTest) {
+    String name = Util.isBlank(run.getAssignedToName()) ? "Unassigned" : run.getAssignedToName();
+    String testerKey = name.toLowerCase(Locale.ROOT);
+    addTesterIndex(testerKeysByRun, run.getId(), testerKey);
+    addTesterIndex(testerKeysByTest, run.getTestId(), testerKey);
+  }
+
+  private static void addTesterIndex(Map<String, Set<String>> index, String id, String testerKey) {
+    if (!Util.isBlank(id)) {
+      index.computeIfAbsent(id, ignored -> new LinkedHashSet<>()).add(testerKey);
+    }
+  }
+
+  private static Set<String> matchingTesterKeys(
+      Map<String, TesterAccumulator> testers,
+      DefectRecord defect,
+      Map<String, Set<String>> testerKeysByRun,
+      Map<String, Set<String>> testerKeysByTest) {
+    Set<String> matches =
+        new LinkedHashSet<>(testerKeysByRun.getOrDefault(defect.getRunId(), Set.of()));
+    if (matches.isEmpty()) {
+      matches.addAll(testerKeysByTest.getOrDefault(defect.getTestId(), Set.of()));
+    }
+    if (matches.isEmpty() && testers.size() == 1) {
+      matches.add(testers.keySet().iterator().next());
+    }
+    return matches;
+  }
+
+  private static void applyTesterDefect(
+      Map<String, TesterAccumulator> testers, DefectRecord defect, Set<String> matchingTesterKeys) {
+    for (String testerKey : matchingTesterKeys) {
+      TesterAccumulator tester = testers.get(testerKey);
+      if (tester != null) {
+        tester.addDefect(defect);
       }
     }
   }
@@ -790,6 +823,13 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     private DefectDocument(DefectRecord defect, Map<String, Double> vector) {
       this.defect = defect;
       this.vector = Map.copyOf(vector);
+    }
+  }
+
+  private record ClusterMatch(DynamicCluster cluster, double similarity) {
+    private boolean requiresNewCluster(int clusterCount) {
+      return cluster == null
+          || (similarity < CLUSTER_SIMILARITY_THRESHOLD && clusterCount < MAX_FAILURE_CLUSTERS);
     }
   }
 

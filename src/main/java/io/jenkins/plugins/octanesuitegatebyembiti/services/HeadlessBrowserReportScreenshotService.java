@@ -138,23 +138,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
       throws IOException, InterruptedException {
     String configured = normalizeBrowserPath(configuredBrowserPath);
     if (!configured.isEmpty()) {
-      BrowserProbeResult result = probeBrowser(configured, profileDirectory, launcher);
-      if (result.successful()) {
-        listener.getLogger().println("Configured headless browser validated successfully.");
-        return configured;
-      }
-      if (result.timedOut()) {
-        throw new AbortException(
-            "Configured browserPath did not complete a headless startup check within "
-                + BROWSER_PROBE_TIMEOUT_SECONDS
-                + " seconds. Verify that the path exists on the executing Jenkins agent and that "
-                + "the Jenkins service account can run Chrome or Chromium.");
-      }
-      throw new AbortException(
-          "Configured browserPath could not run in headless mode (exit "
-              + result.exitCode()
-              + ")."
-              + formattedProbeOutput(result.output()));
+      return validateConfiguredBrowser(configured, profileDirectory, launcher, listener);
     }
 
     String envBrowser = envVars == null ? "" : normalizeBrowserPath(envVars.get("CHROME_BIN"));
@@ -171,6 +155,28 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     throw new AbortException(
         "Chrome or Chromium was not found on this Jenkins agent. "
             + "Install it or pass browserPath to octaneEmailReport.");
+  }
+
+  private String validateConfiguredBrowser(
+      String configured, String profileDirectory, Launcher launcher, TaskListener listener)
+      throws IOException, InterruptedException {
+    BrowserProbeResult result = probeBrowser(configured, profileDirectory, launcher);
+    if (result.successful()) {
+      listener.getLogger().println("Configured headless browser validated successfully.");
+      return configured;
+    }
+    if (result.timedOut()) {
+      throw new AbortException(
+          "Configured browserPath did not complete a headless startup check within "
+              + BROWSER_PROBE_TIMEOUT_SECONDS
+              + " seconds. Verify that the path exists on the executing Jenkins agent and that "
+              + "the Jenkins service account can run Chrome or Chromium.");
+    }
+    throw new AbortException(
+        "Configured browserPath could not run in headless mode (exit "
+            + result.exitCode()
+            + ")."
+            + formattedProbeOutput(result.output()));
   }
 
   String toFileUrl(String remotePath) throws IOException {

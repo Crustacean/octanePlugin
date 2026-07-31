@@ -751,25 +751,13 @@ public class OctaneEmailBodyRenderer {
     OctaneReportTheme emailTheme = emailTheme(theme);
     OctaneGateReportState state = snapshot == null ? null : snapshot.getState();
     if (state != null && state.isBuilding()) {
-      String ongoingColor =
-          emailTheme == OctaneReportTheme.DARK ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE;
-      return EmailValueCellStyle.painted(ongoingColor, "#000000");
+      return EmailValueCellStyle.painted(systemOrange(emailTheme), "#000000");
     }
-    if (emailTheme == OctaneReportTheme.LIGHT) {
-      if (state == OctaneGateReportState.PASSED) {
-        return EmailValueCellStyle.painted(LIGHT_SYSTEM_GREEN, "#FFFFFF");
-      }
-      if (isFailState(state)) {
-        return EmailValueCellStyle.painted(LIGHT_SYSTEM_RED, "#FFFFFF");
-      }
+    if (state == OctaneGateReportState.PASSED) {
+      return EmailValueCellStyle.painted(systemGreen(emailTheme), "#000000");
     }
-    if (emailTheme == OctaneReportTheme.DARK) {
-      if (state == OctaneGateReportState.PASSED) {
-        return EmailValueCellStyle.painted(DARK_SYSTEM_GREEN, "#000000");
-      }
-      if (isFailState(state)) {
-        return EmailValueCellStyle.painted(DARK_SYSTEM_RED, "#FFFFFF");
-      }
+    if (isFailState(state)) {
+      return EmailValueCellStyle.painted(systemRed(emailTheme), "#000000");
     }
     return EmailValueCellStyle.fallbackStyle();
   }
@@ -779,20 +767,28 @@ public class OctaneEmailBodyRenderer {
     if (snapshot == null || snapshot.getTestMetrics().getAutomationTestTotal() == 0) {
       return EmailValueCellStyle.fallbackStyle();
     }
-    boolean darkTheme = emailTheme(theme) == OctaneReportTheme.DARK;
     switch (snapshot.getTestMetrics().getAutomationTone()) {
       case "positive":
-        return EmailValueCellStyle.painted(
-            darkTheme ? DARK_SYSTEM_GREEN : LIGHT_SYSTEM_GREEN, "#ffffff");
+        return EmailValueCellStyle.painted(systemGreen(emailTheme(theme)), "#000000");
       case "warning":
-        return EmailValueCellStyle.painted(
-            darkTheme ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE, "#ffffff");
+        return EmailValueCellStyle.painted(systemOrange(emailTheme(theme)), "#000000");
       case "negative":
-        return EmailValueCellStyle.painted(
-            darkTheme ? DARK_SYSTEM_RED : LIGHT_SYSTEM_RED, "#ffffff");
+        return EmailValueCellStyle.painted(systemRed(emailTheme(theme)), "#000000");
       default:
         return EmailValueCellStyle.fallbackStyle();
     }
+  }
+
+  private String systemGreen(OctaneReportTheme theme) {
+    return theme == OctaneReportTheme.DARK ? DARK_SYSTEM_GREEN : LIGHT_SYSTEM_GREEN;
+  }
+
+  private String systemOrange(OctaneReportTheme theme) {
+    return theme == OctaneReportTheme.DARK ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE;
+  }
+
+  private String systemRed(OctaneReportTheme theme) {
+    return theme == OctaneReportTheme.DARK ? DARK_SYSTEM_RED : LIGHT_SYSTEM_RED;
   }
 
   private OctaneReportTheme emailTheme(String theme) {

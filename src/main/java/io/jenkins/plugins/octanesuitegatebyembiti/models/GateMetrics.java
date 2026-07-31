@@ -7,9 +7,21 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToDoubleFunction;
 
 public class GateMetrics implements Serializable {
   private static final long serialVersionUID = 1L;
+  private static final Map<String, ToDoubleFunction<GateMetrics>> METRIC_VALUES =
+      Map.ofEntries(
+          Map.entry("total", metrics -> metrics.total),
+          Map.entry("executed", metrics -> metrics.executed),
+          Map.entry("passed", metrics -> metrics.passed),
+          Map.entry("failed", metrics -> metrics.failed),
+          Map.entry("skipped", metrics -> metrics.skipped),
+          Map.entry("running", metrics -> metrics.running),
+          Map.entry("executionrate", metrics -> metrics.getExecutionRate()),
+          Map.entry("passrate", metrics -> metrics.getPassRate()),
+          Map.entry("failrate", metrics -> metrics.getFailRate()));
 
   private final int total;
   private final int executed;
@@ -94,28 +106,11 @@ public class GateMetrics implements Serializable {
 
   double value(String metricName) {
     String normalized = normalizeMetricName(metricName);
-    switch (normalized) {
-      case "total":
-        return total;
-      case "executed":
-        return executed;
-      case "passed":
-        return passed;
-      case "failed":
-        return failed;
-      case "skipped":
-        return skipped;
-      case "running":
-        return running;
-      case "executionrate":
-        return getExecutionRate();
-      case "passrate":
-        return getPassRate();
-      case "failrate":
-        return getFailRate();
-      default:
-        throw new CriteriaException("Unknown metric: " + metricName);
+    ToDoubleFunction<GateMetrics> metric = METRIC_VALUES.get(normalized);
+    if (metric == null) {
+      throw new CriteriaException("Unknown metric: " + metricName);
     }
+    return metric.applyAsDouble(this);
   }
 
   public static boolean isPercentageMetric(String metricName) {

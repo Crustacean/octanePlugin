@@ -139,21 +139,25 @@ final class OctaneSuiteTopologyCache {
     try {
       return future.get();
     } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof IOException ioException) {
-        throw ioException;
-      }
-      if (cause instanceof InterruptedException interruptedException) {
-        throw interruptedException;
-      }
-      if (cause instanceof RuntimeException runtimeException) {
-        throw runtimeException;
-      }
-      if (cause instanceof Error error) {
-        throw error;
-      }
-      throw new IOException("Unable to load ALM Octane suite topology.", cause);
+      return rethrowLoadFailure(e.getCause());
     }
+  }
+
+  private static Topology rethrowLoadFailure(Throwable cause)
+      throws IOException, InterruptedException {
+    if (cause instanceof IOException ioException) {
+      throw ioException;
+    }
+    if (cause instanceof InterruptedException interruptedException) {
+      throw interruptedException;
+    }
+    if (cause instanceof RuntimeException runtimeException) {
+      throw runtimeException;
+    }
+    if (cause instanceof Error error) {
+      throw error;
+    }
+    throw new IOException("Unable to load ALM Octane suite topology.", cause);
   }
 
   interface Loader {
