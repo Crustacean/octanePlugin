@@ -132,7 +132,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Open Defects"));
     assertTrue(text.contains("Execution Activity Rings"));
     assertFalse(text.contains("Target Achievement"));
-    assertTrue(text.contains("Session Time Remaining"));
+    assertTrue(text.contains("Session Time Spent"));
     assertTrue(text.contains("Execution Progress"));
     assertTrue(text.contains("All Testcase execution"));
     assertTrue(text.contains("All Testcase Status"));
@@ -239,8 +239,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("height: calc(260px + var(--octane-axis-label-row))"));
     assertTrue(xml.contains("<path d=") || xml.contains("r=\"46\" fill="));
     assertTrue(xml.contains("r=\"37.36\""));
-    assertTrue(xml.contains("max-height: 248.1804px"));
-    assertTrue(xml.contains("max-width: 248.1804px"));
+    assertTrue(xml.contains("max-height: none"));
+    assertTrue(xml.contains("max-width: none"));
+    assertFalse(xml.contains("max-height: 248.1804px"));
+    assertFalse(xml.contains("max-width: 248.1804px"));
     assertTrue(text.contains("Total test cases"));
     assertTrue(text.contains("Total test cases: 2"));
     assertTrue(text.contains("50.00%"));
@@ -333,19 +335,21 @@ public class OctaneGateReportActionTest {
         1,
         page.getByXPath(
                 "//section[@data-card-key='timer-poll']"
-                    + "//*[@data-activity-ring='pass' and @r='63']")
+                    + "//*[@data-activity-ring='pass' and @r='64.5']")
             .size());
     assertEquals(
         1,
         page.getByXPath(
                 "//section[@data-card-key='timer-poll']"
-                    + "//*[@data-activity-ring='automation' and @r='42']")
+                    + "//*[@data-activity-ring='automation' and @r='45']")
             .size());
     assertTrue(xml.contains("stroke-width: 16"));
-    assertTrue(xml.contains("opacity: 0.8"));
-    assertTrue(xml.contains("stroke: #ED0143"));
-    assertTrue(xml.contains("stroke: #60D200"));
-    assertTrue(xml.contains("stroke: #02CCCE"));
+    assertTrue(xml.contains("opacity: 0.2"));
+    assertTrue(xml.contains("stroke: #FA114F"));
+    assertTrue(xml.contains("stroke: #A6FF00"));
+    assertTrue(xml.contains("stroke: #00FFF6"));
+    assertTrue(xml.contains("class=\"octane-activity-side-legend\""));
+    assertTrue(xml.contains("@container octane-activity-rings (min-width: 36rem)"));
     assertTrue(xml.contains("octane-activity-legend-full"));
     assertTrue(xml.contains("octane-activity-legend-compact"));
     assertTrue(xml.contains("@container octane-activity-legend (max-width: 34rem)"));
@@ -829,6 +833,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("minutes + seconds"));
     assertTrue(xml.contains("m + s"));
     assertTrue(xml.contains("data-timeout-title=\"true\""));
+    assertTrue(xml.contains("data-timeout-subtitle=\"true\""));
     assertTrue(xml.contains("testingTimeSpentMillis"));
     assertTrue(xml.contains("function fitTimerText"));
     assertTrue(xml.contains("116 / (valueLength * 0.56)"));
@@ -838,11 +843,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("fullLabel = \"days + hours\""));
     assertTrue(xml.contains("fullLabel = \"hours + minutes\""));
     assertTrue(xml.contains("fullLabel = \"minutes + seconds\""));
-    assertTrue(
-        xml.contains(
-            "setTimerText(state, state.mode === \"timeout\" ? trackRemaining : remaining)"));
+    assertTrue(xml.contains("showSpent ? testingTimeSpentMillis(state, now) : trackRemaining"));
     assertTrue(xml.contains("Testing Session Monitor"));
-    assertTrue(xml.contains("Session Time Remaining"));
+    assertTrue(xml.contains("Session Time Spent"));
     assertTrue(xml.contains("stroke-width: 1"));
     assertTrue(xml.contains("stroke-width: 16"));
     assertTrue(xml.contains("opacity: 1"));

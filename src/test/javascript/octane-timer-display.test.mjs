@@ -25,6 +25,7 @@ vm.runInNewContext(
     `${timerDisplaySource}
 this.timeoutCountdownRemainingMillis = timeoutCountdownRemainingMillis;
 this.timerSampleTimeMillis = timerSampleTimeMillis;
+this.timeoutTimerShowsSpent = timeoutTimerShowsSpent;
 this.timerDisplayParts = timerDisplayParts;`,
     context);
 
@@ -95,6 +96,29 @@ test("freezes the testing timer at the accepted manual-exit instant", () => {
   assert.equal(context.timerSampleTimeMillis(false, 1000, 0, 9000), 1000);
 });
 
+test("switches the timeout card to elapsed time for both terminal paths", () => {
+  assert.equal(
+      context.timeoutTimerShowsSpent(
+          {active: true, manualExitRequestedAtMillis: 0, mode: "timeout"}),
+      false);
+  assert.equal(
+      context.timeoutTimerShowsSpent(
+          {active: false, manualExitRequestedAtMillis: 0, mode: "timeout"}),
+      true);
+  assert.equal(
+      context.timeoutTimerShowsSpent(
+          {active: true, manualExitRequestedAtMillis: 4500, mode: "timeout"}),
+      true);
+  assert.equal(
+      context.timeoutTimerShowsSpent(
+          {active: false, manualExitRequestedAtMillis: 0, mode: "poll"}),
+      false);
+  assert.match(jelly, /data-timeout-subtitle="true"/);
+  assert.match(jelly, /showSpent \? testingTimeSpentMillis\(state, now\) : trackRemaining/);
+  assert.match(jelly, /showSpent \? "Session Time Spent" : "Session Time Remaining"/);
+  assert.match(jelly, /showSpent \? "Testing time spent: " : "Testing time remaining: "/);
+});
+
 test("renders full and compact labels with component and mobile breakpoints", () => {
   const timerWrapRule = cssRule(".octane-timer-wrap");
   const timerDonutRule = cssRule(".octane-timer-donut");
@@ -132,24 +156,25 @@ test("renders the dynamic job and polling status state machine", () => {
   assert.doesNotMatch(jelly, /formatLastUpdatedStatus/);
 });
 
-test("uses three equal activity rings with exact five-pixel edge gaps", () => {
-  const radii = [...jelly.matchAll(/data-activity-ring="[^"]+"[^>]*r="(\d+)"/g)]
+test("uses three equal activity rings with thirty-percent tighter edge gaps", () => {
+  const radii = [...jelly.matchAll(/data-activity-ring="[^"]+"[^>]*r="([\d.]+)"/g)]
       .map(match => Number(match[1]));
-  assert.deepEqual(radii, [84, 63, 42]);
-  assert.equal(radii[0] - radii[1] - 16, 5);
-  assert.equal(radii[1] - radii[2] - 16, 5);
+  assert.deepEqual(radii, [84, 64.5, 45]);
+  assert.equal(radii[0] - radii[1] - 16, 3.5);
+  assert.equal(radii[1] - radii[2] - 16, 3.5);
   assert.match(jelly, /\.octane-activity-ring-track,[\s\S]*?stroke-width: 16;/);
-  assert.match(jelly, /\.octane-activity-ring-track\s*{\s*opacity: 0\.8;/);
+  assert.match(jelly, /\.octane-activity-ring-track\s*{\s*opacity: 0\.2;/);
   assert.match(jelly, /stroke-linecap: round/);
-  assert.match(jelly, /stroke: #ED0143/);
-  assert.match(jelly, /stroke: #60D200/);
-  assert.match(jelly, /stroke: #02CCCE/);
+  assert.match(jelly, /stroke: #FA114F/);
+  assert.match(jelly, /stroke: #A6FF00/);
+  assert.match(jelly, /stroke: #00FFF6/);
 });
 
 test("matches the timer ring bounds and centers the activity rings", () => {
   const timerRule = cssRule(".octane-timer-donut");
   const activityRule = cssRule(".octane-activity-rings-svg");
   const activityContainerRule = cssRule(".octane-activity-rings");
+  const activityLayoutRule = cssRule(".octane-activity-rings-layout");
 
   for (const property of [
     /height:\s*min\(100cqw,\s*100cqh,\s*220px\)/,
@@ -160,11 +185,24 @@ test("matches the timer ring bounds and centers the activity rings", () => {
     assert.match(timerRule, property);
     assert.match(activityRule, property);
   }
-  assert.match(activityContainerRule, /place-items:\s*center/);
   assert.match(activityContainerRule, /padding:\s*0/);
+  assert.match(activityLayoutRule, /place-items:\s*center/);
 });
 
-test("renders a two-decimal activity legend with a container-aware compact form", () => {
+test("renders a full-width non-clipping activity subtitle", () => {
+  const subtitleRule = cssRule(".octane-activity-subtitle");
+  const inlineLegendRule = cssRule(".octane-activity-inline-legend");
+
+  assert.match(subtitleRule, /width:\s*100%/);
+  assert.match(subtitleRule, /max-width:\s*none/);
+  assert.match(subtitleRule, /overflow:\s*visible/);
+  assert.doesNotMatch(subtitleRule, /overflow:\s*(?:hidden|clip)/);
+  assert.match(inlineLegendRule, /flex-wrap:\s*wrap/);
+  assert.match(inlineLegendRule, /overflow:\s*visible/);
+  assert.doesNotMatch(inlineLegendRule, /overflow:\s*(?:hidden|clip)/);
+});
+
+test("renders two-decimal inline and conditional side activity legends", () => {
   assert.doesNotMatch(jelly, /Target Achievement/);
   assert.match(jelly, /octane-activity-subtitle/);
   assert.match(jelly, />Execution Rate<\/span>/);
@@ -174,5 +212,11 @@ test("renders a two-decimal activity legend with a container-aware compact form"
   assert.match(jelly, />Pass<\/span>/);
   assert.match(jelly, />Automation<\/span>/);
   assert.match(jelly, /@container octane-activity-legend \(max-width: 34rem\)/);
+  assert.match(jelly, /class="octane-activity-side-legend"/);
+  assert.match(jelly, /table-layout: fixed/);
+  assert.match(jelly, /font-variant-numeric: tabular-nums/);
+  assert.match(jelly, /@container octane-activity-rings \(min-width: 36rem\)/);
+  assert.match(jelly, /\.octane-activity-side-legend\s*{\s*display: table;/);
+  assert.match(jelly, /querySelectorAll\('\[data-activity-rate=/);
   assert.match(jelly, /rate\.toFixed\(2\) \+ "%"/);
 });

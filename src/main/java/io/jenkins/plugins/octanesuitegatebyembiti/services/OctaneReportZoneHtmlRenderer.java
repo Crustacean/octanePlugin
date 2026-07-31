@@ -250,6 +250,7 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-donut-wrap {
           align-items: center;
           box-sizing: border-box;
+          container-type: size;
           display: flex;
           height: 100%;
           justify-content: center;
@@ -262,12 +263,12 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-donut {
           aspect-ratio: 1 / 1;
           display: block;
-          height: auto;
-          max-height: 248.1804px;
-          max-width: 248.1804px;
+          height: min(100cqw, 100cqh);
+          max-height: none;
+          max-width: none;
           overflow: hidden;
           shape-rendering: geometricPrecision;
-          width: 100%;
+          width: min(100cqw, 100cqh);
         }
         .octane-donut-center-value {
           fill: var(--octane-text);

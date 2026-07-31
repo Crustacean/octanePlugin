@@ -105,9 +105,13 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("r=\"46\" fill="));
     assertTrue(html.contains("r=\"37.36\""));
     assertTrue(html.contains("aspect-ratio: 1 / 1"));
-    assertTrue(html.contains("height: auto"));
-    assertTrue(html.contains("max-height: 248.1804px"));
-    assertTrue(html.contains("max-width: 248.1804px"));
+    assertTrue(html.contains("container-type: size"));
+    assertTrue(html.contains("height: min(100cqw, 100cqh)"));
+    assertTrue(html.contains("width: min(100cqw, 100cqh)"));
+    assertTrue(html.contains("max-height: none"));
+    assertTrue(html.contains("max-width: none"));
+    assertFalse(html.contains("max-height: 248.1804px"));
+    assertFalse(html.contains("max-width: 248.1804px"));
     assertTrue(html.contains(">Total test cases</text>"));
     assertTrue(html.contains("Total test cases: 3"));
     assertTrue(html.contains("padding-inline: 0 clamp(8px, 2.2cqw, 25px)"));

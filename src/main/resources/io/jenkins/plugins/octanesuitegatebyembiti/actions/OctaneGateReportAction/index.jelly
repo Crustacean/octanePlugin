@@ -1889,16 +1889,23 @@
           box-sizing: border-box;
           container-name: octane-activity-rings;
           container-type: size;
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          padding: 0;
+          width: 100%;
+        }
+        .octane-activity-rings-layout {
           display: grid;
           height: 100%;
           min-height: 0;
           min-width: 0;
           place-items: center;
-          padding: 0;
           width: 100%;
         }
         .octane-activity-rings-graphic {
           align-items: center;
+          container-type: size;
           display: flex;
           height: 100%;
           justify-content: center;
@@ -1933,31 +1940,39 @@
           stroke-width: 16;
         }
         .octane-activity-ring-track {
-          opacity: 0.8;
+          opacity: 0.2;
         }
         .octane-activity-ring-execution {
-          stroke: #ED0143;
+          stroke: #FA114F;
         }
         .octane-activity-ring-pass {
-          stroke: #60D200;
+          stroke: #A6FF00;
         }
         .octane-activity-ring-automation {
-          stroke: #02CCCE;
+          stroke: #00FFF6;
+        }
+        .octane-activity-header-copy {
+          flex: 1 1 100%;
+          max-width: none;
+          min-width: 0;
+          width: 100%;
         }
         .octane-activity-subtitle {
           container-name: octane-activity-legend;
           container-type: inline-size;
+          max-width: none;
           min-width: 0;
+          overflow: visible;
           width: 100%;
         }
         .octane-activity-inline-legend {
           align-items: center;
           display: flex;
-          flex-wrap: nowrap;
+          flex-wrap: wrap;
           font-variant-numeric: tabular-nums;
           gap: 0.24rem 0.45rem;
           min-width: 0;
-          overflow: hidden;
+          overflow: visible;
         }
         .octane-activity-legend-item {
           align-items: center;
@@ -1977,13 +1992,63 @@
           width: 0.56rem;
         }
         .octane-activity-ring-swatch.octane-activity-ring-execution {
-          background: #ED0143;
+          background: #FA114F;
         }
         .octane-activity-ring-swatch.octane-activity-ring-pass {
-          background: #60D200;
+          background: #A6FF00;
         }
         .octane-activity-ring-swatch.octane-activity-ring-automation {
-          background: #02CCCE;
+          background: #00FFF6;
+        }
+        .octane-activity-side-legend {
+          border-collapse: collapse;
+          color: var(--text-color);
+          display: none;
+          font-size: clamp(0.68rem, 1.45cqw, 0.9rem);
+          font-variant-numeric: tabular-nums;
+          justify-self: center;
+          line-height: 1.2;
+          table-layout: fixed;
+          width: min(100%, 18rem);
+        }
+        .octane-activity-side-legend caption {
+          border: 0;
+          clip-path: inset(50%);
+          height: 1px;
+          overflow: hidden;
+          position: absolute;
+          white-space: nowrap;
+          width: 1px;
+        }
+        .octane-activity-side-legend th,
+        .octane-activity-side-legend td {
+          border: 0;
+          padding-block: clamp(0.28rem, 0.8cqw, 0.52rem);
+          white-space: nowrap;
+        }
+        .octane-activity-side-legend th {
+          font-weight: 600;
+          padding-inline: 0 1rem;
+          text-align: left;
+        }
+        .octane-activity-side-legend td {
+          font-weight: 600;
+          text-align: right;
+          width: 8ch;
+        }
+        .octane-activity-side-legend-label {
+          align-items: center;
+          display: inline-flex;
+          gap: 0.45rem;
+        }
+        @container octane-activity-rings (min-width: 36rem) {
+          .octane-activity-rings-layout {
+            gap: clamp(0.75rem, 2cqw, 1.5rem);
+            grid-template-columns: minmax(0, 1fr) minmax(13rem, 18rem);
+          }
+          .octane-activity-side-legend {
+            display: table;
+          }
         }
         @container octane-activity-legend (max-width: 34rem) {
           .octane-activity-legend-full {
@@ -2061,6 +2126,7 @@
         .octane-donut-wrap {
           align-items: center;
           box-sizing: border-box;
+          container-type: size;
           display: flex;
           height: 100%;
           justify-content: center;
@@ -2073,12 +2139,12 @@
         .octane-donut {
           aspect-ratio: 1 / 1;
           display: block;
-          height: auto;
-          max-height: 248.1804px;
-          max-width: 248.1804px;
+          height: min(100cqw, 100cqh);
+          max-height: none;
+          max-width: none;
           overflow: hidden;
           shape-rendering: geometricPrecision;
-          width: 100%;
+          width: min(100cqw, 100cqh);
         }
         .octane-donut-center-value {
           fill: var(--text-color);
@@ -3847,7 +3913,14 @@
                       <h2 class="octane-card-title" data-timeout-title="true">
                         ${snapshot.testingTimeTitle}
                       </h2>
-                      <div class="octane-muted">Session Time Remaining</div>
+                      <div class="octane-muted" data-timeout-subtitle="true">
+                        <j:choose>
+                          <j:when test="${snapshot.building &amp;&amp; !it.manualExitRequested}">
+                            Session Time Remaining
+                          </j:when>
+                          <j:otherwise>Session Time Spent</j:otherwise>
+                        </j:choose>
+                      </div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
@@ -4111,7 +4184,7 @@
               <div class="octane-flip-viewport">
                 <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
                   <div class="octane-flip-face-header">
-                    <div>
+                    <div class="octane-activity-header-copy">
                       <h2 class="octane-card-title">Execution Activity Rings</h2>
                       <div class="octane-muted octane-activity-subtitle">
                         <span class="octane-activity-inline-legend"
@@ -4143,29 +4216,66 @@
                   </div>
                   <div class="octane-flip-face-body">
                     <div class="octane-activity-rings" data-activity-rings="true">
-                      <div class="octane-activity-rings-graphic">
-                        <svg class="octane-activity-rings-svg" viewBox="0 0 240 240" role="img"
-                            aria-label="Execution rate ${snapshot.executionProgressTwoDecimalText}, pass rate ${snapshot.passRateProgressTwoDecimalText}, automation usage ${snapshot.automationProgressTwoDecimalText}">
-                          <circle class="octane-activity-ring-track octane-activity-ring-execution"
-                              cx="120" cy="120" r="84" pathLength="100" />
-                          <circle class="octane-activity-ring-progress octane-activity-ring-execution"
-                              data-activity-ring="execution" cx="120" cy="120" r="84"
-                              pathLength="100" stroke-dasharray="${snapshot.executionProgress} 100"
-                              transform="rotate(-90 120 120)" />
-                          <circle class="octane-activity-ring-track octane-activity-ring-pass"
-                              cx="120" cy="120" r="63" pathLength="100" />
-                          <circle class="octane-activity-ring-progress octane-activity-ring-pass"
-                              data-activity-ring="pass" cx="120" cy="120" r="63"
-                              pathLength="100" stroke-dasharray="${snapshot.passRateProgress} 100"
-                              transform="rotate(-90 120 120)" />
-                          <circle class="octane-activity-ring-track octane-activity-ring-automation"
-                              cx="120" cy="120" r="42" pathLength="100" />
-                          <circle class="octane-activity-ring-progress octane-activity-ring-automation"
-                              data-activity-ring="automation" cx="120" cy="120" r="42"
-                              pathLength="100"
-                              stroke-dasharray="${snapshot.testMetrics.automationPercentage} 100"
-                              transform="rotate(-90 120 120)" />
-                        </svg>
+                      <div class="octane-activity-rings-layout">
+                        <div class="octane-activity-rings-graphic">
+                          <svg class="octane-activity-rings-svg" viewBox="0 0 240 240" role="img"
+                              aria-label="Execution rate ${snapshot.executionProgressTwoDecimalText}, pass rate ${snapshot.passRateProgressTwoDecimalText}, automation usage ${snapshot.automationProgressTwoDecimalText}">
+                            <circle class="octane-activity-ring-track octane-activity-ring-execution"
+                                cx="120" cy="120" r="84" pathLength="100" />
+                            <circle class="octane-activity-ring-progress octane-activity-ring-execution"
+                                data-activity-ring="execution" cx="120" cy="120" r="84"
+                                pathLength="100" stroke-dasharray="${snapshot.executionProgress} 100"
+                                transform="rotate(-90 120 120)" />
+                            <circle class="octane-activity-ring-track octane-activity-ring-pass"
+                                cx="120" cy="120" r="64.5" pathLength="100" />
+                            <circle class="octane-activity-ring-progress octane-activity-ring-pass"
+                                data-activity-ring="pass" cx="120" cy="120" r="64.5"
+                                pathLength="100" stroke-dasharray="${snapshot.passRateProgress} 100"
+                                transform="rotate(-90 120 120)" />
+                            <circle class="octane-activity-ring-track octane-activity-ring-automation"
+                                cx="120" cy="120" r="45" pathLength="100" />
+                            <circle class="octane-activity-ring-progress octane-activity-ring-automation"
+                                data-activity-ring="automation" cx="120" cy="120" r="45"
+                                pathLength="100"
+                                stroke-dasharray="${snapshot.testMetrics.automationPercentage} 100"
+                                transform="rotate(-90 120 120)" />
+                          </svg>
+                        </div>
+                        <table class="octane-activity-side-legend">
+                          <caption>Execution activity rates</caption>
+                          <tbody>
+                            <tr>
+                              <th scope="row">
+                                <span class="octane-activity-side-legend-label">
+                                  <span class="octane-activity-ring-swatch octane-activity-ring-execution"
+                                      aria-hidden="true"></span>
+                                  Execution Rate
+                                </span>
+                              </th>
+                              <td data-activity-rate="execution">${snapshot.executionProgressTwoDecimalText}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">
+                                <span class="octane-activity-side-legend-label">
+                                  <span class="octane-activity-ring-swatch octane-activity-ring-pass"
+                                      aria-hidden="true"></span>
+                                  Pass Rate
+                                </span>
+                              </th>
+                              <td data-activity-rate="pass">${snapshot.passRateProgressTwoDecimalText}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">
+                                <span class="octane-activity-side-legend-label">
+                                  <span class="octane-activity-ring-swatch octane-activity-ring-automation"
+                                      aria-hidden="true"></span>
+                                  Automation Usage
+                                </span>
+                              </th>
+                              <td data-activity-rate="automation">${snapshot.automationProgressTwoDecimalText}</td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
@@ -5855,12 +5965,13 @@
               var rate = isFinite(rates[key]) ? clamp(rates[key], 0, 100) : 0;
               var text = rate.toFixed(2) + "%";
               var ring = component.querySelector('[data-activity-ring="' + key + '"]');
-              var label = component.querySelector('[data-activity-rate="' + key + '"]');
+              var labelsForRate =
+                  component.querySelectorAll('[data-activity-rate="' + key + '"]');
               if (ring) {
                 ring.setAttribute("stroke-dasharray", trimNumber(rate) + " 100");
               }
-              if (label) {
-                label.textContent = text;
+              for (var labelIndex = 0; labelIndex < labelsForRate.length; labelIndex += 1) {
+                labelsForRate[labelIndex].textContent = text;
               }
               labels.push(accessibleNames[key] + " " + text);
             });
@@ -7118,6 +7229,7 @@
                               "data-manual-exit-requested-at-millis") || 0)
                       : 0,
               progressCircle: card.querySelector("[data-timer-progress]"),
+              subtitle: card.querySelector("[data-timeout-subtitle]"),
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
               unit: card.querySelector("[data-timer-unit]"),
@@ -7158,6 +7270,10 @@
           /* OCTANE_TIMER_DISPLAY_START */
           function timerSampleTimeMillis(active, updatedAt, manualExitAt, now) {
             return manualExitAt > 0 ? manualExitAt : active ? now : updatedAt;
+          }
+          function timeoutTimerShowsSpent(state) {
+            return state.mode === "timeout"
+                && (!state.active || state.manualExitRequestedAtMillis > 0);
           }
           function timeoutCountdownRemainingMillis(
               startedAt, baseTotalMillis, extendedTotalMillis, sampleTime) {
@@ -7257,11 +7373,17 @@
             var remaining = remainingMillis(state, now);
             return clamp(((state.totalMillis - remaining) / state.totalMillis) * 100, 0, 100);
           }
-          function setTimeoutTitle(state) {
-            if (state.mode !== "timeout" || !state.title) {
+          function setTimeoutCopy(state, showSpent) {
+            if (state.mode !== "timeout") {
               return;
             }
-            state.title.textContent = "Testing Session Monitor";
+            if (state.title) {
+              state.title.textContent = "Testing Session Monitor";
+            }
+            if (state.subtitle) {
+              state.subtitle.textContent =
+                  showSpent ? "Session Time Spent" : "Session Time Remaining";
+            }
           }
           function fitTimerText(state, displayValue, displayUnit, compactDisplayUnit) {
             if (!state.value || !state.unit) {
@@ -7281,7 +7403,7 @@
               state.unitCompact.style.fontSize = trimNumber(compactUnitSize) + "px";
             }
           }
-          function setTimerText(state, remaining) {
+          function setTimerText(state, duration, showSpent) {
             if (!state.value || !state.unit) {
               return;
             }
@@ -7289,21 +7411,22 @@
             var displayUnit;
             var compactDisplayUnit;
             if (state.mode === "timeout") {
-              var displayParts = timerDisplayParts(remaining);
+              var displayParts = timerDisplayParts(duration);
               displayValue = displayParts.value;
               displayUnit = displayParts.fullLabel;
               compactDisplayUnit = displayParts.compactLabel;
               if (state.graphic) {
                 state.graphic.setAttribute(
                     "aria-label",
-                    "Testing time remaining: " + displayParts.accessibleLabel);
+                    (showSpent ? "Testing time spent: " : "Testing time remaining: ")
+                    + displayParts.accessibleLabel);
               }
-            } else if (remaining < 60000) {
-              displayValue = String(Math.ceil(remaining / 1000));
+            } else if (duration < 60000) {
+              displayValue = String(Math.ceil(duration / 1000));
               displayUnit = displayValue === "1" ? "second" : "seconds";
               compactDisplayUnit = displayUnit;
             } else {
-              displayValue = String(Math.ceil(remaining / 60000));
+              displayValue = String(Math.ceil(duration / 60000));
               displayUnit = displayValue === "1" ? "minute" : "minutes";
               compactDisplayUnit = displayUnit;
             }
@@ -7324,10 +7447,13 @@
             fitTimerText(state, displayValue, displayUnit, compactDisplayUnit);
           }
           function updateTimer(state, now) {
-            setTimeoutTitle(state);
+            var showSpent = timeoutTimerShowsSpent(state);
             var remaining = remainingMillis(state, now);
             var trackTotalMillis = timerTrackTotalMillis(state);
             var trackRemaining = timerTrackRemainingMillis(state, now);
+            var displayDuration =
+                showSpent ? testingTimeSpentMillis(state, now) : trackRemaining;
+            setTimeoutCopy(state, showSpent);
             var remainingProgress = clamp((trackRemaining / trackTotalMillis) * 100, 0, 100);
             var colors = colorsForProgress(state.mode, timerColorProgress(state, now));
             if (state.progressCircle) {
@@ -7337,7 +7463,10 @@
                   remainingProgress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
             applyGradientStops(state.gradientStops, colors);
-            setTimerText(state, state.mode === "timeout" ? trackRemaining : remaining);
+            setTimerText(
+                state,
+                state.mode === "timeout" ? displayDuration : remaining,
+                showSpent);
           }
           var timers = [];
           var hasActiveTimer = false;

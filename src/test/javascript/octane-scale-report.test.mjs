@@ -87,26 +87,34 @@ test("renders a centered total and rigid percentage legend without callouts", ()
   assert.doesNotMatch(source, /data-label-mode/);
 });
 
-test("uses the enlarged, thicker donut consistently in live and email reports", () => {
+test("uses enlarged donut geometry without fixed live or email caps", () => {
   const previousHoleRadius = 40.6;
   const outerRadius = 46;
-  const previousDiameter = 206.817;
-  const currentDiameter = 248.1804;
 
   assert.equal(renderer.DONUT_HOLE_RADIUS, 37.36);
   assert.equal(
       Number(((outerRadius - renderer.DONUT_HOLE_RADIUS)
           / (outerRadius - previousHoleRadius)).toFixed(10)),
       1.6);
-  assert.equal(Number((currentDiameter / previousDiameter).toFixed(10)), 1.2);
   assert.match(source, /DONUT_HOLE_RADIUS = 37\.36/);
   assert.match(source, /hole\.setAttribute\("r", String\(DONUT_HOLE_RADIUS\)\)/);
   assert.match(jelly, /octane-donut-hole" cx="50" cy="50" r="37\.36"/);
-  assert.match(jelly, /max-height: 248\.1804px/);
-  assert.match(jelly, /max-width: 248\.1804px/);
+  assert.match(jelly, /\.octane-donut\s*\{[\s\S]*?aspect-ratio: 1 \/ 1;/);
+  assert.match(jelly, /\.octane-donut-wrap\s*\{[\s\S]*?container-type: size;/);
+  assert.match(jelly, /\.octane-donut\s*\{[\s\S]*?height: min\(100cqw, 100cqh\);/);
+  assert.match(jelly, /\.octane-donut\s*\{[\s\S]*?max-height: none;/);
+  assert.match(jelly, /\.octane-donut\s*\{[\s\S]*?max-width: none;/);
+  assert.match(jelly, /\.octane-donut\s*\{[\s\S]*?width: min\(100cqw, 100cqh\);/);
+  assert.doesNotMatch(jelly, /max-height: 248\.1804px/);
+  assert.doesNotMatch(jelly, /max-width: 248\.1804px/);
   assert.match(emailRenderer, /r=\\?"37\.36\\?"/);
-  assert.match(emailRenderer, /max-height: 248\.1804px/);
-  assert.match(emailRenderer, /max-width: 248\.1804px/);
+  assert.match(emailRenderer, /\.octane-donut-wrap \{[\s\S]*?container-type: size;/);
+  assert.match(emailRenderer, /\.octane-donut \{[\s\S]*?height: min\(100cqw, 100cqh\);/);
+  assert.match(emailRenderer, /\.octane-donut \{[\s\S]*?max-height: none;/);
+  assert.match(emailRenderer, /\.octane-donut \{[\s\S]*?max-width: none;/);
+  assert.match(emailRenderer, /\.octane-donut \{[\s\S]*?width: min\(100cqw, 100cqh\);/);
+  assert.doesNotMatch(emailRenderer, /max-height: 248\.1804px/);
+  assert.doesNotMatch(emailRenderer, /max-width: 248\.1804px/);
 });
 
 test("identifies segmented donut wedges without rendering separator geometry", () => {
