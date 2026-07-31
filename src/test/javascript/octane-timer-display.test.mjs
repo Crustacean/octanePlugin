@@ -187,19 +187,35 @@ test("matches the timer ring bounds and centers the activity rings", () => {
   }
   assert.match(activityContainerRule, /padding:\s*0/);
   assert.match(activityLayoutRule, /place-items:\s*center/);
+  assert.match(activityLayoutRule, /position:\s*relative/);
 });
 
-test("renders a full-width non-clipping activity subtitle", () => {
+test("renders a single-line activity subtitle with compact-label and ellipsis fallbacks", () => {
   const subtitleRule = cssRule(".octane-activity-subtitle");
   const inlineLegendRule = cssRule(".octane-activity-inline-legend");
 
   assert.match(subtitleRule, /width:\s*100%/);
   assert.match(subtitleRule, /max-width:\s*none/);
-  assert.match(subtitleRule, /overflow:\s*visible/);
-  assert.doesNotMatch(subtitleRule, /overflow:\s*(?:hidden|clip)/);
-  assert.match(inlineLegendRule, /flex-wrap:\s*wrap/);
-  assert.match(inlineLegendRule, /overflow:\s*visible/);
-  assert.doesNotMatch(inlineLegendRule, /overflow:\s*(?:hidden|clip)/);
+  assert.match(subtitleRule, /overflow:\s*hidden/);
+  assert.match(subtitleRule, /text-overflow:\s*ellipsis/);
+  assert.match(subtitleRule, /text-wrap:\s*nowrap/);
+  assert.match(subtitleRule, /white-space:\s*nowrap/);
+  assert.match(inlineLegendRule, /display:\s*block/);
+  assert.match(inlineLegendRule, /overflow:\s*hidden/);
+  assert.match(inlineLegendRule, /text-overflow:\s*ellipsis/);
+  assert.match(inlineLegendRule, /white-space:\s*nowrap/);
+});
+
+test("depletes the testing session monitor counter-clockwise from twelve o'clock", () => {
+  assert.match(
+      jelly,
+      /<circle class="octane-timer-progress" data-timer-progress="true"[\s\S]*?transform="rotate\(-90 120 120\)"/);
+  assert.doesNotMatch(
+      jelly,
+      /M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36/);
+  assert.match(
+      jelly,
+      /state\.progressCircle\.style\.strokeDasharray\s*=\s*trimNumber\(remainingProgress\) \+ " 100"/);
 });
 
 test("renders two-decimal inline and conditional side activity legends", () => {
@@ -217,6 +233,9 @@ test("renders two-decimal inline and conditional side activity legends", () => {
   assert.match(jelly, /font-variant-numeric: tabular-nums/);
   assert.match(jelly, /@container octane-activity-rings \(min-width: 36rem\)/);
   assert.match(jelly, /\.octane-activity-side-legend\s*{\s*display: table;/);
+  assert.match(jelly, /inset-inline-end:\s*0/);
+  assert.match(jelly, /position:\s*absolute/);
+  assert.match(jelly, /transform:\s*translateY\(-50%\)/);
   assert.match(jelly, /querySelectorAll\('\[data-activity-rate=/);
   assert.match(jelly, /rate\.toFixed\(2\) \+ "%"/);
 });

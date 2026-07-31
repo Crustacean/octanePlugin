@@ -1901,6 +1901,7 @@
           min-height: 0;
           min-width: 0;
           place-items: center;
+          position: relative;
           width: 100%;
         }
         .octane-activity-rings-graphic {
@@ -1962,23 +1963,29 @@
           container-type: inline-size;
           max-width: none;
           min-width: 0;
-          overflow: visible;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
           width: 100%;
         }
         .octane-activity-inline-legend {
-          align-items: center;
-          display: flex;
-          flex-wrap: wrap;
+          display: block;
           font-variant-numeric: tabular-nums;
-          gap: 0.24rem 0.45rem;
           min-width: 0;
-          overflow: visible;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
         }
         .octane-activity-legend-item {
           align-items: center;
           display: inline-flex;
           gap: 0.18rem;
           white-space: nowrap;
+        }
+        .octane-activity-legend-item:not(:last-child) {
+          margin-inline-end: 0.45rem;
         }
         .octane-activity-legend-compact {
           display: none;
@@ -2042,12 +2049,13 @@
           gap: 0.45rem;
         }
         @container octane-activity-rings (min-width: 36rem) {
-          .octane-activity-rings-layout {
-            gap: clamp(0.75rem, 2cqw, 1.5rem);
-            grid-template-columns: minmax(0, 1fr) minmax(13rem, 18rem);
-          }
           .octane-activity-side-legend {
             display: table;
+            inset-inline-end: 0;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: min(30%, 18rem);
           }
         }
         @container octane-activity-legend (max-width: 34rem) {
@@ -3939,10 +3947,11 @@
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <path class="octane-timer-progress" data-timer-progress="true"
-                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
-                            pathLength="100" stroke="url(#octane-timeout-gradient)"
-                            stroke-dasharray="100 100" stroke-linecap="round" />
+                        <circle class="octane-timer-progress" data-timer-progress="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-timeout-gradient)"
+                            stroke-dasharray="100 100" stroke-linecap="round"
+                            transform="rotate(-90 120 120)" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           --:--
                         </text>

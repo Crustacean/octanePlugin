@@ -258,8 +258,9 @@ function timerCard(index, title) {
               <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
                   aria-label="${title}">
                 <circle class="octane-timer-track" cx="120" cy="120" r="92"></circle>
-                <circle class="octane-timer-progress" cx="120" cy="120" r="92"
-                    pathLength="100" stroke="#34C759" stroke-dasharray="72 100"></circle>
+                <circle class="octane-timer-progress" data-timer-progress="true"
+                    cx="120" cy="120" r="92" pathLength="100" stroke="#34C759"
+                    stroke-dasharray="72 100" transform="rotate(-90 120 120)"></circle>
                 <text class="octane-timer-value" x="120" y="118">72</text>
                 <text class="octane-timer-unit" x="120" y="139">percent</text>
               </svg>
@@ -267,6 +268,66 @@ function timerCard(index, title) {
           </div>
         </div>
         ${metricsFace}
+      </div>
+    </section>`;
+}
+
+function activityRingCard() {
+  return `
+    <section class="octane-chart-card" id="octane-activity-layout-fixture"
+        style="height:280px; margin-block-start:0.5rem; width:100%">
+      <div class="octane-flip-face-header">
+        <div class="octane-activity-header-copy">
+          <h2 class="octane-card-title">Execution Activity Rings</h2>
+          <div class="octane-muted octane-activity-subtitle">
+            <span class="octane-activity-inline-legend">
+              ${[
+                ["execution", "Execution Rate", "Execution", "87.50%"],
+                ["pass", "Pass Rate", "Pass", "92.25%"],
+                ["automation", "Automation Usage", "Automation", "74.75%"]
+              ].map(([key, full, compact, value]) => `
+                <span class="octane-activity-legend-item">
+                  <span class="octane-activity-ring-swatch octane-activity-ring-${key}"></span>
+                  <span class="octane-activity-legend-full">${full}</span>
+                  <span class="octane-activity-legend-compact">${compact}</span>
+                  (${value})
+                </span>`).join("")}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="octane-flip-face-body">
+        <div class="octane-activity-rings" data-activity-rings="true">
+          <div class="octane-activity-rings-layout">
+            <div class="octane-activity-rings-graphic">
+              <svg class="octane-activity-rings-svg" viewBox="0 0 240 240">
+                <circle class="octane-activity-ring-track octane-activity-ring-execution"
+                    cx="120" cy="120" r="84"></circle>
+                <circle class="octane-activity-ring-progress octane-activity-ring-execution"
+                    cx="120" cy="120" r="84" pathLength="100"
+                    stroke-dasharray="87.5 100" transform="rotate(-90 120 120)"></circle>
+                <circle class="octane-activity-ring-track octane-activity-ring-pass"
+                    cx="120" cy="120" r="64.5"></circle>
+                <circle class="octane-activity-ring-progress octane-activity-ring-pass"
+                    cx="120" cy="120" r="64.5" pathLength="100"
+                    stroke-dasharray="92.25 100" transform="rotate(-90 120 120)"></circle>
+                <circle class="octane-activity-ring-track octane-activity-ring-automation"
+                    cx="120" cy="120" r="45"></circle>
+                <circle class="octane-activity-ring-progress octane-activity-ring-automation"
+                    cx="120" cy="120" r="45" pathLength="100"
+                    stroke-dasharray="74.75 100" transform="rotate(-90 120 120)"></circle>
+              </svg>
+            </div>
+            <table class="octane-activity-side-legend">
+              <caption>Execution activity rates</caption>
+              <tbody>
+                <tr><th>Execution Rate</th><td>87.50%</td></tr>
+                <tr><th>Pass Rate</th><td>92.25%</td></tr>
+                <tr><th>Automation Usage</th><td>74.75%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>`;
 }
@@ -503,6 +564,7 @@ function fixtureHtml() {
               id="octane-test-management-zone">
             ${managementCards}
           </div>
+          ${activityRingCard()}
         </main>
         <script>
           var dashboard = document.getElementById("octane-dashboard");
@@ -687,6 +749,53 @@ async function normalZoneMetrics(driver) {
   }
   assert.ok(result.duration < 500, `Zone layout took ${result.duration.toFixed(1)}ms`);
   return result.value;
+}
+
+async function activityRingMetrics(driver, constrainedWidth) {
+  const result = await executeAfterPaint(driver, `
+    var card = document.getElementById("octane-activity-layout-fixture");
+    card.style.width = arguments[0] > 0 ? arguments[0] + "px" : "100%";
+    card.style.maxWidth = arguments[0] > 0 ? arguments[0] + "px" : "none";
+    card.style.minWidth = arguments[0] > 0 ? "0" : "";
+    var rings = card.querySelector(".octane-activity-rings");
+    var graphic = card.querySelector(".octane-activity-rings-svg");
+    var subtitle = card.querySelector(".octane-activity-subtitle");
+    var inlineLegend = card.querySelector(".octane-activity-inline-legend");
+    var sideLegend = card.querySelector(".octane-activity-side-legend");
+    var ringsRect = rings.getBoundingClientRect();
+    var graphicRect = graphic.getBoundingClientRect();
+    var sideLegendRect = sideLegend.getBoundingClientRect();
+    var subtitleStyle = getComputedStyle(subtitle);
+    return {
+      centerDelta: Math.abs(
+          (graphicRect.left + (graphicRect.width / 2))
+          - (ringsRect.left + (ringsRect.width / 2))),
+      inlineClientWidth: inlineLegend.clientWidth,
+      inlineScrollWidth: inlineLegend.scrollWidth,
+      legendDisplay: getComputedStyle(sideLegend).display,
+      legendInside:
+          sideLegendRect.right <= ringsRect.right + 1
+          && sideLegendRect.left >= ringsRect.left - 1,
+      ringsWidth: ringsRect.width,
+      subtitleOverflow: subtitleStyle.overflow,
+      subtitleTextOverflow: subtitleStyle.textOverflow,
+      subtitleWhiteSpace: subtitleStyle.whiteSpace
+    };`, [constrainedWidth || 0]);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function timeoutDepletionEndpoint(driver) {
+  const result = await execute(driver, `
+    var progress = document.querySelector(
+        '#octane-timer-zone [data-card-key="timer-timeout"] [data-timer-progress]');
+    var point = progress.getPointAtLength(progress.getTotalLength() * 0.75);
+    var transformed = new DOMPoint(point.x, point.y).matrixTransform(progress.getCTM());
+    var center = new DOMPoint(120, 120).matrixTransform(progress.getCTM());
+    return {x: transformed.x, y: transformed.y, centerX: center.x, centerY: center.y};`);
+  return result;
 }
 
 async function constrainedManagementBarMetrics(driver) {
@@ -1230,6 +1339,40 @@ test(
           await setMode(driver, "normal");
           const normal = await graphMetrics(driver);
           assertVisibleGraphs(normal, `${viewport.name} normal`);
+          const activity = await activityRingMetrics(driver, 0);
+          assert.ok(
+              activity.centerDelta <= 1,
+              `${viewport.name}: activity rings shifted away from the absolute center: `
+                  + JSON.stringify(activity));
+          assert.equal(activity.subtitleWhiteSpace, "nowrap");
+          assert.equal(activity.subtitleOverflow, "hidden");
+          assert.equal(activity.subtitleTextOverflow, "ellipsis");
+          assert.equal(
+              activity.legendDisplay,
+              activity.ringsWidth >= 576 ? "table" : "none",
+              `${viewport.name}: side legend visibility did not follow its container`);
+          if (activity.legendDisplay !== "none") {
+            assert.ok(
+                activity.legendInside,
+                `${viewport.name}: side legend escaped the activity container`);
+          }
+          if (viewport.name === "compact") {
+            const constrainedActivity = await activityRingMetrics(driver, 190);
+            assert.ok(
+                constrainedActivity.inlineScrollWidth
+                    > constrainedActivity.inlineClientWidth,
+                `compact: activity subtitle did not reach its ellipsis fallback: `
+                    + JSON.stringify(constrainedActivity));
+            const depletionEndpoint = await timeoutDepletionEndpoint(driver);
+            assert.ok(
+                depletionEndpoint.x < depletionEndpoint.centerX,
+                `75% remaining must place the retreating endpoint at 9 o'clock: `
+                    + JSON.stringify(depletionEndpoint));
+            assert.ok(
+                Math.abs(depletionEndpoint.y - depletionEndpoint.centerY) <= 2,
+                `75% remaining endpoint must remain level with the center: `
+                    + JSON.stringify(depletionEndpoint));
+          }
           const zones = await normalZoneMetrics(driver);
           assert.ok(
               Math.abs(zones.timer.height - zones.management.height) <= 1,

@@ -350,6 +350,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("stroke: #00FFF6"));
     assertTrue(xml.contains("class=\"octane-activity-side-legend\""));
     assertTrue(xml.contains("@container octane-activity-rings (min-width: 36rem)"));
+    assertTrue(cssRule(xml, ".octane-activity-rings-layout").contains("position: relative"));
+    assertTrue(cssRule(xml, ".octane-activity-subtitle").contains("white-space: nowrap"));
+    assertTrue(cssRule(xml, ".octane-activity-subtitle").contains("text-overflow: ellipsis"));
+    assertTrue(cssRule(xml, ".octane-activity-subtitle").contains("overflow: hidden"));
     assertTrue(xml.contains("octane-activity-legend-full"));
     assertTrue(xml.contains("octane-activity-legend-compact"));
     assertTrue(xml.contains("@container octane-activity-legend (max-width: 34rem)"));
@@ -747,7 +751,15 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("data-timer-progress-halo=\"true\""));
     assertFalse(xml.contains("octane-timer-extended-progress"));
     assertFalse(xml.contains("data-timer-extended-progress=\"true\""));
-    assertTrue(xml.contains("M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"));
+    assertFalse(xml.contains("M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"));
+    assertEquals(
+        1,
+        page.getByXPath(
+                "//section[@data-card-key='timer-timeout']"
+                    + "//*[local-name()='circle' and @data-timer-progress='true'"
+                    + " and @cx='120' and @cy='120' and @r='84']")
+            .size());
+    assertTrue(xml.contains("transform=\"rotate(-90 120 120)\""));
     assertTrue(xml.contains("stroke-dasharray=\"100 100\""));
     assertFalse(xml.contains("#881113"));
     assertTrue(xml.contains("data-total-seconds=\"2700\""));
