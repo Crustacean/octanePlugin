@@ -37,7 +37,7 @@ public class OctaneClient implements AutoCloseable {
   private static final int QUERY_CHUNK_SIZE = 40;
   private static final int MAX_ATTEMPTS = 3;
   private static final int RESPONSE_BODY_LIMIT = 1_000;
-  private static final int MAX_REMEMBERED_RUN_ASSIGNMENTS = 20_000;
+  private static final int MAX_LOCKED_SUITE_ASSIGNMENTS = 20_000;
   static final int MAX_JSON_RESPONSE_BYTES = 16 * 1024 * 1024;
   private static final Pattern SAFE_ENTITY_ID = Pattern.compile("[A-Za-z0-9_-]{1,128}");
   private static final Pattern SENSITIVE_RESPONSE_VALUE =
@@ -50,11 +50,15 @@ public class OctaneClient implements AutoCloseable {
   private static final String RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
           + "test{id,name,owner{id,name}},product_areas{id,name},runs_in_suite";
+  private static final String ASSIGNED_SUITE_RUN_FIELDS =
+      RUN_FIELDS + ",assigned_to{id,name},owner{id,name}";
   private static final String SUITE_RUN_FIELDS = RUN_FIELDS + ",owner{id,name}";
+  private static final String SAFE_ASSIGNED_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",assigned_to{id,name},owner{id,name}";
   private static final String SAFE_SUITE_RUN_FIELDS = SAFE_RUN_FIELDS + ",owner{id,name}";
   private static final String SUITE_OWNER_FIELDS = "id,owner{id,name},test{id,name,owner{id,name}}";
-  private static final Pattern SYSTEM_RUNNER =
-      Pattern.compile("(?:jenkins|default\\s+manual\\s+runner)", Pattern.CASE_INSENSITIVE);
+  private static final String SUITE_ASSIGNED_TO_FIELDS = "id,assigned_to{id,name}";
+  private static final String SUITE_ASSIGNEE_FIELDS = "id,assignee{id,name}";
   private static final String EXTENDED_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
           + "run{id,name},detected_in_run{id,name},test{id,name},owner_test{id,name},"
@@ -75,9 +79,8 @@ public class OctaneClient implements AutoCloseable {
   private final String baseUrl;
   private final String clientId;
   private final String clientSecret;
-  // Octane can replace a human run_by with a CI runner while the same gate is polling.
-  private final Map<String, String> rememberedRunAssignments =
-      new LinkedHashMap<>(256, 0.75f, true);
+  // Child execution state is volatile; chart attribution is fixed to the parent suite owner.
+  private final Map<String, String> lockedSuiteAssignments = new LinkedHashMap<>(256, 0.75f, true);
   private String cookieHeader = "";
 
   public OctaneClient(String baseUrl, String clientId, String clientSecret) {
@@ -121,10 +124,17 @@ public class OctaneClient implements AutoCloseable {
     List<String> runIds = parseRunsInSuite(suiteRun);
     String ownerName = resolveSuiteOwnerName(sharedSpaceId, workspaceId, suiteRunId, suiteRun);
     if (runIds.isEmpty()) {
-      return attributeSuiteRuns(suiteRunId, ownerName, List.of(parseRun(suiteRun)));
+      return attributeSuiteRuns(
+          suiteAssignmentKey(sharedSpaceId, workspaceId, suiteRunId),
+          suiteRunId,
+          ownerName,
+          List.of(parseRun(suiteRun)));
     }
     return attributeSuiteRuns(
-        suiteRunId, ownerName, fetchRunsByIds(sharedSpaceId, workspaceId, runIds, ""));
+        suiteAssignmentKey(sharedSpaceId, workspaceId, suiteRunId),
+        suiteRunId,
+        ownerName,
+        fetchRunsByIds(sharedSpaceId, workspaceId, runIds, ""));
   }
 
   public Map<String, List<RunRecord>> fetchSuiteChildRuns(
@@ -224,7 +234,13 @@ public class OctaneClient implements AutoCloseable {
                 fetchSuiteTopologies(sharedSpaceId, workspaceId, missing, tolerateMissingSuites));
     List<String> childRunIds = childRunIds(suiteRunIds, topology);
     List<RunRecord> childRuns = fetchRunsByIds(sharedSpaceId, workspaceId, childRunIds, "");
-    return assembleSuiteRuns(suiteRunIds, topology, runsById(childRuns), tolerateMissingSuites);
+    return assembleSuiteRuns(
+        sharedSpaceId,
+        workspaceId,
+        suiteRunIds,
+        topology,
+        runsById(childRuns),
+        tolerateMissingSuites);
   }
 
   private String topologyNamespace(
@@ -258,6 +274,8 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private Map<String, List<RunRecord>> assembleSuiteRuns(
+      String sharedSpaceId,
+      String workspaceId,
       List<String> suiteRunIds,
       Map<String, OctaneSuiteTopologyCache.Topology> topology,
       Map<String, RunRecord> runsById,
@@ -282,7 +300,13 @@ public class OctaneClient implements AutoCloseable {
       if (tolerateMissingSuites && runs.isEmpty()) {
         continue;
       }
-      result.put(suiteRunId, attributeSuiteRuns(suiteRunId, suiteTopology.ownerName(), runs));
+      result.put(
+          suiteRunId,
+          attributeSuiteRuns(
+              suiteAssignmentKey(sharedSpaceId, workspaceId, suiteRunId),
+              suiteRunId,
+              suiteTopology.ownerName(),
+              runs));
     }
     return result;
   }
@@ -430,7 +454,7 @@ public class OctaneClient implements AutoCloseable {
       String sharedSpaceId, String workspaceId, String suiteRunId, String query)
       throws InterruptedException {
     Exception lookupFailure = null;
-    for (String fields : List.of(SUITE_RUN_FIELDS, SAFE_SUITE_RUN_FIELDS, SAFE_RUN_FIELDS)) {
+    for (String fields : suiteRunFieldCandidates()) {
       String path =
           workspacePath(sharedSpaceId, workspaceId)
               + "/runs?"
@@ -460,7 +484,7 @@ public class OctaneClient implements AutoCloseable {
       String sharedSpaceId, String workspaceId, String suiteRunId)
       throws IOException, InterruptedException {
     IOException suiteLookupFailure = null;
-    for (String fields : List.of(SUITE_RUN_FIELDS, SAFE_SUITE_RUN_FIELDS, SAFE_RUN_FIELDS)) {
+    for (String fields : suiteRunFieldCandidates()) {
       String fallbackPath =
           workspacePath(sharedSpaceId, workspaceId)
               + "/suite_runs/"
@@ -510,7 +534,7 @@ public class OctaneClient implements AutoCloseable {
       List<String> suiteRunIds,
       Map<String, OctaneSuiteTopologyCache.Topology> topology)
       throws InterruptedException {
-    for (String fields : List.of(SUITE_RUN_FIELDS, SAFE_SUITE_RUN_FIELDS, SAFE_RUN_FIELDS)) {
+    for (String fields : suiteRunFieldCandidates()) {
       try {
         JsonNode data =
             getJson(suiteRunsPath(sharedSpaceId, workspaceId, suiteRunIds, fields)).path("data");
@@ -531,6 +555,15 @@ public class OctaneClient implements AutoCloseable {
         + parameter("fields", fields)
         + "&"
         + parameter("limit", Integer.toString(PAGE_SIZE));
+  }
+
+  private List<String> suiteRunFieldCandidates() {
+    return List.of(
+        ASSIGNED_SUITE_RUN_FIELDS,
+        SUITE_RUN_FIELDS,
+        SAFE_ASSIGNED_SUITE_RUN_FIELDS,
+        SAFE_SUITE_RUN_FIELDS,
+        SAFE_RUN_FIELDS);
   }
 
   private void addRunTopologies(
@@ -1108,12 +1141,6 @@ public class OctaneClient implements AutoCloseable {
     if (testOwner.isPresent()) {
       return testOwner.get();
     }
-    for (String fieldName : List.of("run_by", "native_tester")) {
-      Optional<String> name = readPersonField(suiteRun.path(fieldName));
-      if (name.isPresent() && !SYSTEM_RUNNER.matcher(name.get()).find()) {
-        return name.get();
-      }
-    }
     return "";
   }
 
@@ -1138,21 +1165,27 @@ public class OctaneClient implements AutoCloseable {
 
   private String fetchDedicatedSuiteOwnerName(
       String sharedSpaceId, String workspaceId, String suiteRunId) throws InterruptedException {
-    String path =
-        workspacePath(sharedSpaceId, workspaceId)
-            + "/suite_runs/"
-            + encode(suiteRunId)
-            + "?"
-            + parameter("fields", SUITE_OWNER_FIELDS);
-    try {
-      JsonNode response = getJson(path);
-      JsonNode data = response.path("data");
-      JsonNode suiteRun = data.isArray() && !data.isEmpty() ? data.get(0) : response;
-      return readSuiteOwnerName(suiteRun);
-    } catch (IOException | JacksonException ignored) {
-      // Owner enrichment is best-effort. The suite still remains one explicitly unassigned bar.
-      return "";
+    for (String fields :
+        List.of(SUITE_ASSIGNED_TO_FIELDS, SUITE_OWNER_FIELDS, SUITE_ASSIGNEE_FIELDS)) {
+      String path =
+          workspacePath(sharedSpaceId, workspaceId)
+              + "/suite_runs/"
+              + encode(suiteRunId)
+              + "?"
+              + parameter("fields", fields);
+      try {
+        JsonNode response = getJson(path);
+        JsonNode data = response.path("data");
+        JsonNode suiteRun = data.isArray() && !data.isEmpty() ? data.get(0) : response;
+        String ownerName = readSuiteOwnerName(suiteRun);
+        if (!Util.isBlank(ownerName)) {
+          return ownerName;
+        }
+      } catch (IOException | JacksonException ignored) {
+        // Assignment field names vary by Octane version; continue through parent-only fallbacks.
+      }
     }
+    return "";
   }
 
   private String suiteAttributionName(String suiteRunId, String ownerName) {
@@ -1160,127 +1193,35 @@ public class OctaneClient implements AutoCloseable {
     return owner.isEmpty() ? "Unassigned (" + Util.trimToEmpty(suiteRunId) + ")" : owner;
   }
 
+  private String suiteAssignmentKey(String sharedSpaceId, String workspaceId, String suiteRunId) {
+    return baseUrl
+        + "\u0000"
+        + clientId
+        + "\u0000"
+        + Util.trimToEmpty(sharedSpaceId)
+        + "\u0000"
+        + Util.trimToEmpty(workspaceId)
+        + "\u0000"
+        + Util.trimToEmpty(suiteRunId);
+  }
+
   private List<RunRecord> attributeSuiteRuns(
-      String suiteRunId, String suiteOwnerName, List<RunRecord> runs) {
-    String suiteOwner = Util.trimToEmpty(suiteOwnerName);
-    if (!suiteOwner.isEmpty()) {
-      List<RunRecord> attributedRuns =
-          runs.stream().map(run -> run.withAssignedToName(suiteOwner)).toList();
-      rememberRunAssignments(suiteRunId, attributedRuns);
-      return attributedRuns;
+      String assignmentKey, String suiteRunId, String suiteOwnerName, List<RunRecord> runs) {
+    String assignment = lockedSuiteAssignments.get(assignmentKey);
+    if (assignment == null) {
+      assignment = suiteAttributionName(suiteRunId, suiteOwnerName);
+      lockedSuiteAssignments.put(assignmentKey, assignment);
+      evictLockedSuiteAssignmentsToBound();
     }
-
-    List<RunRecord> assignmentAwareRuns = restoreRunAssignments(suiteRunId, runs);
-
-    boolean hasExplicitChildAssignment =
-        assignmentAwareRuns.stream().anyMatch(run -> !Util.isBlank(run.getAssignedToName()));
-    if (hasExplicitChildAssignment) {
-      String unassignedName = suiteAttributionName(suiteRunId, "");
-      List<RunRecord> attributedRuns =
-          assignmentAwareRuns.stream()
-              .map(
-                  run ->
-                      Util.isBlank(run.getAssignedToName())
-                          ? run.withAssignedToName(unassignedName)
-                          : run)
-              .toList();
-      rememberRunAssignments(suiteRunId, attributedRuns);
-      return attributedRuns;
-    }
-
-    List<String> humanRunners =
-        assignmentAwareRuns.stream()
-            .map(run -> run.getRunByName())
-            .map(name -> Util.trimToEmpty(name))
-            .filter(name -> !name.isEmpty() && !SYSTEM_RUNNER.matcher(name).find())
-            .distinct()
-            .toList();
-    if (humanRunners.size() == 1) {
-      String inferredOwner = humanRunners.get(0);
-      List<RunRecord> attributedRuns =
-          assignmentAwareRuns.stream().map(run -> run.withAssignedToName(inferredOwner)).toList();
-      rememberRunAssignments(suiteRunId, attributedRuns);
-      return attributedRuns;
-    }
-
-    String unassignedName = suiteAttributionName(suiteRunId, "");
-    List<RunRecord> attributedRuns =
-        assignmentAwareRuns.stream()
-            .map(
-                run -> {
-                  String runByName = Util.trimToEmpty(run.getRunByName());
-                  return !runByName.isEmpty() && !SYSTEM_RUNNER.matcher(runByName).find()
-                      ? run.withAssignedToName(runByName)
-                      : run.withAssignedToName(unassignedName);
-                })
-            .toList();
-    rememberRunAssignments(suiteRunId, attributedRuns);
-    return attributedRuns;
+    String lockedAssignment = assignment;
+    return runs.stream().map(run -> run.withAssignedToName(lockedAssignment)).toList();
   }
 
-  private List<RunRecord> restoreRunAssignments(String suiteRunId, List<RunRecord> runs) {
-    List<RunRecord> restoredRuns = new ArrayList<>(runs.size());
-    for (RunRecord run : runs) {
-      List<String> assignmentKeys = runAssignmentKeys(suiteRunId, run);
-      String assignedToName = Util.trimToEmpty(run.getAssignedToName());
-      String runByName = Util.trimToEmpty(run.getRunByName());
-      if (!assignedToName.isEmpty()) {
-        rememberRunAssignment(assignmentKeys, assignedToName);
-        restoredRuns.add(run);
-      } else if (runByName.isEmpty()) {
-        assignmentKeys.forEach(rememberedRunAssignments::remove);
-        restoredRuns.add(run);
-      } else if (SYSTEM_RUNNER.matcher(runByName).find()) {
-        String rememberedAssignment = rememberedRunAssignment(assignmentKeys);
-        restoredRuns.add(
-            Util.isBlank(rememberedAssignment)
-                ? run
-                : run.withAssignedToName(rememberedAssignment));
-      } else {
-        restoredRuns.add(run);
-      }
+  private void evictLockedSuiteAssignmentsToBound() {
+    while (lockedSuiteAssignments.size() > MAX_LOCKED_SUITE_ASSIGNMENTS) {
+      String eldestAssignmentKey = lockedSuiteAssignments.keySet().iterator().next();
+      lockedSuiteAssignments.remove(eldestAssignmentKey);
     }
-    return List.copyOf(restoredRuns);
-  }
-
-  private void rememberRunAssignments(String suiteRunId, List<RunRecord> runs) {
-    String unassignedName = suiteAttributionName(suiteRunId, "");
-    for (RunRecord run : runs) {
-      String assignedToName = Util.trimToEmpty(run.getAssignedToName());
-      if (!assignedToName.isEmpty() && !unassignedName.equals(assignedToName)) {
-        rememberRunAssignment(runAssignmentKeys(suiteRunId, run), assignedToName);
-      }
-    }
-  }
-
-  private void rememberRunAssignment(List<String> assignmentKeys, String assignedToName) {
-    assignmentKeys.forEach(key -> rememberedRunAssignments.put(key, assignedToName));
-    while (rememberedRunAssignments.size() > MAX_REMEMBERED_RUN_ASSIGNMENTS) {
-      String eldestKey = rememberedRunAssignments.keySet().iterator().next();
-      rememberedRunAssignments.remove(eldestKey);
-    }
-  }
-
-  private String rememberedRunAssignment(List<String> assignmentKeys) {
-    for (String assignmentKey : assignmentKeys) {
-      String rememberedAssignment = rememberedRunAssignments.get(assignmentKey);
-      if (!Util.isBlank(rememberedAssignment)) {
-        return rememberedAssignment;
-      }
-    }
-    return "";
-  }
-
-  private List<String> runAssignmentKeys(String suiteRunId, RunRecord run) {
-    String suitePrefix = Util.trimToEmpty(suiteRunId) + '\u0000';
-    List<String> keys = new ArrayList<>(2);
-    if (!Util.isBlank(run.getId())) {
-      keys.add(suitePrefix + "run:" + Util.trimToEmpty(run.getId()));
-    }
-    if (!Util.isBlank(run.getTestId())) {
-      keys.add(suitePrefix + "test:" + Util.trimToEmpty(run.getTestId()));
-    }
-    return List.copyOf(keys);
   }
 
   private DefectRecord parseDefect(JsonNode node) {
