@@ -3850,6 +3850,7 @@
             data-refresh-seconds="${snapshot.refreshSeconds}"
             data-report-building="${snapshot.building}"
             data-report-finalizing="${snapshot.finalizing}"
+            data-risk-heat-map-populated="${snapshot.riskHeatMap.populatedData}"
             data-extended-time="${snapshot.extendedTime}"
             data-manual-exit-requested="${it.manualExitRequested}"
             data-manual-exit-requested-at-millis="${it.manualExitRequestedAtMillis}"
@@ -5470,6 +5471,11 @@
           var currentUpdatedAtDateTimeText =
               dashboard.getAttribute("data-current-updated-at-text") || "";
           var currentJobStateLabel = dashboard.getAttribute("data-job-state-label") || "Started";
+          var heatMapPanel = dashboard.querySelector("[data-heat-map-panel]");
+          var lastViableRiskHeatMapHtml =
+              dashboard.getAttribute("data-risk-heat-map-populated") === "true" && heatMapPanel
+                  ? heatMapPanel.innerHTML
+                  : "";
           var currentRefreshSeconds = parseInt(
               dashboard.getAttribute("data-refresh-seconds") || "1", 10);
           if (isNaN(currentRefreshSeconds)) {
@@ -5883,12 +5889,24 @@
             }
           }
           function updateRiskHeatMap(payload) {
-            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
+            if (!payload
+                || typeof payload.riskHeatMapHtml !== "string"
+                || !payload.riskHeatMapHtml.trim()) {
               return;
             }
-            var panel = dashboard.querySelector("[data-heat-map-panel]");
-            if (panel) {
-              panel.innerHTML = payload.riskHeatMapHtml;
+            var terminalUpdate = payload.finalizing === true || payload.building === false;
+            if (terminalUpdate && payload.riskHeatMapPopulated !== true) {
+              if (heatMapPanel && lastViableRiskHeatMapHtml) {
+                heatMapPanel.innerHTML = lastViableRiskHeatMapHtml;
+              }
+              return;
+            }
+            if (heatMapPanel) {
+              heatMapPanel.innerHTML = payload.riskHeatMapHtml;
+              if (payload.riskHeatMapPopulated === true) {
+                lastViableRiskHeatMapHtml = payload.riskHeatMapHtml;
+                dashboard.setAttribute("data-risk-heat-map-populated", "true");
+              }
             }
           }
           /* OCTANE_TEST_METRIC_LABELS_START */
@@ -7789,8 +7807,8 @@
               scheduleSnapshotRetry();
             }
           }
-          function fetchSnapshot() {
-            if (liveRefresh.fetching || liveRefresh.stopped) {
+          function fetchSnapshot(forceStoredSnapshot) {
+            if (liveRefresh.fetching || (liveRefresh.stopped && forceStoredSnapshot !== true)) {
               return;
             }
             liveRefresh.fetching = true;
@@ -7816,6 +7834,10 @@
               snapshotRequestSucceeded();
               if (!payload) {
                 scheduleSnapshotRetry();
+                return;
+              }
+              if (forceStoredSnapshot === true && liveRefresh.stopped) {
+                updateRiskHeatMap(payload);
                 return;
               }
               if (isFreshSnapshot(payload)) {
@@ -7899,6 +7921,8 @@
             liveRefresh.waiting = true;
             liveRefresh.waitingSince = currentWallTime();
             fetchSnapshot();
+          } else if (liveRefresh.stopped) {
+            fetchSnapshot(true);
           }
           function updateExecutionProgress(card) {
             var progress = parseFloat(card.getAttribute("data-progress-value") || "0");

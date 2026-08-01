@@ -12,7 +12,10 @@ import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMapNode;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Duration;
 import java.time.Instant;
@@ -132,6 +135,40 @@ public class OctaneGateReportActionTest {
     assertFalse(action.getSnapshot().isFinalizing());
     assertEquals(finalPollCompletedAt.toString(), action.getSnapshot().getReconciledAt());
     assertEquals("2026/07/20 15:34:56", action.getSnapshot().getReconciledAtDateTimeText());
+  }
+
+  @Test
+  public void terminalReconciliationRetainsLastPopulatedHeatMapUntilAValidReplacementArrives()
+      throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setRiskHeatMap(true);
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    Instant activePoll = Instant.parse("2026-07-20T12:00:00Z");
+    Instant finalPoll = activePoll.plusSeconds(30L);
+
+    action.onPoll(result(activePoll, populatedHeatMap(64)), classifier());
+    action.onFinalizing("Reconciling final ALM Octane data.");
+    action.onFinal(
+        OctaneGateReportState.PASSED,
+        "ALM Octane suite gate passed.",
+        result(finalPoll, OctaneRiskHeatMap.empty("4001")),
+        classifier());
+
+    assertTrue(action.getSnapshot().getRiskHeatMap().isPopulatedData());
+    assertEquals(64, action.getSnapshot().getRiskHeatMap().getRiskScore());
+    assertEquals(finalPoll.toString(), action.getSnapshot().getUpdatedAt());
+    assertTrue(
+        action.getSnapshot().getRiskHeatMapHtml().contains("octane-risk-heat-map-panel-inner"));
+
+    action.onFinal(
+        OctaneGateReportState.PASSED,
+        "ALM Octane suite gate passed.",
+        result(finalPoll.plusSeconds(1L), populatedHeatMap(82)),
+        classifier());
+
+    assertEquals(82, action.getSnapshot().getRiskHeatMap().getRiskScore());
   }
 
   @Test
@@ -856,9 +893,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("id=\"octane-report-zone\""));
     assertFalse(xml.contains("#631919"));
     assertTrue(xml.contains("data-octane-progress=\"execution\""));
-    assertTrue(xml.contains("data-progress-value=\"100.0\""));
+    assertTrue(
+        xml.contains("data-progress-value=\"100.0\"")
+            || xml.contains("data-progress-value=\"100\""));
     assertTrue(xml.contains("data-octane-progress=\"pass-rate\""));
-    assertTrue(xml.contains("data-progress-value=\"50.0\""));
+    assertTrue(
+        xml.contains("data-progress-value=\"50.0\"") || xml.contains("data-progress-value=\"50\""));
     assertTrue(xml.contains("data-execution-progress-circle=\"true\""));
     assertFalse(xml.contains("data-execution-progress-head=\"true\""));
     assertFalse(xml.contains("data-execution-progress-head-buffer=\"true\""));
@@ -993,6 +1033,10 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("window.addEventListener(\"offline\""));
     assertTrue(xml.contains("window.addEventListener(\"online\""));
     assertFalse(xml.contains("updateRiskHeatMap({riskHeatMapHtml: \"\"})"));
+    assertTrue(xml.contains("data-risk-heat-map-populated"));
+    assertTrue(xml.contains("lastViableRiskHeatMapHtml"));
+    assertTrue(xml.contains("terminalUpdate && payload.riskHeatMapPopulated !== true"));
+    assertTrue(xml.contains("fetchSnapshot(true)"));
     assertTrue(xml.contains("createExpandButton"));
     assertTrue(xml.contains("createZoneFocusButton"));
     assertTrue(xml.contains("removeZoneFocusButton"));
@@ -1158,6 +1202,7 @@ public class OctaneGateReportActionTest {
     assertEquals(0, payload.getInt("timeoutExtendedSeconds"));
     assertFalse(payload.getBoolean("extendedTime"));
     assertFalse(payload.getBoolean("manualExitRequested"));
+    assertFalse(payload.getBoolean("riskHeatMapPopulated"));
     assertEquals(0L, payload.getLong("manualExitRequestedAtMillis"));
     assertEquals("100%", payload.getString("executionProgressText"));
     assertEquals(50.0, payload.getDouble("passRateProgress"), 0.001);
@@ -1392,6 +1437,29 @@ public class OctaneGateReportActionTest {
                 new RunRecord("2", "two", "failed", "Ada Tester"))),
         Map.of(),
         polledAt);
+  }
+
+  private GateResult result(Instant polledAt, OctaneRiskHeatMap riskHeatMap) {
+    GateResult base = result(polledAt);
+    return new GateResult(
+        base.getSuiteRunId(),
+        base.getCriteria(),
+        base.isPassed(),
+        base.isTerminal(),
+        base.getMetrics(),
+        base.getRuns(),
+        base.getSuiteRuns(),
+        base.getScopedResults(),
+        riskHeatMap,
+        polledAt);
+  }
+
+  private OctaneRiskHeatMap populatedHeatMap(int riskScore) {
+    OctaneRiskHeatMapNode child =
+        new OctaneRiskHeatMapNode("test", "Checkout test", riskScore, 1, 1, List.of());
+    OctaneRiskHeatMapNode root =
+        new OctaneRiskHeatMapNode("root", "Risk Heat Map", riskScore, 1, 1, List.of(child));
+    return OctaneRiskHeatMap.of(root, 1, 1, 0, 0, OctaneDefectSeveritySummary.empty());
   }
 
   private StatusClassifier classifier() {

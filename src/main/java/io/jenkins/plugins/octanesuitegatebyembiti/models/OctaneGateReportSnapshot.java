@@ -390,6 +390,29 @@ public class OctaneGateReportSnapshot implements Serializable {
         baseExecutionFigure);
   }
 
+  public OctaneGateReportSnapshot withRiskHeatMap(OctaneRiskHeatMap riskHeatMap) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
   public OctaneGateReportSnapshot withTesterThresholds(
       int basePassrateFigure, int baseExecutionFigure) {
     return new OctaneGateReportSnapshot(

@@ -273,6 +273,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("manualExitRequested", isManualExitRequested());
     payload.put("manualExitRequestedAtMillis", getManualExitRequestedAtMillis());
     payload.put("riskHeatMapEnabled", safeSnapshot.isRiskHeatMapEnabled());
+    payload.put("riskHeatMapPopulated", safeSnapshot.getRiskHeatMap().isPopulatedData());
     payload.put("riskHeatMapHtml", safeSnapshot.getRiskHeatMapHtml());
     payload.put(
         "riskHeatMap",
@@ -713,11 +714,22 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     OctaneTestManagementAnalytics testManagement = current.getTestManagement();
     OctaneGateReportSnapshot previous = currentSnapshot();
     if (previous != null) {
-      trend =
-          previous
-              .getDefectTrend()
-              .append(
-                  current.getUpdatedAt(), current.getRiskHeatMap(), current.getExecutedTestCount());
+      boolean retainPreviousHeatMap =
+          !current.isBuilding()
+              && !current.getRiskHeatMap().isPopulatedData()
+              && previous.getRiskHeatMap().isPopulatedData();
+      if (retainPreviousHeatMap) {
+        current = current.withRiskHeatMap(previous.getRiskHeatMap());
+        trend = previous.getDefectTrend();
+      } else {
+        trend =
+            previous
+                .getDefectTrend()
+                .append(
+                    current.getUpdatedAt(),
+                    current.getRiskHeatMap(),
+                    current.getExecutedTestCount());
+      }
       testManagement = previous.getTestManagement().appendLatest(testManagement);
     }
     return withPreviousCycleMetrics(

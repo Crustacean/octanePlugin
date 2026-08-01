@@ -161,6 +161,17 @@ test("renders the dynamic job and polling status state machine", () => {
   assert.doesNotMatch(jelly, /formatLastUpdatedStatus/);
 });
 
+test("retains the last populated heat map through final reconciliation", () => {
+  assert.match(
+      jelly,
+      /data-risk-heat-map-populated="\$\{snapshot\.riskHeatMap\.populatedData\}"/);
+  assert.match(jelly, /var lastViableRiskHeatMapHtml/);
+  assert.match(jelly, /payload\.finalizing === true \|\| payload\.building === false/);
+  assert.match(jelly, /terminalUpdate && payload\.riskHeatMapPopulated !== true/);
+  assert.match(jelly, /heatMapPanel\.innerHTML = lastViableRiskHeatMapHtml/);
+  assert.match(jelly, /fetchSnapshot\(true\)/);
+});
+
 test("uses three equal activity rings with thirty-percent tighter edge gaps", () => {
   const radii = [...jelly.matchAll(/data-activity-ring="[^"]+"[^>]*r="([\d.]+)"/g)]
       .map(match => Number(match[1]));
