@@ -176,6 +176,11 @@ public class OctaneGateRunner {
 
     public PollOutcome pollOnce() throws IOException, InterruptedException {
       logManualExitFinalizingIfNeeded();
+      PollOutcome stoppingOutcome = finishAtExistingStopBoundary(clock.instant());
+      if (stoppingOutcome != null) {
+        return stoppingOutcome;
+      }
+
       CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
       GateResult result =
           poll(
@@ -193,7 +198,6 @@ public class OctaneGateRunner {
               state.getDefectLedger());
       logListener.logPollResult(listener, result);
       publishPollResult(reportPublisher, result, classifier, state.isExtendedTimeActive());
-      result = refreshPassedResultWhenRequired(result);
 
       PollOutcome outcome = finishWithoutExtendedTimeout(result);
       if (outcome != null) {
@@ -201,9 +205,13 @@ public class OctaneGateRunner {
       }
 
       Instant now = clock.instant();
+      outcome = finishPrimaryTimeoutWhenRequired(now);
+      if (outcome != null) {
+        return outcome;
+      }
       transitionAtPrimaryDeadline(result, now);
 
-      outcome = finishExtendedTimeWhenRequired(result, now);
+      outcome = finishExtendedTimeWhenRequired(now);
       if (outcome != null) {
         return outcome;
       }
@@ -213,45 +221,94 @@ public class OctaneGateRunner {
       return PollOutcome.continueAfter(delay);
     }
 
-    private GateResult refreshPassedResultWhenRequired(GateResult result)
-        throws InterruptedException {
-      return !extendedTimeoutConfigured && result.isPassed()
-          ? refreshCurrentPassedResult(result)
-          : result;
-    }
-
-    private PollOutcome finishWithoutExtendedTimeout(GateResult result) throws GateFailedException {
-      if (extendedTimeoutConfigured) {
-        return null;
+    private PollOutcome finishAtExistingStopBoundary(Instant now)
+        throws IOException, InterruptedException, GateFailedException {
+      if (state.isExtendedTimeActive()) {
+        boolean manualExitRequested = reportPublisher.isManualExitRequested();
+        if (manualExitRequested || !now.isBefore(extendedDeadline)) {
+          logManualExitFinalizingIfNeeded();
+          GateResult finalResult =
+              reconcileFinalResult(
+                  manualExitRequested
+                      ? "Exit Octane and Continue requested. Reconciling final ALM Octane data."
+                      : "Extended timeout elapsed. Reconciling final ALM Octane data.");
+          return PollOutcome.complete(
+              finishExtendedGate(
+                  request,
+                  listener,
+                  reportPublisher,
+                  finalResult,
+                  classifier,
+                  manualExitRequested));
+        }
       }
-      if (result.isPassed()) {
-        return PollOutcome.complete(passGate(listener, reportPublisher, result, classifier));
-      }
-      if (result.isTerminal()) {
-        String message = "ALM Octane suite gate failed.";
-        reportPublisher.onFinal(failureState(request), message, result, classifier);
-        throw new GateFailedException(message, result);
+      if (!state.isExtendedTimeActive()
+          && !extendedTimeoutConfigured
+          && !now.isBefore(primaryDeadline)) {
+        return finishPrimaryTimeout();
       }
       return null;
     }
 
-    private void transitionAtPrimaryDeadline(GateResult result, Instant now)
-        throws GateFailedException {
+    private PollOutcome finishWithoutExtendedTimeout(GateResult result)
+        throws IOException, InterruptedException, GateFailedException {
+      if (extendedTimeoutConfigured) {
+        return null;
+      }
+      if (!result.isPassed() && !result.isTerminal()) {
+        return null;
+      }
+
+      GateResult finalResult =
+          reconcileFinalResult(
+              result.isPassed()
+                  ? "Gate criteria satisfied. Reconciling final ALM Octane data."
+                  : "Execution reached a terminal state. Reconciling final ALM Octane data.");
+      if (finalResult.isPassed()) {
+        return PollOutcome.complete(passGate(listener, reportPublisher, finalResult, classifier));
+      }
+      if (finalResult.isTerminal()) {
+        String message = "ALM Octane suite gate failed.";
+        reportPublisher.onFinal(failureState(request), message, finalResult, classifier);
+        throw new GateFailedException(message, finalResult);
+      }
+      publishPollResult(reportPublisher, finalResult, classifier, false);
+      return null;
+    }
+
+    private PollOutcome finishPrimaryTimeoutWhenRequired(Instant now)
+        throws IOException, InterruptedException, GateFailedException {
+      if (state.isExtendedTimeActive()
+          || extendedTimeoutConfigured
+          || now.isBefore(primaryDeadline)) {
+        return null;
+      }
+      return finishPrimaryTimeout();
+    }
+
+    private PollOutcome finishPrimaryTimeout()
+        throws IOException, InterruptedException, GateFailedException {
+      GateResult finalResult =
+          reconcileFinalResult("Primary timeout elapsed. Reconciling final ALM Octane data.");
+      if (finalResult.isPassed()) {
+        return PollOutcome.complete(passGate(listener, reportPublisher, finalResult, classifier));
+      }
+      String message = "Timed out waiting for ALM Octane suite gate.";
+      reportPublisher.onFinal(timeoutState(request), message, finalResult, classifier);
+      throw new GateFailedException(message, finalResult);
+    }
+
+    private void transitionAtPrimaryDeadline(GateResult result, Instant now) {
       if (state.isExtendedTimeActive() || now.isBefore(primaryDeadline)) {
         return;
-      }
-      if (!extendedTimeoutConfigured) {
-        String message = "Timed out waiting for ALM Octane suite gate.";
-        reportPublisher.onFinal(timeoutState(request), message, result, classifier);
-        throw new GateFailedException(message, result);
       }
       state.setExtendedTimeActive(true);
       logListener.logExtendedTimeStarted(listener, request.getTimeoutMinutesExtended());
       reportPublisher.onExtendedTime(result, classifier);
     }
 
-    private PollOutcome finishExtendedTimeWhenRequired(GateResult result, Instant now)
-        throws GateFailedException {
+    private PollOutcome finishExtendedTimeWhenRequired(Instant now)
+        throws IOException, InterruptedException, GateFailedException {
       if (!state.isExtendedTimeActive()) {
         return null;
       }
@@ -260,9 +317,14 @@ public class OctaneGateRunner {
         return null;
       }
       logManualExitFinalizingIfNeeded();
+      GateResult finalResult =
+          reconcileFinalResult(
+              manualExitRequested
+                  ? "Exit Octane and Continue requested. Reconciling final ALM Octane data."
+                  : "Extended timeout elapsed. Reconciling final ALM Octane data.");
       return PollOutcome.complete(
           finishExtendedGate(
-              request, listener, reportPublisher, result, classifier, manualExitRequested));
+              request, listener, reportPublisher, finalResult, classifier, manualExitRequested));
     }
 
     private void logManualExitFinalizingIfNeeded() {
@@ -273,32 +335,28 @@ public class OctaneGateRunner {
       }
     }
 
-    private GateResult refreshCurrentPassedResult(GateResult previousResult)
-        throws InterruptedException {
+    private GateResult reconcileFinalResult(String message)
+        throws IOException, InterruptedException {
+      reportPublisher.onFinalizing(message);
       logListener.logFinalRefresh(listener);
-      try {
-        CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
-        GateResult refreshedResult =
-            poll(
-                client,
-                request,
-                currentSuiteRuns.regressionSuiteRuns,
-                currentSuiteRuns.scopeSuiteRuns,
-                regressionSelectionEnabled,
-                currentSuiteRuns.awaitingSuiteDiscovery,
-                sharedSpaceId,
-                workspaceId,
-                criteria,
-                classifier,
-                listener,
-                state.getDefectLedger());
-        logListener.logPollResult(listener, refreshedResult);
-        reportPublisher.onPoll(refreshedResult, classifier);
-        return refreshedResult;
-      } catch (IOException e) {
-        logListener.logFinalRefreshSkipped(listener, e);
-        return previousResult;
-      }
+      CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
+      GateResult finalResult =
+          poll(
+              client,
+              request,
+              currentSuiteRuns.regressionSuiteRuns,
+              currentSuiteRuns.scopeSuiteRuns,
+              regressionSelectionEnabled,
+              currentSuiteRuns.awaitingSuiteDiscovery,
+              sharedSpaceId,
+              workspaceId,
+              criteria,
+              classifier,
+              listener,
+              state.getDefectLedger());
+      logListener.logPollResult(listener, finalResult);
+      logListener.logFinalReconciliationCompleted(listener, finalResult.getPolledAt());
+      return finalResult;
     }
 
     private void preflightSuitePools() throws IOException, InterruptedException {
@@ -668,6 +726,7 @@ public class OctaneGateRunner {
               listener,
               defectLedger);
       logListener.logPollResult(listener, refreshedResult);
+      logListener.logFinalReconciliationCompleted(listener, refreshedResult.getPolledAt());
       reportPublisher.onPoll(refreshedResult, classifier);
       return refreshedResult;
     } catch (IOException e) {

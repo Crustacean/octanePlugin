@@ -8,10 +8,16 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
 public class OctaneGateLogListener {
+  private static final DateTimeFormatter RECONCILIATION_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
+
   public void logWaiting(TaskListener listener, List<String> suiteRunIds) {
     logWaiting(listener, null, suiteRunIds);
   }
@@ -124,13 +130,24 @@ public class OctaneGateLogListener {
   }
 
   public void logFinalRefresh(TaskListener listener) {
-    listener.getLogger().println("Refreshing ALM Octane suite runs before completing the gate.");
+    listener
+        .getLogger()
+        .println("FINALIZING: fetching the authoritative final state from ALM Octane.");
   }
 
   public void logFinalRefreshSkipped(TaskListener listener, IOException e) {
     listener
         .getLogger()
         .println("Skipped final ALM Octane refresh: " + Util.forLog(e.getMessage()));
+  }
+
+  public void logFinalReconciliationCompleted(TaskListener listener, Instant completedAt) {
+    listener
+        .getLogger()
+        .println(
+            "Final ALM Octane reconciliation completed at "
+                + RECONCILIATION_TIME_FORMATTER.format(completedAt)
+                + ".");
   }
 
   public void logExtendedTimeStarted(TaskListener listener, int timeoutMinutesExtended) {

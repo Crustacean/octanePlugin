@@ -4,12 +4,12 @@ import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.TaskListener;
-import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import java.io.IOException;
 
 public interface OctaneReportScreenshotService {
   OctaneReportScreenshot capture(
-      OctaneGateReportAction action,
+      OctaneGateReportSnapshot snapshot,
       FilePath workspace,
       EnvVars envVars,
       Launcher launcher,

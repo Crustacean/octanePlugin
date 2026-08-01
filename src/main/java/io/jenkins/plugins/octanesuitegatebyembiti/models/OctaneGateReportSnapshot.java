@@ -437,6 +437,30 @@ public class OctaneGateReportSnapshot implements Serializable {
         baseExecutionFigure);
   }
 
+  public OctaneGateReportSnapshot withState(
+      OctaneGateReportState state, String message, String updatedAt) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
   public OctaneGateReportState getState() {
     return state;
   }
@@ -533,6 +557,9 @@ public class OctaneGateReportSnapshot implements Serializable {
     if (state == OctaneGateReportState.WAITING) {
       return "Started";
     }
+    if (isFinalizing()) {
+      return state.getLabel();
+    }
     if (state.isBuilding()) {
       return "In Progress";
     }
@@ -552,7 +579,8 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public String getRiskHeatMapHtml() {
-    return new OctaneRiskHeatMapRenderer().render(riskHeatMap, isBuilding(), getUpdatedAtText());
+    return new OctaneRiskHeatMapRenderer()
+        .render(riskHeatMap, isBuilding(), getUpdatedAtDateTimeText());
   }
 
   public OctaneTestMetrics getTestMetrics() {
@@ -673,6 +701,22 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public boolean isExtendedTime() {
     return state == OctaneGateReportState.EXTENDED_TIME;
+  }
+
+  public boolean isFinalizing() {
+    return state == OctaneGateReportState.FINALIZING;
+  }
+
+  public boolean isTimerActive() {
+    return isBuilding() && !isFinalizing();
+  }
+
+  public String getReconciledAt() {
+    return isBuilding() ? "" : updatedAt;
+  }
+
+  public String getReconciledAtDateTimeText() {
+    return isBuilding() ? "" : getUpdatedAtDateTimeText();
   }
 
   public String getTestingTimeTitle() {

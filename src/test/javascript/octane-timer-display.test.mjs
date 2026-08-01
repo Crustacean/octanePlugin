@@ -148,7 +148,12 @@ test("renders the dynamic job and polling status state machine", () => {
   assert.match(jelly, /data-report-status="true"/);
   assert.match(jelly, /Status Check In :/);
   assert.match(jelly, /Updating \.\.\. /);
-  assert.match(jelly, /Last Update: /);
+  assert.match(jelly, /LAST UPDATED: /);
+  assert.match(jelly, /data-report-finalizing="\$\{snapshot\.finalizing\}"/);
+  assert.match(jelly, /function canApplySnapshotPayload\(payload\)/);
+  assert.match(jelly, /incomingUpdatedAt < renderedUpdatedAt/);
+  assert.match(jelly, /liveRefresh\.finalizing \? 250/);
+  assert.doesNotMatch(jelly, /function fetchRiskHeatMapSnapshot\(\)/);
   assert.match(jelly, /function formatClockDuration\(milliseconds\)/);
   assert.match(jelly, /function renderReportStatus\(now\)/);
   assert.match(jelly, /payload\.jobStateLabel/);

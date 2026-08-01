@@ -270,7 +270,10 @@ public class OctaneGateRunnerTest {
     assertTrue(refreshedResult.isPassed());
     assertNotNull(publishedResult.get());
     assertEquals(2, publishedResult.get().getMetrics().getTotal());
-    assertTrue(log.toString(StandardCharsets.UTF_8).contains("Refreshing ALM Octane suite runs"));
+    String auditLog = log.toString(StandardCharsets.UTF_8);
+    assertTrue(auditLog.contains("FINALIZING: fetching the authoritative final state"));
+    assertTrue(
+        auditLog.contains("Final ALM Octane reconciliation completed at 2026/05/16 17:00:00"));
   }
 
   @Test

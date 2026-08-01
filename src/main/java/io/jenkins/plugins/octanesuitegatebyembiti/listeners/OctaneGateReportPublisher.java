@@ -16,6 +16,8 @@ public interface OctaneGateReportPublisher {
     onPoll(result, classifier);
   }
 
+  default void onFinalizing(String message) {}
+
   default void onFinal(
       OctaneGateReportState state,
       String message,

@@ -3809,11 +3809,14 @@
           <span class="octane-report-status-separator" aria-hidden="true">|</span>
           <span data-report-updated-at="true">
             <j:choose>
+              <j:when test="${snapshot.finalizing}">
+                Finalizing...
+              </j:when>
               <j:when test="${snapshot.building}">
                 Status Check In : ${snapshot.refreshCountdownText}
               </j:when>
               <j:otherwise>
-                Last Update: ${snapshot.updatedAtDateTimeText}
+                LAST UPDATED: ${snapshot.reconciledAtDateTimeText}
               </j:otherwise>
             </j:choose>
           </span>
@@ -3846,6 +3849,7 @@
             data-job-state-label="${snapshot.jobStateLabel}"
             data-refresh-seconds="${snapshot.refreshSeconds}"
             data-report-building="${snapshot.building}"
+            data-report-finalizing="${snapshot.finalizing}"
             data-extended-time="${snapshot.extendedTime}"
             data-manual-exit-requested="${it.manualExitRequested}"
             data-manual-exit-requested-at-millis="${it.manualExitRequestedAtMillis}"
@@ -3865,7 +3869,7 @@
                 data-extended-active="${snapshot.extendedTime}"
                 data-started-at="${snapshot.startedAt}"
                 data-updated-at="${snapshot.updatedAt}"
-                data-active="${snapshot.building}"
+                data-active="${snapshot.timerActive}"
                 data-active-view="timer">
               <div class="octane-card-actions">
                 <button class="octane-view-toggle" type="button"
@@ -4140,7 +4144,7 @@
                 data-total-seconds="${snapshot.refreshSeconds}"
                 data-started-at="${snapshot.updatedAt}"
                 data-updated-at="${snapshot.updatedAt}"
-                data-active="${snapshot.building}"
+                data-active="${snapshot.timerActive}"
                 data-active-view="timer">
               <div class="octane-card-actions">
                 <j:if test="${snapshot.riskHeatMapEnabled}">
@@ -5488,6 +5492,7 @@
             maximumRetryDelayMillis: 15000,
             retryDelayMillis: 500,
             retryTimer: 0,
+            finalizing: dashboard.getAttribute("data-report-finalizing") === "true",
             stopped: dashboard.getAttribute("data-report-building") !== "true",
             waiting: false,
             waitingSince: 0
@@ -5623,10 +5628,13 @@
               return;
             }
             var building = dashboard.getAttribute("data-report-building") === "true";
+            var finalizing = dashboard.getAttribute("data-report-finalizing") === "true";
             var status;
             if (!building) {
-              status = "Last Update: "
+              status = "LAST UPDATED: "
                   + (currentUpdatedAtDateTimeText || currentUpdatedAt || "Unknown");
+            } else if (finalizing) {
+              status = "Finalizing...";
             } else if (liveRefresh.fetching || liveRefresh.waiting) {
               status = "Updating ... "
                   + formatClockDuration(Math.max(0, now - liveRefresh.waitingSince));
@@ -6710,6 +6718,7 @@
                 : 0;
             return {
               building: dashboard.getAttribute("data-report-building") === "true",
+              finalizing: dashboard.getAttribute("data-report-finalizing") === "true",
               extendedTime: dashboard.getAttribute("data-extended-time") === "true",
               manualExitRequested:
                   dashboard.getAttribute("data-manual-exit-requested") === "true",
@@ -7514,14 +7523,36 @@
             }
             window.clearTimeout(liveRefresh.retryTimer);
             liveRefresh.retryTimer =
-                window.setTimeout(fetchSnapshot, liveRefresh.retryDelayMillis);
+                window.setTimeout(
+                    fetchSnapshot,
+                    liveRefresh.finalizing ? 250 : liveRefresh.retryDelayMillis);
+          }
+          function canApplySnapshotPayload(payload) {
+            if (!payload) {
+              return false;
+            }
+            var incomingUpdatedAt = Date.parse(payload.updatedAt || "");
+            var renderedUpdatedAt = Date.parse(currentUpdatedAt || "");
+            if (!isNaN(incomingUpdatedAt)
+                && !isNaN(renderedUpdatedAt)
+                && incomingUpdatedAt < renderedUpdatedAt) {
+              return false;
+            }
+            var renderedBuilding =
+                dashboard.getAttribute("data-report-building") === "true";
+            if (!renderedBuilding && payload.building === true) {
+              return false;
+            }
+            return true;
           }
           function isFreshSnapshot(payload) {
-            if (!payload) {
+            if (!canApplySnapshotPayload(payload)) {
               return false;
             }
             return payload.updatedAt !== currentUpdatedAt
                 || payload.building === false
+                || payload.finalizing
+                    !== (dashboard.getAttribute("data-report-finalizing") === "true")
                 || payload.manualExitRequested
                     !== (dashboard.getAttribute("data-manual-exit-requested") === "true")
                 || Number(payload.manualExitRequestedAtMillis || 0)
@@ -7547,7 +7578,8 @@
             }
             for (var index = 0; index < timers.length; index += 1) {
               var state = timers[index];
-              state.active = payload.building === true;
+              state.active = payload.timerActive === true
+                  || (payload.building === true && payload.finalizing !== true);
               state.updatedAt = updatedAt;
               state.extendedActive = payload.extendedTime === true && state.mode === "timeout";
               if (state.mode === "timeout") {
@@ -7612,6 +7644,9 @@
             });
           }
           function applySnapshot(payload) {
+            if (!canApplySnapshotPayload(payload)) {
+              return;
+            }
             currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
             currentUpdatedAtDateTimeText =
                 payload.updatedAtDateTimeText || currentUpdatedAtDateTimeText;
@@ -7623,6 +7658,8 @@
                 "data-current-updated-at-text", currentUpdatedAtDateTimeText);
             dashboard.setAttribute("data-job-state-label", currentJobStateLabel);
             dashboard.setAttribute("data-report-building", String(payload.building === true));
+            dashboard.setAttribute(
+                "data-report-finalizing", String(payload.finalizing === true));
             dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
             dashboard.setAttribute(
                 "data-manual-exit-requested", String(payload.manualExitRequested === true));
@@ -7631,7 +7668,7 @@
                 String(payload.manualExitRequestedAtMillis || 0));
             dashboard.setAttribute(
                 "aria-busy",
-                String(payload.manualExitRequested === true && payload.building === true));
+                String(payload.finalizing === true));
             setExtendedExitVisibility(
                 payload.extendedTime === true,
                 payload.manualExitRequested === true,
@@ -7731,13 +7768,15 @@
               }
               updateExecutionProgress(progressCards[index]);
             }
-            hasActiveTimer = payload.building === true;
+            hasActiveTimer = payload.timerActive === true
+                || (payload.building === true && payload.finalizing !== true);
+            liveRefresh.finalizing = payload.finalizing === true;
             liveRefresh.stopped = payload.building !== true;
             var waitedMillis = Math.max(0, currentWallTime() - liveRefresh.waitingSince);
             liveRefresh.waiting = false;
             resetPollTimer(payload);
             setLiveUpdateStatus(
-                payload.manualExitRequested === true && payload.building === true
+                payload.finalizing === true
                     ? "Finalizing..."
                     : payload.building === true
                     ? "+" + (waitedMillis / 1000).toFixed(1) + "s"
@@ -7745,6 +7784,9 @@
                 payload.building !== true);
             if (payload.building === true) {
               scheduleTimerAnimation();
+            }
+            if (payload.finalizing === true) {
+              scheduleSnapshotRetry();
             }
           }
           function fetchSnapshot() {
@@ -7786,33 +7828,6 @@
               snapshotRequestFailed();
               setLiveUpdateStatus("Retrying...", false);
               scheduleSnapshotRetry();
-            });
-          }
-          function fetchRiskHeatMapSnapshot() {
-            if (!dashboard.querySelector("[data-heat-map-panel]")
-                || typeof window.fetch !== "function") {
-              return;
-            }
-            window.fetch(snapshotUrl, {
-              cache: "no-store",
-              credentials: "same-origin",
-              headers: {"Accept": "application/json"}
-            }).then(function (response) {
-              if (!response.ok) {
-                throw new Error("Snapshot request failed: " + response.status);
-              }
-              return response.json();
-            }).then(function (payload) {
-              snapshotRequestSucceeded();
-              updateRiskHeatMap(payload);
-              updateTestMetrics(payload);
-              updateActivityRings(payload);
-              updateExecutionStatusDistribution(payload);
-              updateDefectTrend(payload);
-              updateTestManagement(payload);
-              runCompletionAutoFlips(payload);
-            }).catch(function () {
-              snapshotRequestFailed();
             });
           }
           function animateTimers() {
@@ -7865,6 +7880,8 @@
             exitExtendedSubmitForm.addEventListener("submit", function () {
               var requestedAt = currentWallTime();
               dashboard.setAttribute("data-manual-exit-requested", "true");
+              dashboard.setAttribute("data-report-finalizing", "true");
+              liveRefresh.finalizing = true;
               dashboard.setAttribute(
                   "data-manual-exit-requested-at-millis", String(requestedAt));
               dashboard.setAttribute("aria-busy", "true");
@@ -7878,7 +7895,11 @@
               setLiveUpdateStatus("Finalizing...", false);
             });
           }
-          fetchRiskHeatMapSnapshot();
+          if (liveRefresh.finalizing) {
+            liveRefresh.waiting = true;
+            liveRefresh.waitingSince = currentWallTime();
+            fetchSnapshot();
+          }
           function updateExecutionProgress(card) {
             var progress = parseFloat(card.getAttribute("data-progress-value") || "0");
             if (isNaN(progress)) {

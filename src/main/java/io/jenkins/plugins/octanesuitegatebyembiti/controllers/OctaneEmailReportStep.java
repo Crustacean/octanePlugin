@@ -14,6 +14,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.HeadlessBrowserReportScreenshotService;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.JenkinsMailerOctaneReportSender;
@@ -201,9 +202,11 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
         throw new AbortException("At least one recipient is required.");
       }
 
+      OctaneGateReportSnapshot reportSnapshot = action.awaitReconciledSnapshot();
+
       OctaneReportScreenshot screenshot =
           screenshotService.capture(
-              action,
+              reportSnapshot,
               workspace,
               envVars,
               launcher,
@@ -217,7 +220,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
         listener.getLogger().println("Octane report-zone screenshot archived successfully.");
       }
 
-      String remainingTime = remainingTime(action.getSnapshot(), Instant.now());
+      String remainingTime = remainingTime(reportSnapshot, Instant.now());
       String subject = replaceRuntimeTokens(effectiveSubject(run, request.subject), remainingTime);
       String body =
           new OctaneEmailBodyRenderer()
@@ -225,7 +228,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
                   replaceRuntimeTokens(request.body, remainingTime),
                   effectiveProjectName(run, request.projectName),
                   request.domainName,
-                  action.getSnapshot(),
+                  reportSnapshot,
                   action.getReportUrl(),
                   screenshot.getScreenshotFile().getName(),
                   request.theme,

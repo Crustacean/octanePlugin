@@ -6,7 +6,6 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.TaskListener;
-import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.controllers.OctaneEmailReportStep;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
@@ -49,7 +48,7 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
 
   @Override
   public OctaneReportScreenshot capture(
-      OctaneGateReportAction action,
+      OctaneGateReportSnapshot snapshot,
       FilePath workspace,
       EnvVars envVars,
       Launcher launcher,
@@ -63,7 +62,6 @@ public class HeadlessBrowserReportScreenshotService implements OctaneReportScree
     FilePath htmlFile = outputDirectory.child(HTML_FILE_NAME);
     FilePath screenshotFile = outputDirectory.child(SCREENSHOT_FILE_NAME);
 
-    OctaneGateReportSnapshot snapshot = action.getSnapshot();
     int width = Math.min(OctaneEmailReportStep.MAX_VIEWPORT_WIDTH, Math.max(320, viewportWidth));
     htmlFile.write(renderer.render(snapshot, theme, width), StandardCharsets.UTF_8.name());
 

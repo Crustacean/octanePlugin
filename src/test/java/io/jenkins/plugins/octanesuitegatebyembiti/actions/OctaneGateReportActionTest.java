@@ -89,6 +89,52 @@ public class OctaneGateReportActionTest {
   }
 
   @Test
+  public void finalizingFreezesTimersAndPublishesOneReconciledTimestamp() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    Instant finalPollCompletedAt = Instant.parse("2026-07-20T12:34:56Z");
+    AtomicInteger refreshes = new AtomicInteger();
+    action.setRefreshCallback(
+        () -> {
+          refreshes.incrementAndGet();
+          return true;
+        });
+    action.onPoll(result(finalPollCompletedAt.minusSeconds(30L)), classifier());
+
+    action.onFinalizing("Reconciling final ALM Octane data.");
+
+    assertEquals(OctaneGateReportState.FINALIZING, action.getSnapshot().getState());
+    assertEquals("Finalizing", action.getSnapshot().getJobStateLabel());
+    assertTrue(action.getSnapshot().isBuilding());
+    assertFalse(action.getSnapshot().isTimerActive());
+    assertEquals("", action.getSnapshot().getReconciledAt());
+    assertEquals(
+        OctaneGateReportAction.RefreshStatus.FRESH,
+        action.refreshIfStale(Duration.ZERO, Instant.now()).status());
+    assertEquals(0, refreshes.get());
+    HtmlPage finalizingPage =
+        jenkins.createWebClient().getPage(build, OctaneGateReportAction.URL_NAME);
+    HtmlElement finalizingDashboard = finalizingPage.getHtmlElementById("octane-dashboard");
+    assertEquals("true", finalizingDashboard.getAttribute("data-report-finalizing"));
+    assertTrue(finalizingPage.asNormalizedText().contains("Finalizing..."));
+    assertTrue(
+        finalizingPage.getByXPath("//*[@data-octane-timer and @data-active='false']").size() >= 2);
+
+    action.onFinal(
+        OctaneGateReportState.PASSED,
+        "ALM Octane suite gate passed.",
+        result(finalPollCompletedAt),
+        classifier());
+
+    assertFalse(action.getSnapshot().isBuilding());
+    assertFalse(action.getSnapshot().isFinalizing());
+    assertEquals(finalPollCompletedAt.toString(), action.getSnapshot().getReconciledAt());
+    assertEquals("2026/07/20 15:34:56", action.getSnapshot().getReconciledAtDateTimeText());
+  }
+
+  @Test
   public void attachesToBuildAndRendersReportPage() throws Exception {
     FreeStyleProject project = jenkins.createFreeStyleProject();
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
@@ -117,7 +163,7 @@ public class OctaneGateReportActionTest {
     String xml = page.asXml();
     assertTrue(text.contains("Octane Gate Report"));
     assertTrue(text.contains("Passed"));
-    assertTrue(text.contains("Last Update:"));
+    assertTrue(text.contains("LAST UPDATED:"));
     assertTrue(text.contains("03:00:00"));
     assertFalse(text.contains("Last update (EAT)"));
     assertTrue(text.contains("REGRESSION Tests Status Distribution"));
@@ -790,12 +836,18 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("data-report-state-label=\"true\""));
     assertTrue(xml.contains("data-report-updated-at=\"true\""));
     assertTrue(xml.contains("Passed"));
-    assertTrue(xml.contains("Last Update: 2026/05/15 03:00:00"));
+    assertTrue(xml.contains("LAST UPDATED: 2026/05/15 03:00:00"));
     assertTrue(xml.contains("Status Check In :"));
     assertTrue(xml.contains("Updating ... "));
     assertTrue(xml.contains("display: inline"));
     assertTrue(xml.contains("white-space: nowrap"));
     assertTrue(xml.contains("function renderReportStatus(now)"));
+    assertTrue(xml.contains("function canApplySnapshotPayload(payload)"));
+    assertTrue(
+        xml.contains("incomingUpdatedAt &lt; renderedUpdatedAt")
+            || xml.contains("incomingUpdatedAt < renderedUpdatedAt"));
+    assertTrue(xml.contains("liveRefresh.finalizing ? 250"));
+    assertFalse(xml.contains("function fetchRiskHeatMapSnapshot()"));
     assertTrue(xml.contains("setLiveUpdateStatus(\"...\", false)"));
     assertFalse(xml.contains(": \"Done.\""));
     assertFalse(xml.contains("Updating report..."));
@@ -1093,8 +1145,12 @@ public class OctaneGateReportActionTest {
     assertEquals("2026-05-15T00:00:00Z", payload.getString("updatedAt"));
     assertEquals("03:00:00", payload.getString("updatedAtText"));
     assertEquals("2026/05/15 03:00:00", payload.getString("updatedAtDateTimeText"));
+    assertEquals("2026-05-15T00:00:00Z", payload.getString("reconciledAt"));
+    assertEquals("2026/05/15 03:00:00", payload.getString("reconciledAtDateTimeText"));
     assertTrue(payload.containsKey("startedAt"));
     assertFalse(payload.getBoolean("building"));
+    assertFalse(payload.getBoolean("finalizing"));
+    assertFalse(payload.getBoolean("timerActive"));
     assertEquals("Passed", payload.getString("stateLabel"));
     assertEquals("Passed", payload.getString("jobStateLabel"));
     assertEquals(15, payload.getInt("refreshSeconds"));
