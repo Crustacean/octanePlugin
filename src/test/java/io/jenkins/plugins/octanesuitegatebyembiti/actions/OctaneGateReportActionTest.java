@@ -214,6 +214,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Execution Completion"));
     assertTrue(text.contains("Open Defects"));
     assertTrue(text.contains("Execution Activity Rings"));
+    assertTrue(xml.contains("data-activity-inline-legend=\"true\""));
     assertFalse(text.contains("Target Achievement"));
     assertTrue(text.contains("Session Time Spent"));
     assertTrue(text.contains("Execution Progress"));

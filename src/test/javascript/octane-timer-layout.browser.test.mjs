@@ -19,6 +19,9 @@ const metricLabelSource = jelly
 const activityRingLayoutSource = jelly
     .split("/* OCTANE_ACTIVITY_RING_LAYOUT_START */")[1]
     .split("/* OCTANE_ACTIVITY_RING_LAYOUT_END */")[0];
+const activityRingUpdateSource = jelly
+    .split("/* OCTANE_ACTIVITY_RING_UPDATE_START */")[1]
+    .split("/* OCTANE_ACTIVITY_RING_UPDATE_END */")[0];
 
 const viewports = [
   {height: 640, name: "compact", width: 360},
@@ -279,11 +282,13 @@ function activityRingCard() {
   return `
     <section class="octane-chart-card" id="octane-activity-layout-fixture"
         style="height:280px; margin-block-start:0.5rem; width:100%">
-      <div class="octane-flip-face-header">
+      <div class="octane-flip-face" data-card-view="timer">
+       <div class="octane-flip-face-header">
         <div class="octane-activity-header-copy">
           <h2 class="octane-card-title">Execution Activity Rings</h2>
           <div class="octane-muted octane-activity-subtitle">
-            <span class="octane-activity-inline-legend">
+            <span class="octane-activity-inline-legend"
+                data-activity-inline-legend="true">
               ${[
                 ["execution", "Execution Rate", "Execution", "87.50%"],
                 ["pass", "Pass Rate", "Pass", "92.25%"],
@@ -293,45 +298,49 @@ function activityRingCard() {
                   <span class="octane-activity-ring-swatch octane-activity-ring-${key}"></span>
                   <span class="octane-activity-legend-full">${full}</span>
                   <span class="octane-activity-legend-compact">${compact}</span>
-                  (${value})
+                  (<span data-activity-rate="${key}">${value}</span>)
                 </span>`).join("")}
             </span>
           </div>
         </div>
-      </div>
-      <div class="octane-flip-face-body">
+       </div>
+       <div class="octane-flip-face-body">
         <div class="octane-activity-rings" data-activity-rings="true"
-            data-side-legend-visible="false">
+            data-side-legend-visible="false"
+            data-activity-value-execution="87.5"
+            data-activity-value-pass="92.25"
+            data-activity-value-automation="74.75">
           <div class="octane-activity-rings-layout">
             <div class="octane-activity-rings-graphic">
               <svg class="octane-activity-rings-svg" viewBox="0 0 240 240">
                 <circle class="octane-activity-ring-track octane-activity-ring-execution"
                     cx="120" cy="120" r="84"></circle>
                 <circle class="octane-activity-ring-progress octane-activity-ring-execution"
-                    cx="120" cy="120" r="84" pathLength="100"
+                    data-activity-ring="execution" cx="120" cy="120" r="84" pathLength="100"
                     stroke-dasharray="87.5 100" transform="rotate(-90 120 120)"></circle>
                 <circle class="octane-activity-ring-track octane-activity-ring-pass"
                     cx="120" cy="120" r="64.5"></circle>
                 <circle class="octane-activity-ring-progress octane-activity-ring-pass"
-                    cx="120" cy="120" r="64.5" pathLength="100"
+                    data-activity-ring="pass" cx="120" cy="120" r="64.5" pathLength="100"
                     stroke-dasharray="92.25 100" transform="rotate(-90 120 120)"></circle>
                 <circle class="octane-activity-ring-track octane-activity-ring-automation"
                     cx="120" cy="120" r="45"></circle>
                 <circle class="octane-activity-ring-progress octane-activity-ring-automation"
-                    cx="120" cy="120" r="45" pathLength="100"
+                    data-activity-ring="automation" cx="120" cy="120" r="45" pathLength="100"
                     stroke-dasharray="74.75 100" transform="rotate(-90 120 120)"></circle>
               </svg>
             </div>
             <table class="octane-activity-side-legend">
               <caption>Execution activity rates</caption>
               <tbody>
-                <tr><th>Execution Rate</th><td>87.50%</td></tr>
-                <tr><th>Pass Rate</th><td>92.25%</td></tr>
-                <tr><th>Automation Usage</th><td>74.75%</td></tr>
+                <tr><th>Execution Rate</th><td data-activity-rate="execution">87.50%</td></tr>
+                <tr><th>Pass Rate</th><td data-activity-rate="pass">92.25%</td></tr>
+                <tr><th>Automation Usage</th><td data-activity-rate="automation">74.75%</td></tr>
               </tbody>
             </table>
           </div>
         </div>
+       </div>
       </div>
     </section>`;
 }
@@ -573,8 +582,15 @@ function fixtureHtml() {
         <script>
           var dashboard = document.getElementById("octane-dashboard");
           var requestFrame = window.requestAnimationFrame.bind(window);
+          function clamp(value, minimum, maximum) {
+            return Math.max(minimum, Math.min(maximum, value));
+          }
+          function trimNumber(value) {
+            return String(Number(Number(value).toFixed(2)));
+          }
           ${metricLabelSource}
           ${activityRingLayoutSource}
+          ${activityRingUpdateSource}
           initializeTestMetricSegments(dashboard);
           initializeActivityRingLayout();
         </script>
@@ -797,6 +813,38 @@ async function activityRingMetrics(driver, constrainedWidth, constrainedHeight, 
       subtitleTextOverflow: subtitleStyle.textOverflow,
       subtitleWhiteSpace: subtitleStyle.whiteSpace
     };`, [constrainedWidth || 0, constrainedHeight || 0, expanded === true]);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function activityRingPollingUpdate(driver) {
+  const result = await executeAfterPaint(driver, `
+    updateActivityRings({
+      executionProgress: 63.5,
+      passRateProgress: 81.25,
+      testMetrics: {automationPercentage: 44.75}
+    });
+    var card = document.getElementById("octane-activity-layout-fixture");
+    var inlineLegend = card.querySelector("[data-activity-inline-legend]");
+    var component = card.querySelector("[data-activity-rings]");
+    function valuesWithin(root) {
+      return ["execution", "pass", "automation"].map(function (key) {
+        return root.querySelector('[data-activity-rate="' + key + '"]').textContent;
+      });
+    }
+    return {
+      graphicAriaLabel:
+          card.querySelector(".octane-activity-rings-svg").getAttribute("aria-label"),
+      inlineAriaLabel: inlineLegend.getAttribute("aria-label"),
+      inlineValues: valuesWithin(inlineLegend),
+      ringValues: ["execution", "pass", "automation"].map(function (key) {
+        return component.querySelector('[data-activity-ring="' + key + '"]')
+            .getAttribute("stroke-dasharray");
+      }),
+      sideValues: valuesWithin(card.querySelector(".octane-activity-side-legend"))
+    };`);
   if (result.error) {
     throw new Error(result.error);
   }
@@ -1333,6 +1381,29 @@ test(
       } finally {
         rmSync(directory, {force: true, recursive: true});
       }
+    });
+
+test(
+    "activity ring subtitle legend follows each polling payload",
+    {skip: !browserAvailable, timeout: 60000},
+    async () => {
+      await withFirefox(async driver => {
+        const fixture = Buffer.from(fixtureHtml()).toString("base64");
+        await webdriverRequest(
+            driver.baseUrl,
+            "POST",
+            `/session/${driver.sessionId}/url`,
+            {url: `data:text/html;base64,${fixture}`});
+
+        const update = await activityRingPollingUpdate(driver);
+        assert.deepEqual(update.inlineValues, ["63.50%", "81.25%", "44.75%"]);
+        assert.deepEqual(update.sideValues, update.inlineValues);
+        assert.deepEqual(update.ringValues, ["63.5 100", "81.25 100", "44.75 100"]);
+        assert.equal(
+            update.inlineAriaLabel,
+            "execution rate 63.50%, pass rate 81.25%, automation usage 44.75%");
+        assert.equal(update.graphicAriaLabel, update.inlineAriaLabel);
+      });
     });
 
 test(

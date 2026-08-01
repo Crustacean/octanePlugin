@@ -253,6 +253,14 @@ test("renders two-decimal inline and conditional side activity legends", () => {
   assert.match(jelly, /inset-inline-end:\s*0/);
   assert.match(jelly, /position:\s*absolute/);
   assert.match(jelly, /transform:\s*translateY\(-50%\)/);
+  assert.match(jelly, /data-activity-inline-legend="true"/);
+  assert.match(jelly, /var activityFace = component\.closest\("\.octane-flip-face"\)/);
+  assert.match(
+      jelly,
+      /activityFace\.querySelectorAll\('\[data-activity-rate=/);
+  assert.match(
+      jelly,
+      /inlineLegend\.setAttribute\("aria-label", labels\.join\(", "\)\)/);
   assert.match(jelly, /querySelectorAll\('\[data-activity-rate=/);
   assert.match(jelly, /rate\.toFixed\(2\) \+ "%"/);
   assert.match(jelly, /function fitActivityRingLegend\(component\)/);

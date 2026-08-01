@@ -4203,6 +4203,7 @@
                       <h2 class="octane-card-title">Execution Activity Rings</h2>
                       <div class="octane-muted octane-activity-subtitle">
                         <span class="octane-activity-inline-legend"
+                            data-activity-inline-legend="true"
                             aria-label="Execution Rate ${snapshot.executionProgressTwoDecimalText} Pass Rate ${snapshot.passRateProgressTwoDecimalText} Automation Usage ${snapshot.automationProgressTwoDecimalText}">
                           <span class="octane-activity-legend-item">
                             <span class="octane-activity-ring-swatch octane-activity-ring-execution"
@@ -6049,6 +6050,7 @@
             scheduleActivityRingLayout();
           }
           /* OCTANE_ACTIVITY_RING_LAYOUT_END */
+          /* OCTANE_ACTIVITY_RING_UPDATE_START */
           function activityRingRate(component, key, value) {
             var parsed = value === null || value === undefined || value === ""
                 ? NaN
@@ -6071,6 +6073,7 @@
               execution: activityRingRate(component, "execution", payload.executionProgress),
               pass: activityRingRate(component, "pass", payload.passRateProgress)
             };
+            var activityFace = component.closest(".octane-flip-face") || component;
             var labels = [];
             var accessibleNames = {
               automation: "automation usage",
@@ -6083,7 +6086,7 @@
               component.setAttribute("data-activity-value-" + key, trimNumber(rate));
               var ring = component.querySelector('[data-activity-ring="' + key + '"]');
               var labelsForRate =
-                  component.querySelectorAll('[data-activity-rate="' + key + '"]');
+                  activityFace.querySelectorAll('[data-activity-rate="' + key + '"]');
               if (ring) {
                 ring.setAttribute("stroke-dasharray", trimNumber(rate) + " 100");
               }
@@ -6096,8 +6099,14 @@
             if (graphic) {
               graphic.setAttribute("aria-label", labels.join(", "));
             }
+            var inlineLegend =
+                activityFace.querySelector("[data-activity-inline-legend]");
+            if (inlineLegend) {
+              inlineLegend.setAttribute("aria-label", labels.join(", "));
+            }
             scheduleActivityRingLayout();
           }
+          /* OCTANE_ACTIVITY_RING_UPDATE_END */
           function updateExecutionStatusDistribution(payload) {
             if (!payload || typeof payload.executionStatusDistributionHtml !== "string") {
               return;
