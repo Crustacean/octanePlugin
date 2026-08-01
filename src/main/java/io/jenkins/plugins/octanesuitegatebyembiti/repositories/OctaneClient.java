@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -37,7 +38,7 @@ public class OctaneClient implements AutoCloseable {
   private static final int QUERY_CHUNK_SIZE = 40;
   private static final int MAX_ATTEMPTS = 3;
   private static final int RESPONSE_BODY_LIMIT = 1_000;
-  private static final int MAX_LOCKED_SUITE_ASSIGNMENTS = 20_000;
+  private static final int MAX_LOCKED_ATTRIBUTIONS = 20_000;
   static final int MAX_JSON_RESPONSE_BYTES = 16 * 1024 * 1024;
   private static final Pattern SAFE_ENTITY_ID = Pattern.compile("[A-Za-z0-9_-]{1,128}");
   private static final Pattern SENSITIVE_RESPONSE_VALUE =
@@ -59,6 +60,8 @@ public class OctaneClient implements AutoCloseable {
   private static final String SUITE_OWNER_FIELDS = "id,owner{id,name},test{id,name,owner{id,name}}";
   private static final String SUITE_ASSIGNED_TO_FIELDS = "id,assigned_to{id,name}";
   private static final String SUITE_ASSIGNEE_FIELDS = "id,assignee{id,name}";
+  private static final String SUITE_RUN_BY_FIELDS = "id,run_by{id,name}";
+  private static final String SUITE_NATIVE_TESTER_FIELDS = "id,native_tester{id,name}";
   private static final String EXTENDED_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
           + "run{id,name},detected_in_run{id,name},test{id,name},owner_test{id,name},"
@@ -79,8 +82,8 @@ public class OctaneClient implements AutoCloseable {
   private final String baseUrl;
   private final String clientId;
   private final String clientSecret;
-  // Child execution state is volatile; chart attribution is fixed to the parent suite owner.
-  private final Map<String, String> lockedSuiteAssignments = new LinkedHashMap<>(256, 0.75f, true);
+  // Child execution state is volatile; chart attribution is locked to stable human assignment.
+  private final Map<String, String> lockedAttributions = new LinkedHashMap<>(256, 0.75f, true);
   private String cookieHeader = "";
 
   public OctaneClient(String baseUrl, String clientId, String clientSecret) {
@@ -1131,6 +1134,12 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private String readSuiteOwnerName(JsonNode suiteRun) {
+    // On a parent suite run, run_by is Octane's "Default run by" assignment. Child run_by
+    // remains the actual execution actor and is retained separately for automation analytics.
+    Optional<String> defaultRunBy = readPersonField(suiteRun.path("run_by"));
+    if (defaultRunBy.isPresent()) {
+      return defaultRunBy.get();
+    }
     for (String fieldName : List.of("owner", "assigned_to", "assignee")) {
       Optional<String> name = readPersonField(suiteRun.path(fieldName));
       if (name.isPresent()) {
@@ -1141,7 +1150,7 @@ public class OctaneClient implements AutoCloseable {
     if (testOwner.isPresent()) {
       return testOwner.get();
     }
-    return "";
+    return readPersonField(suiteRun.path("native_tester")).orElse("");
   }
 
   private String readRunAssignmentName(JsonNode run) {
@@ -1166,7 +1175,12 @@ public class OctaneClient implements AutoCloseable {
   private String fetchDedicatedSuiteOwnerName(
       String sharedSpaceId, String workspaceId, String suiteRunId) throws InterruptedException {
     for (String fields :
-        List.of(SUITE_ASSIGNED_TO_FIELDS, SUITE_OWNER_FIELDS, SUITE_ASSIGNEE_FIELDS)) {
+        List.of(
+            SUITE_RUN_BY_FIELDS,
+            SUITE_ASSIGNED_TO_FIELDS,
+            SUITE_OWNER_FIELDS,
+            SUITE_ASSIGNEE_FIELDS,
+            SUITE_NATIVE_TESTER_FIELDS)) {
       String path =
           workspacePath(sharedSpaceId, workspaceId)
               + "/suite_runs/"
@@ -1207,20 +1221,65 @@ public class OctaneClient implements AutoCloseable {
 
   private List<RunRecord> attributeSuiteRuns(
       String assignmentKey, String suiteRunId, String suiteOwnerName, List<RunRecord> runs) {
-    String assignment = lockedSuiteAssignments.get(assignmentKey);
-    if (assignment == null) {
-      assignment = suiteAttributionName(suiteRunId, suiteOwnerName);
-      lockedSuiteAssignments.put(assignmentKey, assignment);
-      evictLockedSuiteAssignmentsToBound();
+    String assignment = lockedAttributions.get(assignmentKey);
+    if (Util.isBlank(assignment) && !Util.isBlank(suiteOwnerName)) {
+      assignment = Util.trimToEmpty(suiteOwnerName);
+      rememberAttribution(assignmentKey, assignment);
     }
-    String lockedAssignment = assignment;
-    return runs.stream().map(run -> run.withAssignedToName(lockedAssignment)).toList();
+    if (!Util.isBlank(assignment)) {
+      String lockedAssignment = assignment;
+      return runs.stream().map(run -> run.withAssignedToName(lockedAssignment)).toList();
+    }
+
+    List<RunRecord> attributedRuns = new ArrayList<>(runs.size());
+    Map<String, String> distinctAssignments = new LinkedHashMap<>();
+    for (RunRecord run : runs) {
+      String childKey = childAssignmentKey(assignmentKey, run);
+      String childAssignment =
+          childKey.isEmpty() ? "" : Util.trimToEmpty(lockedAttributions.get(childKey));
+      if (childAssignment.isEmpty() && !Util.isBlank(run.getAssignedToName())) {
+        childAssignment = Util.trimToEmpty(run.getAssignedToName());
+        if (!childKey.isEmpty()) {
+          rememberAttribution(childKey, childAssignment);
+        }
+      }
+      if (!childAssignment.isEmpty()) {
+        distinctAssignments.putIfAbsent(childAssignment.toLowerCase(Locale.ROOT), childAssignment);
+      }
+      attributedRuns.add(run.withAssignedToName(childAssignment));
+    }
+
+    if (distinctAssignments.size() == 1) {
+      String onlyAssignment = distinctAssignments.values().iterator().next();
+      rememberAttribution(assignmentKey, onlyAssignment);
+      return runs.stream().map(run -> run.withAssignedToName(onlyAssignment)).toList();
+    }
+
+    String unassignedName = suiteAttributionName(suiteRunId, "");
+    return attributedRuns.stream()
+        .map(
+            run ->
+                Util.isBlank(run.getAssignedToName())
+                    ? run.withAssignedToName(unassignedName)
+                    : run)
+        .toList();
   }
 
-  private void evictLockedSuiteAssignmentsToBound() {
-    while (lockedSuiteAssignments.size() > MAX_LOCKED_SUITE_ASSIGNMENTS) {
-      String eldestAssignmentKey = lockedSuiteAssignments.keySet().iterator().next();
-      lockedSuiteAssignments.remove(eldestAssignmentKey);
+  private String childAssignmentKey(String assignmentKey, RunRecord run) {
+    if (!Util.isBlank(run.getTestId())) {
+      return assignmentKey + "\u0000test:" + Util.trimToEmpty(run.getTestId());
+    }
+    if (!Util.isBlank(run.getId())) {
+      return assignmentKey + "\u0000run:" + Util.trimToEmpty(run.getId());
+    }
+    return "";
+  }
+
+  private void rememberAttribution(String key, String assignment) {
+    lockedAttributions.put(key, assignment);
+    while (lockedAttributions.size() > MAX_LOCKED_ATTRIBUTIONS) {
+      String eldestAssignmentKey = lockedAttributions.keySet().iterator().next();
+      lockedAttributions.remove(eldestAssignmentKey);
     }
   }
 
