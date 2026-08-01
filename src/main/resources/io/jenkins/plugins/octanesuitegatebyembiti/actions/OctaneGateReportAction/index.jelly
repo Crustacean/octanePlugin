@@ -2049,7 +2049,8 @@
           gap: 0.45rem;
         }
         @container octane-activity-rings (min-width: 36rem) {
-          .octane-activity-side-legend {
+          .octane-activity-rings[data-side-legend-visible="true"]
+              .octane-activity-side-legend {
             display: table;
             inset-inline-end: 0;
             position: absolute;
@@ -4229,7 +4230,11 @@
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
-                    <div class="octane-activity-rings" data-activity-rings="true">
+                    <div class="octane-activity-rings" data-activity-rings="true"
+                        data-side-legend-visible="false"
+                        data-activity-value-execution="${snapshot.executionProgress}"
+                        data-activity-value-pass="${snapshot.passRateProgress}"
+                        data-activity-value-automation="${snapshot.testMetrics.automationPercentage}">
                       <div class="octane-activity-rings-layout">
                         <div class="octane-activity-rings-graphic">
                           <svg class="octane-activity-rings-svg" viewBox="0 0 240 240" role="img"
@@ -5977,18 +5982,94 @@
               initializeTestMetricSegments(panel);
             }
           }
+          /* OCTANE_ACTIVITY_RING_LAYOUT_START */
+          var activityRingResizeObserver = null;
+          var activityRingResizeScheduled = false;
+          var activityRingResizeFallbackBound = false;
+          function fitActivityRingLegend(component) {
+            if (!component) {
+              return;
+            }
+            var legend = component.querySelector(".octane-activity-side-legend");
+            var graphic = component.querySelector(".octane-activity-rings-svg");
+            if (!legend || !graphic || component.getBoundingClientRect().width < 576) {
+              component.setAttribute("data-side-legend-visible", "false");
+              return;
+            }
+            component.setAttribute("data-side-legend-visible", "true");
+            var componentRect = component.getBoundingClientRect();
+            var graphicRect = graphic.getBoundingClientRect();
+            var legendRect = legend.getBoundingClientRect();
+            var clearance = 8;
+            var intersectsHorizontally =
+                graphicRect.left < legendRect.right + clearance
+                && graphicRect.right + clearance > legendRect.left;
+            var intersectsVertically =
+                graphicRect.top < legendRect.bottom + clearance
+                && graphicRect.bottom + clearance > legendRect.top;
+            var contained =
+                legendRect.left >= componentRect.left
+                && legendRect.right <= componentRect.right
+                && legendRect.top >= componentRect.top
+                && legendRect.bottom <= componentRect.bottom;
+            component.setAttribute(
+                "data-side-legend-visible",
+                String(contained && !(intersectsHorizontally && intersectsVertically)));
+          }
+          function fitActivityRingLegends() {
+            activityRingResizeScheduled = false;
+            var components = dashboard.querySelectorAll("[data-activity-rings]");
+            for (var index = 0; index < components.length; index += 1) {
+              fitActivityRingLegend(components[index]);
+            }
+          }
+          function scheduleActivityRingLayout() {
+            if (activityRingResizeScheduled) {
+              return;
+            }
+            activityRingResizeScheduled = true;
+            requestFrame(fitActivityRingLegends);
+          }
+          function initializeActivityRingLayout() {
+            if (activityRingResizeObserver) {
+              activityRingResizeObserver.disconnect();
+              activityRingResizeObserver = null;
+            }
+            var components = dashboard.querySelectorAll("[data-activity-rings]");
+            if (typeof window.ResizeObserver === "function") {
+              activityRingResizeObserver =
+                  new window.ResizeObserver(scheduleActivityRingLayout);
+              for (var index = 0; index < components.length; index += 1) {
+                activityRingResizeObserver.observe(components[index]);
+              }
+            } else if (!activityRingResizeFallbackBound) {
+              window.addEventListener("resize", scheduleActivityRingLayout);
+              activityRingResizeFallbackBound = true;
+            }
+            scheduleActivityRingLayout();
+          }
+          /* OCTANE_ACTIVITY_RING_LAYOUT_END */
+          function activityRingRate(component, key, value) {
+            var parsed = value === null || value === undefined || value === ""
+                ? NaN
+                : Number(value);
+            if (!isFinite(parsed)) {
+              parsed = Number(component.getAttribute("data-activity-value-" + key));
+            }
+            return isFinite(parsed) ? clamp(parsed, 0, 100) : 0;
+          }
           function updateActivityRings(payload) {
             var component = dashboard.querySelector("[data-activity-rings]");
             if (!component || !payload) {
               return;
             }
             var automation = payload.testMetrics
-                ? Number(payload.testMetrics.automationPercentage || 0)
-                : 0;
+                ? payload.testMetrics.automationPercentage
+                : null;
             var rates = {
-              automation: automation,
-              execution: Number(payload.executionProgress || 0),
-              pass: Number(payload.passRateProgress || 0)
+              automation: activityRingRate(component, "automation", automation),
+              execution: activityRingRate(component, "execution", payload.executionProgress),
+              pass: activityRingRate(component, "pass", payload.passRateProgress)
             };
             var labels = [];
             var accessibleNames = {
@@ -5997,8 +6078,9 @@
               pass: "pass rate"
             };
             ["execution", "pass", "automation"].forEach(function (key) {
-              var rate = isFinite(rates[key]) ? clamp(rates[key], 0, 100) : 0;
+              var rate = rates[key];
               var text = rate.toFixed(2) + "%";
+              component.setAttribute("data-activity-value-" + key, trimNumber(rate));
               var ring = component.querySelector('[data-activity-ring="' + key + '"]');
               var labelsForRate =
                   component.querySelectorAll('[data-activity-rate="' + key + '"]');
@@ -6014,6 +6096,7 @@
             if (graphic) {
               graphic.setAttribute("aria-label", labels.join(", "));
             }
+            scheduleActivityRingLayout();
           }
           function updateExecutionStatusDistribution(payload) {
             if (!payload || typeof payload.executionStatusDistributionHtml !== "string") {
@@ -6239,21 +6322,29 @@
             }
             return defectTrendState.points[defectTrendState.points.length - 1];
           }
+          /* OCTANE_DEFECT_VOLUME_MATH_START */
           function niceDefectTrendScale(maximumCount) {
-            if (maximumCount <= 5) {
-              return {maximum: 5, step: 1};
+            var safeMaximum = Number(maximumCount);
+            if (!isFinite(safeMaximum) || safeMaximum < 0) {
+              safeMaximum = 0;
             }
-            var roughStep = maximumCount / 5;
-            var magnitude = Math.pow(10, Math.floor(Math.log(roughStep) / Math.LN10));
-            var normalizedStep = roughStep / magnitude;
-            var multiplier = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 :
-                normalizedStep <= 5 ? 5 : 10;
-            var step = multiplier * magnitude;
+            var maximum = Math.ceil(safeMaximum) + 1;
+            var intervals = maximum <= 5 ? maximum : 5;
             return {
-              maximum: Math.ceil(maximumCount / step) * step,
-              step: step
+              maximum: maximum,
+              step: maximum / intervals,
+              intervals: intervals
             };
           }
+          function defectTrendYAxisValues(scale) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            var values = [];
+            for (var tick = intervals; tick >= 0; tick -= 1) {
+              values.push(scale.step * tick);
+            }
+            return values;
+          }
+          /* OCTANE_DEFECT_VOLUME_MATH_END */
           function formatDefectTrendTime(milliseconds) {
             var totalSeconds = Math.max(0, Math.round(milliseconds / 1000));
             if (totalSeconds < 60) {
@@ -6337,7 +6428,9 @@
             yLabels.textContent = "";
             xLabels.textContent = "";
             var height = DEFECT_TREND_BOUNDS.bottom - DEFECT_TREND_BOUNDS.top;
-            for (var value = scale.step; value <= scale.maximum; value += scale.step) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            for (var tick = 1; tick <= intervals; tick += 1) {
+              var value = scale.step * tick;
               var y = DEFECT_TREND_BOUNDS.bottom - (value / scale.maximum) * height;
               grid.appendChild(createTrendSvgElement("line", {
                 "class": "octane-defect-trend-grid-line",
@@ -6347,8 +6440,9 @@
                 y2: y
               }));
             }
-            for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step) {
-              yLabels.appendChild(createTrendAxisLabel(String(yValue)));
+            var yAxisValues = defectTrendYAxisValues(scale);
+            for (var yIndex = 0; yIndex < yAxisValues.length; yIndex += 1) {
+              yLabels.appendChild(createTrendAxisLabel(trimNumber(yAxisValues[yIndex])));
             }
             for (var index = 0; index <= 4; index += 1) {
               var ratio = index / 4;
@@ -6691,12 +6785,17 @@
             var durationMillis = Math.max(
                 1, safeTrendNumber(trend.durationMillis, defectTrendState
                     ? defectTrendState.durationMillis : 1));
+            var points = normalizeDefectTrendPoints(trend.points, durationMillis);
+            var executedTestCount = Number(payload.executedTestCount);
+            if (points.length && isFinite(executedTestCount) && executedTestCount >= 0) {
+              points[points.length - 1].executed = executedTestCount;
+            }
             defectTrendState = {
               panel: panel,
               startedAt: parseTimestamp(trend.startedAt),
               durationMillis: durationMillis,
               building: payload.building === true,
-              points: normalizeDefectTrendPoints(trend.points, durationMillis),
+              points: points,
               renderedYMaximum: -1,
               renderedDurationMillis: -1,
               renderedDensityYMaximum: -1,
@@ -7225,6 +7324,7 @@
           }
           initializeCardViews(dashboard);
           initializeTestMetricSegments(dashboard);
+          initializeActivityRingLayout();
           initializeExecutionBreakdownScaling(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
@@ -7838,6 +7938,8 @@
               }
               if (forceStoredSnapshot === true && liveRefresh.stopped) {
                 updateRiskHeatMap(payload);
+                updateActivityRings(payload);
+                updateDefectTrend(payload);
                 return;
               }
               if (isFreshSnapshot(payload)) {

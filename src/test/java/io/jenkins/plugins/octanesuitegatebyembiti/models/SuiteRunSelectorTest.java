@@ -39,9 +39,15 @@ public class SuiteRunSelectorTest {
 
   @Test
   public void rejectsIncompleteAndWildcardReleaseSprintSelectors() {
-    assertThrows(IllegalArgumentException.class, () -> SuiteRunSelector.parse("Release 2.4, "));
+    IllegalArgumentException missingSprint =
+        assertThrows(IllegalArgumentException.class, () -> SuiteRunSelector.parse("Release 2.4, "));
+    IllegalArgumentException missingRelease =
+        assertThrows(IllegalArgumentException.class, () -> SuiteRunSelector.parse(", Sprint 3"));
     assertThrows(
         IllegalArgumentException.class, () -> SuiteRunSelector.parse("Release *, Sprint 3"));
+
+    assertEquals("Sprint name is required.", missingSprint.getMessage());
+    assertEquals("Release name is required.", missingRelease.getMessage());
   }
 
   @Test

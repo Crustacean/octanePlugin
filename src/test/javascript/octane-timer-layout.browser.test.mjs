@@ -16,6 +16,9 @@ assert.ok(styleMatch, "The report page must contain its dashboard stylesheet");
 const metricLabelSource = jelly
     .split("/* OCTANE_TEST_METRIC_LABELS_START */")[1]
     .split("/* OCTANE_TEST_METRIC_LABELS_END */")[0];
+const activityRingLayoutSource = jelly
+    .split("/* OCTANE_ACTIVITY_RING_LAYOUT_START */")[1]
+    .split("/* OCTANE_ACTIVITY_RING_LAYOUT_END */")[0];
 
 const viewports = [
   {height: 640, name: "compact", width: 360},
@@ -297,7 +300,8 @@ function activityRingCard() {
         </div>
       </div>
       <div class="octane-flip-face-body">
-        <div class="octane-activity-rings" data-activity-rings="true">
+        <div class="octane-activity-rings" data-activity-rings="true"
+            data-side-legend-visible="false">
           <div class="octane-activity-rings-layout">
             <div class="octane-activity-rings-graphic">
               <svg class="octane-activity-rings-svg" viewBox="0 0 240 240">
@@ -570,7 +574,9 @@ function fixtureHtml() {
           var dashboard = document.getElementById("octane-dashboard");
           var requestFrame = window.requestAnimationFrame.bind(window);
           ${metricLabelSource}
+          ${activityRingLayoutSource}
           initializeTestMetricSegments(dashboard);
+          initializeActivityRingLayout();
         </script>
       </body>
     </html>`;
@@ -751,13 +757,16 @@ async function normalZoneMetrics(driver) {
   return result.value;
 }
 
-async function activityRingMetrics(driver, constrainedWidth) {
+async function activityRingMetrics(driver, constrainedWidth, constrainedHeight, expanded) {
   const result = await executeAfterPaint(driver, `
     var card = document.getElementById("octane-activity-layout-fixture");
     card.style.width = arguments[0] > 0 ? arguments[0] + "px" : "100%";
     card.style.maxWidth = arguments[0] > 0 ? arguments[0] + "px" : "none";
     card.style.minWidth = arguments[0] > 0 ? "0" : "";
+    card.style.height = arguments[1] > 0 ? arguments[1] + "px" : "280px";
+    card.classList.toggle("octane-expanded", arguments[2] === true);
     var rings = card.querySelector(".octane-activity-rings");
+    fitActivityRingLegend(rings);
     var graphic = card.querySelector(".octane-activity-rings-svg");
     var subtitle = card.querySelector(".octane-activity-subtitle");
     var inlineLegend = card.querySelector(".octane-activity-inline-legend");
@@ -766,21 +775,28 @@ async function activityRingMetrics(driver, constrainedWidth) {
     var graphicRect = graphic.getBoundingClientRect();
     var sideLegendRect = sideLegend.getBoundingClientRect();
     var subtitleStyle = getComputedStyle(subtitle);
+    var legendDisplay = getComputedStyle(sideLegend).display;
+    var legendOverlap = legendDisplay !== "none"
+        && graphicRect.left < sideLegendRect.right
+        && graphicRect.right > sideLegendRect.left
+        && graphicRect.top < sideLegendRect.bottom
+        && graphicRect.bottom > sideLegendRect.top;
     return {
       centerDelta: Math.abs(
           (graphicRect.left + (graphicRect.width / 2))
           - (ringsRect.left + (ringsRect.width / 2))),
       inlineClientWidth: inlineLegend.clientWidth,
       inlineScrollWidth: inlineLegend.scrollWidth,
-      legendDisplay: getComputedStyle(sideLegend).display,
+      legendDisplay: legendDisplay,
       legendInside:
           sideLegendRect.right <= ringsRect.right + 1
           && sideLegendRect.left >= ringsRect.left - 1,
+      legendOverlap: legendOverlap,
       ringsWidth: ringsRect.width,
       subtitleOverflow: subtitleStyle.overflow,
       subtitleTextOverflow: subtitleStyle.textOverflow,
       subtitleWhiteSpace: subtitleStyle.whiteSpace
-    };`, [constrainedWidth || 0]);
+    };`, [constrainedWidth || 0, constrainedHeight || 0, expanded === true]);
   if (result.error) {
     throw new Error(result.error);
   }
@@ -1347,14 +1363,22 @@ test(
           assert.equal(activity.subtitleWhiteSpace, "nowrap");
           assert.equal(activity.subtitleOverflow, "hidden");
           assert.equal(activity.subtitleTextOverflow, "ellipsis");
-          assert.equal(
-              activity.legendDisplay,
-              activity.ringsWidth >= 576 ? "table" : "none",
-              `${viewport.name}: side legend visibility did not follow its container`);
           if (activity.legendDisplay !== "none") {
             assert.ok(
                 activity.legendInside,
                 `${viewport.name}: side legend escaped the activity container`);
+            assert.equal(
+                activity.legendOverlap,
+                false,
+                `${viewport.name}: side legend overlaps the activity rings`);
+          }
+          if (viewport.height >= 900) {
+            const tallSlimActivity = await activityRingMetrics(driver, 600, 760, true);
+            assert.equal(
+                tallSlimActivity.legendDisplay,
+                "none",
+                `${viewport.name}: tall slim activity card did not suppress an overlapping legend: `
+                    + JSON.stringify(tallSlimActivity));
           }
           if (viewport.name === "compact") {
             const constrainedActivity = await activityRingMetrics(driver, 190);

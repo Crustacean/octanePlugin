@@ -590,14 +590,11 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("stroke-dasharray: 5 7"));
     assertTrue(xml.contains("stroke-width: clamp(2px, 0.28cqw, 4px)"));
     assertTrue(xml.contains("function niceDefectTrendScale"));
+    assertTrue(xml.contains("var maximum = Math.ceil(safeMaximum) + 1"));
     assertTrue(
-        xml.contains("for (var value = scale.step; value <= scale.maximum; value += scale.step)")
-            || xml.contains(
-                "for (var value = scale.step; value &lt;= scale.maximum; value += scale.step)"));
-    assertTrue(
-        xml.contains("for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step)")
-            || xml.contains(
-                "for (var yValue = scale.maximum; yValue &gt;= 0; yValue -= scale.step)"));
+        xml.contains("for (var tick = 1; tick <= intervals; tick += 1)")
+            || xml.contains("for (var tick = 1; tick &lt;= intervals; tick += 1)"));
+    assertTrue(xml.contains("var yAxisValues = defectTrendYAxisValues(scale)"));
     assertTrue(xml.contains("function animateDefectTrend"));
     assertTrue(xml.contains("scheduleTimerFrame(animateDefectTrend)"));
     assertTrue(xml.contains("function updateDefectTrend"));
@@ -1204,6 +1201,7 @@ public class OctaneGateReportActionTest {
     assertFalse(payload.getBoolean("manualExitRequested"));
     assertFalse(payload.getBoolean("riskHeatMapPopulated"));
     assertEquals(0L, payload.getLong("manualExitRequestedAtMillis"));
+    assertEquals(2, payload.getInt("executedTestCount"));
     assertEquals("100%", payload.getString("executionProgressText"));
     assertEquals(50.0, payload.getDouble("passRateProgress"), 0.001);
     assertEquals("50%", payload.getString("passRateProgressText"));

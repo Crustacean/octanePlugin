@@ -10,6 +10,9 @@ const jelly = readFileSync(jellyPath, "utf8");
 const densityMathSource = jelly
     .split("/* OCTANE_DEFECT_DENSITY_MATH_START */")[1]
     .split("/* OCTANE_DEFECT_DENSITY_MATH_END */")[0];
+const volumeMathSource = jelly
+    .split("/* OCTANE_DEFECT_VOLUME_MATH_START */")[1]
+    .split("/* OCTANE_DEFECT_VOLUME_MATH_END */")[0];
 const context = {
   DEFECT_DENSITY_BOUNDS: {bottom: 360, left: 80, right: 920, top: 0},
   clamp: (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value)),
@@ -19,7 +22,10 @@ const context = {
 };
 vm.runInNewContext(
     `${densityMathSource}
+${volumeMathSource}
 this.niceDefectDensityScale = niceDefectDensityScale;
+this.niceDefectTrendScale = niceDefectTrendScale;
+this.defectTrendYAxisValues = defectTrendYAxisValues;
 this.defectDensityYAxisValues = defectDensityYAxisValues;
 this.densityXAxisIntervalCount = densityXAxisIntervalCount;
 this.formatDensityClockOffset = formatDensityClockOffset;
@@ -30,6 +36,21 @@ this.densityYFor = densityYFor;
 this.defectDensityLinePath = defectDensityLinePath;
 this.defectDensityAreaPath = defectDensityAreaPath;`,
     context);
+
+test("scales defect volume exactly one whole unit above its live maximum", () => {
+  assert.deepEqual(
+      {...context.niceDefectTrendScale(0)},
+      {intervals: 1, maximum: 1, step: 1});
+  assert.deepEqual(
+      {...context.niceDefectTrendScale(4)},
+      {intervals: 5, maximum: 5, step: 1});
+  assert.equal(context.niceDefectTrendScale(5).maximum, 6);
+  assert.equal(context.niceDefectTrendScale(80).maximum, 81);
+  assert.equal(context.niceDefectTrendScale(3000).maximum, 3001);
+  assert.equal(
+      context.defectTrendYAxisValues(context.niceDefectTrendScale(80))[0],
+      81);
+});
 
 test("uses one whole unit of headroom instead of a fixed five-unit minimum", () => {
   assert.deepEqual(

@@ -248,10 +248,16 @@ test("renders two-decimal inline and conditional side activity legends", () => {
   assert.match(jelly, /table-layout: fixed/);
   assert.match(jelly, /font-variant-numeric: tabular-nums/);
   assert.match(jelly, /@container octane-activity-rings \(min-width: 36rem\)/);
-  assert.match(jelly, /\.octane-activity-side-legend\s*{\s*display: table;/);
+  assert.match(jelly, /data-side-legend-visible="true"/);
+  assert.match(jelly, /data-side-legend-visible="true"\][\s\S]*?display: table;/);
   assert.match(jelly, /inset-inline-end:\s*0/);
   assert.match(jelly, /position:\s*absolute/);
   assert.match(jelly, /transform:\s*translateY\(-50%\)/);
   assert.match(jelly, /querySelectorAll\('\[data-activity-rate=/);
   assert.match(jelly, /rate\.toFixed\(2\) \+ "%"/);
+  assert.match(jelly, /function fitActivityRingLegend\(component\)/);
+  assert.match(jelly, /new window\.ResizeObserver\(scheduleActivityRingLayout\)/);
+  assert.match(jelly, /intersectsHorizontally/);
+  assert.match(jelly, /intersectsVertically/);
+  assert.match(jelly, /scheduleActivityRingLayout\(\)/);
 });

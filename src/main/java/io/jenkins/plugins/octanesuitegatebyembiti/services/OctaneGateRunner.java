@@ -360,20 +360,22 @@ public class OctaneGateRunner {
     }
 
     private void preflightSuitePools() throws IOException, InterruptedException {
+      SuiteRunDiscoveryCycle discoveryCycle = new SuiteRunDiscoveryCycle();
       if (regressionSelectionEnabled) {
-        regressionSuitePool.preflight();
+        regressionSuitePool.preflight(discoveryCycle);
       }
       for (SuiteRunPool pool : suiteScopePools.values()) {
-        pool.preflight();
+        pool.preflight(discoveryCycle);
       }
     }
 
     private CurrentSuiteRuns refreshSuitePools() throws IOException, InterruptedException {
+      SuiteRunDiscoveryCycle discoveryCycle = new SuiteRunDiscoveryCycle();
       Map<String, List<RunRecord>> regressionSuiteRuns =
-          regressionSelectionEnabled ? regressionSuitePool.refresh() : Map.of();
+          regressionSelectionEnabled ? regressionSuitePool.refresh(discoveryCycle) : Map.of();
       Map<String, Map<String, List<RunRecord>>> scopeSuiteRuns = new LinkedHashMap<>();
       for (Map.Entry<String, SuiteRunPool> entry : suiteScopePools.entrySet()) {
-        scopeSuiteRuns.put(entry.getKey(), entry.getValue().refresh());
+        scopeSuiteRuns.put(entry.getKey(), entry.getValue().refresh(discoveryCycle));
       }
 
       Set<String> criticalIds = currentCriticalSuiteRunIds(scopeSuiteRuns);
@@ -448,12 +450,13 @@ public class OctaneGateRunner {
         this.selector = selector;
       }
 
-      private void preflight() throws IOException, InterruptedException {
+      private void preflight(SuiteRunDiscoveryCycle discoveryCycle)
+          throws IOException, InterruptedException {
         if (!selector.isConfigured()) {
           initialized = true;
           return;
         }
-        List<String> candidates = candidateIds();
+        List<String> candidates = candidateIds(discoveryCycle);
         Map<String, List<RunRecord>> available;
         if (selector.isDynamic()) {
           logListener.logDynamicSuiteSelector(
@@ -470,23 +473,29 @@ public class OctaneGateRunner {
         }
       }
 
-      private Map<String, List<RunRecord>> refresh() throws IOException, InterruptedException {
+      private Map<String, List<RunRecord>> refresh(SuiteRunDiscoveryCycle discoveryCycle)
+          throws IOException, InterruptedException {
         if (!selector.isConfigured()) {
           return Map.of();
         }
-        List<String> candidates = candidateIds();
+        List<String> candidates = candidateIds(discoveryCycle);
         Map<String, List<RunRecord>> available =
             client.fetchAvailableSuiteChildRuns(sharedSpaceId, workspaceId, candidates);
         reconcile(available.keySet());
         return available;
       }
 
-      private List<String> candidateIds() throws IOException, InterruptedException {
+      private List<String> candidateIds(SuiteRunDiscoveryCycle discoveryCycle)
+          throws IOException, InterruptedException {
         List<String> ids =
-            selector.isDynamic()
-                ? client.fetchSuiteRunIdsByReleaseAndSprint(
-                    sharedSpaceId, workspaceId, selector.getReleaseName(), selector.getSprintName())
-                : selector.getExplicitIds();
+            discoveryCycle.resolve(
+                selector,
+                dynamicSelector ->
+                    client.fetchSuiteRunIdsByReleaseAndSprint(
+                        sharedSpaceId,
+                        workspaceId,
+                        dynamicSelector.getReleaseName(),
+                        dynamicSelector.getSprintName()));
         if (ids.size() > GateRequest.MAX_SUITE_RUN_IDS) {
           throw new AbortException(
               label
@@ -1129,6 +1138,31 @@ public class OctaneGateRunner {
       }
     }
     return regressionSelector.isDynamic() || !regressionSuiteRunIdsForCriteria(request).isEmpty();
+  }
+
+  @FunctionalInterface
+  interface DynamicSuiteRunDiscovery {
+    List<String> discover(SuiteRunSelector selector) throws IOException, InterruptedException;
+  }
+
+  /** Shares identical dynamic selector results within one polling cycle only. */
+  static final class SuiteRunDiscoveryCycle {
+    private final Map<SuiteRunSelector, List<String>> resolvedDynamicSelectors =
+        new LinkedHashMap<>();
+
+    List<String> resolve(SuiteRunSelector selector, DynamicSuiteRunDiscovery discovery)
+        throws IOException, InterruptedException {
+      if (!selector.isDynamic()) {
+        return selector.getExplicitIds();
+      }
+      List<String> resolved = resolvedDynamicSelectors.get(selector);
+      if (resolved != null) {
+        return resolved;
+      }
+      List<String> discovered = List.copyOf(discovery.discover(selector));
+      resolvedDynamicSelectors.put(selector, discovered);
+      return discovered;
+    }
   }
 
   private static Set<String> criticalSuiteRunIds(GateRequest request) {
