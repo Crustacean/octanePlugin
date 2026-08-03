@@ -20,8 +20,9 @@ The Octane JSON tree was not mutated in place. The leak was semantic:
    value. A transient `run_by` value such as Jenkins, or an absent child assignment, could therefore
    persist as the UI grouping key.
 5. The first boundary fix recognized only the canonical parent `default_run_by` field and `owner`.
-   Some Octane versions expose the same parent **Default run by** relationship as `assigned_to` or
-   `assignee`; those valid parent payloads consequently fell through to `Unassigned`.
+   Some Octane versions expose the same parent **Default run by** relationship as parent-context
+   `run_by`, `assigned_to`, or `assignee`; those valid parent payloads consequently fell through to
+   `Unassigned` even though the assignment was visible in Octane.
 
 This explains `Unassigned (78834)`: the parent suite owner was not the sole source of the grouping
 key, and the child path reached the fallback before a stable parent identity was applied.
@@ -29,10 +30,12 @@ key, and the child path reached the fallback before a stable parent identity was
 ## Permanent Boundary
 
 - Parent suite payloads are mapped to the immutable `OctaneSuiteTopologyCache.Topology` DTO. Its
-  `suiteOwnerName` comes from the parent Default-run-by relationship (`default_run_by`, with
-  `assigned_to` and `assignee` accepted as Octane-version aliases), then parent `owner`.
+  `suiteOwnerName` comes from the parent Default-run-by relationship (`default_run_by`, with a
+  human-valued parent `run_by`, `assigned_to`, and `assignee` accepted as Octane-version aliases),
+  then parent `owner` and parent suite-test `owner`.
 - These aliases are read only from the parent suite object. Child assignment, child owner,
-  child/test owner, `run_by`, and `native_tester` fields can never supply `suiteOwnerName`.
+  child/test owner, `run_by`, and `native_tester` fields can never supply `suiteOwnerName`. A
+  Jenkins/default-manual-runner value in parent `run_by` is also rejected as an executor identity.
 - The first nonblank parent owner is locked per server, credential, shared space, workspace, and
   suite-run key for the lifetime of the polling client.
 - Child payload parsing records `run_by`, or `native_tester` as its compatibility fallback, only as
@@ -48,8 +51,9 @@ Jenkins report snapshots continue to deserialize.
 
 ## Regression Proof
 
-The automated tests cover both `default_run_by = "Jane Doe"` and the live-shaped
-`assigned_to = "jane.doe@example.com"` parent payload with Jenkins child executors. They assert one
-report/email chart under the human owner, one tester detail bucket, 100% automation usage, and no
-`Unassigned` output. Separate model tests prove that changing execution actor data cannot alter the
-immutable suite owner and vice versa.
+The automated tests cover `default_run_by = "Jane Doe"`, the live-shaped
+`assigned_to = "jane.doe@example.com"`, legacy human parent `run_by`, parent suite-test owner, and
+system-valued parent `run_by` fallback payloads with Jenkins child executors. They assert one
+report/email chart under the human owner, one tester detail bucket, correct automation usage, and
+no `Unassigned` output. Separate model tests prove that changing execution actor data cannot alter
+the immutable suite owner and vice versa.
