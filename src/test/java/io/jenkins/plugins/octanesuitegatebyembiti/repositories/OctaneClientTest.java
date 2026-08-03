@@ -158,38 +158,102 @@ public class OctaneClientTest {
       assertEquals(
           List.of("Jenkins Agent", "Jenkins Agent"),
           records.stream().map(record -> record.getExecutionActorName()).toList());
+      assertSingleOwnerAcrossReportSurfaces(records, "Jane Doe");
+    }
+  }
 
-      StatusClassifier classifier =
-          new StatusClassifier(
-              StatusClassifier.DEFAULT_PASSED_STATUSES,
-              StatusClassifier.DEFAULT_FAILED_STATUSES,
-              StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
-              StatusClassifier.DEFAULT_RUNNING_STATUSES);
-      GateResult result =
-          new GateResult(
-              "55",
-              "regressions.passRate == 100",
-              true,
-              true,
-              GateMetrics.fromRuns(records, classifier),
-              records,
-              Map.of("55", records),
-              Map.of(),
-              Instant.parse("2026-08-03T12:00:00Z"));
-      OctaneGateReportSnapshot snapshot =
-          OctaneGateReportSnapshot.fromResult(
-              OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  @Test
+  public void usesAssignedToAliasForDefaultRunByAcrossLiveReportSurfaces() throws Exception {
+    AtomicInteger assignedToQueries = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          if (idsFromQuery(exchange).contains("101")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":["
+                    + "{\"id\":\"101\",\"native_status\":{\"logical_name\":\"passed\"},"
+                    + "\"run_by\":{\"name\":\"Jenkins Agent\"}},"
+                    + "{\"id\":\"102\",\"native_status\":{\"logical_name\":\"passed\"},"
+                    + "\"native_tester\":{\"name\":\"Jenkins Agent\"}}]}");
+            return;
+          }
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (query.contains("default_run_by")) {
+            json(exchange, 400, "{\"error\":\"Unknown run field default_run_by\"}");
+            return;
+          }
+          if (query.contains("assigned_to")) {
+            assignedToQueries.incrementAndGet();
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\","
+                    + "\"assigned_to\":{\"email\":\"jane.doe@example.com\"},"
+                    + "\"runs_in_suite\":[{\"id\":\"101\"},{\"id\":\"102\"}]}]}");
+            return;
+          }
+          json(exchange, 400, "{\"error\":\"Unsupported parent fields\"}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-      assertEquals(1, snapshot.getSections().get(0).getSuiteRuns().size());
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
+
+      assertTrue(assignedToQueries.get() > 0);
       assertEquals(
-          "Jane Doe", snapshot.getSections().get(0).getSuiteRuns().get(0).getDisplayName());
-      assertEquals(100, snapshot.getTestMetrics().getAutomationPercentage());
-      assertEquals(1, snapshot.getTesterPerformances().size());
-      assertEquals("Jane Doe", snapshot.getTesterPerformances().get(0).getEmail());
+          List.of("jane.doe@example.com", "jane.doe@example.com"),
+          records.stream().map(record -> record.getSuiteOwnerName()).toList());
+      assertEquals(
+          List.of("Jenkins Agent", "Jenkins Agent"),
+          records.stream().map(record -> record.getExecutionActorName()).toList());
+      assertSingleOwnerAcrossReportSurfaces(records, "jane.doe@example.com");
+    }
+  }
 
-      String emailReportZone = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
-      assertTrue(emailReportZone.contains("Jane Doe"));
-      assertFalse(emailReportZone.contains("Unassigned"));
+  @Test
+  public void enrichesDefaultRunByFromDedicatedParentAssigneeAlias() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          if (idsFromQuery(exchange).contains("101")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"101\","
+                    + "\"native_status\":{\"logical_name\":\"passed\"},"
+                    + "\"run_by\":{\"name\":\"Jenkins Agent\"}}]}");
+          } else {
+            // Some Octane versions silently omit unsupported relationship fields instead of 400.
+            json(
+                exchange, 200, "{\"data\":[{\"id\":\"55\",\"runs_in_suite\":[{\"id\":\"101\"}]}]}");
+          }
+        });
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/55",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          String assignee =
+              query.contains("assignee{id,name}")
+                  ? ",\"assignee\":{\"name\":\"Jane Dedicated\"}"
+                  : "";
+          json(exchange, 200, "{\"id\":\"55\"" + assignee + "}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
+
+      assertEquals(1, records.size());
+      assertEquals("Jane Dedicated", records.get(0).getSuiteOwnerName());
+      assertEquals("Jenkins Agent", records.get(0).getExecutionActorName());
     }
   }
 
@@ -1319,6 +1383,41 @@ public class OctaneClientTest {
     System.out.printf(
         "Octane concurrency acceptance: requests=%d maxInFlight=%d%n",
         metrics.requests(), metrics.maximumInFlight());
+  }
+
+  private void assertSingleOwnerAcrossReportSurfaces(
+      List<RunRecord> records, String expectedOwner) {
+    StatusClassifier classifier =
+        new StatusClassifier(
+            StatusClassifier.DEFAULT_PASSED_STATUSES,
+            StatusClassifier.DEFAULT_FAILED_STATUSES,
+            StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+            StatusClassifier.DEFAULT_RUNNING_STATUSES);
+    GateResult result =
+        new GateResult(
+            "55",
+            "regressions.passRate == 100",
+            true,
+            true,
+            GateMetrics.fromRuns(records, classifier),
+            records,
+            Map.of("55", records),
+            Map.of(),
+            Instant.parse("2026-08-03T12:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+
+    assertEquals(1, snapshot.getSections().get(0).getSuiteRuns().size());
+    assertEquals(
+        expectedOwner, snapshot.getSections().get(0).getSuiteRuns().get(0).getDisplayName());
+    assertEquals(100, snapshot.getTestMetrics().getAutomationPercentage());
+    assertEquals(1, snapshot.getTesterPerformances().size());
+    assertEquals(expectedOwner, snapshot.getTesterPerformances().get(0).getEmail());
+
+    String emailReportZone = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+    assertTrue(emailReportZone.contains(expectedOwner));
+    assertFalse(emailReportZone.contains("Unassigned"));
   }
 
   private List<String> idsFromQuery(HttpExchange exchange) {

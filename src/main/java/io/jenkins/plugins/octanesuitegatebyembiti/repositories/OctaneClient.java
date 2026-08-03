@@ -54,7 +54,15 @@ public class OctaneClient implements AutoCloseable {
       RUN_FIELDS + ",default_run_by{id,name}";
   private static final String SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS =
       SAFE_RUN_FIELDS + ",default_run_by{id,name}";
+  private static final String ASSIGNED_TO_SUITE_RUN_FIELDS = RUN_FIELDS + ",assigned_to{id,name}";
+  private static final String SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",assigned_to{id,name}";
+  private static final String ASSIGNEE_SUITE_RUN_FIELDS = RUN_FIELDS + ",assignee{id,name}";
+  private static final String SAFE_ASSIGNEE_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",assignee{id,name}";
   private static final String DEFAULT_RUN_BY_FIELDS = "id,default_run_by{id,name}";
+  private static final String ASSIGNED_TO_FIELDS = "id,assigned_to{id,name}";
+  private static final String ASSIGNEE_FIELDS = "id,assignee{id,name}";
   private static final String SUITE_OWNER_FIELDS = "id,owner{id,name}";
   private static final String EXTENDED_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
@@ -561,6 +569,14 @@ public class OctaneClient implements AutoCloseable {
         DEFAULT_RUN_BY_SUITE_RUN_FIELDS,
         SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS + ",owner{id,name}",
         SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS,
+        ASSIGNED_TO_SUITE_RUN_FIELDS + ",owner{id,name}",
+        ASSIGNED_TO_SUITE_RUN_FIELDS,
+        SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS + ",owner{id,name}",
+        SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS,
+        ASSIGNEE_SUITE_RUN_FIELDS + ",owner{id,name}",
+        ASSIGNEE_SUITE_RUN_FIELDS,
+        SAFE_ASSIGNEE_SUITE_RUN_FIELDS + ",owner{id,name}",
+        SAFE_ASSIGNEE_SUITE_RUN_FIELDS,
         SUITE_RUN_FIELDS,
         SAFE_SUITE_RUN_FIELDS,
         RUN_FIELDS,
@@ -1135,11 +1151,15 @@ public class OctaneClient implements AutoCloseable {
   }
 
   private String readSuiteOwnerName(JsonNode suiteRun) {
-    Optional<String> defaultRunBy = readPersonField(suiteRun.path("default_run_by"));
-    if (defaultRunBy.isPresent()) {
-      return defaultRunBy.get();
+    // Octane versions expose the parent suite's "Default run by" relationship under different
+    // API names. These aliases are read only from the parent suite object, never from child runs.
+    for (String fieldName : List.of("default_run_by", "assigned_to", "assignee", "owner")) {
+      Optional<String> suiteOwner = readPersonField(suiteRun.path(fieldName));
+      if (suiteOwner.isPresent()) {
+        return suiteOwner.get();
+      }
     }
-    return readPersonField(suiteRun.path("owner")).orElse("");
+    return "";
   }
 
   private String resolveSuiteOwnerName(
@@ -1153,7 +1173,8 @@ public class OctaneClient implements AutoCloseable {
 
   private String fetchDedicatedSuiteOwnerName(
       String sharedSpaceId, String workspaceId, String suiteRunId) throws InterruptedException {
-    for (String fields : List.of(DEFAULT_RUN_BY_FIELDS, SUITE_OWNER_FIELDS)) {
+    for (String fields :
+        List.of(DEFAULT_RUN_BY_FIELDS, ASSIGNED_TO_FIELDS, ASSIGNEE_FIELDS, SUITE_OWNER_FIELDS)) {
       String path =
           workspacePath(sharedSpaceId, workspaceId)
               + "/suite_runs/"
@@ -1169,7 +1190,7 @@ public class OctaneClient implements AutoCloseable {
           return suiteOwnerName;
         }
       } catch (IOException | JacksonException ignored) {
-        // Default run by support varies by Octane version; owner is the only grouping fallback.
+        // Parent assignment field names vary by Octane version; try the next parent-only alias.
       }
     }
     return "";
