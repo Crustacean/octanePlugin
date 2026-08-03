@@ -37,7 +37,7 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals(1, point.getBlocked());
     assertEquals(1, point.getFailed());
     assertEquals(1, point.getPassed());
-    assertEquals(4, point.getExecuted());
+    assertEquals(3, point.getExecuted());
 
     List<OctaneTestManagementAnalytics.FailureCategory> categories =
         analytics.getFailureCategories();

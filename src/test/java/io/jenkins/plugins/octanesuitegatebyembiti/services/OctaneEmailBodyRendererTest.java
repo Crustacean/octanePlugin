@@ -252,6 +252,23 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void executionTableExcludesSkippedAndNoRunTestsFromPassRate() {
+    OctaneGateReportSnapshot snapshot =
+        reconciliationSnapshot(
+            OctaneGateReportState.POLLING,
+            List.of("passed", "passed", "failed", "blocked", "skipped", "planned"),
+            0);
+
+    String html = renderExecutionDetails(snapshot, OctaneReportTheme.LIGHT);
+
+    assertTrue(detailRow(html, "Executed test cases").contains(">4</td>"));
+    assertTrue(detailRow(html, "No run test cases").contains(">1</td>"));
+    assertTrue(detailRow(html, "Skipped test cases").contains(">1</td>"));
+    assertTrue(detailRow(html, "Execution rate").contains(">66.7%</td>"));
+    assertTrue(passRateRow(html).contains(">50%</td>"));
+  }
+
+  @Test
   public void rendersOngoingIntervalReportInSystemOrangeWithInlineScreenshot() {
     String html =
         renderer.render(

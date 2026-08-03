@@ -207,18 +207,18 @@ public class OctaneTestMetrics implements Serializable {
 
   private static OctaneTestMetricCard successRate(
       OctaneGateReportSnapshot current, OctaneGateReportSnapshot previous) {
-    int total = current.getProjectTestTotal();
-    double currentRate = total == 0 ? 0.0 : current.getPassedTestCount() * 100.0 / total;
+    int executed = current.getExecutedTestCount();
+    double currentRate = executed == 0 ? 0.0 : current.getPassedTestCount() * 100.0 / executed;
     Double previousRate =
-        previous == null || previous.getProjectTestTotal() == 0
+        previous == null || previous.getExecutedTestCount() == 0
             ? null
-            : previous.getPassedTestCount() * 100.0 / previous.getProjectTestTotal();
+            : previous.getPassedTestCount() * 100.0 / previous.getExecutedTestCount();
     Trend trend = percentTrend(currentRate, previousRate, true);
     return card(
         "success-rate",
         "Success Rate",
         formatPercent(currentRate),
-        current.getPassedTestCount() + " / " + total + " passed",
+        current.getPassedTestCount() + " / " + executed + " passed",
         trend.text,
         trend.tone,
         "chart",

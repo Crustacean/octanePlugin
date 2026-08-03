@@ -679,6 +679,7 @@ public class OctaneEmailBodyRenderer {
     int total = snapshot == null ? 0 : snapshot.getProjectTestTotal();
     int executed = snapshot == null ? 0 : snapshot.getExecutedTestCount();
     int passed = snapshot == null ? 0 : snapshot.getPassedTestCount();
+    int skipped = statusCount(snapshot, "Skipped");
     String executionRate =
         snapshot == null ? "0%" : formatPercentage(snapshot.getExecutionProgress());
     String passRate = executed == 0 ? "0%" : formatPercentage(passed * 100.0 / executed);
@@ -689,8 +690,8 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "Blocked test cases", statusCount(snapshot, "Blocked"));
     appendDetailRow(html, "Passed test cases", statusCount(snapshot, "Passed"));
     appendDetailRow(html, "Failed test cases", statusCount(snapshot, "Failed"));
-    appendDetailRow(html, "No run test cases", Math.max(0, total - executed));
-    appendDetailRow(html, "Skipped test cases", statusCount(snapshot, "Skipped"));
+    appendDetailRow(html, "No run test cases", Math.max(0, total - executed - skipped));
+    appendDetailRow(html, "Skipped test cases", skipped);
     appendDetailRow(html, "Execution rate", executionRate);
     appendDetailRow(html, "Pass Rate", passRate, passRateStyle);
     String automationUsage =

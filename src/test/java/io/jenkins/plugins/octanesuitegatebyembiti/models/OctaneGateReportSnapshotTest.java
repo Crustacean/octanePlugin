@@ -45,16 +45,54 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(83.333, snapshot.getExecutionProgress(), 0.001);
     assertEquals("83%", snapshot.getExecutionProgressText());
     assertEquals("83.33%", snapshot.getExecutionProgressTwoDecimalText());
-    assertEquals(6, snapshot.getPassRateTotal());
+    assertEquals(5, snapshot.getPassRateTotal());
     assertEquals(3, snapshot.getPassRatePassed());
-    assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
-    assertEquals("50%", snapshot.getPassRateProgressText());
-    assertEquals("50.00%", snapshot.getPassRateProgressTwoDecimalText());
+    assertEquals(60.0, snapshot.getPassRateProgress(), 0.001);
+    assertEquals("60%", snapshot.getPassRateProgressText());
+    assertEquals("60.00%", snapshot.getPassRateProgressTwoDecimalText());
     assertEquals("0.00%", snapshot.getAutomationProgressTwoDecimalText());
-    assertEquals("All Testcase Pass Rate (3 / 6)", snapshot.getPassRateLabel());
+    assertEquals("All Testcase Pass Rate (3 / 5)", snapshot.getPassRateLabel());
     assertEquals("In Progress", snapshot.getJobStateLabel());
     assertEquals("2026/05/15 03:00:00", snapshot.getUpdatedAtDateTimeText());
     assertFalse(regressions.getPieSlices().isEmpty());
+  }
+
+  @Test
+  public void calculatesPassRateFromPassedFailedAndBlockedTestsOnly() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord("1", "passed one", "passed", "Ada Tester"),
+            new RunRecord("2", "passed two", "passed", "Ada Tester"),
+            new RunRecord("3", "failed", "failed", "Ada Tester"),
+            new RunRecord("4", "blocked", "blocked", "Ada Tester"),
+            new RunRecord("5", "skipped", "skipped", "Ada Tester"),
+            new RunRecord("6", "planned", "planned", "Ada Tester"));
+    GateResult result =
+        new GateResult(
+            "4501",
+            "regressions.passRate == 50",
+            true,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("4501", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    assertEquals(6, snapshot.getProjectTestTotal());
+    assertEquals(4, snapshot.getExecutedTestCount());
+    assertEquals(66.667, snapshot.getExecutionProgress(), 0.001);
+    assertEquals(4, snapshot.getPassRateTotal());
+    assertEquals(2, snapshot.getPassRatePassed());
+    assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
+    assertEquals("All Testcase Pass Rate (2 / 4)", snapshot.getPassRateLabel());
+    OctaneTesterPerformance tester = snapshot.getTesterPerformances().get(0);
+    assertEquals(4, tester.getExecuted());
+    assertEquals(50.0, tester.getPassRate(), 0.001);
   }
 
   @Test
@@ -567,8 +605,8 @@ public class OctaneGateReportSnapshotTest {
         "0/6 tests automated. Target 100%", metric(current, "automation-usage").getDetail());
     assertEquals("No change from last cycle", metric(current, "automation-usage").getTrendText());
     assertEquals("negative", metric(current, "automation-usage").getTrendTone());
-    assertEquals("50.0%", metric(current, "success-rate").getValue());
-    assertEquals("3 / 6 passed", metric(current, "success-rate").getDetail());
+    assertEquals("60.0%", metric(current, "success-rate").getValue());
+    assertEquals("3 / 5 passed", metric(current, "success-rate").getDetail());
     assertEquals("83.3%", metric(current, "execution").getValue());
     assertEquals("5 / 6 executed", metric(current, "execution").getDetail());
     assertEquals("3 open", metric(current, "defects").getValue());

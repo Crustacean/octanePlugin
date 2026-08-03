@@ -14,7 +14,7 @@ public class GateMetrics implements Serializable {
   private static final Map<String, ToDoubleFunction<GateMetrics>> METRIC_VALUES =
       Map.ofEntries(
           Map.entry("total", metrics -> metrics.total),
-          Map.entry("executed", metrics -> metrics.executed),
+          Map.entry("executed", metrics -> metrics.getExecuted()),
           Map.entry("passed", metrics -> metrics.passed),
           Map.entry("failed", metrics -> metrics.failed),
           Map.entry("skipped", metrics -> metrics.skipped),
@@ -24,15 +24,14 @@ public class GateMetrics implements Serializable {
           Map.entry("failrate", metrics -> metrics.getFailRate()));
 
   private final int total;
-  private final int executed;
   private final int passed;
   private final int failed;
   private final int skipped;
   private final int running;
 
-  public GateMetrics(int total, int executed, int passed, int failed, int skipped, int running) {
+  public GateMetrics(
+      int total, int ignoredExecuted, int passed, int failed, int skipped, int running) {
     this.total = total;
-    this.executed = executed;
     this.passed = passed;
     this.failed = failed;
     this.skipped = skipped;
@@ -60,7 +59,7 @@ public class GateMetrics implements Serializable {
     }
 
     int total = runs.size();
-    int executed = passed + failed + skipped;
+    int executed = passed + failed;
     return new GateMetrics(total, executed, passed, failed, skipped, running);
   }
 
@@ -69,7 +68,9 @@ public class GateMetrics implements Serializable {
   }
 
   public int getExecuted() {
-    return executed;
+    // Failed includes both failed and blocked outcomes. Skipped and planned/running tests do not
+    // participate in execution or pass-rate calculations.
+    return Math.max(0, passed) + Math.max(0, failed);
   }
 
   public int getPassed() {
@@ -89,15 +90,17 @@ public class GateMetrics implements Serializable {
   }
 
   public double getExecutionRate() {
-    return total == 0 ? 0.0 : percentage(executed, total);
+    return total == 0 ? 0.0 : percentage(getExecuted(), total);
   }
 
   public double getPassRate() {
-    return executed == 0 ? 0.0 : percentage(passed, executed);
+    int executedTestCases = getExecuted();
+    return executedTestCases == 0 ? 0.0 : percentage(passed, executedTestCases);
   }
 
   public double getFailRate() {
-    return executed == 0 ? 0.0 : percentage(failed, executed);
+    int executedTestCases = getExecuted();
+    return executedTestCases == 0 ? 0.0 : percentage(failed, executedTestCases);
   }
 
   public boolean isTerminal() {
@@ -123,7 +126,7 @@ public class GateMetrics implements Serializable {
   Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("total", total);
-    values.put("executed", executed);
+    values.put("executed", getExecuted());
     values.put("passed", passed);
     values.put("failed", failed);
     values.put("skipped", skipped);

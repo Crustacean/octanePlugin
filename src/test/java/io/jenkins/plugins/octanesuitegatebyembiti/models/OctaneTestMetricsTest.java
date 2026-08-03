@@ -63,6 +63,27 @@ public class OctaneTestMetricsTest {
   }
 
   @Test
+  public void successRateUsesExecutedTestsRatherThanPlannedOrSkippedTests() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord("1", "passed one", "passed", "Ada Tester"),
+            new RunRecord("2", "passed two", "passed", "Ada Tester"),
+            new RunRecord("3", "failed", "failed", "Ada Tester"),
+            new RunRecord("4", "blocked", "blocked", "Ada Tester"),
+            new RunRecord("5", "skipped", "skipped", "Ada Tester"),
+            new RunRecord("6", "planned", "planned", "Ada Tester"));
+    OctaneGateReportSnapshot snapshot = automationSnapshot(runs, Map.of("suite-1", runs), 80);
+
+    OctaneTestMetricCard successRate = metric(snapshot, "success-rate");
+    OctaneTestMetricCard execution = metric(snapshot, "execution");
+
+    assertEquals("50.0%", successRate.getValue());
+    assertEquals("2 / 4 passed", successRate.getDetail());
+    assertEquals("66.7%", execution.getValue());
+    assertEquals("4 / 6 executed", execution.getDetail());
+  }
+
+  @Test
   public void rendererIncludesEveryContextualVisualizationAndResponsiveLabels() {
     OctaneDefectGroup major = group("major", "Critical, High");
     OctaneGateReportSnapshot snapshot =

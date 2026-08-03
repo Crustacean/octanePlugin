@@ -805,7 +805,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public int getPassRateTotal() {
-    return projectProgressCounts().total;
+    return projectProgressCounts().executed;
   }
 
   public int getPassRatePassed() {
@@ -926,7 +926,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     private void add(OctaneGateSuiteRunChart suiteRun) {
       total += suiteRun.getTotal();
       for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
-        if (status.getBucket() != OctaneGateStatusBucket.RUNNING) {
+        if (status.getBucket().isExecuted()) {
           executed += status.getCount();
         }
         if (status.getBucket() == OctaneGateStatusBucket.PASSED) {

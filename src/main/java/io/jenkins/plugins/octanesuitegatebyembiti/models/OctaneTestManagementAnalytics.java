@@ -1054,7 +1054,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     }
 
     public int getExecuted() {
-      return skipped + blocked + failed + passed;
+      return blocked + failed + passed;
     }
 
     private Map<String, Object> toMap() {
@@ -1456,7 +1456,10 @@ public final class OctaneTestManagementAnalytics implements Serializable {
 
     private void addRun(RunRecord run, StatusClassifier classifier) {
       total++;
-      if (classifier.classify(run.getStatus()) != StatusClassifier.Outcome.RUNNING) {
+      StatusClassifier.Outcome outcome = classifier.classify(run.getStatus());
+      if (outcome == StatusClassifier.Outcome.PASSED
+          || outcome == StatusClassifier.Outcome.FAILED
+          || outcome == StatusClassifier.Outcome.BLOCKED) {
         executed++;
       }
     }

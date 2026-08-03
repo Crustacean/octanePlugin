@@ -152,7 +152,7 @@ public class OctaneTesterPerformance implements Serializable {
       int executed = 0;
       int passed = 0;
       for (OctaneGateStatusBucket status : statusesByRunId.values()) {
-        if (status != OctaneGateStatusBucket.RUNNING) {
+        if (status.isExecuted()) {
           executed++;
         }
         if (status == OctaneGateStatusBucket.PASSED) {
