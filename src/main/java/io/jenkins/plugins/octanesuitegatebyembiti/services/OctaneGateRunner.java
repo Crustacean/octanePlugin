@@ -1033,7 +1033,7 @@ public class OctaneGateRunner {
               + scopeQueryHint(scope)
               + e.getMessage());
     }
-    scopedRuns = applySuiteAttribution(regressionSuiteRuns, scopedRuns);
+    scopedRuns = applySuiteOwnership(regressionSuiteRuns, scopedRuns);
     GateMetrics metrics = GateMetrics.fromRuns(scopedRuns, classifier);
     return new GateScopeResult(
         scope.getName(),
@@ -1046,19 +1046,19 @@ public class OctaneGateRunner {
         groupScopedRunsBySuiteRun(regressionSuiteRuns, scopedRuns));
   }
 
-  private List<RunRecord> applySuiteAttribution(
+  private List<RunRecord> applySuiteOwnership(
       Map<String, List<RunRecord>> suiteRuns, List<RunRecord> scopedRuns) {
-    Map<String, String> assignedUsersByRunId = new LinkedHashMap<>();
+    Map<String, String> suiteOwnersByRunId = new LinkedHashMap<>();
     for (List<RunRecord> runs : suiteRuns.values()) {
       for (RunRecord run : runs) {
-        assignedUsersByRunId.putIfAbsent(run.getId(), run.getAssignedToName());
+        suiteOwnersByRunId.putIfAbsent(run.getId(), run.getSuiteOwnerName());
       }
     }
     return scopedRuns.stream()
         .map(
             run ->
-                run.withAssignedToName(
-                    assignedUsersByRunId.getOrDefault(run.getId(), run.getAssignedToName())))
+                run.withSuiteOwnerName(
+                    suiteOwnersByRunId.getOrDefault(run.getId(), run.getSuiteOwnerName())))
         .toList();
   }
 

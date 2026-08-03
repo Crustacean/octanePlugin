@@ -103,7 +103,7 @@ public class OctaneTestMetrics implements Serializable {
     int automated = 0;
     int manual = 0;
     for (RunRecord run : uniqueRuns.values()) {
-      if (AUTOMATED_RUNNER.matcher(run.getRunByName()).find()) {
+      if (AUTOMATED_RUNNER.matcher(run.getExecutionActorName()).find()) {
         automated++;
       } else {
         manual++;
@@ -348,7 +348,11 @@ public class OctaneTestMetrics implements Serializable {
       String key =
           id.isBlank()
               ? String.join(
-                  "\u0000", run.getName(), run.getTestId(), run.getStatus(), run.getRunByName())
+                  "\u0000",
+                  run.getName(),
+                  run.getTestId(),
+                  run.getStatus(),
+                  run.getExecutionActorName())
               : id;
       uniqueRuns.putIfAbsent(key, run);
     }

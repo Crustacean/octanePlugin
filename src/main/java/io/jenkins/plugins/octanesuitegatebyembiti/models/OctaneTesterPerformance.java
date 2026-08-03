@@ -116,7 +116,7 @@ public class OctaneTesterPerformance implements Serializable {
       StatusClassifier classifier) {
     for (int index = 0; index < runs.size(); index++) {
       RunRecord run = runs.get(index);
-      String email = Util.isBlank(run.getAssignedToName()) ? "Unassigned" : run.getAssignedToName();
+      String email = Util.isBlank(run.getSuiteOwnerName()) ? "Unassigned" : run.getSuiteOwnerName();
       String testerKey = email.trim().toLowerCase(Locale.ROOT);
       testers.putIfAbsent(testerKey, new TesterAccumulator(email));
       String runKey =

@@ -215,8 +215,8 @@ public class OctaneRiskHeatMapBuilder {
   }
 
   private String assignedUserLabel(RunRecord run) {
-    if (!Util.isBlank(run.getAssignedToName())) {
-      return run.getAssignedToName();
+    if (!Util.isBlank(run.getSuiteOwnerName())) {
+      return run.getSuiteOwnerName();
     }
     return "Unassigned";
   }

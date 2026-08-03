@@ -9,11 +9,18 @@ import com.sun.net.httpserver.HttpServer;
 import hudson.AbortException;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -112,7 +119,82 @@ public class OctaneClientTest {
   }
 
   @Test
-  public void batchSuitePollingUsesParentRunByAsDefaultRunByApiAlias() throws Exception {
+  public void keepsDefaultRunByAsSingleUiAndEmailOwnerForAutomatedChildren() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          if (idsFromQuery(exchange).contains("101")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":["
+                    + "{\"id\":\"101\",\"name\":\"one\","
+                    + "\"native_status\":{\"logical_name\":\"passed\"},"
+                    + "\"run_by\":{\"name\":\"Jenkins Agent\"},"
+                    + "\"test\":{\"id\":\"test-1\",\"owner\":{\"name\":\"Other User\"}}},"
+                    + "{\"id\":\"102\",\"name\":\"two\","
+                    + "\"native_status\":{\"logical_name\":\"passed\"},"
+                    + "\"run_by\":null,"
+                    + "\"native_tester\":{\"name\":\"Jenkins Agent\"}}]} ");
+          } else {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\","
+                    + "\"default_run_by\":{\"name\":\"Jane Doe\"},"
+                    + "\"runs_in_suite\":[{\"id\":\"101\"},{\"id\":\"102\"}]}]}");
+          }
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
+
+      assertEquals(
+          List.of("Jane Doe", "Jane Doe"),
+          records.stream().map(record -> record.getSuiteOwnerName()).toList());
+      assertEquals(
+          List.of("Jenkins Agent", "Jenkins Agent"),
+          records.stream().map(record -> record.getExecutionActorName()).toList());
+
+      StatusClassifier classifier =
+          new StatusClassifier(
+              StatusClassifier.DEFAULT_PASSED_STATUSES,
+              StatusClassifier.DEFAULT_FAILED_STATUSES,
+              StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+              StatusClassifier.DEFAULT_RUNNING_STATUSES);
+      GateResult result =
+          new GateResult(
+              "55",
+              "regressions.passRate == 100",
+              true,
+              true,
+              GateMetrics.fromRuns(records, classifier),
+              records,
+              Map.of("55", records),
+              Map.of(),
+              Instant.parse("2026-08-03T12:00:00Z"));
+      OctaneGateReportSnapshot snapshot =
+          OctaneGateReportSnapshot.fromResult(
+              OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+
+      assertEquals(1, snapshot.getSections().get(0).getSuiteRuns().size());
+      assertEquals(
+          "Jane Doe", snapshot.getSections().get(0).getSuiteRuns().get(0).getDisplayName());
+      assertEquals(100, snapshot.getTestMetrics().getAutomationPercentage());
+      assertEquals(1, snapshot.getTesterPerformances().size());
+      assertEquals("Jane Doe", snapshot.getTesterPerformances().get(0).getEmail());
+
+      String emailReportZone = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+      assertTrue(emailReportZone.contains("Jane Doe"));
+      assertFalse(emailReportZone.contains("Unassigned"));
+    }
+  }
+
+  @Test
+  public void batchSuitePollingUsesParentOwnerWhenDefaultRunByIsUnavailable() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(
         "/api/shared_spaces/1001/workspaces/2002/runs",
@@ -151,7 +233,7 @@ public class OctaneClientTest {
           List.of("Jenkins Agent", "Default Manual Runner"),
           records.stream().map(record -> record.getRunByName()).toList());
       assertEquals(
-          List.of("Suite Assignee", "Suite Assignee"),
+          List.of("Suite Owner", "Suite Owner"),
           records.stream().map(record -> record.getAssignedToName()).toList());
     }
   }
@@ -367,7 +449,7 @@ public class OctaneClientTest {
             json(
                 exchange,
                 200,
-                "{\"data\":[{\"id\":\"56\",\"assigned_to\":{\"email\":\""
+                "{\"data\":[{\"id\":\"56\",\"owner\":{\"email\":\""
                     + owner
                     + "\"},\"runs_in_suite\":[{\"id\":\"101\"}]}]}");
           }
@@ -428,7 +510,7 @@ public class OctaneClientTest {
   }
 
   @Test
-  public void usesParentRunByAsDefaultRunByApiAlias() throws Exception {
+  public void neverUsesParentRunByAsSuiteOwner() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(
         "/api/shared_spaces/1001/workspaces/2002/runs",
@@ -461,7 +543,7 @@ public class OctaneClientTest {
 
       assertEquals(1, records.size());
       assertEquals("Jenkins Agent", records.get(0).getRunByName());
-      assertEquals("Parent Owner", records.get(0).getAssignedToName());
+      assertEquals("Unassigned (55)", records.get(0).getAssignedToName());
     }
   }
 

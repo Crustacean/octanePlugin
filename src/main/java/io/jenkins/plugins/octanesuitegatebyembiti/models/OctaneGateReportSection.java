@@ -256,8 +256,8 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   private static String assignedUserLabel(RunRecord run, String suiteRunId) {
-    if (!Util.isBlank(run.getAssignedToName())) {
-      return run.getAssignedToName();
+    if (!Util.isBlank(run.getSuiteOwnerName())) {
+      return run.getSuiteOwnerName();
     }
     if (Util.isBlank(suiteRunId)) {
       return "Unassigned";

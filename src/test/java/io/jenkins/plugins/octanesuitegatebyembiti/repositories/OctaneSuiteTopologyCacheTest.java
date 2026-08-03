@@ -61,7 +61,7 @@ public class OctaneSuiteTopologyCacheTest {
 
       assertEquals(List.of("run-1"), first.get(5, TimeUnit.SECONDS).get("suite-1").runIds());
       assertEquals(List.of("run-1"), second.get(5, TimeUnit.SECONDS).get("suite-1").runIds());
-      assertEquals("Owner", second.get(5, TimeUnit.SECONDS).get("suite-1").attributionName());
+      assertEquals("Owner", second.get(5, TimeUnit.SECONDS).get("suite-1").suiteOwnerName());
       assertEquals(1, loads.get());
     }
   }
