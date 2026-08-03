@@ -65,19 +65,19 @@ public class OctaneTesterPerformance implements Serializable {
   }
 
   public double getExecutionRate() {
-    return total == 0 ? 0.0 : executed * 100.0 / total;
+    return GateMetrics.executionRate(executed, total);
   }
 
   public double getPassRate() {
-    return executed == 0 ? 0.0 : passed * 100.0 / executed;
+    return GateMetrics.passRate(passed, executed);
   }
 
   public String getExecutionRateText() {
-    return formatRate(getExecutionRate());
+    return Util.formatCompactPercentage(getExecutionRate());
   }
 
   public String getPassRateText() {
-    return formatRate(getPassRate());
+    return Util.formatCompactPercentage(getPassRate());
   }
 
   public Map<String, Object> toMap() {
@@ -127,13 +127,6 @@ public class OctaneTesterPerformance implements Serializable {
           OctaneGateStatusBucket.fromOutcome(classifier.classify(run.getStatus()));
       testers.get(testerKey).put(runKey, status);
     }
-  }
-
-  private static String formatRate(double value) {
-    if (Math.abs(value - Math.rint(value)) < 0.0001) {
-      return String.format(Locale.ROOT, "%.0f%%", value);
-    }
-    return String.format(Locale.ROOT, "%.1f%%", value);
   }
 
   private static class TesterAccumulator {

@@ -59,7 +59,7 @@ public class GateMetrics implements Serializable {
     }
 
     int total = runs.size();
-    int executed = passed + failed;
+    int executed = executedCount(passed, failed, 0);
     return new GateMetrics(total, executed, passed, failed, skipped, running);
   }
 
@@ -70,7 +70,7 @@ public class GateMetrics implements Serializable {
   public int getExecuted() {
     // Failed includes both failed and blocked outcomes. Skipped and planned/running tests do not
     // participate in execution or pass-rate calculations.
-    return Math.max(0, passed) + Math.max(0, failed);
+    return executedCount(passed, failed, 0);
   }
 
   public int getPassed() {
@@ -90,17 +90,15 @@ public class GateMetrics implements Serializable {
   }
 
   public double getExecutionRate() {
-    return total == 0 ? 0.0 : percentage(getExecuted(), total);
+    return executionRate(getExecuted(), total);
   }
 
   public double getPassRate() {
-    int executedTestCases = getExecuted();
-    return executedTestCases == 0 ? 0.0 : percentage(passed, executedTestCases);
+    return passRate(passed, getExecuted());
   }
 
   public double getFailRate() {
-    int executedTestCases = getExecuted();
-    return executedTestCases == 0 ? 0.0 : percentage(failed, executedTestCases);
+    return Util.percentage(Math.max(0, failed), getExecuted());
   }
 
   public boolean isTerminal() {
@@ -137,8 +135,16 @@ public class GateMetrics implements Serializable {
     return values;
   }
 
-  private static double percentage(int numerator, int denominator) {
-    return numerator * 100.0 / denominator;
+  public static int executedCount(int passed, int failed, int blocked) {
+    return Math.max(0, passed) + Math.max(0, failed) + Math.max(0, blocked);
+  }
+
+  public static double executionRate(int executed, int total) {
+    return Util.percentage(executed, total);
+  }
+
+  public static double passRate(int passed, int executed) {
+    return Util.percentage(Math.max(0, passed), executed);
   }
 
   static String normalizeMetricName(String metricName) {

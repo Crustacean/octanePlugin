@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -208,16 +209,16 @@ public class OctaneTestMetrics implements Serializable {
   private static OctaneTestMetricCard successRate(
       OctaneGateReportSnapshot current, OctaneGateReportSnapshot previous) {
     int executed = current.getExecutedTestCount();
-    double currentRate = executed == 0 ? 0.0 : current.getPassedTestCount() * 100.0 / executed;
+    double currentRate = current.getPassRateProgress();
     Double previousRate =
         previous == null || previous.getExecutedTestCount() == 0
             ? null
-            : previous.getPassedTestCount() * 100.0 / previous.getExecutedTestCount();
+            : previous.getPassRateProgress();
     Trend trend = percentTrend(currentRate, previousRate, true);
     return card(
         "success-rate",
         "Success Rate",
-        formatPercent(currentRate),
+        Util.formatPercentage(currentRate, 1),
         current.getPassedTestCount() + " / " + executed + " passed",
         trend.text,
         trend.tone,
@@ -230,16 +231,16 @@ public class OctaneTestMetrics implements Serializable {
   private static OctaneTestMetricCard executionCompletion(
       OctaneGateReportSnapshot current, OctaneGateReportSnapshot previous) {
     int total = current.getProjectTestTotal();
-    double currentRate = total == 0 ? 0.0 : current.getExecutedTestCount() * 100.0 / total;
+    double currentRate = current.getExecutionProgress();
     Double previousRate =
         previous == null || previous.getProjectTestTotal() == 0
             ? null
-            : previous.getExecutedTestCount() * 100.0 / previous.getProjectTestTotal();
+            : previous.getExecutionProgress();
     Trend trend = percentTrend(currentRate, previousRate, true);
     return card(
         "execution",
         "Execution Completion",
-        formatPercent(currentRate),
+        Util.formatPercentage(currentRate, 1),
         current.getExecutedTestCount() + " / " + total + " executed",
         trend.text,
         trend.tone,
@@ -404,7 +405,8 @@ public class OctaneTestMetrics implements Serializable {
       return Trend.neutral("No change from last cycle");
     }
     String sign = delta > 0 ? "+" : "";
-    String text = sign + formatPercent(delta) + (delta > 0 ? " improvement" : " from last cycle");
+    String text =
+        sign + Util.formatPercentage(delta, 1) + (delta > 0 ? " improvement" : " from last cycle");
     return Trend.of(text, trendTone(current, previous, higherIsBetter));
   }
 
@@ -543,10 +545,6 @@ public class OctaneTestMetrics implements Serializable {
 
   private static String firstLetter(String value) {
     return value == null || value.isEmpty() ? "?" : value.substring(0, 1).toUpperCase(Locale.ROOT);
-  }
-
-  private static String formatPercent(double value) {
-    return String.format(Locale.ROOT, "%.1f%%", value);
   }
 
   private static class Trend {

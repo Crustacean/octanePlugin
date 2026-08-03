@@ -1054,7 +1054,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     }
 
     public int getExecuted() {
-      return blocked + failed + passed;
+      return GateMetrics.executedCount(passed, failed, blocked);
     }
 
     private Map<String, Object> toMap() {
@@ -1375,11 +1375,11 @@ public final class OctaneTestManagementAnalytics implements Serializable {
     }
 
     public double getExecutionRate() {
-      return total == 0 ? 0.0 : executed * 100.0 / total;
+      return GateMetrics.executionRate(executed, total);
     }
 
     public String getExecutionRateText() {
-      return String.format(Locale.ROOT, "%.0f%%", getExecutionRate());
+      return Util.formatPercentage(getExecutionRate(), 0);
     }
   }
 

@@ -790,18 +790,15 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public double getExecutionProgress() {
     ProjectProgressCounts counts = projectProgressCounts();
-    if (counts.total == 0) {
-      return 0.0;
-    }
-    return counts.executed * 100.0 / counts.total;
+    return GateMetrics.executionRate(counts.executed, counts.total);
   }
 
   public String getExecutionProgressText() {
-    return String.format(Locale.ROOT, "%.0f%%", getExecutionProgress());
+    return Util.formatPercentage(getExecutionProgress(), 0);
   }
 
   public String getExecutionProgressTwoDecimalText() {
-    return formatTwoDecimalPercentage(getExecutionProgress());
+    return Util.formatPercentage(getExecutionProgress(), 2);
   }
 
   public int getPassRateTotal() {
@@ -813,31 +810,23 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public double getPassRateProgress() {
-    int total = getPassRateTotal();
-    if (total == 0) {
-      return 0.0;
-    }
-    return getPassRatePassed() * 100.0 / total;
+    return GateMetrics.passRate(getPassRatePassed(), getPassRateTotal());
   }
 
   public String getPassRateProgressText() {
-    return String.format(Locale.ROOT, "%.0f%%", getPassRateProgress());
+    return Util.formatPercentage(getPassRateProgress(), 0);
   }
 
   public String getPassRateProgressTwoDecimalText() {
-    return formatTwoDecimalPercentage(getPassRateProgress());
+    return Util.formatPercentage(getPassRateProgress(), 2);
   }
 
   public String getAutomationProgressTwoDecimalText() {
-    return formatTwoDecimalPercentage(getTestMetrics().getAutomationPercentage());
+    return Util.formatPercentage(getTestMetrics().getAutomationPercentage(), 2);
   }
 
   public String getPassRateLabel() {
     return "All Testcase Pass Rate (" + getPassRatePassed() + " / " + getPassRateTotal() + ")";
-  }
-
-  private static String formatTwoDecimalPercentage(double value) {
-    return String.format(Locale.ROOT, "%.2f%%", value);
   }
 
   public int getProjectTestTotal() {

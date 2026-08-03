@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 
 public final class Util {
   private static final int MAX_LOG_VALUE_LENGTH = 2_048;
@@ -61,6 +62,24 @@ public final class Util {
 
   public static boolean isBlank(String value) {
     return trimToEmpty(value).isEmpty();
+  }
+
+  public static double percentage(double numerator, double denominator) {
+    return denominator <= 0.0 ? 0.0 : numerator * 100.0 / denominator;
+  }
+
+  public static String formatDecimal(double value, int decimalPlaces) {
+    int precision = Math.max(0, Math.min(6, decimalPlaces));
+    return String.format(Locale.ROOT, "%." + precision + "f", value);
+  }
+
+  public static String formatPercentage(double value, int decimalPlaces) {
+    return formatDecimal(value, decimalPlaces) + "%";
+  }
+
+  public static String formatCompactPercentage(double value) {
+    int decimalPlaces = Math.abs(value - Math.rint(value)) < 0.0001 ? 0 : 1;
+    return formatPercentage(value, decimalPlaces);
   }
 
   /** Keeps untrusted values on one bounded Jenkins console line. */

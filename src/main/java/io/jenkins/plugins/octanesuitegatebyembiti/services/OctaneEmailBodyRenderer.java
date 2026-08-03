@@ -336,7 +336,7 @@ public class OctaneEmailBodyRenderer {
         reconciliation.getStatus() == DefectLoggingCompliance.Status.SURPLUS ? "+" : "";
     String statusText =
         percentagePrefix
-            + formatPercentage(reconciliation.getDiscrepancyPercentage())
+            + Util.formatCompactPercentage(reconciliation.getDiscrepancyPercentage())
             + " ("
             + reconciliation.getStatus().getLabel()
             + ")";
@@ -678,11 +678,11 @@ public class OctaneEmailBodyRenderer {
       StringBuilder html, OctaneGateReportSnapshot snapshot, String theme) {
     int total = snapshot == null ? 0 : snapshot.getProjectTestTotal();
     int executed = snapshot == null ? 0 : snapshot.getExecutedTestCount();
-    int passed = snapshot == null ? 0 : snapshot.getPassedTestCount();
     int skipped = statusCount(snapshot, "Skipped");
     String executionRate =
-        snapshot == null ? "0%" : formatPercentage(snapshot.getExecutionProgress());
-    String passRate = executed == 0 ? "0%" : formatPercentage(passed * 100.0 / executed);
+        snapshot == null ? "0%" : Util.formatCompactPercentage(snapshot.getExecutionProgress());
+    String passRate =
+        snapshot == null ? "0%" : Util.formatCompactPercentage(snapshot.getPassRateProgress());
     EmailValueCellStyle passRateStyle = passRateCellStyle(snapshot, theme);
     html.append(dataTableStart("Test case execution"));
     appendDetailRow(html, "Total test cases", total);
@@ -845,13 +845,6 @@ public class OctaneEmailBodyRenderer {
     } catch (RuntimeException e) {
       return defaultText(value, "Not available");
     }
-  }
-
-  private String formatPercentage(double value) {
-    if (Math.abs(value - Math.rint(value)) < 0.0001) {
-      return String.format(Locale.ROOT, "%.0f%%", value);
-    }
-    return String.format(Locale.ROOT, "%.1f%%", value);
   }
 
   private String defaultText(String value, String fallback) {
