@@ -54,8 +54,19 @@ public class OctaneClient implements AutoCloseable {
       RUN_FIELDS + ",default_run_by{id,name}";
   private static final String SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS =
       SAFE_RUN_FIELDS + ",default_run_by{id,name}";
+  private static final String ASSIGNED_TO_SUITE_RUN_FIELDS = RUN_FIELDS + ",assigned_to{id,name}";
+  private static final String SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",assigned_to{id,name}";
+  private static final String ASSIGNEE_SUITE_RUN_FIELDS = RUN_FIELDS + ",assignee{id,name}";
+  private static final String SAFE_ASSIGNEE_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",assignee{id,name}";
   private static final String DEFAULT_RUN_BY_FIELDS = "id,default_run_by{id,name}";
+  private static final String PARENT_RUN_BY_FIELDS = "id,run_by{id,name}";
+  private static final String SUITE_ASSIGNED_TO_FIELDS = "id,assigned_to{id,name}";
+  private static final String SUITE_ASSIGNEE_FIELDS = "id,assignee{id,name}";
   private static final String SUITE_OWNER_FIELDS = "id,owner{id,name}";
+  private static final Pattern SYSTEM_PARENT_RUNNER =
+      Pattern.compile("(?:jenkins|default\\s+manual\\s+runner)", Pattern.CASE_INSENSITIVE);
   private static final String EXTENDED_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
           + "run{id,name},detected_in_run{id,name},test{id,name},owner_test{id,name},"
@@ -583,9 +594,17 @@ public class OctaneClient implements AutoCloseable {
   private List<String> suiteRunFieldCandidates() {
     return List.of(
         DEFAULT_RUN_BY_SUITE_RUN_FIELDS + ",owner{id,name}",
+        ASSIGNED_TO_SUITE_RUN_FIELDS + ",owner{id,name}",
+        ASSIGNEE_SUITE_RUN_FIELDS + ",owner{id,name}",
         DEFAULT_RUN_BY_SUITE_RUN_FIELDS,
+        ASSIGNED_TO_SUITE_RUN_FIELDS,
+        ASSIGNEE_SUITE_RUN_FIELDS,
         SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS + ",owner{id,name}",
+        SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS + ",owner{id,name}",
+        SAFE_ASSIGNEE_SUITE_RUN_FIELDS + ",owner{id,name}",
         SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS,
+        SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS,
+        SAFE_ASSIGNEE_SUITE_RUN_FIELDS,
         SUITE_RUN_FIELDS,
         SAFE_SUITE_RUN_FIELDS,
         RUN_FIELDS,
@@ -1146,7 +1165,23 @@ public class OctaneClient implements AutoCloseable {
     if (defaultRunBy.isPresent()) {
       return defaultRunBy.get();
     }
-    return readPersonField(suiteRun.path("owner")).orElse("");
+
+    // Older Octane schemas expose the parent suite run's "Default run by" as run_by. This
+    // method only receives parent suite nodes; child run_by is parsed separately as an actor.
+    Optional<String> parentRunBy =
+        readPersonField(suiteRun.path("run_by"))
+            .filter(name -> !SYSTEM_PARENT_RUNNER.matcher(name).find());
+    if (parentRunBy.isPresent()) {
+      return parentRunBy.get();
+    }
+
+    for (String fieldName : List.of("assigned_to", "assignee", "owner")) {
+      Optional<String> suiteOwner = readPersonField(suiteRun.path(fieldName));
+      if (suiteOwner.isPresent()) {
+        return suiteOwner.get();
+      }
+    }
+    return "";
   }
 
   private String resolveSuiteOwnerName(
@@ -1160,7 +1195,13 @@ public class OctaneClient implements AutoCloseable {
 
   private String fetchDedicatedSuiteOwnerName(
       String sharedSpaceId, String workspaceId, String suiteRunId) throws InterruptedException {
-    for (String fields : List.of(DEFAULT_RUN_BY_FIELDS, SUITE_OWNER_FIELDS)) {
+    for (String fields :
+        List.of(
+            DEFAULT_RUN_BY_FIELDS,
+            PARENT_RUN_BY_FIELDS,
+            SUITE_ASSIGNED_TO_FIELDS,
+            SUITE_ASSIGNEE_FIELDS,
+            SUITE_OWNER_FIELDS)) {
       String path =
           workspacePath(sharedSpaceId, workspaceId)
               + "/suite_runs/"
@@ -1176,7 +1217,7 @@ public class OctaneClient implements AutoCloseable {
           return suiteOwnerName;
         }
       } catch (IOException | JacksonException ignored) {
-        // Older Octane versions may expose only the suite-level owner relationship.
+        // Parent assignment field names vary across Octane versions.
       }
     }
     return "";

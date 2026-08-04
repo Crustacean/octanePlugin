@@ -2646,6 +2646,7 @@
         .octane-tester-column-content {
           max-height: min(58vh, 36rem);
           min-height: clamp(12rem, 28vh, 22rem);
+          overflow-x: hidden;
           overflow-y: auto;
           overscroll-behavior: contain;
           scrollbar-color: #666 transparent;
@@ -2666,8 +2667,17 @@
         }
         .octane-tester-table {
           border-collapse: collapse;
+          max-width: 100%;
           table-layout: fixed;
           width: 100%;
+        }
+        .octane-tester-email-column,
+        .octane-tester-email {
+          width: 70%;
+        }
+        .octane-tester-rate-column,
+        .octane-tester-rate {
+          width: 30%;
         }
         .octane-tester-table[hidden] {
           display: none;
@@ -2701,13 +2711,11 @@
         .octane-tester-email {
           overflow-wrap: anywhere;
           text-align: left;
-          width: 70%;
         }
         .octane-tester-rate {
           font-variant-numeric: tabular-nums;
           text-align: right;
           white-space: nowrap;
-          width: 30%;
         }
         .octane-scope-project {
           overflow-wrap: anywhere;
@@ -5454,6 +5462,10 @@
                     data-tester-execution-content="true"
                     data-empty="${snapshot.testerExecutionDetailsEmpty}">
                   <table class="octane-tester-table">
+                    <colgroup>
+                      <col class="octane-tester-email-column" />
+                      <col class="octane-tester-rate-column" />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>
@@ -5481,6 +5493,10 @@
                     data-tester-pass-rate-content="true"
                     data-empty="${snapshot.testerPassRateDetailsEmpty}">
                   <table class="octane-tester-table">
+                    <colgroup>
+                      <col class="octane-tester-email-column" />
+                      <col class="octane-tester-rate-column" />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>

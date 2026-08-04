@@ -119,21 +119,25 @@ Maven compiles successfully.
 The progress bars, Tester Details tables, screenshots, and email reports share one immutable tester
 grouping key. Do not infer or repair it in a renderer.
 
-- Root cause of the `Unassigned` regression: compatibility code broadened suite ownership beyond
-  the authoritative parent fields and a cached topology with a blank owner skipped later parent
-  enrichment. That let executor/test metadata compete with suite attribution or left a recoverable
-  assignment stuck at `Unassigned`.
-- Resolve grouping once in `OctaneClient`: parent `suite_run.default_run_by`, falling back only to
-  the direct parent suite `owner`. Stamp that value onto every child `RunRecord` as
-  `suiteOwnerName` before any report aggregation.
-- Child and parent `run_by`, `native_tester`, `assigned_to`, `assignee`, child owner, and test owner
-  are never grouping fallbacks. Child `run_by`/`native_tester` are execution actors used only for
-  automation usage.
+- Root cause of the `Unassigned` regression: the integration treated `default_run_by` as the only
+  compatible API name even though supported Octane schemas can expose the parent suite run's
+  **Default run by** relationship as parent `run_by`, `assigned_to`, or `assignee`. Removing parent
+  `run_by` while correctly excluding child executors caused valid human attribution to disappear.
+- Resolve grouping once in `OctaneClient` from the parent suite-run payload, in this order:
+  `default_run_by`, human parent `run_by`, parent `assigned_to`, parent `assignee`, then direct
+  parent `owner`. Reject known system actors from parent `run_by`. Query the parent aliases
+  independently because Octane versions may reject or silently omit an unsupported relationship.
+  Stamp the resolved value onto every child `RunRecord` as `suiteOwnerName` before aggregation.
+- The compatibility aliases are valid only while parsing the parent suite-run entity. Child
+  `run_by`, `native_tester`, `assigned_to`, `assignee`, child owner, and test owner are never
+  grouping fallbacks. Child `run_by`/`native_tester` remain execution actors used only for
+  automation usage; do not apply the parent interpretation in `parseRun`.
 - Never lock a blank or synthetic `Unassigned` value. Recheck cached blank topology identities from
   the parent endpoint so polling can recover when Octane exposes the assignment later.
-- Regression tests must cover mixed Jenkins/manual child executors under one parent owner, forbidden
-  alias fields, and blank-cache recovery. Assert both grouping and automation calculations so a fix
-  for one identity cannot silently corrupt the other.
+- Regression tests must cover mixed Jenkins/manual child executors under one parent owner, each
+  supported parent alias, forbidden child identity fields, and blank-cache recovery. Assert both
+  grouping and automation calculations so a fix for one identity cannot silently corrupt the
+  other.
 
 
 ## Interpreting Browser Support & Fallbacks

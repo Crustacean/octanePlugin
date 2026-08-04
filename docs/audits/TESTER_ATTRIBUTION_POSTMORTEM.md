@@ -19,9 +19,10 @@ The Octane JSON tree was not mutated in place. The leak was semantic:
 4. Earlier fallback code inferred a suite grouping from child assignments and cached the inferred
    value. A transient `run_by` value such as Jenkins, or an absent child assignment, could therefore
    persist as the UI grouping key.
-5. A later compatibility expansion accepted parent `run_by`, `assigned_to`, `assignee`, and nested
-   test owner as grouping aliases. That made the repository contract ambiguous again and allowed
-   execution or test ownership data to compete with the suite's configured **Default run by**.
+5. A compatibility expansion mixed valid parent relationship aliases with child execution and test
+   ownership fallbacks. Removing every alias then over-corrected the problem: Octane instances that
+   expose parent **Default run by** as parent `run_by`, `assigned_to`, or `assignee` could no longer
+   resolve it.
 6. A topology cached while the parent identity was temporarily absent was returned without another
    parent lookup, so a transient blank value could keep rendering as `Unassigned` during polling.
 
@@ -31,12 +32,15 @@ key, and the child path reached the fallback before a stable parent identity was
 ## Permanent Boundary
 
 - Parent suite payloads are mapped to the immutable `OctaneSuiteTopologyCache.Topology` DTO. Its
-  `suiteOwnerName` comes strictly from parent `default_run_by`, falling back only to the direct
-  parent suite `owner` relationship.
-- Parent or child `run_by`, `native_tester`, `assigned_to`, `assignee`, test owner, and child owner
-  can never supply `suiteOwnerName`.
+  `suiteOwnerName` comes from parent `default_run_by`, human parent `run_by`, parent `assigned_to`,
+  parent `assignee`, or direct parent `owner`, in that precedence order. These are parent-schema
+  compatibility names for the same suite attribution boundary.
+- Child `run_by`, child `native_tester`, child `assigned_to`, child `assignee`, test owner, and child
+  owner can never supply `suiteOwnerName`. Known system identities are also rejected from parent
+  `run_by` before the remaining parent fallbacks are evaluated.
 - A cached topology with a blank owner is rechecked against the parent suite endpoint until a
-  nonblank `default_run_by` or suite `owner` is available. Blank values are never session-locked.
+  nonblank parent assignment alias or suite `owner` is available. Blank values are never
+  session-locked.
 - The first nonblank parent owner is locked per server, credential, shared space, workspace, and
   suite-run key for the lifetime of the polling client.
 - Child payload parsing records `run_by`, or `native_tester` as its compatibility fallback, only as
@@ -52,8 +56,9 @@ Jenkins report snapshots continue to deserialize.
 
 ## Regression Proof
 
-The automated tests cover `default_run_by = "Jane Doe"`, direct suite-owner fallback, changing
-Jenkins/manual child executors, and cached parent payloads that initially omit assignment. Negative
-tests prove `assigned_to`, `assignee`, parent/child `run_by`, and test owners cannot become grouping
+The automated tests cover `default_run_by = "Jane Doe"`, human parent `run_by`, parent
+`assigned_to`/`assignee` aliases, direct suite-owner fallback, changing Jenkins/manual child
+executors, and cached parent payloads that initially omit assignment. Negative tests prove child
+assignment fields, child `run_by`, system parent `run_by`, and test owners cannot become grouping
 keys. Separate model tests prove that changing execution actor data cannot alter the immutable
 suite owner and vice versa.

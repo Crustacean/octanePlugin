@@ -481,9 +481,9 @@ public class OctaneEmailBodyRendererTest {
     assertAutomationUsageCell(warning, "70%", "#FF9F0A", "#000000", true);
     assertAutomationUsageCell(action, "60%", "#FF3B30", "#000000", true);
     assertAutomationUsageCell(unavailable, "0%", "transparent", "inherit", false);
-    assertTrue(detailRow(achieved, "Automation Usage").contains("🔥"));
-    assertTrue(detailRow(unavailable, "Automation Usage").contains("🐢"));
-    assertTrue(detailRow(achieved, "Automation Usage").contains("height:13px;line-height:13px"));
+    assertFalse(detailRow(achieved, "Automation Usage").contains("🔥"));
+    assertFalse(detailRow(unavailable, "Automation Usage").contains("🐢"));
+    assertFalse(detailRow(achieved, "Automation Usage").contains("role=\"presentation\""));
   }
 
   @Test

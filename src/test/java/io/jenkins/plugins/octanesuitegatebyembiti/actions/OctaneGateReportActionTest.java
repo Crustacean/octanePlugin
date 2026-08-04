@@ -329,6 +329,9 @@ public class OctaneGateReportActionTest {
     assertTrue(popupAutomation >= 0 && popupAutomation < popupTotal);
     assertTrue(xml.contains("width: 70%"));
     assertTrue(xml.contains("width: 30%"));
+    assertTrue(xml.contains("octane-tester-email-column"));
+    assertTrue(xml.contains("octane-tester-rate-column"));
+    assertTrue(xml.contains("max-width: 100%"));
     assertTrue(xml.contains("octane-chart-inner octane-donut-graph"));
     assertTrue(xml.contains("octane-donut-layout"));
     assertTrue(xml.contains("gap: clamp(0.125rem, 0.75cqw, 0.375rem)"));

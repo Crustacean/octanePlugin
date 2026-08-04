@@ -772,10 +772,8 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "Pass Rate", passRate, passRateStyle);
     String automationUsage =
         snapshot == null ? "0%" : snapshot.getTestMetrics().getAutomationPercentageText();
-    String automationEmoji =
-        snapshot == null ? "🐢" : snapshot.getTestMetrics().getAutomationEmoji();
-    appendAutomationDetailRow(
-        html, automationEmoji, automationUsage, automationUsageCellStyle(snapshot, theme));
+    appendDetailRow(
+        html, "Automation Usage", automationUsage, automationUsageCellStyle(snapshot, theme));
     html.append("</tbody></table>");
   }
 
@@ -811,33 +809,6 @@ public class OctaneEmailBodyRenderer {
         .append("text-align:left;word-break:break-word;\">")
         .append(escape(String.valueOf(value)))
         .append("</td></tr>");
-  }
-
-  private void appendAutomationDetailRow(
-      StringBuilder html,
-      String automationEmoji,
-      String automationUsage,
-      EmailValueCellStyle valueCellStyle) {
-    html.append(
-            "<tr><th scope=\"row\" style=\"background:#e5e7eb;border:1px solid #374151;"
-                + TABLE_HEADER_STYLE
-                + TABLE_CELL_PADDING
-                + "text-align:right;width:44%;\">Automation Usage</th><td")
-        .append(
-            valueCellStyle.bgcolor.isEmpty() ? "" : " bgcolor=\"" + valueCellStyle.bgcolor + "\"")
-        .append(" style=\"border:1px solid #374151;")
-        .append(valueCellStyle.inlineCss)
-        .append(TABLE_VALUE_STYLE)
-        .append(TABLE_CELL_PADDING)
-        .append("text-align:left;word-break:break-word;\">")
-        .append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" ")
-        .append("style=\"border-collapse:collapse;table-layout:fixed;\"><tr>")
-        .append("<td aria-hidden=\"true\" style=\"height:13px;line-height:13px;")
-        .append("text-align:center;vertical-align:middle;width:13px;\">")
-        .append(escape(automationEmoji))
-        .append("</td><td style=\"padding-left:6px;vertical-align:middle;\">")
-        .append(escape(automationUsage))
-        .append("</td></tr></table></td></tr>");
   }
 
   private int statusCount(OctaneGateReportSnapshot snapshot, String label) {

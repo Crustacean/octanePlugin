@@ -132,6 +132,7 @@ public class OctaneClientTest {
                     + "{\"id\":\"101\",\"name\":\"one\","
                     + "\"native_status\":{\"logical_name\":\"passed\"},"
                     + "\"run_by\":{\"name\":\"Jenkins Agent\"},"
+                    + "\"assigned_to\":{\"name\":\"Child Assignment\"},"
                     + "\"test\":{\"id\":\"test-1\",\"owner\":{\"name\":\"Other User\"}}},"
                     + "{\"id\":\"102\",\"name\":\"two\","
                     + "\"native_status\":{\"logical_name\":\"passed\"},"
@@ -163,7 +164,7 @@ public class OctaneClientTest {
   }
 
   @Test
-  public void ignoresAssignedToAliasAndUsesSuiteOwnerAcrossLiveReportSurfaces() throws Exception {
+  public void usesParentAssignedToAliasWhenDefaultRunByIsUnavailable() throws Exception {
     AtomicInteger assignedToQueries = new AtomicInteger();
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(
@@ -193,8 +194,8 @@ public class OctaneClientTest {
               exchange,
               200,
               "{\"data\":[{\"id\":\"55\","
-                  + "\"assigned_to\":{\"email\":\"wrong.alias@example.com\"},"
-                  + "\"owner\":{\"email\":\"jane.doe@example.com\"},"
+                  + "\"assigned_to\":{\"email\":\"jane.doe@example.com\"},"
+                  + "\"owner\":{\"email\":\"fallback.owner@example.com\"},"
                   + "\"runs_in_suite\":[{\"id\":\"101\"},{\"id\":\"102\"}]}]}");
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
@@ -203,7 +204,7 @@ public class OctaneClientTest {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
-      assertEquals(0, assignedToQueries.get());
+      assertTrue(assignedToQueries.get() > 0);
       assertEquals(
           List.of("jane.doe@example.com", "jane.doe@example.com"),
           records.stream().map(record -> record.getSuiteOwnerName()).toList());
@@ -215,7 +216,7 @@ public class OctaneClientTest {
   }
 
   @Test
-  public void ignoresDedicatedParentAssigneeAlias() throws Exception {
+  public void usesDedicatedParentAssigneeAliasWhenBatchPayloadOmitsAssignment() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(
         "/api/shared_spaces/1001/workspaces/2002/runs",
@@ -251,7 +252,7 @@ public class OctaneClientTest {
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
       assertEquals(1, records.size());
-      assertEquals("Unassigned (55)", records.get(0).getSuiteOwnerName());
+      assertEquals("Jane Dedicated", records.get(0).getSuiteOwnerName());
       assertEquals("Jenkins Agent", records.get(0).getExecutionActorName());
     }
   }
@@ -621,7 +622,7 @@ public class OctaneClientTest {
   }
 
   @Test
-  public void ignoresParentRunByAsGroupingIdentity() throws Exception {
+  public void usesHumanParentRunByAsLegacyDefaultRunBy() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(
         "/api/shared_spaces/1001/workspaces/2002/runs",
@@ -654,8 +655,50 @@ public class OctaneClientTest {
 
       assertEquals(1, records.size());
       assertEquals("Jenkins Agent", records.get(0).getRunByName());
-      assertEquals("Unassigned (55)", records.get(0).getAssignedToName());
-      assertSingleOwnerAcrossReportSurfaces(records, "Unassigned (55)");
+      assertEquals("Parent Owner", records.get(0).getAssignedToName());
+      assertSingleOwnerAcrossReportSurfaces(records, "Parent Owner");
+    }
+  }
+
+  @Test
+  public void resolvesLegacyDefaultRunByFromDedicatedParentRunByQuery() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          if (idsFromQuery(exchange).contains("101")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"101\",\"native_status\":{\"logical_name\":\"passed\"},"
+                    + "\"run_by\":{\"name\":\"Jenkins Agent\"}}]}");
+          } else {
+            // Some Octane versions silently omit unsupported parent relationships.
+            json(
+                exchange, 200, "{\"data\":[{\"id\":\"55\",\"runs_in_suite\":[{\"id\":\"101\"}]}]}");
+          }
+        });
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs/55",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          String parentRunBy =
+              query.contains("run_by{id,name}") && !query.contains("default_run_by")
+                  ? ",\"run_by\":{\"email\":\"human.owner@example.com\"}"
+                  : "";
+          json(exchange, 200, "{\"id\":\"55\"" + parentRunBy + "}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
+
+      assertEquals(1, records.size());
+      assertEquals("human.owner@example.com", records.get(0).getSuiteOwnerName());
+      assertEquals("Jenkins Agent", records.get(0).getExecutionActorName());
+      assertSingleOwnerAcrossReportSurfaces(records, "human.owner@example.com");
     }
   }
 
