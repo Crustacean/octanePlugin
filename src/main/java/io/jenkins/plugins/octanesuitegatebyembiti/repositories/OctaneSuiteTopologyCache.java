@@ -164,14 +164,21 @@ final class OctaneSuiteTopologyCache {
     Map<String, Topology> load(List<String> suiteRunIds) throws IOException, InterruptedException;
   }
 
-  record Topology(List<String> runIds, String suiteOwnerName) {
+  record Topology(
+      List<String> runIds, String suiteOwnerName, String testSuiteId, String fallbackOwnerName) {
     Topology {
       runIds = runIds == null ? List.of() : List.copyOf(runIds);
       suiteOwnerName = suiteOwnerName == null ? "" : suiteOwnerName.trim();
+      testSuiteId = testSuiteId == null ? "" : testSuiteId.trim();
+      fallbackOwnerName = fallbackOwnerName == null ? "" : fallbackOwnerName.trim();
+    }
+
+    Topology(List<String> runIds, String suiteOwnerName) {
+      this(runIds, suiteOwnerName, "", "");
     }
 
     static Topology empty() {
-      return new Topology(List.of(), "");
+      return new Topology(List.of(), "", "", "");
     }
   }
 

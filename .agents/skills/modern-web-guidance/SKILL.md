@@ -123,11 +123,15 @@ grouping key. Do not infer or repair it in a renderer.
   compatible API name even though supported Octane schemas can expose the parent suite run's
   **Default run by** relationship as parent `run_by`, `assigned_to`, or `assignee`. Removing parent
   `run_by` while correctly excluding child executors caused valid human attribution to disappear.
-- Resolve grouping once in `OctaneClient` from the parent suite-run payload, in this order:
-  `default_run_by`, human parent `run_by`, parent `assigned_to`, parent `assignee`, then direct
-  parent `owner`. Reject known system actors from parent `run_by`. Query the parent aliases
-  independently because Octane versions may reject or silently omit an unsupported relationship.
-  Stamp the resolved value onto every child `RunRecord` as `suiteOwnerName` before aggregation.
+- Resolve grouping once in `OctaneClient` in this order: parent `default_run_by`, human parent
+  `run_by`, parent `assigned_to`, parent `assignee`, related test-suite `default_run_by` (or legacy
+  `run_by`), then direct parent `owner`. Follow the parent suite run's `test` relationship before
+  using generic parent `owner`.
+  Octane configures **Default run by** on the suite plan and some schemas omit that relationship
+  from suite-run projections even when it remains available on the related `tests`/`test_suites`
+  resource. Reject known system actors from parent `run_by`. Query the parent aliases independently
+  because Octane versions may reject or silently omit an unsupported relationship. Stamp the
+  resolved value onto every child `RunRecord` as `suiteOwnerName` before aggregation.
 - The compatibility aliases are valid only while parsing the parent suite-run entity. Child
   `run_by`, `native_tester`, `assigned_to`, `assignee`, child owner, and test owner are never
   grouping fallbacks. Child `run_by`/`native_tester` remain execution actors used only for
@@ -135,9 +139,10 @@ grouping key. Do not infer or repair it in a renderer.
 - Never lock a blank or synthetic `Unassigned` value. Recheck cached blank topology identities from
   the parent endpoint so polling can recover when Octane exposes the assignment later.
 - Regression tests must cover mixed Jenkins/manual child executors under one parent owner, each
-  supported parent alias, forbidden child identity fields, and blank-cache recovery. Assert both
-  grouping and automation calculations so a fix for one identity cannot silently corrupt the
-  other.
+  supported parent alias, related test-suite Default run by, forbidden child identity fields, and
+  blank-cache recovery. Assert both grouping and automation calculations so a fix for one identity
+  cannot silently corrupt the other. A test must also prove related Default run by outranks generic
+  suite `owner` and reaches progress bars, Tester Details, screenshots, and email models.
 
 
 ## Interpreting Browser Support & Fallbacks
