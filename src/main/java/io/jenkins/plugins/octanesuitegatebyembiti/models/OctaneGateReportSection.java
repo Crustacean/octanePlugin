@@ -23,6 +23,7 @@ public class OctaneGateReportSection implements Serializable {
   private final List<OctaneGateStatusCount> totals;
   private final List<OctaneGatePieSlice> pieSlices;
   private final List<OctaneGateSuiteRunChart> suiteRuns;
+  private final OctaneAutomationUsage automationUsage;
 
   private OctaneGateReportSection(
       String name,
@@ -30,7 +31,8 @@ public class OctaneGateReportSection implements Serializable {
       List<String> suiteRunIds,
       GateMetrics metrics,
       List<OctaneGateStatusCount> totals,
-      List<OctaneGateSuiteRunChart> suiteRuns) {
+      List<OctaneGateSuiteRunChart> suiteRuns,
+      OctaneAutomationUsage automationUsage) {
     this.name = name;
     this.source = source;
     this.suiteRunIds = List.copyOf(suiteRunIds);
@@ -38,6 +40,8 @@ public class OctaneGateReportSection implements Serializable {
     this.totals = List.copyOf(totals);
     this.pieSlices = buildPieSlices(totals);
     this.suiteRuns = List.copyOf(suiteRuns);
+    this.automationUsage =
+        automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
   }
 
   public static OctaneGateReportSection regressions(
@@ -98,7 +102,8 @@ public class OctaneGateReportSection implements Serializable {
         Util.splitIdList(suiteRunId),
         metrics,
         reportRuns.isEmpty() ? totalsFromMetrics(metrics) : totalsFromRuns(reportRuns, classifier),
-        scaledSuiteRunCharts);
+        scaledSuiteRunCharts,
+        OctaneAutomationUsage.fromRuns(reportRuns));
   }
 
   public String getName() {
@@ -127,6 +132,32 @@ public class OctaneGateReportSection implements Serializable {
 
   public List<OctaneGateSuiteRunChart> getSuiteRuns() {
     return suiteRuns;
+  }
+
+  public int getExecutedTestCount() {
+    int executed = 0;
+    for (OctaneGateStatusCount status : totals) {
+      if (status.getBucket().isExecuted()) {
+        executed += status.getCount();
+      }
+    }
+    return executed;
+  }
+
+  public int getAutomationPercentage() {
+    return getAutomationUsage().getPercentage();
+  }
+
+  public String getAutomationPercentageText() {
+    return getAutomationUsage().getPercentageText();
+  }
+
+  public String getAutomationEmoji() {
+    return getAutomationUsage().getEmoji();
+  }
+
+  private OctaneAutomationUsage getAutomationUsage() {
+    return automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
   }
 
   public int getSuiteRunCount() {

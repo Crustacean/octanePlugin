@@ -98,6 +98,10 @@ public final class OctaneReportDataMapper {
     value.put("maxTotal", section.getMaxSuiteRunTotal());
     value.put("gridLineCount", section.getYAxisGridLineCount());
     value.put("yAxisTicks", section.getYAxisTicks());
+    value.put("executedTestCount", section.getExecutedTestCount());
+    value.put("automationPercentage", section.getAutomationPercentage());
+    value.put("automationPercentageLabel", section.getAutomationPercentageText());
+    value.put("automationEmoji", section.getAutomationEmoji());
     value.put("metrics", metricsData(section.getMetrics()));
     value.put("totals", section.getTotals().stream().map(this::statusData).toList());
     return value;
@@ -124,6 +128,8 @@ public final class OctaneReportDataMapper {
     value.put("title", bar.getTitle());
     value.put("suiteRunIds", bar.getSuiteRunIds());
     value.put("total", bar.getTotal());
+    value.put("automationPercentage", bar.getAutomationPercentage());
+    value.put("automationEmoji", bar.getAutomationEmoji());
     value.put("dominantStatusColor", bar.getDominantStatusColor());
     value.put("dominantStatusLabel", bar.getDominantStatusLabel());
     value.put("statuses", bar.getStatuses().stream().map(this::statusData).toList());

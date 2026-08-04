@@ -6,6 +6,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectLoggingCompliance;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefinedScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneExecutionStatusDistribution;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
@@ -221,17 +222,18 @@ public class OctaneEmailBodyRenderer {
       String screenshotContentId,
       String theme) {
     String details = renderExecutionDetails(projectName, domainName, snapshot, theme);
+    String definedScope = renderDefinedScope(snapshot);
     String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
     int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
     int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
     if (detailsStart >= 0 && screenshotStart > detailsStart) {
-      String contents = details + screenshot;
+      String contents = details + definedScope + screenshot;
       return template.substring(0, detailsStart)
           + wrapExecutionReport(contents)
           + template.substring(screenshotStart + REPORT_SCREENSHOT_TOKEN.length());
     }
     return template
-        .replace(EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details))
+        .replace(EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details + definedScope))
         .replace(REPORT_SCREENSHOT_TOKEN, screenshot);
   }
 
@@ -264,6 +266,80 @@ public class OctaneEmailBodyRenderer {
     appendSpacer(html, 28);
     appendCriteriaAndReconciliationTables(html, snapshot, theme);
     return html.toString();
+  }
+
+  private String renderDefinedScope(OctaneGateReportSnapshot snapshot) {
+    List<OctaneDefinedScope> scopes = snapshot == null ? List.of() : snapshot.getDefinedScope();
+    if (scopes.isEmpty()) {
+      return "";
+    }
+    int split = definedScopeSplit(scopes.size());
+    StringBuilder html = new StringBuilder();
+    appendSpacer(html, 28);
+    html.append(
+            "<table data-octane-email-section=\"defined-scope\" role=\"presentation\" "
+                + "cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"border-collapse:collapse;width:100%;\"><tr><td style=\"")
+        .append(SECTION_TITLE_STYLE)
+        .append("\">Defined Scope</td></tr><tr><td>");
+    if (split >= scopes.size()) {
+      appendDefinedScopeTable(html, scopes);
+    } else {
+      html.append(
+          "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
+              + "style=\"border-collapse:collapse;width:100%;\"><tr>");
+      html.append("<td style=\"vertical-align:top;width:50%;\">");
+      appendDefinedScopeTable(html, scopes.subList(0, split));
+      html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
+      html.append("<td style=\"vertical-align:top;width:50%;\">");
+      appendDefinedScopeTable(html, scopes.subList(split, scopes.size()));
+      html.append("</td></tr></table>");
+    }
+    html.append("</td></tr></table>");
+    return html.toString();
+  }
+
+  private int definedScopeSplit(int total) {
+    if (total <= 10) {
+      return total;
+    }
+    if (total <= 20) {
+      return 10;
+    }
+    return (total + 1) / 2;
+  }
+
+  private void appendDefinedScopeTable(StringBuilder html, List<OctaneDefinedScope> definedScope) {
+    html.append(
+        "<table data-octane-email-table=\"defined-scope\" cellpadding=\"0\" "
+            + "cellspacing=\"0\" style=\"border-collapse:collapse;table-layout:fixed;"
+            + "width:100%;\"><colgroup><col style=\"width:58%;\">"
+            + "<col style=\"width:42%;\"></colgroup><thead><tr>");
+    html.append("<th scope=\"col\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+        .append(TABLE_HEADER_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:left;\">Project</th>");
+    html.append("<th scope=\"col\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+        .append(TABLE_HEADER_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("overflow-wrap:anywhere;text-align:left;word-break:break-word;\">Owner</th>")
+        .append("</tr></thead><tbody>");
+    for (OctaneDefinedScope scope : definedScope) {
+      html.append("<tr><td style=\"border:1px solid #d0d7de;")
+          .append(TABLE_VALUE_STYLE)
+          .append(TABLE_CELL_PADDING)
+          .append("overflow-wrap:anywhere;text-align:left;vertical-align:middle;")
+          .append("white-space:normal;word-break:break-word;\">")
+          .append(escape(scope.getProject()))
+          .append("</td><td style=\"border:1px solid #d0d7de;")
+          .append(TABLE_VALUE_STYLE)
+          .append(TABLE_CELL_PADDING)
+          .append("overflow-wrap:anywhere;text-align:left;vertical-align:middle;")
+          .append("white-space:normal;word-break:break-word;\">")
+          .append(escape(scope.getOwner()))
+          .append("</td></tr>");
+    }
+    html.append("</tbody></table>");
   }
 
   private void appendCriteriaAndReconciliationTables(
@@ -696,8 +772,10 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "Pass Rate", passRate, passRateStyle);
     String automationUsage =
         snapshot == null ? "0%" : snapshot.getTestMetrics().getAutomationPercentageText();
-    appendDetailRow(
-        html, "Automation Usage", automationUsage, automationUsageCellStyle(snapshot, theme));
+    String automationEmoji =
+        snapshot == null ? "🐢" : snapshot.getTestMetrics().getAutomationEmoji();
+    appendAutomationDetailRow(
+        html, automationEmoji, automationUsage, automationUsageCellStyle(snapshot, theme));
     html.append("</tbody></table>");
   }
 
@@ -733,6 +811,33 @@ public class OctaneEmailBodyRenderer {
         .append("text-align:left;word-break:break-word;\">")
         .append(escape(String.valueOf(value)))
         .append("</td></tr>");
+  }
+
+  private void appendAutomationDetailRow(
+      StringBuilder html,
+      String automationEmoji,
+      String automationUsage,
+      EmailValueCellStyle valueCellStyle) {
+    html.append(
+            "<tr><th scope=\"row\" style=\"background:#e5e7eb;border:1px solid #374151;"
+                + TABLE_HEADER_STYLE
+                + TABLE_CELL_PADDING
+                + "text-align:right;width:44%;\">Automation Usage</th><td")
+        .append(
+            valueCellStyle.bgcolor.isEmpty() ? "" : " bgcolor=\"" + valueCellStyle.bgcolor + "\"")
+        .append(" style=\"border:1px solid #374151;")
+        .append(valueCellStyle.inlineCss)
+        .append(TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:left;word-break:break-word;\">")
+        .append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" ")
+        .append("style=\"border-collapse:collapse;table-layout:fixed;\"><tr>")
+        .append("<td aria-hidden=\"true\" style=\"height:13px;line-height:13px;")
+        .append("text-align:center;vertical-align:middle;width:13px;\">")
+        .append(escape(automationEmoji))
+        .append("</td><td style=\"padding-left:6px;vertical-align:middle;\">")
+        .append(escape(automationUsage))
+        .append("</td></tr></table></td></tr>");
   }
 
   private int statusCount(OctaneGateReportSnapshot snapshot, String label) {

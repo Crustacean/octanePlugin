@@ -85,6 +85,19 @@ test("renders a centered total and rigid percentage legend without callouts", ()
   assert.match(source, /"octane-donut-legend-percentage"/);
   assert.doesNotMatch(source, /octane-donut-callout-line/);
   assert.doesNotMatch(source, /data-label-mode/);
+  assert.match(source, /section\.executedTestCount/);
+  assert.match(source, /data-automation-usage-row/);
+  assert.match(source, /"Automation Usage"/);
+  assert.match(source, /"🔥"/);
+  assert.match(source, /"🐢"/);
+});
+
+test("binds per-bar automation usage for the delegated hover tooltip", () => {
+  assert.match(source, /data-automation-percentage/);
+  assert.match(source, /data-automation-emoji/);
+  assert.match(jelly, /data-automation-percentage="\$\{suiteRun\.automationPercentage\}"/);
+  assert.match(jelly, /automationValue\.textContent/);
+  assert.match(jelly, /octane-bar-popup-automation/);
 });
 
 test("uses enlarged donut geometry without fixed live or email caps", () => {

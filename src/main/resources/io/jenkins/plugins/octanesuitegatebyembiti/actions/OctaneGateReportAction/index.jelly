@@ -2213,6 +2213,16 @@
         .octane-donut-legend-label .octane-swatch {
           flex: 0 0 auto;
         }
+        .octane-automation-icon {
+          align-items: center;
+          display: inline-flex;
+          flex: 0 0 0.8rem;
+          height: 0.8rem;
+          justify-content: center;
+          line-height: 1;
+          text-align: center;
+          width: 0.8rem;
+        }
         .octane-donut-legend-percentage {
           font-weight: 600;
           padding-inline: 0;
@@ -2476,6 +2486,17 @@
           justify-content: space-between;
           padding-top: 0.32rem;
         }
+        .octane-bar-popup-automation {
+          align-items: center;
+          display: grid;
+          gap: 0.32rem;
+          grid-template-columns: 0.55rem minmax(0, 1fr) auto;
+        }
+        .octane-bar-popup-automation .octane-automation-icon {
+          flex-basis: 0.55rem;
+          height: 0.55rem;
+          width: 0.55rem;
+        }
         .octane-vertical-segment {
           display: block;
           width: 100%;
@@ -2680,13 +2701,29 @@
         .octane-tester-email {
           overflow-wrap: anywhere;
           text-align: left;
-          width: 68%;
+          width: 70%;
         }
         .octane-tester-rate {
           font-variant-numeric: tabular-nums;
           text-align: right;
           white-space: nowrap;
-          width: 32%;
+          width: 30%;
+        }
+        .octane-scope-project {
+          overflow-wrap: anywhere;
+          text-align: left;
+          width: 58%;
+        }
+        .octane-scope-owner {
+          overflow-wrap: anywhere;
+          text-align: left;
+          width: 42%;
+        }
+        @container tester-details (max-width: 35rem) {
+          .octane-tester-table th,
+          .octane-tester-table td {
+            font-size: 0.72rem;
+          }
         }
         .octane-tester-empty-state {
           align-items: center;
@@ -3722,7 +3759,7 @@
         }
         @media (min-width: 840px) {
           .octane-tester-details-body {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
           .octane-tester-tracker + .octane-tester-tracker {
             border-left: 1px solid var(--input-border);
@@ -3731,7 +3768,7 @@
         }
         @container tester-details (min-width: 52rem) {
           .octane-tester-details-body {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
           .octane-tester-tracker + .octane-tester-tracker {
             border-left: 1px solid var(--input-border);
@@ -5165,6 +5202,19 @@
                                 </tr>
                               </j:if>
                             </j:forEach>
+                            <j:if test="${section.executedTestCount > 0}">
+                              <tr data-automation-usage-row="true">
+                                <th class="octane-donut-legend-status" scope="row">
+                                  <span class="octane-donut-legend-label">
+                                    <span class="octane-automation-icon" aria-hidden="true">${section.automationEmoji}</span>
+                                    <span>Automation Usage</span>
+                                  </span>
+                                </th>
+                                <td class="octane-donut-legend-percentage">
+                                  ${section.automationPercentageText}
+                                </td>
+                              </tr>
+                            </j:if>
                           </tbody>
                         </table>
                       </div>
@@ -5238,6 +5288,10 @@
                             <div class="octane-suite-column" tabindex="0"
                                 data-card-key="bars-${section.source}"
                                 data-bar-key="${suiteRun.suiteRunId}"
+                                data-bar-name="${suiteRun.displayName}"
+                                data-bar-total="${suiteRun.total}"
+                                data-automation-percentage="${suiteRun.automationPercentage}"
+                                data-automation-emoji="${suiteRun.automationEmoji}"
                                 data-dominant-status-color="${suiteRun.dominantStatusColor}"
                                 data-dominant-status-label="${suiteRun.dominantStatusLabel}"
                                 data-status-passed-count="${suiteRun.passedCount}"
@@ -5280,6 +5334,13 @@
                                     </div>
                                   </j:if>
                                 </j:forEach>
+                                <div class="octane-bar-popup-automation">
+                                  <span class="octane-automation-icon" aria-hidden="true">${suiteRun.automationEmoji}</span>
+                                  <span class="octane-bar-popup-label">Automation Usage</span>
+                                  <span class="octane-bar-popup-value">
+                                    ${suiteRun.automationPercentageText}
+                                  </span>
+                                </div>
                                 <div class="octane-bar-popup-total">
                                   <span>Total</span>
                                   <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
@@ -5436,6 +5497,32 @@
                     </tbody>
                   </table>
                   <div class="octane-tester-empty-state">Everything Good!</div>
+                </div>
+              </section>
+              <section class="octane-tester-tracker" aria-labelledby="octane-defined-scope-title">
+                <h3 class="octane-tester-tracker-title" id="octane-defined-scope-title">
+                  Defined Scope
+                </h3>
+                <div class="octane-tester-column-content"
+                    data-defined-scope-content="true"
+                    data-empty="${snapshot.definedScopeEmpty}">
+                  <table class="octane-tester-table">
+                    <thead>
+                      <tr>
+                        <th class="octane-scope-project" scope="col">Project</th>
+                        <th class="octane-scope-owner" scope="col">Owner</th>
+                      </tr>
+                    </thead>
+                    <tbody data-defined-scope-rows="true">
+                      <j:forEach var="scope" items="${snapshot.definedScope}">
+                        <tr>
+                          <td class="octane-scope-project">${scope.project}</td>
+                          <td class="octane-scope-owner">${scope.owner}</td>
+                        </tr>
+                      </j:forEach>
+                    </tbody>
+                  </table>
+                  <div class="octane-tester-empty-state">No defined scope!</div>
                 </div>
               </section>
             </div>
@@ -5725,6 +5812,7 @@
             var executionTesters = Array.isArray(details.executionTesters)
                 ? details.executionTesters
                 : [];
+            var definedScope = Array.isArray(details.definedScope) ? details.definedScope : [];
             var passRateTitle = dashboard.querySelector("[data-tester-pass-rate-title]");
             var executionTitle = dashboard.querySelector("[data-tester-execution-title]");
             if (passRateTitle) {
@@ -5753,6 +5841,31 @@
                 "[data-tester-execution-rows]",
                 executionTesters,
                 "executionRateText");
+            replaceDefinedScopeRows(definedScope);
+          }
+          function replaceDefinedScopeRows(scopes) {
+            var content = dashboard.querySelector("[data-defined-scope-content]");
+            var tableRows = dashboard.querySelector("[data-defined-scope-rows]");
+            if (!content || !tableRows) {
+              return;
+            }
+            while (tableRows.firstChild) {
+              tableRows.removeChild(tableRows.firstChild);
+            }
+            for (var index = 0; index < scopes.length; index += 1) {
+              var scope = scopes[index] || {};
+              var row = document.createElement("tr");
+              var project = document.createElement("td");
+              project.className = "octane-scope-project";
+              project.textContent = scope.project || "";
+              var owner = document.createElement("td");
+              owner.className = "octane-scope-owner";
+              owner.textContent = scope.owner || "-";
+              row.appendChild(project);
+              row.appendChild(owner);
+              tableRows.appendChild(row);
+            }
+            content.setAttribute("data-empty", String(scopes.length === 0));
           }
           function setTesterDetailsExpanded(zone, expanded) {
             if (!zone) {
@@ -8152,6 +8265,24 @@
               row.appendChild(percent);
               barPopupOverlay.appendChild(row);
             }
+            var automationRow = document.createElement("div");
+            automationRow.className = "octane-bar-popup-automation";
+            var automationIcon = document.createElement("span");
+            automationIcon.className = "octane-automation-icon";
+            automationIcon.setAttribute("aria-hidden", "true");
+            var automation = Number(column.getAttribute("data-automation-percentage") || 0);
+            automationIcon.textContent = column.getAttribute("data-automation-emoji")
+                || (Number.isFinite(automation) && automation > 0 ? "🔥" : "🐢");
+            var automationLabel = document.createElement("span");
+            automationLabel.className = "octane-bar-popup-label";
+            automationLabel.textContent = "Automation Usage";
+            var automationValue = document.createElement("span");
+            automationValue.className = "octane-bar-popup-value";
+            automationValue.textContent = (Number.isFinite(automation) ? automation : 0) + "%";
+            automationRow.appendChild(automationIcon);
+            automationRow.appendChild(automationLabel);
+            automationRow.appendChild(automationValue);
+            barPopupOverlay.appendChild(automationRow);
             var totalRow = document.createElement("div");
             totalRow.className = "octane-bar-popup-total";
             var totalLabel = document.createElement("span");

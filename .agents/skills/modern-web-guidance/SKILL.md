@@ -114,6 +114,27 @@ Maven compiles successfully.
   adjacent unbound references, run focused tests plus a clean compile, and confirm
   `git diff --check` passes.
 
+## Tester Attribution Boundary Guardrail
+
+The progress bars, Tester Details tables, screenshots, and email reports share one immutable tester
+grouping key. Do not infer or repair it in a renderer.
+
+- Root cause of the `Unassigned` regression: compatibility code broadened suite ownership beyond
+  the authoritative parent fields and a cached topology with a blank owner skipped later parent
+  enrichment. That let executor/test metadata compete with suite attribution or left a recoverable
+  assignment stuck at `Unassigned`.
+- Resolve grouping once in `OctaneClient`: parent `suite_run.default_run_by`, falling back only to
+  the direct parent suite `owner`. Stamp that value onto every child `RunRecord` as
+  `suiteOwnerName` before any report aggregation.
+- Child and parent `run_by`, `native_tester`, `assigned_to`, `assignee`, child owner, and test owner
+  are never grouping fallbacks. Child `run_by`/`native_tester` are execution actors used only for
+  automation usage.
+- Never lock a blank or synthetic `Unassigned` value. Recheck cached blank topology identities from
+  the parent endpoint so polling can recover when Octane exposes the assignment later.
+- Regression tests must cover mixed Jenkins/manual child executors under one parent owner, forbidden
+  alias fields, and blank-cache recovery. Assert both grouping and automation calculations so a fix
+  for one identity cannot silently corrupt the other.
+
 
 ## Interpreting Browser Support & Fallbacks
 

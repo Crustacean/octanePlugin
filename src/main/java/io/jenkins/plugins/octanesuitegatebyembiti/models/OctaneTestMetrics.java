@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 public class OctaneTestMetrics implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -22,9 +21,6 @@ public class OctaneTestMetrics implements Serializable {
   private static final String NEGATIVE = "negative";
   private static final String WARNING = "warning";
   private static final double ACTION_DEGRADATION_PERCENT = 30.0;
-  private static final Pattern AUTOMATED_RUNNER =
-      Pattern.compile("jenkins", Pattern.CASE_INSENSITIVE);
-
   private final List<OctaneTestMetricCard> cards;
   private final int automatedTestCount;
   private final int manualTestCount;
@@ -100,17 +96,13 @@ public class OctaneTestMetrics implements Serializable {
       }
     }
 
-    int automated = 0;
-    int manual = 0;
-    for (RunRecord run : uniqueRuns.values()) {
-      if (AUTOMATED_RUNNER.matcher(run.getExecutionActorName()).find()) {
-        automated++;
-      } else {
-        manual++;
-      }
-    }
+    OctaneAutomationUsage automationUsage =
+        OctaneAutomationUsage.fromRuns(List.copyOf(uniqueRuns.values()));
     return new OctaneTestMetrics(
-        List.of(), automated, manual, GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET);
+        List.of(),
+        automationUsage.getAutomatedCount(),
+        automationUsage.getManualCount(),
+        GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET);
   }
 
   public static OctaneTestMetrics fromSnapshots(
@@ -156,6 +148,10 @@ public class OctaneTestMetrics implements Serializable {
 
   public String getAutomationPercentageText() {
     return getAutomationPercentage() + "%";
+  }
+
+  public String getAutomationEmoji() {
+    return OctaneAutomationUsage.emojiForPercentage(getAutomationPercentage());
   }
 
   public int getAutomatedTestingTarget() {

@@ -14,6 +14,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefinedScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
@@ -252,6 +253,63 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void rendersDefinedScopeImmediatelyAboveExecutionGraphAndOmitsEmptyScope() {
+    OctaneGateReportSnapshot populated =
+        snapshot(OctaneGateReportState.PASSED, "Gate passed.")
+            .withDefinedScope(OctaneDefinedScope.parse("ESA - imelda sanya, Digisoc"));
+
+    String html =
+        renderer.render(
+            "", "Project", "Domain", populated, REPORT_URL, "octane-report.png", "LIGHT");
+    String empty =
+        renderer.render(
+            "",
+            "Project",
+            "Domain",
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            REPORT_URL,
+            "octane-report.png",
+            "LIGHT");
+
+    assertTrue(html.contains("data-octane-email-section=\"defined-scope\""));
+    assertTrue(html.contains(">ESA</td>"));
+    assertTrue(html.contains(">Imelda Sanya</td>"));
+    assertTrue(html.contains(">Digisoc</td>"));
+    assertTrue(html.contains(">-</td>"));
+    int scopeTableStart = html.indexOf("data-octane-email-table=\"defined-scope\"");
+    int scopeTableEnd = html.indexOf("</table>", scopeTableStart);
+    String scopeTable = html.substring(scopeTableStart, scopeTableEnd);
+    assertTrue(scopeTable.contains("table-layout:fixed"));
+    assertTrue(scopeTable.contains("<col style=\"width:58%;\">"));
+    assertTrue(scopeTable.contains("<col style=\"width:42%;\">"));
+    assertFalse(scopeTable.contains("text-align:center"));
+    assertTrue(scopeTable.contains("word-break:break-word"));
+    assertTrue(html.indexOf("Defined Scope") < html.indexOf("Execution graph"));
+    assertFalse(empty.contains("data-octane-email-section=\"defined-scope\""));
+    assertFalse(empty.contains("No defined scope!"));
+  }
+
+  @Test
+  public void splitsDefinedScopeTablesAccordingToEmailRowRules() {
+    String eleven = renderDefinedScopeEmail(11);
+    String twenty = renderDefinedScopeEmail(20);
+    String thirtyThree = renderDefinedScopeEmail(33);
+
+    assertEquals(2, occurrences(eleven, "data-octane-email-table=\"defined-scope\""));
+    assertEquals(2, occurrences(twenty, "data-octane-email-table=\"defined-scope\""));
+    assertEquals(2, occurrences(thirtyThree, "data-octane-email-table=\"defined-scope\""));
+    int firstTableEnd =
+        eleven.indexOf("</table>", eleven.indexOf("data-octane-email-table=\"defined-scope\""));
+    assertTrue(eleven.substring(0, firstTableEnd).contains("Project 10"));
+    assertFalse(eleven.substring(0, firstTableEnd).contains("Project 11"));
+    int thirtyThreeFirstEnd =
+        thirtyThree.indexOf(
+            "</table>", thirtyThree.indexOf("data-octane-email-table=\"defined-scope\""));
+    assertTrue(thirtyThree.substring(0, thirtyThreeFirstEnd).contains("Project 17"));
+    assertFalse(thirtyThree.substring(0, thirtyThreeFirstEnd).contains("Project 18"));
+  }
+
+  @Test
   public void executionTableExcludesSkippedAndNoRunTestsFromPassRate() {
     OctaneGateReportSnapshot snapshot =
         reconciliationSnapshot(
@@ -423,6 +481,9 @@ public class OctaneEmailBodyRendererTest {
     assertAutomationUsageCell(warning, "70%", "#FF9F0A", "#000000", true);
     assertAutomationUsageCell(action, "60%", "#FF3B30", "#000000", true);
     assertAutomationUsageCell(unavailable, "0%", "transparent", "inherit", false);
+    assertTrue(detailRow(achieved, "Automation Usage").contains("🔥"));
+    assertTrue(detailRow(unavailable, "Automation Usage").contains("🐢"));
+    assertTrue(detailRow(achieved, "Automation Usage").contains("height:13px;line-height:13px"));
   }
 
   @Test
@@ -722,6 +783,17 @@ public class OctaneEmailBodyRendererTest {
     return snapshot
         .withTestMetrics(snapshot.getTestMetrics().withAutomatedTestingTarget(target))
         .withCalculatedTestMetrics(null);
+  }
+
+  private String renderDefinedScopeEmail(int count) {
+    List<OctaneDefinedScope> scopes = new ArrayList<>();
+    for (int index = 1; index <= count; index++) {
+      scopes.add(new OctaneDefinedScope("Project " + index, "Owner " + index));
+    }
+    OctaneGateReportSnapshot snapshot =
+        snapshot(OctaneGateReportState.PASSED, "Gate passed.").withDefinedScope(scopes);
+    return renderer.render(
+        "", "Project", "Domain", snapshot, REPORT_URL, "octane-report.png", "LIGHT");
   }
 
   private OctaneDefectGroup defectGroup(String name, String types) {

@@ -278,6 +278,29 @@
           row, "td", "octane-donut-legend-percentage", status.percentageLabel);
       body.appendChild(row);
     });
+    if (Number(section.executedTestCount) > 0) {
+      var automationRow = createElement("tr", "");
+      automationRow.setAttribute("data-automation-usage-row", "true");
+      var automationStatus = createElement("th", "octane-donut-legend-status");
+      automationStatus.setAttribute("scope", "row");
+      var automationLabel = createElement("span", "octane-donut-legend-label");
+      appendText(
+          automationLabel,
+          "span",
+          "octane-automation-icon",
+          section.automationEmoji
+              || (Number(section.automationPercentage) > 0 ? "🔥" : "🐢"))
+          .setAttribute("aria-hidden", "true");
+      appendText(automationLabel, "span", "", "Automation Usage");
+      automationStatus.appendChild(automationLabel);
+      automationRow.appendChild(automationStatus);
+      appendText(
+          automationRow,
+          "td",
+          "octane-donut-legend-percentage",
+          section.automationPercentageLabel || String(section.automationPercentage || 0) + "%");
+      body.appendChild(automationRow);
+    }
     table.appendChild(body);
     return table;
   }
@@ -359,6 +382,11 @@
     });
     group.setAttribute("data-bar-name", bar.name || "");
     group.setAttribute("data-bar-total", String(bar.total || 0));
+    group.setAttribute(
+        "data-automation-percentage", String(Number(bar.automationPercentage) || 0));
+    group.setAttribute(
+        "data-automation-emoji",
+        bar.automationEmoji || (Number(bar.automationPercentage) > 0 ? "🔥" : "🐢"));
   }
 
   function renderBarChart(card, section, page) {

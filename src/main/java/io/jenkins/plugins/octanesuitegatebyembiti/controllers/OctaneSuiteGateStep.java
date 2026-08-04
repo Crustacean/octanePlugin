@@ -307,6 +307,10 @@ public class OctaneSuiteGateStep extends Step {
     }
   }
 
+  static String definedScope(EnvVars environment) {
+    return environmentValue(environment, GateRequest.DEFINED_SCOPE_ENV);
+  }
+
   private static String environmentValue(EnvVars environment, String variableName) {
     return environment == null ? "" : Util.trimToEmpty(environment.get(variableName));
   }
@@ -443,6 +447,7 @@ public class OctaneSuiteGateStep extends Step {
       }
       request.setAutomatedTestingTarget(
           OctaneSuiteGateStep.automatedTestingTarget(context.get(EnvVars.class)));
+      request.setDefinedScope(OctaneSuiteGateStep.definedScope(context.get(EnvVars.class)));
       environmentConfigured = true;
     }
 

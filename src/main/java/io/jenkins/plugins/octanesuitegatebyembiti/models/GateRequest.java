@@ -20,6 +20,7 @@ public class GateRequest implements Serializable {
   public static final String AUTOMATED_TESTING_TARGET_ENV = "AUTOMATED_TESTING_TARGET";
   public static final String GLOBAL_AUTOMATED_TESTING_TARGET_ENV =
       "global_automated_testing_target";
+  public static final String DEFINED_SCOPE_ENV = "OCTANE_DEFINED_SCOPE";
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
   public static final int MAX_POLL_INTERVAL_SECONDS = 3600;
   public static final int MAX_TIMEOUT_MINUTES = 10_080;
@@ -39,6 +40,7 @@ public class GateRequest implements Serializable {
   private int basePassrateFigure = DEFAULT_BASE_PASSRATE_FIGURE;
   private int baseExecutionFigure = DEFAULT_BASE_EXECUTION_FIGURE;
   private int automatedTestingTarget = DEFAULT_AUTOMATED_TESTING_TARGET;
+  private List<OctaneDefinedScope> definedScope = new ArrayList<>();
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -158,6 +160,14 @@ public class GateRequest implements Serializable {
 
   public void setAutomatedTestingTarget(int automatedTestingTarget) {
     this.automatedTestingTarget = Math.min(100, Math.max(1, automatedTestingTarget));
+  }
+
+  public List<OctaneDefinedScope> getDefinedScope() {
+    return definedScope == null ? List.of() : Collections.unmodifiableList(definedScope);
+  }
+
+  public void setDefinedScope(String definedScope) {
+    this.definedScope = new ArrayList<>(OctaneDefinedScope.parse(definedScope));
   }
 
   public boolean isMarkUnstable() {

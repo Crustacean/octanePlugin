@@ -328,6 +328,16 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-donut-legend-label .octane-swatch {
           flex: 0 0 auto;
         }
+        .octane-automation-icon {
+          align-items: center;
+          display: inline-flex;
+          flex: 0 0 13px;
+          height: 13px;
+          justify-content: center;
+          line-height: 1;
+          text-align: center;
+          width: 13px;
+        }
         .octane-donut-legend-percentage {
           font-weight: 600;
           padding-inline: 0;
@@ -584,6 +594,17 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           justify-content: space-between;
           padding-top: 5px;
+        }
+        .octane-bar-popup-automation {
+          align-items: center;
+          display: grid;
+          gap: 5px;
+          grid-template-columns: 9px minmax(0, 1fr) auto;
+        }
+        .octane-bar-popup-automation .octane-automation-icon {
+          flex-basis: 9px;
+          height: 9px;
+          width: 9px;
         }
         .octane-vertical-segment {
           display: block;
@@ -862,6 +883,18 @@ public class OctaneReportZoneHtmlRenderer {
         html.append("</td></tr>");
       }
     }
+    if (section.getExecutedTestCount() > 0) {
+      html.append("<tr data-automation-usage-row=\"true\">");
+      html.append("<th class=\"octane-donut-legend-status\" scope=\"row\">");
+      html.append("<span class=\"octane-donut-legend-label\">");
+      html.append("<span class=\"octane-automation-icon\" aria-hidden=\"true\">");
+      html.append(escapeHtml(section.getAutomationEmoji()));
+      html.append("</span>");
+      html.append("<span>Automation Usage</span></span></th>");
+      html.append("<td class=\"octane-donut-legend-percentage\">");
+      html.append(escapeHtml(section.getAutomationPercentageText()));
+      html.append("</td></tr>");
+    }
     html.append("</tbody></table>\n");
   }
 
@@ -904,6 +937,14 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(escapeAttribute(cardKey));
     html.append("\" data-bar-key=\"");
     html.append(escapeAttribute(suiteRun.getSuiteRunId()));
+    html.append("\" data-bar-name=\"");
+    html.append(escapeAttribute(suiteRun.getDisplayName()));
+    html.append("\" data-bar-total=\"");
+    html.append(suiteRun.getTotal());
+    html.append("\" data-automation-percentage=\"");
+    html.append(suiteRun.getAutomationPercentage());
+    html.append("\" data-automation-emoji=\"");
+    html.append(escapeAttribute(suiteRun.getAutomationEmoji()));
     html.append("\" data-dominant-status-color=\"");
     html.append(escapeAttribute(suiteRun.getDominantStatusColor()));
     html.append("\" data-dominant-status-label=\"");
@@ -1050,6 +1091,14 @@ public class OctaneReportZoneHtmlRenderer {
         html.append("</div>\n");
       }
     }
+    html.append("<div class=\"octane-bar-popup-automation\">");
+    html.append("<span class=\"octane-automation-icon\" aria-hidden=\"true\">");
+    html.append(escapeHtml(suiteRun.getAutomationEmoji()));
+    html.append("</span>");
+    html.append("<span class=\"octane-bar-popup-label\">Automation Usage</span>");
+    html.append("<span class=\"octane-bar-popup-value\">");
+    html.append(escapeHtml(suiteRun.getAutomationPercentageText()));
+    html.append("</span></div>\n");
     html.append("<div class=\"octane-bar-popup-total\">");
     html.append("<span>Total</span>");
     html.append("<span class=\"octane-bar-popup-total-value\">");

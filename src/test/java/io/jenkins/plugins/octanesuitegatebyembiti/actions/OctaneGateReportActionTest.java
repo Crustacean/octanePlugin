@@ -50,6 +50,7 @@ public class OctaneGateReportActionTest {
     FreeStyleProject project = jenkins.createFreeStyleProject();
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
     GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setDefinedScope("Payments - ada lovelace");
     OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
     Instant now = Instant.parse("2026-07-20T12:00:00Z");
     action.onPoll(result(now.minusSeconds(61L)), classifier());
@@ -68,6 +69,7 @@ public class OctaneGateReportActionTest {
     assertEquals(Duration.ofSeconds(61L), refreshed.age());
     assertEquals(1, refreshes.get());
     assertEquals(now.toString(), action.getSnapshot().getUpdatedAt());
+    assertEquals("Payments", action.getSnapshot().getDefinedScope().get(0).getProject());
 
     action.onPoll(result(now.minusSeconds(60L)), classifier());
     OctaneGateReportAction.RefreshResult fresh = action.refreshIfStale(Duration.ofMinutes(1L), now);
@@ -278,6 +280,11 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Suiterun Passrate"));
     assertTrue(text.contains("Suiterun Execution"));
     assertTrue(text.contains("Everything Good!"));
+    assertTrue(text.contains("Defined Scope"));
+    assertTrue(text.contains("No defined scope!"));
+    assertTrue(xml.contains("data-defined-scope-rows=\"true\""));
+    assertTrue(xml.contains("grid-template-columns: repeat(3, minmax(0, 1fr))"));
+    assertTrue(xml.contains("function replaceDefinedScopeRows(scopes)"));
     assertTrue(
         xml.indexOf("id=\"octane-execution-tracker-title\"")
             < xml.indexOf("id=\"octane-pass-rate-tracker-title\""));
@@ -307,6 +314,21 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("var(--octane-status-passed)"));
     assertTrue(xml.contains("var(--octane-status-failed)"));
     assertTrue(xml.contains("octane-donut"));
+    assertTrue(xml.contains("data-automation-usage-row=\"true\""));
+    assertTrue(xml.contains("data-automation-percentage=\"0\""));
+    assertTrue(xml.contains("data-automation-emoji="));
+    assertTrue(xml.contains("🐢") || xml.contains("&#128034;"));
+    assertTrue(xml.contains("octane-bar-popup-automation"));
+    HtmlElement popup =
+        page.getFirstByXPath(
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' octane-bar-popup ')]");
+    assertNotNull(popup);
+    String popupXml = popup.asXml();
+    int popupAutomation = popupXml.indexOf("octane-bar-popup-automation");
+    int popupTotal = popupXml.indexOf("octane-bar-popup-total");
+    assertTrue(popupAutomation >= 0 && popupAutomation < popupTotal);
+    assertTrue(xml.contains("width: 70%"));
+    assertTrue(xml.contains("width: 30%"));
     assertTrue(xml.contains("octane-chart-inner octane-donut-graph"));
     assertTrue(xml.contains("octane-donut-layout"));
     assertTrue(xml.contains("gap: clamp(0.125rem, 0.75cqw, 0.375rem)"));
@@ -1211,6 +1233,7 @@ public class OctaneGateReportActionTest {
     assertEquals(95, payload.getJSONObject("testerDetails").getInt("basePassrateFigure"));
     assertEquals(100, payload.getJSONObject("testerDetails").getInt("baseExecutionFigure"));
     assertEquals(1, payload.getJSONObject("testerDetails").getJSONArray("passRateTesters").size());
+    assertTrue(payload.getJSONObject("testerDetails").getJSONArray("definedScope").isEmpty());
     assertTrue(payload.getString("testMetricsHtml").contains("octane-test-metrics-grid"));
     assertTrue(
         payload.getString("executionStatusDistributionHtml").contains("octane-execution-half-pie"));

@@ -7,6 +7,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateReportPubl
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectTrend;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefinedScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
@@ -50,6 +51,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private volatile int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
   private volatile int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
   private volatile int automatedTestingTarget = GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET;
+  private volatile List<OctaneDefinedScope> definedScope = List.of();
   private volatile String startedAt = Instant.now().toString();
   private volatile boolean manualExitRequested;
   private volatile long manualExitRequestedAtMillis;
@@ -614,6 +616,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     basePassrateFigure = request.getBasePassrateFigure();
     baseExecutionFigure = request.getBaseExecutionFigure();
     automatedTestingTarget = request.getAutomatedTestingTarget();
+    definedScope = List.copyOf(request.getDefinedScope());
     startedAt = Instant.now().toString();
     manualExitRequested = false;
     manualExitRequestedAtMillis = 0L;
@@ -704,6 +707,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
     return current
+        .withDefinedScope(definedScope == null ? List.of() : definedScope)
         .withTesterThresholds(basePassrateFigure, baseExecutionFigure)
         .withTestMetrics(
             current.getTestMetrics().withAutomatedTestingTarget(automatedTestingTarget))

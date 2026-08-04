@@ -146,6 +146,14 @@ public class OctaneSuiteGateStepTest {
         new OctaneSuiteGateStep.DescriptorImpl().getRequiredContext().contains(EnvVars.class));
   }
 
+  @Test
+  public void readsDefinedScopeFromEnvironment() {
+    EnvVars environment = new EnvVars(GateRequest.DEFINED_SCOPE_ENV, "ESA - Imelda sanya, Digisoc");
+
+    assertEquals("ESA - Imelda sanya, Digisoc", OctaneSuiteGateStep.definedScope(environment));
+    assertEquals("", OctaneSuiteGateStep.definedScope(null));
+  }
+
   private void assertInvalidAutomationTarget(String value) throws Exception {
     try {
       OctaneSuiteGateStep.automatedTestingTarget(

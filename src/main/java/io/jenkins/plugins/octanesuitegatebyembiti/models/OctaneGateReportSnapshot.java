@@ -43,6 +43,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final DefectCriteriaMetrics defectMetrics;
   private final CriteriaEvaluation criteriaEvaluation;
   private final List<OctaneTesterPerformance> testerPerformances;
+  private final List<OctaneDefinedScope> definedScope;
   private final int basePassrateFigure;
   private final int baseExecutionFigure;
 
@@ -64,6 +65,7 @@ public class OctaneGateReportSnapshot implements Serializable {
       DefectCriteriaMetrics defectMetrics,
       CriteriaEvaluation criteriaEvaluation,
       List<OctaneTesterPerformance> testerPerformances,
+      List<OctaneDefinedScope> definedScope,
       int basePassrateFigure,
       int baseExecutionFigure) {
     this.state = state;
@@ -96,6 +98,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
     this.testerPerformances =
         testerPerformances == null ? List.of() : List.copyOf(testerPerformances);
+    this.definedScope = definedScope == null ? List.of() : List.copyOf(definedScope);
     this.basePassrateFigure = percentageThreshold(basePassrateFigure);
     this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
   }
@@ -137,6 +140,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable(),
             List.of(),
+            List.of(),
             GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
             GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     return snapshot.withCalculatedTestMetrics(null);
@@ -176,6 +180,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable(),
             List.of(),
+            request.getDefinedScope(),
             request.getBasePassrateFigure(),
             request.getBaseExecutionFigure());
     return snapshot.withCalculatedTestMetrics(null);
@@ -259,6 +264,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             result.getDefectMetrics(),
             result.getCriteriaEvaluation(),
             OctaneTesterPerformance.fromResult(result, classifier),
+            List.of(),
             GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
             GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     OctaneDefectTrend trend =
@@ -334,6 +340,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable(),
             List.of(),
+            List.of(),
             GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
             GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     return snapshot.withCalculatedTestMetrics(null);
@@ -363,6 +370,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -386,6 +394,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -409,6 +418,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -433,6 +443,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -456,6 +467,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -480,6 +492,31 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
+  public OctaneGateReportSnapshot withDefinedScope(List<OctaneDefinedScope> definedScope) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        definedScope,
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -642,6 +679,14 @@ public class OctaneGateReportSnapshot implements Serializable {
     return testerPerformances == null ? List.of() : testerPerformances;
   }
 
+  public List<OctaneDefinedScope> getDefinedScope() {
+    return definedScope == null ? List.of() : definedScope;
+  }
+
+  public boolean isDefinedScopeEmpty() {
+    return getDefinedScope().isEmpty();
+  }
+
   public List<OctaneTesterPerformance> getTesterPassRateDetails() {
     return getTesterPerformances().stream()
         .filter(tester -> tester.getExecutionRate() > 0.0)
@@ -692,6 +737,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     details.put(
         "executionTesters",
         getTesterExecutionDetails().stream().map(tester -> tester.toMap()).toList());
+    details.put("definedScope", getDefinedScope().stream().map(scope -> scope.toMap()).toList());
     return details;
   }
 

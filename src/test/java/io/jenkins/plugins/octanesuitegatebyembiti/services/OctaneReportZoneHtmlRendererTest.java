@@ -95,6 +95,9 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-donut-center-label"));
     assertTrue(html.contains("octane-donut-legend"));
     assertTrue(html.contains("octane-donut-legend-percentage"));
+    assertEquals(2, occurrences(html, "data-automation-usage-row=\"true\""));
+    assertTrue(html.contains(">🐢</span><span>Automation Usage</span>"));
+    assertTrue(html.contains(">0%</td>"));
     assertFalse(html.contains("octane-donut-label"));
     assertFalse(html.contains("octane-donut-callout-line"));
     assertTrue(html.contains("viewBox=\"3 3 94 94\""));
@@ -165,6 +168,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("data-status-blocked-color=\"#FF9F0A\""));
     assertTrue(html.contains("data-status-skipped-color=\"#BF5AF2\""));
     assertTrue(html.contains("data-status-running-color=\"#8E8E93\""));
+    assertTrue(html.contains("data-automation-percentage=\"0\""));
+    assertTrue(html.contains("data-automation-emoji=\"🐢\""));
     assertTrue(html.contains("style=\"background: #30D158;\""));
     assertTrue(html.contains("style=\"background: #FF453A;\""));
     assertTrue(html.contains("min-width: 175px"));
@@ -173,6 +178,11 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-bar-popup-name"));
     assertTrue(html.contains("octane-bar-popup-row"));
     assertTrue(html.contains("octane-bar-popup-total"));
+    assertTrue(html.contains("octane-bar-popup-automation"));
+    int firstPopup = html.indexOf("class=\"octane-bar-popup\"");
+    int firstTotal = html.indexOf("class=\"octane-bar-popup-total\"", firstPopup);
+    int firstAutomation = html.indexOf("class=\"octane-bar-popup-automation\"", firstPopup);
+    assertTrue(firstAutomation < firstTotal);
     assertFalse(html.contains("class=\"octane-bar-overflow-indicator\""));
     assertFalse(html.contains("class=\"octane-total\""));
     assertFalse(html.contains("id=\"octane-timer-zone\""));
@@ -200,6 +210,30 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains(".octane-donut-segment {\n  stroke: none;"));
     assertFalse(
         html.contains(".octane-donut-segment {\n" + "  stroke: var(--octane-card-background)"));
+  }
+
+  @Test
+  public void omitsDonutAutomationLegendUntilTheSectionHasExecutedTests() {
+    RunRecord planned = new RunRecord("planned", "Planned", "planned", "Ada Tester");
+    GateResult result =
+        new GateResult(
+            "planned-suite",
+            "100% execution",
+            false,
+            false,
+            new GateMetrics(1, 0, 0, 0, 0, 1),
+            List.of(planned),
+            Map.of("planned-suite", List.of(planned)),
+            Map.of(),
+            Instant.parse("2026-08-04T10:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().render(snapshot);
+
+    assertFalse(html.contains("data-automation-usage-row=\"true\""));
+    assertTrue(html.contains("octane-bar-popup-automation"));
   }
 
   @Test
