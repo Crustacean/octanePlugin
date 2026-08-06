@@ -2667,17 +2667,12 @@
         }
         .octane-tester-table {
           border-collapse: collapse;
+          box-sizing: border-box;
+          inline-size: 100%;
           max-width: 100%;
-          table-layout: fixed;
+          min-width: 0;
+          table-layout: auto;
           width: 100%;
-        }
-        .octane-tester-email-column,
-        .octane-tester-email {
-          width: 70%;
-        }
-        .octane-tester-rate-column,
-        .octane-tester-rate {
-          width: 30%;
         }
         .octane-tester-table[hidden] {
           display: none;
@@ -2716,6 +2711,15 @@
           font-variant-numeric: tabular-nums;
           text-align: right;
           white-space: nowrap;
+        }
+        .octane-tester-table thead .octane-tester-rate-header {
+          max-width: 100%;
+          overflow: visible;
+          overflow-wrap: break-word;
+          padding-inline-end: clamp(0.75rem, 2vw, 1.25rem);
+          text-align: right;
+          white-space: normal;
+          word-break: normal;
         }
         .octane-scope-project {
           overflow-wrap: anywhere;
@@ -5469,7 +5473,9 @@
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>
-                        <th class="octane-tester-rate" scope="col">Suiterun Execution</th>
+                        <th class="octane-tester-rate octane-tester-rate-header" scope="col">
+                          Suiterun Execution
+                        </th>
                       </tr>
                     </thead>
                     <tbody data-tester-execution-rows="true">
@@ -5500,7 +5506,9 @@
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>
-                        <th class="octane-tester-rate" scope="col">Suiterun Passrate</th>
+                        <th class="octane-tester-rate octane-tester-rate-header" scope="col">
+                          Suiterun Passrate
+                        </th>
                       </tr>
                     </thead>
                     <tbody data-tester-pass-rate-rows="true">

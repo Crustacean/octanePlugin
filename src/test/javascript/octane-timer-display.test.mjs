@@ -269,3 +269,21 @@ test("renders two-decimal inline and conditional side activity legends", () => {
   assert.match(jelly, /intersectsVertically/);
   assert.match(jelly, /scheduleActivityRingLayout\(\)/);
 });
+
+test("keeps Tester Details metric headers fluid, right-aligned, and wrappable", () => {
+  const tableRule = cssRule(".octane-tester-table");
+  const headerRule = cssRule(
+      ".octane-tester-table thead .octane-tester-rate-header");
+
+  assert.match(tableRule, /box-sizing:\s*border-box/);
+  assert.match(tableRule, /inline-size:\s*100%/);
+  assert.match(tableRule, /table-layout:\s*auto/);
+  assert.match(headerRule, /overflow-wrap:\s*break-word/);
+  assert.match(headerRule, /padding-inline-end:\s*clamp\(0\.75rem, 2vw, 1\.25rem\)/);
+  assert.match(headerRule, /text-align:\s*right/);
+  assert.match(headerRule, /white-space:\s*normal/);
+  assert.doesNotMatch(jelly, /\.octane-tester-email-column\s*,/);
+  assert.equal(
+      (jelly.match(/class="octane-tester-rate octane-tester-rate-header"/g) || []).length,
+      2);
+});

@@ -345,6 +345,47 @@ function activityRingCard() {
     </section>`;
 }
 
+function testerDetailsFixture() {
+  const tracker = (key, title, rateHeader) => `
+    <section class="octane-tester-tracker" aria-labelledby="${key}-tracker-title">
+      <h3 class="octane-tester-tracker-title" id="${key}-tracker-title">${title}</h3>
+      <div class="octane-tester-column-content" data-empty="false">
+        <table class="octane-tester-table">
+          <colgroup>
+            <col class="octane-tester-email-column">
+            <col class="octane-tester-rate-column">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="octane-tester-email" scope="col">Email</th>
+              <th class="octane-tester-rate octane-tester-rate-header" scope="col">
+                ${rateHeader}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="octane-tester-email">
+                tester.with.a.long.identity@example.com
+              </td>
+              <td class="octane-tester-rate">97.25%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+  return `
+    <section class="octane-tester-details-zone" id="octane-tester-layout-fixture">
+      <header class="octane-tester-details-header">
+        <h2 class="octane-tester-details-title">Tester Details</h2>
+      </header>
+      <div class="octane-tester-details-body">
+        ${tracker("execution", "Execution threshold", "Suiterun Execution")}
+        ${tracker("pass-rate", "Pass-rate threshold", "Suiterun Passrate")}
+      </div>
+    </section>`;
+}
+
 function managementCard(index, title) {
   const categoryNavigation = index === 2
       ? `<div class="octane-card-actions">
@@ -578,6 +619,7 @@ function fixtureHtml() {
             ${managementCards}
           </div>
           ${activityRingCard()}
+          ${testerDetailsFixture()}
         </main>
         <script>
           var dashboard = document.getElementById("octane-dashboard");
@@ -845,6 +887,44 @@ async function activityRingPollingUpdate(driver) {
       }),
       sideValues: valuesWithin(card.querySelector(".octane-activity-side-legend"))
     };`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function testerDetailsTableMetrics(driver, constrainedWidth) {
+  const result = await executeAfterPaint(driver, `
+    var zone = document.getElementById("octane-tester-layout-fixture");
+    zone.style.width = arguments[0] > 0 ? arguments[0] + "px" : "100%";
+    zone.style.maxWidth = arguments[0] > 0 ? arguments[0] + "px" : "none";
+    return Array.prototype.map.call(
+        zone.querySelectorAll(".octane-tester-table"), function (table) {
+          var header = table.querySelector(".octane-tester-rate-header");
+          var value = table.querySelector("tbody .octane-tester-rate");
+          var tableRect = table.getBoundingClientRect();
+          var headerRect = header.getBoundingClientRect();
+          var valueRect = value.getBoundingClientRect();
+          var style = getComputedStyle(header);
+          var lineHeight = parseFloat(style.lineHeight);
+          var textRange = document.createRange();
+          textRange.selectNodeContents(header);
+          var textRect = textRange.getBoundingClientRect();
+          return {
+            headerContentInside:
+                textRect.left >= headerRect.left - 1
+                && textRect.right <= headerRect.right + 1
+                && textRect.top >= headerRect.top - 1
+                && textRect.bottom <= headerRect.bottom + 1,
+            headerRightDelta: Math.abs(headerRect.right - valueRect.right),
+            paddingRight: parseFloat(style.paddingRight),
+            tableLayout: getComputedStyle(table).tableLayout,
+            tableOverflow: table.scrollWidth - table.clientWidth,
+            textAlign: style.textAlign,
+            whiteSpace: style.whiteSpace,
+            wrapped: headerRect.height >= lineHeight * 1.8
+          };
+        });`, [constrainedWidth || 0]);
   if (result.error) {
     throw new Error(result.error);
   }
@@ -1442,6 +1522,38 @@ test(
                 activity.legendOverlap,
                 false,
                 `${viewport.name}: side legend overlaps the activity rings`);
+          }
+          const testerTables = await testerDetailsTableMetrics(
+              driver, viewport.name === "compact" ? 170 : 0);
+          assert.equal(testerTables.length, 2);
+          assert.ok(
+              testerTables.every(metric => metric.tableLayout === "auto"),
+              `${viewport.name}: Tester Details retained a rigid table layout: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric => metric.textAlign === "right"),
+              `${viewport.name}: metric headers are not right-aligned: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric => metric.whiteSpace === "normal"),
+              `${viewport.name}: metric headers cannot wrap: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric => metric.paddingRight >= 8),
+              `${viewport.name}: metric headers lost their right breathing room: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric =>
+                metric.tableOverflow <= 1
+                  && metric.headerContentInside
+                  && metric.headerRightDelta <= 1),
+              `${viewport.name}: Tester Details headers clip or miss the value-column edge: `
+                  + JSON.stringify(testerTables));
+          if (viewport.name === "compact") {
+            assert.ok(
+                testerTables.every(metric => metric.wrapped),
+                `compact: constrained metric headers did not wrap: `
+                    + JSON.stringify(testerTables));
           }
           if (viewport.height >= 900) {
             const tallSlimActivity = await activityRingMetrics(driver, 600, 760, true);

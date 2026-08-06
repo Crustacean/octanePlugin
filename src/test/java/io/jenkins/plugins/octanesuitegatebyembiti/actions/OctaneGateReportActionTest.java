@@ -327,8 +327,10 @@ public class OctaneGateReportActionTest {
     int popupAutomation = popupXml.indexOf("octane-bar-popup-automation");
     int popupTotal = popupXml.indexOf("octane-bar-popup-total");
     assertTrue(popupAutomation >= 0 && popupAutomation < popupTotal);
-    assertTrue(xml.contains("width: 70%"));
-    assertTrue(xml.contains("width: 30%"));
+    assertTrue(xml.contains("table-layout: auto"));
+    assertTrue(xml.contains("octane-tester-rate-header"));
+    assertTrue(xml.contains("white-space: normal"));
+    assertTrue(xml.contains("overflow-wrap: break-word"));
     assertTrue(xml.contains("octane-tester-email-column"));
     assertTrue(xml.contains("octane-tester-rate-column"));
     assertTrue(xml.contains("max-width: 100%"));
