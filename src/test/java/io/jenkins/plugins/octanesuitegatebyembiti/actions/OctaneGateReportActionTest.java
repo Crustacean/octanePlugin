@@ -277,7 +277,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Testers with LESS THAN 90% Execution"));
     assertTrue(text.contains("Testers with LESS THAN 70% Pass Rate (1)"));
     assertTrue(text.contains("Testers with LESS THAN 90% Execution (0)"));
-    assertTrue(text.contains("Suiterun Passrate"));
+    assertTrue(text.contains("Suiterun Pass Rate"));
     assertTrue(text.contains("Suiterun Execution"));
     assertTrue(text.contains("Everything Good!"));
     assertTrue(text.contains("Defined Scope"));
@@ -329,8 +329,11 @@ public class OctaneGateReportActionTest {
     assertTrue(popupAutomation >= 0 && popupAutomation < popupTotal);
     assertTrue(xml.contains("table-layout: auto"));
     assertTrue(xml.contains("octane-tester-rate-header"));
-    assertTrue(xml.contains("white-space: normal"));
-    assertTrue(xml.contains("overflow-wrap: break-word"));
+    assertTrue(xml.contains("container-name: tester-tracker"));
+    assertTrue(xml.contains("text-wrap: nowrap"));
+    assertTrue(xml.contains("white-space: nowrap"));
+    assertTrue(xml.contains("octane-tester-responsive-prefix"));
+    assertTrue(xml.contains("function updateTesterTrackerTitle(title, condition)"));
     assertTrue(xml.contains("octane-tester-email-column"));
     assertTrue(xml.contains("octane-tester-rate-column"));
     assertTrue(xml.contains("max-width: 100%"));

@@ -2627,6 +2627,8 @@
           display: none;
         }
         .octane-tester-tracker {
+          container-name: tester-tracker;
+          container-type: inline-size;
           display: grid;
           grid-template-rows: auto minmax(0, 1fr);
           min-height: 0;
@@ -2636,12 +2638,17 @@
           border-top: 1px solid var(--input-border);
         }
         .octane-tester-tracker-title {
-          font-size: clamp(0.78rem, 1.2vw, 1rem);
+          font-size: clamp(0.7rem, 3.2cqi, 1rem);
           font-weight: 600;
           line-height: 1.35;
           margin: 0;
-          overflow-wrap: anywhere;
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
           padding: clamp(0.7rem, 1.6vw, 1.1rem) clamp(0.75rem, 2vw, 1.25rem);
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
         }
         .octane-tester-column-content {
           max-height: min(58vh, 36rem);
@@ -2713,13 +2720,34 @@
           white-space: nowrap;
         }
         .octane-tester-table thead .octane-tester-rate-header {
+          font-size: clamp(0.7rem, 3.2cqi, 1rem);
           max-width: 100%;
-          overflow: visible;
-          overflow-wrap: break-word;
+          overflow: hidden;
+          overflow-wrap: normal;
           padding-inline-end: clamp(0.75rem, 2vw, 1.25rem);
           text-align: right;
-          white-space: normal;
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
           word-break: normal;
+        }
+        .octane-tester-responsive-prefix {
+          display: inline;
+        }
+        .octane-tester-comparison-full {
+          display: inline;
+        }
+        .octane-tester-comparison-compact {
+          display: none;
+        }
+        @container tester-tracker (max-width: 24rem) {
+          .octane-tester-responsive-prefix,
+          .octane-tester-comparison-full {
+            display: none;
+          }
+          .octane-tester-comparison-compact {
+            display: inline;
+          }
         }
         .octane-scope-project {
           overflow-wrap: anywhere;
@@ -5459,8 +5487,12 @@
               <section class="octane-tester-tracker"
                   aria-labelledby="octane-execution-tracker-title">
                 <h3 class="octane-tester-tracker-title" id="octane-execution-tracker-title"
-                    data-tester-execution-title="true">
-                  Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})
+                    data-tester-execution-title="true"
+                    aria-label="Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})">
+                  <span class="octane-tester-responsive-prefix">Testers with </span><span
+                      class="octane-tester-comparison-full">LESS THAN </span><span
+                      class="octane-tester-comparison-compact">&lt; </span><span
+                      data-tester-title-condition="true">${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})</span>
                 </h3>
                 <div class="octane-tester-column-content"
                     data-tester-execution-content="true"
@@ -5473,8 +5505,9 @@
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>
-                        <th class="octane-tester-rate octane-tester-rate-header" scope="col">
-                          Suiterun Execution
+                        <th class="octane-tester-rate octane-tester-rate-header" scope="col"
+                            aria-label="Suiterun Execution">
+                          <span class="octane-tester-responsive-prefix">Suiterun </span><span>Execution</span>
                         </th>
                       </tr>
                     </thead>
@@ -5492,8 +5525,12 @@
               </section>
               <section class="octane-tester-tracker" aria-labelledby="octane-pass-rate-tracker-title">
                 <h3 class="octane-tester-tracker-title" id="octane-pass-rate-tracker-title"
-                    data-tester-pass-rate-title="true">
-                  Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})
+                    data-tester-pass-rate-title="true"
+                    aria-label="Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})">
+                  <span class="octane-tester-responsive-prefix">Testers with </span><span
+                      class="octane-tester-comparison-full">LESS THAN </span><span
+                      class="octane-tester-comparison-compact">&lt; </span><span
+                      data-tester-title-condition="true">${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})</span>
                 </h3>
                 <div class="octane-tester-column-content"
                     data-tester-pass-rate-content="true"
@@ -5506,8 +5543,9 @@
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>
-                        <th class="octane-tester-rate octane-tester-rate-header" scope="col">
-                          Suiterun Passrate
+                        <th class="octane-tester-rate octane-tester-rate-header" scope="col"
+                            aria-label="Suiterun Pass Rate">
+                          <span class="octane-tester-responsive-prefix">Suiterun </span><span>Pass Rate</span>
                         </th>
                       </tr>
                     </thead>
@@ -5825,6 +5863,19 @@
             }
             content.setAttribute("data-empty", String(rows.length === 0));
           }
+          function updateTesterTrackerTitle(title, condition) {
+            if (!title) {
+              return;
+            }
+            var fullText = "Testers with LESS THAN " + condition;
+            title.setAttribute("aria-label", fullText);
+            var conditionElement = title.querySelector("[data-tester-title-condition]");
+            if (conditionElement) {
+              conditionElement.textContent = condition;
+              return;
+            }
+            title.textContent = fullText;
+          }
           function updateTesterDetails(payload) {
             var details = payload && payload.testerDetails;
             if (!details) {
@@ -5839,22 +5890,18 @@
             var definedScope = Array.isArray(details.definedScope) ? details.definedScope : [];
             var passRateTitle = dashboard.querySelector("[data-tester-pass-rate-title]");
             var executionTitle = dashboard.querySelector("[data-tester-execution-title]");
-            if (passRateTitle) {
-              passRateTitle.textContent =
-                  "Testers with LESS THAN "
-                  + String(details.basePassrateFigure || 0)
+            updateTesterTrackerTitle(
+                passRateTitle,
+                String(details.basePassrateFigure || 0)
                   + "% Pass Rate ("
                   + String(passRateTesters.length)
-                  + ")";
-            }
-            if (executionTitle) {
-              executionTitle.textContent =
-                  "Testers with LESS THAN "
-                  + String(details.baseExecutionFigure || 0)
+                  + ")");
+            updateTesterTrackerTitle(
+                executionTitle,
+                String(details.baseExecutionFigure || 0)
                   + "% Execution ("
                   + String(executionTesters.length)
-                  + ")";
-            }
+                  + ")");
             replaceTesterRows(
                 "[data-tester-pass-rate-content]",
                 "[data-tester-pass-rate-rows]",

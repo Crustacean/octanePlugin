@@ -346,9 +346,15 @@ function activityRingCard() {
 }
 
 function testerDetailsFixture() {
-  const tracker = (key, title, rateHeader) => `
+  const tracker = (key, condition, rateLabel) => `
     <section class="octane-tester-tracker" aria-labelledby="${key}-tracker-title">
-      <h3 class="octane-tester-tracker-title" id="${key}-tracker-title">${title}</h3>
+      <h3 class="octane-tester-tracker-title" id="${key}-tracker-title"
+          aria-label="Testers with LESS THAN ${condition}">
+        <span class="octane-tester-responsive-prefix">Testers with </span><span
+            class="octane-tester-comparison-full">LESS THAN </span><span
+            class="octane-tester-comparison-compact">&lt; </span><span
+            data-tester-title-condition="true">${condition}</span>
+      </h3>
       <div class="octane-tester-column-content" data-empty="false">
         <table class="octane-tester-table">
           <colgroup>
@@ -358,8 +364,9 @@ function testerDetailsFixture() {
           <thead>
             <tr>
               <th class="octane-tester-email" scope="col">Email</th>
-              <th class="octane-tester-rate octane-tester-rate-header" scope="col">
-                ${rateHeader}
+              <th class="octane-tester-rate octane-tester-rate-header" scope="col"
+                  aria-label="Suiterun ${rateLabel}">
+                <span class="octane-tester-responsive-prefix">Suiterun </span><span>${rateLabel}</span>
               </th>
             </tr>
           </thead>
@@ -380,8 +387,8 @@ function testerDetailsFixture() {
         <h2 class="octane-tester-details-title">Tester Details</h2>
       </header>
       <div class="octane-tester-details-body">
-        ${tracker("execution", "Execution threshold", "Suiterun Execution")}
-        ${tracker("pass-rate", "Pass-rate threshold", "Suiterun Passrate")}
+        ${tracker("execution", "90% Execution (2)", "Execution")}
+        ${tracker("pass-rate", "70% Pass Rate (3)", "Pass Rate")}
       </div>
     </section>`;
 }
@@ -900,29 +907,57 @@ async function testerDetailsTableMetrics(driver, constrainedWidth) {
     zone.style.maxWidth = arguments[0] > 0 ? arguments[0] + "px" : "none";
     return Array.prototype.map.call(
         zone.querySelectorAll(".octane-tester-table"), function (table) {
+          var tracker = table.closest(".octane-tester-tracker");
+          var title = tracker.querySelector(".octane-tester-tracker-title");
           var header = table.querySelector(".octane-tester-rate-header");
           var value = table.querySelector("tbody .octane-tester-rate");
-          var tableRect = table.getBoundingClientRect();
           var headerRect = header.getBoundingClientRect();
+          var titleRect = title.getBoundingClientRect();
           var valueRect = value.getBoundingClientRect();
           var style = getComputedStyle(header);
-          var lineHeight = parseFloat(style.lineHeight);
+          var titleStyle = getComputedStyle(title);
           var textRange = document.createRange();
           textRange.selectNodeContents(header);
           var textRect = textRange.getBoundingClientRect();
+          var titleRange = document.createRange();
+          titleRange.selectNodeContents(title);
+          var titleTextRect = titleRange.getBoundingClientRect();
           return {
+            headerAriaLabel: header.getAttribute("aria-label"),
             headerContentInside:
                 textRect.left >= headerRect.left - 1
                 && textRect.right <= headerRect.right + 1
                 && textRect.top >= headerRect.top - 1
                 && textRect.bottom <= headerRect.bottom + 1,
+            headerFontSize: parseFloat(style.fontSize),
+            headerPrefixDisplay: getComputedStyle(
+                header.querySelector(".octane-tester-responsive-prefix")).display,
             headerRightDelta: Math.abs(headerRect.right - valueRect.right),
+            headerSingleLine: textRect.height <= parseFloat(style.lineHeight) * 1.2,
             paddingRight: parseFloat(style.paddingRight),
             tableLayout: getComputedStyle(table).tableLayout,
             tableOverflow: table.scrollWidth - table.clientWidth,
             textAlign: style.textAlign,
+            textWrap: style.textWrap,
+            titleAriaLabel: title.getAttribute("aria-label"),
+            titleComparisonCompactDisplay: getComputedStyle(
+                title.querySelector(".octane-tester-comparison-compact")).display,
+            titleComparisonFullDisplay: getComputedStyle(
+                title.querySelector(".octane-tester-comparison-full")).display,
+            titleContentInside:
+                titleTextRect.left >= titleRect.left - 1
+                && titleTextRect.right <= titleRect.right + 1
+                && titleTextRect.top >= titleRect.top - 1
+                && titleTextRect.bottom <= titleRect.bottom + 1,
+            titleFontSize: parseFloat(titleStyle.fontSize),
+            titlePrefixDisplay: getComputedStyle(
+                title.querySelector(".octane-tester-responsive-prefix")).display,
+            titleSingleLine:
+                titleTextRect.height <= parseFloat(titleStyle.lineHeight) * 1.2,
+            titleTextWrap: titleStyle.textWrap,
+            titleVisibleText: title.innerText.trim(),
+            titleWhiteSpace: titleStyle.whiteSpace,
             whiteSpace: style.whiteSpace,
-            wrapped: headerRect.height >= lineHeight * 1.8
           };
         });`, [constrainedWidth || 0]);
   if (result.error) {
@@ -1535,8 +1570,12 @@ test(
               `${viewport.name}: metric headers are not right-aligned: `
                   + JSON.stringify(testerTables));
           assert.ok(
-              testerTables.every(metric => metric.whiteSpace === "normal"),
-              `${viewport.name}: metric headers cannot wrap: `
+              testerTables.every(metric =>
+                metric.whiteSpace === "nowrap"
+                  && metric.textWrap === "nowrap"
+                  && metric.titleWhiteSpace === "nowrap"
+                  && metric.titleTextWrap === "nowrap"),
+              `${viewport.name}: Tester Details headers are not locked to one line: `
                   + JSON.stringify(testerTables));
           assert.ok(
               testerTables.every(metric => metric.paddingRight >= 8),
@@ -1546,13 +1585,40 @@ test(
               testerTables.every(metric =>
                 metric.tableOverflow <= 1
                   && metric.headerContentInside
-                  && metric.headerRightDelta <= 1),
+                  && metric.headerRightDelta <= 1
+                  && metric.headerSingleLine
+                  && metric.titleContentInside
+                  && metric.titleSingleLine),
               `${viewport.name}: Tester Details headers clip or miss the value-column edge: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric =>
+                metric.headerFontSize >= 11.1
+                  && metric.headerFontSize <= 16.1
+                  && metric.titleFontSize >= 11.1
+                  && metric.titleFontSize <= 16.1),
+              `${viewport.name}: Tester Details font scaling escaped its clamp: `
                   + JSON.stringify(testerTables));
           if (viewport.name === "compact") {
             assert.ok(
-                testerTables.every(metric => metric.wrapped),
-                `compact: constrained metric headers did not wrap: `
+                testerTables.every(metric =>
+                  metric.headerPrefixDisplay === "none"
+                    && metric.titlePrefixDisplay === "none"
+                    && metric.titleComparisonFullDisplay === "none"
+                    && metric.titleComparisonCompactDisplay === "inline"
+                    && metric.titleVisibleText.startsWith("< ")
+                    && metric.titleAriaLabel.startsWith("Testers with LESS THAN ")),
+                `compact: responsive header prefixes remained visible: `
+                    + JSON.stringify(testerTables));
+          } else {
+            assert.ok(
+                testerTables.every(metric =>
+                  metric.headerPrefixDisplay === "inline"
+                    && metric.titlePrefixDisplay === "inline"
+                    && metric.titleComparisonFullDisplay === "inline"
+                    && metric.titleComparisonCompactDisplay === "none"
+                    && metric.titleVisibleText.startsWith("Testers with LESS THAN ")),
+                `${viewport.name}: full header prefixes disappeared with sufficient room: `
                     + JSON.stringify(testerTables));
           }
           if (viewport.height >= 900) {

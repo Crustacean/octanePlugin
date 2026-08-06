@@ -270,20 +270,39 @@ test("renders two-decimal inline and conditional side activity legends", () => {
   assert.match(jelly, /scheduleActivityRingLayout\(\)/);
 });
 
-test("keeps Tester Details metric headers fluid, right-aligned, and wrappable", () => {
+test("keeps Tester Details headers single-line with responsive prefixes", () => {
   const tableRule = cssRule(".octane-tester-table");
+  const titleRule = cssRule(".octane-tester-tracker-title");
   const headerRule = cssRule(
       ".octane-tester-table thead .octane-tester-rate-header");
 
   assert.match(tableRule, /box-sizing:\s*border-box/);
   assert.match(tableRule, /inline-size:\s*100%/);
   assert.match(tableRule, /table-layout:\s*auto/);
-  assert.match(headerRule, /overflow-wrap:\s*break-word/);
+  assert.match(titleRule, /font-size:\s*clamp\(0\.7rem, 3\.2cqi, 1rem\)/);
+  assert.match(titleRule, /text-wrap:\s*nowrap/);
+  assert.match(titleRule, /white-space:\s*nowrap/);
+  assert.match(headerRule, /font-size:\s*clamp\(0\.7rem, 3\.2cqi, 1rem\)/);
+  assert.match(headerRule, /overflow-wrap:\s*normal/);
   assert.match(headerRule, /padding-inline-end:\s*clamp\(0\.75rem, 2vw, 1\.25rem\)/);
   assert.match(headerRule, /text-align:\s*right/);
-  assert.match(headerRule, /white-space:\s*normal/);
+  assert.match(headerRule, /text-wrap:\s*nowrap/);
+  assert.match(headerRule, /white-space:\s*nowrap/);
+  assert.match(jelly, /@container tester-tracker \(max-width: 24rem\)/);
+  assert.match(jelly, /function updateTesterTrackerTitle\(title, condition\)/);
+  assert.match(jelly, /var fullText = "Testers with LESS THAN " \+ condition/);
+  assert.match(jelly, /conditionElement\.textContent = condition/);
   assert.doesNotMatch(jelly, /\.octane-tester-email-column\s*,/);
   assert.equal(
       (jelly.match(/class="octane-tester-rate octane-tester-rate-header"/g) || []).length,
+      2);
+  assert.equal(
+      (jelly.match(/class="octane-tester-responsive-prefix"/g) || []).length,
+      4);
+  assert.equal(
+      (jelly.match(/class="octane-tester-comparison-full"/g) || []).length,
+      2);
+  assert.equal(
+      (jelly.match(/class="octane-tester-comparison-compact"/g) || []).length,
       2);
 });
