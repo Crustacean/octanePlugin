@@ -217,6 +217,22 @@ Configure Octane servers from **Manage Jenkins > System**. Store Octane API keys
 Jenkins username/password credentials, with the username as `client_id` and the password as
 `client_secret`.
 
+### External Jenkinsfile3 configuration
+
+[`examples/Jenkinsfile3`](examples/Jenkinsfile3) loads its runtime configuration from
+[`examples/variables.yaml`](examples/variables.yaml) with the Pipeline Utility Steps plugin's
+`readYaml` step. Set a Jenkins string parameter named `PARAMS_FILE` to select a different YAML file
+in the build workspace. Matching Jenkins Job UI parameters take priority over YAML values; omitted
+YAML values fall back to the neutral defaults in the Jenkinsfile.
+
+The YAML selects the globally configured Octane connection through `OCTANE_SERVER_ID`.
+[`examples/clusters.json`](examples/clusters.json) maps that server ID to its shared-space and
+workspace IDs, so pipeline users do not need to provide those IDs separately. Set `CLUSTERS_FILE`
+as a Jenkins parameter or YAML value to select another mapping file. Keep client IDs and secrets in
+Jenkins Credentials rather than in either configuration file. `OCTANE_SUITE_RUN_ID` is an alias for
+the regression suite-run source, while `OCTANE_DEFINED_SCOPE` supplies the optional defined-scope
+selections consumed by the report analytics.
+
 ## Configuration
 
 The plugin resolves the ALM Octane connection from Jenkins global configuration and then lets
