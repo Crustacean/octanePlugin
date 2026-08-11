@@ -76,12 +76,13 @@ bucket. For example, `gateResult.scopeDetails.critical.suiteRunIds` contains the
 suite run IDs, and `gateResult.scopeDetails.critical.runIds` contains the Octane child run IDs
 that fed the critical metrics.
 
-As an alternative to explicit IDs, `suiteRunId` and suite-run-backed scopes accept exactly two
-comma-separated names in the form `Release Name, Sprint Name`. The plugin resolves matching suite
-runs during preflight and repeats discovery on every poll. Newly assigned suite runs join the
-metric pool automatically; deleted or unreachable runs are removed with an audit log entry. If
-preflight finds no matches, the gate keeps polling until its timeout and logs that the native
-Jenkins Abort/Cancel action can stop the build.
+As an alternative to explicit IDs, `suiteRunId` and suite-run-backed scopes accept either a release
+name or two comma-separated names in the form `Release Name, Sprint Name`. A release name by itself
+supports Kanban workspaces and discovers every suite run attached to that release without applying
+a sprint filter. The plugin resolves matching suite runs during preflight and repeats discovery on
+every poll. Newly assigned suite runs join the metric pool automatically; deleted or unreachable
+runs are removed with an audit log entry. If preflight finds no matches, the gate keeps polling
+until its timeout and logs that the native Jenkins Abort/Cancel action can stop the build.
 
 If critical ownership removes every regression suite run, regression comparisons are removed
 from the logical criteria expression before evaluation. The effective expression is stored in
@@ -262,9 +263,10 @@ octaneSuiteGate(
 )
 ```
 
-`suiteRunId` may be a single ID, a comma/space-separated ID list such as `1196,1200`, or a
-release/sprint selector such as `Release 2.4, Sprint 3`. A release/sprint selector is queried again
-on each interval so the dashboard and criteria use the current matching suite-run pool.
+`suiteRunId` may be a single ID, a comma/space-separated ID list such as `1196,1200`, a Kanban
+release selector such as `Release 2.4`, or a Scrum release/sprint selector such as
+`Release 2.4, Sprint 3`. Dynamic selectors are queried again on each interval so the dashboard and
+criteria use the current matching suite-run pool.
 It may also be omitted when a nonempty `critical` suite-run scope is configured. In that mode,
 regression criteria and report sections are skipped while critical and defect criteria continue to
 be evaluated. If a suite run appears in both `suiteRunId` and the `critical` scope, the critical

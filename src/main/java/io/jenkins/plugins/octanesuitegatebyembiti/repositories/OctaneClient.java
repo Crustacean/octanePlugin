@@ -160,22 +160,17 @@ public class OctaneClient implements AutoCloseable {
     return fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunIds, true);
   }
 
-  /** Resolves suite runs assigned to the named release and sprint. */
+  /** Resolves suite runs assigned to the named release and, when supplied, sprint. */
   public List<String> fetchSuiteRunIdsByReleaseAndSprint(
       String sharedSpaceId, String workspaceId, String releaseName, String sprintName)
       throws IOException, InterruptedException {
-    String relationshipQuery =
-        "release EQ {name EQ "
-            + octaneStringLiteral(releaseName)
-            + "};sprint EQ {name EQ "
-            + octaneStringLiteral(sprintName)
-            + "}";
-    String aggregateQuery =
-        "test EQ {subtype EQ ^test_suite^};release EQ {name EQ "
-            + octaneStringLiteral(releaseName)
-            + "};sprint EQ {name EQ "
-            + octaneStringLiteral(sprintName)
-            + "}";
+    String releaseFilter = "release EQ {name EQ " + octaneStringLiteral(releaseName) + "}";
+    String sprintFilter =
+        Util.isBlank(sprintName)
+            ? ""
+            : ";sprint EQ {name EQ " + octaneStringLiteral(sprintName) + "}";
+    String relationshipQuery = releaseFilter + sprintFilter;
+    String aggregateQuery = "test EQ {subtype EQ ^test_suite^};" + relationshipQuery;
     try {
       return fetchEntityIds(sharedSpaceId, workspaceId, "runs", aggregateQuery);
     } catch (IOException aggregateFailure) {
@@ -183,7 +178,7 @@ public class OctaneClient implements AutoCloseable {
         return fetchEntityIds(sharedSpaceId, workspaceId, "suite_runs", relationshipQuery);
       } catch (IOException suiteRunsFailure) {
         throw new AbortException(
-            "ALM Octane release/sprint suite discovery failed. Runs collection lookup failed: "
+            "ALM Octane dynamic suite discovery failed. Runs collection lookup failed: "
                 + aggregateFailure.getMessage()
                 + ". suite_runs fallback failed: "
                 + suiteRunsFailure.getMessage());

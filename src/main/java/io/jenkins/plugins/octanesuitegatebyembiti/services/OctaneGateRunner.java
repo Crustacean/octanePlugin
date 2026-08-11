@@ -499,7 +499,7 @@ public class OctaneGateRunner {
         if (ids.size() > GateRequest.MAX_SUITE_RUN_IDS) {
           throw new AbortException(
               label
-                  + " release/sprint selection returned more than "
+                  + " dynamic selection returned more than "
                   + GateRequest.MAX_SUITE_RUN_IDS
                   + " suite runs.");
         }

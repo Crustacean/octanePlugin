@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
-/** Identifies suite runs either explicitly by ID or dynamically by release and sprint. */
+/** Identifies suite runs explicitly by ID or dynamically by release and optional sprint. */
 public final class SuiteRunSelector implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final Pattern NUMERIC_ID = Pattern.compile("[0-9]{1,18}");
@@ -15,6 +15,7 @@ public final class SuiteRunSelector implements Serializable {
   public enum Mode {
     EMPTY,
     EXPLICIT_IDS,
+    RELEASE,
     RELEASE_SPRINT
   }
 
@@ -45,6 +46,10 @@ public final class SuiteRunSelector implements Serializable {
     }
 
     String[] commaValues = source.split(",", -1);
+    if (commaValues.length == 1) {
+      validateName("Release name", source);
+      return new SuiteRunSelector(source, Mode.RELEASE, List.of(), source, "");
+    }
     if (commaValues.length == 2) {
       String first = commaValues[0].trim();
       String second = commaValues[1].trim();
@@ -53,17 +58,8 @@ public final class SuiteRunSelector implements Serializable {
       return new SuiteRunSelector(source, Mode.RELEASE_SPRINT, List.of(), first, second);
     }
 
-    if (ids.isEmpty()) {
-      return new SuiteRunSelector("", Mode.EMPTY, List.of(), "", "");
-    }
-    for (String id : ids) {
-      if (!isNumericId(id)) {
-        throw new IllegalArgumentException(
-            "Suite run IDs must contain 1 to 18 digits, or use exactly "
-                + "'Release Name, Sprint Name'.");
-      }
-    }
-    return new SuiteRunSelector(source, Mode.EXPLICIT_IDS, ids, "", "");
+    throw new IllegalArgumentException(
+        "Use suite run IDs, 'Release Name', or exactly 'Release Name, Sprint Name'.");
   }
 
   public String getSource() {
@@ -91,11 +87,14 @@ public final class SuiteRunSelector implements Serializable {
   }
 
   public boolean isDynamic() {
-    return mode == Mode.RELEASE_SPRINT;
+    return mode == Mode.RELEASE || mode == Mode.RELEASE_SPRINT;
   }
 
   public String describe() {
-    if (isDynamic()) {
+    if (mode == Mode.RELEASE) {
+      return "release '" + releaseName + "'";
+    }
+    if (mode == Mode.RELEASE_SPRINT) {
       return "release '" + releaseName + "', sprint '" + sprintName + "'";
     }
     if (mode == Mode.EXPLICIT_IDS) {

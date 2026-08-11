@@ -30,6 +30,18 @@ public class SuiteRunSelectorTest {
   }
 
   @Test
+  public void parsesReleaseOnlyForKanbanWorkspaces() {
+    SuiteRunSelector selector = SuiteRunSelector.parse("  Kanban Release 2.4  ");
+
+    assertEquals(SuiteRunSelector.Mode.RELEASE, selector.getMode());
+    assertEquals("Kanban Release 2.4", selector.getReleaseName());
+    assertEquals("", selector.getSprintName());
+    assertEquals("release 'Kanban Release 2.4'", selector.describe());
+    assertTrue(selector.isDynamic());
+    assertTrue(selector.getExplicitIds().isEmpty());
+  }
+
+  @Test
   public void keepsTwoNumericValuesAsExplicitSuiteRunIds() {
     SuiteRunSelector selector = SuiteRunSelector.parse("1196, 1200");
 
@@ -45,6 +57,10 @@ public class SuiteRunSelectorTest {
         assertThrows(IllegalArgumentException.class, () -> SuiteRunSelector.parse(", Sprint 3"));
     assertThrows(
         IllegalArgumentException.class, () -> SuiteRunSelector.parse("Release *, Sprint 3"));
+    assertThrows(IllegalArgumentException.class, () -> SuiteRunSelector.parse("Release *"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SuiteRunSelector.parse("Release 2.4, Sprint 3, Extra"));
 
     assertEquals("Sprint name is required.", missingSprint.getMessage());
     assertEquals("Release name is required.", missingRelease.getMessage());
@@ -55,5 +71,7 @@ public class SuiteRunSelectorTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> SuiteRunSelector.parse("Release 2.4\nforged, Sprint 3"));
+    assertThrows(
+        IllegalArgumentException.class, () -> SuiteRunSelector.parse("Release 2.4\nforged"));
   }
 }

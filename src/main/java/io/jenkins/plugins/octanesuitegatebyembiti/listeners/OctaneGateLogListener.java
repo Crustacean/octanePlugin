@@ -79,9 +79,9 @@ public class OctaneGateLogListener {
     listener
         .getLogger()
         .printf(
-            "[WARNING/AUDIT] No active %s suite runs were found for release '%s' and sprint '%s'. "
+            "[WARNING/AUDIT] No active %s suite runs were found for %s. "
                 + "Discovery will continue on every poll. Use Jenkins Abort/Cancel to stop this pipeline.%n",
-            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
+            Util.forLog(label), dynamicSelection(releaseName, sprintName));
   }
 
   public void logDynamicSuiteSelector(
@@ -89,8 +89,15 @@ public class OctaneGateLogListener {
     listener
         .getLogger()
         .printf(
-            "[INFO/AUDIT] %s suite runs use continuous discovery for release '%s' and sprint '%s'.%n",
-            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
+            "[INFO/AUDIT] %s suite runs use continuous discovery for %s.%n",
+            Util.forLog(label), dynamicSelection(releaseName, sprintName));
+  }
+
+  private String dynamicSelection(String releaseName, String sprintName) {
+    String release = "release '" + Util.forLog(releaseName) + "'";
+    return Util.isBlank(sprintName)
+        ? release
+        : release + " and sprint '" + Util.forLog(sprintName) + "'";
   }
 
   public void logSuiteRunsAdded(TaskListener listener, String label, List<String> suiteRunIds) {

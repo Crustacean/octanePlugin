@@ -90,6 +90,16 @@ public class OctaneGateRunnerTest {
   }
 
   @Test
+  public void releaseOnlySelectionKeepsRegressionEvaluationEnabled() {
+    GateRequest request = new GateRequest("octane-prod", "Kanban Release 2.4");
+
+    assertTrue(OctaneGateRunner.regressionSelectionEnabled(request));
+    assertTrue(request.getSuiteRunSelector().isDynamic());
+    assertEquals("", request.getSuiteRunSelector().getSprintName());
+    assertTrue(OctaneGateRunner.regressionSuiteRunIdsForCriteria(request).isEmpty());
+  }
+
+  @Test
   public void identicalReleaseSprintSelectionsAreEvaluatedAsCriticalOnly() {
     GateRequest request = new GateRequest("octane-prod", "Release 2.4, Sprint 3");
     OctaneGateScope critical = new OctaneGateScope("critical");

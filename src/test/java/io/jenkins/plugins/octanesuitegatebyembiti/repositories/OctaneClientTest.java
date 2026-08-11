@@ -839,6 +839,73 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void discoversAllSuiteRunsByReleaseWithoutAddingASprintFilter() throws Exception {
+    AtomicInteger requests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          requests.incrementAndGet();
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          assertTrue(query.contains("fields=id"));
+          assertTrue(query.contains("test EQ {subtype EQ ^test_suite^}"));
+          assertTrue(query.contains("release EQ {name EQ ^Kanban Release 2.4^}"));
+          assertFalse(query.contains("sprint EQ"));
+          json(exchange, 200, "{\"data\":[{\"id\":\"55\"},{\"id\":\"56\"},{\"id\":\"57\"}]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(
+          List.of("55", "56", "57"),
+          client.fetchSuiteRunIdsByReleaseAndSprint("1001", "2002", "Kanban Release 2.4", null));
+      assertEquals(1, requests.get());
+    }
+  }
+
+  @Test
+  public void releaseOnlyDiscoveryFallbackAlsoOmitsTheSprintFilter() throws Exception {
+    AtomicInteger runsRequests = new AtomicInteger();
+    AtomicInteger suiteRunRequests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          runsRequests.incrementAndGet();
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          assertTrue(query.contains("release EQ {name EQ ^Kanban Release^}"));
+          assertFalse(query.contains("sprint EQ"));
+          json(exchange, 400, "{\"description\":\"Unsupported runs relationship\"}");
+        });
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/suite_runs",
+        exchange -> {
+          suiteRunRequests.incrementAndGet();
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          assertTrue(query.contains("release EQ {name EQ ^Kanban Release^}"));
+          assertFalse(query.contains("test EQ"));
+          assertFalse(query.contains("sprint EQ"));
+          json(exchange, 200, "{\"data\":[{\"id\":\"58\"}]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(
+          List.of("58"),
+          client.fetchSuiteRunIdsByReleaseAndSprint("1001", "2002", "Kanban Release", ""));
+      assertEquals(1, runsRequests.get());
+      assertEquals(1, suiteRunRequests.get());
+    }
+  }
+
+  @Test
   public void tolerantSuitePollingOmitsConfirmedMissingRuns() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(

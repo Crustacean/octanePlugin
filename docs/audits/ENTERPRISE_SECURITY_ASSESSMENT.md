@@ -23,7 +23,7 @@ Trust boundaries:
 | --- | --- | --- | --- |
 | Outbound target manipulation | CWE-918 | `OctaneServerUrl` permits only HTTP(S), rejects user info/query/fragment, and locks every request to the configured scheme, host, effective port, and base path. Redirects are disabled. | Controlled |
 | Credential disclosure | CWE-200, CWE-798 | Runtime secrets are resolved from Jenkins `StandardUsernamePasswordCredentials` as `ACL.SYSTEM2`; only credential IDs are persisted. Source tests reject credential-like literals and logging does not include request bodies. | Controlled |
-| Input abuse and log forging | CWE-20, CWE-117 | Numeric entity IDs, bounded release/sprint selectors, 4,096-character Octane queries, 8,192-character criteria, token/depth limits, and single-line bounded logging are enforced. | Controlled |
+| Input abuse and log forging | CWE-20, CWE-117 | Numeric entity IDs, bounded release/optional-sprint selectors, 4,096-character Octane queries, 8,192-character criteria, token/depth limits, and single-line bounded logging are enforced. | Controlled |
 | HTML or script injection | CWE-79 | Jelly escaping, explicit email/static-report escaping, and safe DOM text construction cover API and job data. Renderer and frontend tests exercise hostile values. | Controlled |
 | Unsafe process or TLS behavior | CWE-78, CWE-295 | Browser capture uses Jenkins `Launcher` argument lists; source audit rejects direct process execution and permissive TLS/hostname bypasses. | Controlled |
 | Deserialization or artifact abuse | CWE-502, CWE-400 | Snapshot artifacts are size-bounded, atomically published, and read through depth/reference/array/class allowlists. | Controlled |
