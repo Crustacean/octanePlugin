@@ -28,55 +28,19 @@ public class OctaneRiskHeatMapBuilder {
         OctaneDefectSeveritySummary.fromDefects(defects);
     NodeAccumulator root = new NodeAccumulator("root", "Risk Heat Map");
     int fetchedDefectCount = defects == null ? 0 : defects.size();
-    int linkedDefectCount = 0;
-    int unlinkedOpenDefectCount = 0;
-    int ignoredClosedDefectCount = 0;
+    DefectCounts counts = new DefectCounts();
     Set<String> processedDefectIds = new LinkedHashSet<>();
 
-    for (Map.Entry<String, List<RunRecord>> suiteEntry : suiteRuns.entrySet()) {
-      String suiteRunId = suiteEntry.getKey();
-      for (RunRecord run : suiteEntry.getValue()) {
-        String projectLabel = projectLabel(workspaceId, run, defectsByRunId, defectsByTestId);
-        NodeAccumulator project = root.child("project", projectLabel);
-        NodeAccumulator suite = project.child("suite", "Suite " + suiteRunId);
-        NodeAccumulator runner = suite.child("runner", runByLabel(run));
-        NodeAccumulator test = runner.child("test", testLabel(run));
-        test.addStatus(classifier.classify(run.getStatus()));
-
-        Set<String> linkedDefectIds = new LinkedHashSet<>();
-        for (DefectRecord defect : linkedDefects(run, defectsByRunId, defectsByTestId)) {
-          if (!linkedDefectIds.add(defect.getId()) || !processedDefectIds.add(defect.getId())) {
-            continue;
-          }
-          if (!defect.isOpen()) {
-            ignoredClosedDefectCount++;
-            continue;
-          }
-          linkedDefectCount++;
-          NodeAccumulator defectNode = test.child("defect", defectLabel(defect));
-          defectNode.addDefect(defect);
-        }
-      }
-    }
-
-    if (defects != null) {
-      for (DefectRecord defect : defects) {
-        if (!processedDefectIds.add(defect.getId())) {
-          continue;
-        }
-        if (!defect.isOpen()) {
-          ignoredClosedDefectCount++;
-          continue;
-        }
-        unlinkedOpenDefectCount++;
-        NodeAccumulator project = root.child("project", fallbackProjectLabel(workspaceId, defect));
-        NodeAccumulator suite = project.child("suite", "Linked defects without run metadata");
-        NodeAccumulator runner = suite.child("runner", "Unassigned");
-        NodeAccumulator test = runner.child("test", "Unlinked defect records");
-        NodeAccumulator defectNode = test.child("defect", defectLabel(defect));
-        defectNode.addDefect(defect);
-      }
-    }
+    addSuiteRuns(
+        workspaceId,
+        suiteRuns,
+        classifier,
+        defectsByRunId,
+        defectsByTestId,
+        root,
+        processedDefectIds,
+        counts);
+    addUnlinkedDefects(workspaceId, defects, root, processedDefectIds, counts);
 
     if (root.children.isEmpty()) {
       return OctaneRiskHeatMap.empty(workspaceId);
@@ -84,10 +48,103 @@ public class OctaneRiskHeatMapBuilder {
     return OctaneRiskHeatMap.of(
         root.toNode(),
         fetchedDefectCount,
-        linkedDefectCount,
-        unlinkedOpenDefectCount,
-        ignoredClosedDefectCount,
+        counts.linked,
+        counts.unlinkedOpen,
+        counts.ignoredClosed,
         defectSeveritySummary);
+  }
+
+  private void addSuiteRuns(
+      String workspaceId,
+      Map<String, List<RunRecord>> suiteRuns,
+      StatusClassifier classifier,
+      Map<String, List<DefectRecord>> defectsByRunId,
+      Map<String, List<DefectRecord>> defectsByTestId,
+      NodeAccumulator root,
+      Set<String> processedDefectIds,
+      DefectCounts counts) {
+    for (Map.Entry<String, List<RunRecord>> suiteEntry : suiteRuns.entrySet()) {
+      for (RunRecord run : suiteEntry.getValue()) {
+        NodeAccumulator test =
+            addRunNode(
+                workspaceId,
+                suiteEntry.getKey(),
+                run,
+                classifier,
+                defectsByRunId,
+                defectsByTestId,
+                root);
+        addLinkedDefects(run, test, defectsByRunId, defectsByTestId, processedDefectIds, counts);
+      }
+    }
+  }
+
+  private NodeAccumulator addRunNode(
+      String workspaceId,
+      String suiteRunId,
+      RunRecord run,
+      StatusClassifier classifier,
+      Map<String, List<DefectRecord>> defectsByRunId,
+      Map<String, List<DefectRecord>> defectsByTestId,
+      NodeAccumulator root) {
+    String projectLabel = projectLabel(workspaceId, run, defectsByRunId, defectsByTestId);
+    NodeAccumulator project = root.child("project", projectLabel);
+    NodeAccumulator suite = project.child("suite", "Suite " + suiteRunId);
+    NodeAccumulator runner = suite.child("runner", assignedUserLabel(run));
+    NodeAccumulator test = runner.child("test", testLabel(run));
+    test.addStatus(classifier.classify(run.getStatus()));
+    return test;
+  }
+
+  private void addLinkedDefects(
+      RunRecord run,
+      NodeAccumulator test,
+      Map<String, List<DefectRecord>> defectsByRunId,
+      Map<String, List<DefectRecord>> defectsByTestId,
+      Set<String> processedDefectIds,
+      DefectCounts counts) {
+    Set<String> linkedDefectIds = new LinkedHashSet<>();
+    for (DefectRecord defect : linkedDefects(run, defectsByRunId, defectsByTestId)) {
+      if (!linkedDefectIds.add(defect.getId()) || !processedDefectIds.add(defect.getId())) {
+        continue;
+      }
+      if (!defect.isOpen()) {
+        counts.ignoredClosed++;
+        continue;
+      }
+      counts.linked++;
+      test.child("defect", defectLabel(defect)).addDefect(defect);
+    }
+  }
+
+  private void addUnlinkedDefects(
+      String workspaceId,
+      List<DefectRecord> defects,
+      NodeAccumulator root,
+      Set<String> processedDefectIds,
+      DefectCounts counts) {
+    if (defects == null) {
+      return;
+    }
+    for (DefectRecord defect : defects) {
+      if (!processedDefectIds.add(defect.getId())) {
+        continue;
+      }
+      if (!defect.isOpen()) {
+        counts.ignoredClosed++;
+        continue;
+      }
+      counts.unlinkedOpen++;
+      addUnlinkedDefect(workspaceId, defect, root);
+    }
+  }
+
+  private void addUnlinkedDefect(String workspaceId, DefectRecord defect, NodeAccumulator root) {
+    NodeAccumulator project = root.child("project", fallbackProjectLabel(workspaceId, defect));
+    NodeAccumulator suite = project.child("suite", "Linked defects without run metadata");
+    NodeAccumulator runner = suite.child("runner", "Unassigned");
+    NodeAccumulator test = runner.child("test", "Unlinked defect records");
+    test.child("defect", defectLabel(defect)).addDefect(defect);
   }
 
   private Map<String, List<DefectRecord>> indexDefectsByRunId(List<DefectRecord> defects) {
@@ -151,9 +208,15 @@ public class OctaneRiskHeatMapBuilder {
     return Util.isBlank(workspaceId) ? "Workspace" : "Workspace " + workspaceId;
   }
 
-  private String runByLabel(RunRecord run) {
-    if (!Util.isBlank(run.getRunByName())) {
-      return run.getRunByName();
+  private static final class DefectCounts {
+    private int linked;
+    private int unlinkedOpen;
+    private int ignoredClosed;
+  }
+
+  private String assignedUserLabel(RunRecord run) {
+    if (!Util.isBlank(run.getSuiteOwnerName())) {
+      return run.getSuiteOwnerName();
     }
     return "Unassigned";
   }

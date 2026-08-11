@@ -1,7 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
-import java.util.Locale;
 
 public class OctaneGateStatusCount implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -13,7 +13,7 @@ public class OctaneGateStatusCount implements Serializable {
   OctaneGateStatusCount(OctaneGateStatusBucket bucket, int count, int total) {
     this.bucket = bucket;
     this.count = count;
-    this.percentage = total == 0 ? 0.0 : count * 100.0 / total;
+    this.percentage = Util.percentage(count, total);
   }
 
   public OctaneGateStatusBucket getBucket() {
@@ -45,11 +45,11 @@ public class OctaneGateStatusCount implements Serializable {
   }
 
   public String getFormattedPercentage() {
-    return String.format(Locale.ROOT, "%.2f", percentage);
+    return Util.formatDecimal(percentage, 2);
   }
 
   public String getPercentageLabel() {
-    return String.format(Locale.ROOT, "%.2f%%", percentage);
+    return Util.formatPercentage(percentage, 2);
   }
 
   public String getTitle() {

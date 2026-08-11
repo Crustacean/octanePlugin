@@ -65,19 +65,19 @@ public class OctaneTesterPerformance implements Serializable {
   }
 
   public double getExecutionRate() {
-    return total == 0 ? 0.0 : executed * 100.0 / total;
+    return GateMetrics.executionRate(executed, total);
   }
 
   public double getPassRate() {
-    return executed == 0 ? 0.0 : passed * 100.0 / executed;
+    return GateMetrics.passRate(passed, executed);
   }
 
   public String getExecutionRateText() {
-    return formatRate(getExecutionRate());
+    return Util.formatCompactPercentage(getExecutionRate());
   }
 
   public String getPassRateText() {
-    return formatRate(getPassRate());
+    return Util.formatCompactPercentage(getPassRate());
   }
 
   public Map<String, Object> toMap() {
@@ -116,7 +116,7 @@ public class OctaneTesterPerformance implements Serializable {
       StatusClassifier classifier) {
     for (int index = 0; index < runs.size(); index++) {
       RunRecord run = runs.get(index);
-      String email = Util.isBlank(run.getRunByName()) ? "Unassigned" : run.getRunByName();
+      String email = Util.isBlank(run.getSuiteOwnerName()) ? "Unassigned" : run.getSuiteOwnerName();
       String testerKey = email.trim().toLowerCase(Locale.ROOT);
       testers.putIfAbsent(testerKey, new TesterAccumulator(email));
       String runKey =
@@ -127,13 +127,6 @@ public class OctaneTesterPerformance implements Serializable {
           OctaneGateStatusBucket.fromOutcome(classifier.classify(run.getStatus()));
       testers.get(testerKey).put(runKey, status);
     }
-  }
-
-  private static String formatRate(double value) {
-    if (Math.abs(value - Math.rint(value)) < 0.0001) {
-      return String.format(Locale.ROOT, "%.0f%%", value);
-    }
-    return String.format(Locale.ROOT, "%.1f%%", value);
   }
 
   private static class TesterAccumulator {
@@ -152,7 +145,7 @@ public class OctaneTesterPerformance implements Serializable {
       int executed = 0;
       int passed = 0;
       for (OctaneGateStatusBucket status : statusesByRunId.values()) {
-        if (status != OctaneGateStatusBucket.RUNNING) {
+        if (status.isExecuted()) {
           executed++;
         }
         if (status == OctaneGateStatusBucket.PASSED) {

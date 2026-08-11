@@ -341,22 +341,24 @@ public class OctaneDefectSeveritySummary implements Serializable {
     private static Severity from(DefectRecord defect) {
       String signal =
           (defect.getSeverity() + " " + defect.getPriority()).toLowerCase(Locale.ENGLISH);
-      if (signal.contains("critical") || signal.contains("blocker") || signal.contains("urgent")) {
-        return CRITICAL;
-      }
-      if (signal.contains("very high") || signal.contains("very_high")) {
-        return VERY_HIGH;
-      }
-      if (signal.contains("high")) {
-        return HIGH;
-      }
-      if (signal.contains("medium") || signal.contains("major")) {
-        return MEDIUM;
-      }
-      if (signal.contains("low") || signal.contains("minor")) {
-        return LOW;
+      for (Severity severity : values()) {
+        if (severity.matches(signal)) {
+          return severity;
+        }
       }
       return UNSPECIFIED;
+    }
+
+    private boolean matches(String signal) {
+      return switch (this) {
+        case CRITICAL ->
+            signal.contains("critical") || signal.contains("blocker") || signal.contains("urgent");
+        case VERY_HIGH -> signal.contains("very high") || signal.contains("very_high");
+        case HIGH -> signal.contains("high");
+        case MEDIUM -> signal.contains("medium") || signal.contains("major");
+        case LOW -> signal.contains("low") || signal.contains("minor");
+        case UNSPECIFIED -> false;
+      };
     }
   }
 }

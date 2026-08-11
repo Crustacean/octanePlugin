@@ -55,6 +55,23 @@ public class OctaneDefectGroup implements Describable<OctaneDefectGroup>, Serial
   }
 
   public String getValidationError() {
+    String nameError = validationErrorForName();
+    if (!nameError.isEmpty()) {
+      return nameError;
+    }
+    if (types.isEmpty()) {
+      return "At least one defect type is required for group '" + name + "'.";
+    }
+    String typeError = validationErrorForTypes();
+    if (!typeError.isEmpty()) {
+      return typeError;
+    }
+    return getNormalizedTypes().isEmpty()
+        ? "At least one supported defect type is required for group '" + name + "'."
+        : "";
+  }
+
+  private String validationErrorForName() {
     if (name.isEmpty()) {
       return "Defect group name is required.";
     }
@@ -62,14 +79,16 @@ public class OctaneDefectGroup implements Describable<OctaneDefectGroup>, Serial
       return "Defect group name must start with a letter or underscore and contain only letters, numbers, underscores, or hyphens.";
     }
     String normalizedName = normalizeName(name);
-    if (!OctaneDefectSeveritySummary.normalizeOpenType(name).isEmpty()
-        || RESERVED_NAMES.contains(normalizedName)
-        || normalizedName.endsWith("count")) {
-      return "Defect group name '" + name + "' conflicts with a built-in defect metric.";
-    }
-    if (types.isEmpty()) {
-      return "At least one defect type is required for group '" + name + "'.";
-    }
+    boolean reserved =
+        !OctaneDefectSeveritySummary.normalizeOpenType(name).isEmpty()
+            || RESERVED_NAMES.contains(normalizedName)
+            || normalizedName.endsWith("count");
+    return reserved
+        ? "Defect group name '" + name + "' conflicts with a built-in defect metric."
+        : "";
+  }
+
+  private String validationErrorForTypes() {
     for (String value : types.split("[,;\\n]+")) {
       String trimmed = Util.trimToEmpty(value);
       if (!trimmed.isEmpty() && OctaneDefectSeveritySummary.normalizeOpenType(trimmed).isEmpty()) {
@@ -77,9 +96,6 @@ public class OctaneDefectGroup implements Describable<OctaneDefectGroup>, Serial
             + trimmed
             + "'. Use Critical, Very High, High, Medium, Low, or Unspecified.";
       }
-    }
-    if (getNormalizedTypes().isEmpty()) {
-      return "At least one supported defect type is required for group '" + name + "'.";
     }
     return "";
   }

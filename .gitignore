@@ -19,4 +19,10 @@ STRATEGIC_RECOMMENDATIONS.md
 skills-lock.json
 skills.json
 skills/
-docs
+!/.agents/skills/
+!/.agents/skills/modern-web-guidance/
+/.agents/skills/modern-web-guidance/*
+!/.agents/skills/modern-web-guidance/SKILL.md
+docs/*
+!docs/audits/
+!docs/audits/*.md

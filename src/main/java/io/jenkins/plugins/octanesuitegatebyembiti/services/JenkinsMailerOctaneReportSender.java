@@ -205,21 +205,29 @@ public class JenkinsMailerOctaneReportSender implements OctaneEmailReportSender 
 
   static String safeAttachmentPath(String attachmentPath) throws AbortException {
     String normalized = Util.trimToEmpty(attachmentPath).replace('\\', '/');
-    if (normalized.isEmpty()
-        || normalized.startsWith("/")
-        || normalized.matches("^[A-Za-z]:/.*")
-        || normalized.contains("*")
-        || normalized.contains("?")
-        || normalized.contains("[")
-        || normalized.contains("{")) {
+    if (isUnsafeAttachmentPath(normalized)) {
       throw new AbortException("The Octane report screenshot path is invalid.");
     }
     for (String segment : normalized.split("/")) {
-      if (segment.isEmpty() || ".".equals(segment) || "..".equals(segment)) {
+      if (isUnsafeAttachmentSegment(segment)) {
         throw new AbortException("The Octane report screenshot path is invalid.");
       }
     }
     return normalized;
+  }
+
+  private static boolean isUnsafeAttachmentPath(String path) {
+    return path.isEmpty()
+        || path.startsWith("/")
+        || path.matches("^[A-Za-z]:/.*")
+        || path.contains("*")
+        || path.contains("?")
+        || path.contains("[")
+        || path.contains("{");
+  }
+
+  private static boolean isUnsafeAttachmentSegment(String segment) {
+    return segment.isEmpty() || ".".equals(segment) || "..".equals(segment);
   }
 
   private static String safeSubject(String subject) throws AbortException {

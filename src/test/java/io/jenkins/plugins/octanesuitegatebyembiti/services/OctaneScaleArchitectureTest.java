@@ -40,6 +40,12 @@ public class OctaneScaleArchitectureTest {
     assertEquals(
         suites,
         data.sections().stream().mapToInt(section -> ((List<?>) section.get("bars")).size()).sum());
+    assertTrue(data.sections().get(0).containsKey("automationPercentage"));
+    assertTrue(data.sections().get(0).containsKey("automationPercentageLabel"));
+    @SuppressWarnings("unchecked")
+    List<java.util.Map<String, Object>> bars =
+        (List<java.util.Map<String, Object>>) data.sections().get(0).get("bars");
+    assertTrue(bars.get(0).containsKey("automationPercentage"));
     assertTrue("initial index must stay below 250 KB", indexBytes < 250_000);
     assertTrue("complete JSON must stay below 5 MB", completeBytes < 5_000_000);
     assertEquals(true, result.toPipelineMap().get("detailsTruncated"));

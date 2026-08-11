@@ -37,7 +37,7 @@ public class OctaneTestManagementAnalyticsTest {
     assertEquals(1, point.getBlocked());
     assertEquals(1, point.getFailed());
     assertEquals(1, point.getPassed());
-    assertEquals(4, point.getExecuted());
+    assertEquals(3, point.getExecuted());
 
     List<OctaneTestManagementAnalytics.FailureCategory> categories =
         analytics.getFailureCategories();
@@ -98,6 +98,27 @@ public class OctaneTestManagementAnalyticsTest {
     OctaneTestManagementAnalytics replacement = history.appendLatest(second);
     assertEquals(2, replacement.getPoints().size());
     assertEquals(6, replacement.getPoints().get(1).getTotal());
+  }
+
+  @Test
+  public void attributesDashboardTesterMetricsToSuiteOwnerInsteadOfChildRunner() {
+    RunRecord childRun =
+        new RunRecord(
+            "1",
+            "Automated child",
+            "passed",
+            "Jenkins Agent",
+            "Suite Owner",
+            "test-1",
+            "Test 1",
+            "",
+            "");
+
+    OctaneTestManagementAnalytics analytics =
+        analyticsAt(
+            "2026-07-23T08:01:00Z", List.of(childRun), List.of(), CriteriaEvaluation.unavailable());
+
+    assertEquals("Suite Owner", analytics.getTopVolumeTesters().get(0).getName());
   }
 
   @Test

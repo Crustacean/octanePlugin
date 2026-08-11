@@ -14,6 +14,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.MetricsContext;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefinedScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
@@ -252,6 +253,80 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void rendersDefinedScopeImmediatelyAboveExecutionGraphAndOmitsEmptyScope() {
+    OctaneGateReportSnapshot populated =
+        snapshot(OctaneGateReportState.PASSED, "Gate passed.")
+            .withDefinedScope(OctaneDefinedScope.parse("ESA - imelda sanya, Digisoc"));
+
+    String html =
+        renderer.render(
+            "", "Project", "Domain", populated, REPORT_URL, "octane-report.png", "LIGHT");
+    String empty =
+        renderer.render(
+            "",
+            "Project",
+            "Domain",
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            REPORT_URL,
+            "octane-report.png",
+            "LIGHT");
+
+    assertTrue(html.contains("data-octane-email-section=\"defined-scope\""));
+    assertTrue(html.contains(">ESA</td>"));
+    assertTrue(html.contains(">Imelda Sanya</td>"));
+    assertTrue(html.contains(">Digisoc</td>"));
+    assertTrue(html.contains(">-</td>"));
+    int scopeTableStart = html.indexOf("data-octane-email-table=\"defined-scope\"");
+    int scopeTableEnd = html.indexOf("</table>", scopeTableStart);
+    String scopeTable = html.substring(scopeTableStart, scopeTableEnd);
+    assertTrue(scopeTable.contains("table-layout:fixed"));
+    assertTrue(scopeTable.contains("<col style=\"width:58%;\">"));
+    assertTrue(scopeTable.contains("<col style=\"width:42%;\">"));
+    assertFalse(scopeTable.contains("text-align:center"));
+    assertTrue(scopeTable.contains("word-break:break-word"));
+    assertTrue(html.indexOf("Defined Scope") < html.indexOf("Execution graph"));
+    assertFalse(empty.contains("data-octane-email-section=\"defined-scope\""));
+    assertFalse(empty.contains("No defined scope!"));
+  }
+
+  @Test
+  public void splitsDefinedScopeTablesAccordingToEmailRowRules() {
+    String eleven = renderDefinedScopeEmail(11);
+    String twenty = renderDefinedScopeEmail(20);
+    String thirtyThree = renderDefinedScopeEmail(33);
+
+    assertEquals(2, occurrences(eleven, "data-octane-email-table=\"defined-scope\""));
+    assertEquals(2, occurrences(twenty, "data-octane-email-table=\"defined-scope\""));
+    assertEquals(2, occurrences(thirtyThree, "data-octane-email-table=\"defined-scope\""));
+    int firstTableEnd =
+        eleven.indexOf("</table>", eleven.indexOf("data-octane-email-table=\"defined-scope\""));
+    assertTrue(eleven.substring(0, firstTableEnd).contains("Project 10"));
+    assertFalse(eleven.substring(0, firstTableEnd).contains("Project 11"));
+    int thirtyThreeFirstEnd =
+        thirtyThree.indexOf(
+            "</table>", thirtyThree.indexOf("data-octane-email-table=\"defined-scope\""));
+    assertTrue(thirtyThree.substring(0, thirtyThreeFirstEnd).contains("Project 17"));
+    assertFalse(thirtyThree.substring(0, thirtyThreeFirstEnd).contains("Project 18"));
+  }
+
+  @Test
+  public void executionTableExcludesSkippedAndNoRunTestsFromPassRate() {
+    OctaneGateReportSnapshot snapshot =
+        reconciliationSnapshot(
+            OctaneGateReportState.POLLING,
+            List.of("passed", "passed", "failed", "blocked", "skipped", "planned"),
+            0);
+
+    String html = renderExecutionDetails(snapshot, OctaneReportTheme.LIGHT);
+
+    assertTrue(detailRow(html, "Executed test cases").contains(">4</td>"));
+    assertTrue(detailRow(html, "No run test cases").contains(">1</td>"));
+    assertTrue(detailRow(html, "Skipped test cases").contains(">1</td>"));
+    assertTrue(detailRow(html, "Execution rate").contains(">66.7%</td>"));
+    assertTrue(passRateRow(html).contains(">50%</td>"));
+  }
+
+  @Test
   public void rendersOngoingIntervalReportInSystemOrangeWithInlineScreenshot() {
     String html =
         renderer.render(
@@ -386,11 +461,29 @@ public class OctaneEmailBodyRendererTest {
         renderExecutionDetails(
             snapshot(OctaneGateReportState.ERROR, "Gate error."), OctaneReportTheme.LIGHT);
 
-    assertPassRateCell(lightPass, "#34C759", "#FFFFFF", true);
-    assertPassRateCell(lightFail, "#FF3B30", "#FFFFFF", true);
+    assertPassRateCell(lightPass, "#34C759", "#000000", true);
+    assertPassRateCell(lightFail, "#FF3B30", "#000000", true);
     assertPassRateCell(darkPass, "#30D158", "#000000", true);
-    assertPassRateCell(darkFail, "#FF453A", "#FFFFFF", true);
+    assertPassRateCell(darkFail, "#FF453A", "#000000", true);
     assertPassRateCell(fallback, "transparent", "inherit", false);
+  }
+
+  @Test
+  public void placesAutomationUsageBelowPassRateAndPaintsItsTargetStatus() {
+    String achieved = renderExecutionDetails(automationSnapshot(8, 2, 80), OctaneReportTheme.LIGHT);
+    String warning = renderExecutionDetails(automationSnapshot(7, 3, 80), OctaneReportTheme.DARK);
+    String action = renderExecutionDetails(automationSnapshot(6, 4, 80), OctaneReportTheme.LIGHT);
+    String unavailable =
+        renderExecutionDetails(automationSnapshot(0, 0, 80), OctaneReportTheme.LIGHT);
+
+    assertTrue(achieved.indexOf("Pass Rate") < achieved.indexOf("Automation Usage"));
+    assertAutomationUsageCell(achieved, "80%", "#34C759", "#000000", true);
+    assertAutomationUsageCell(warning, "70%", "#FF9F0A", "#000000", true);
+    assertAutomationUsageCell(action, "60%", "#FF3B30", "#000000", true);
+    assertAutomationUsageCell(unavailable, "0%", "transparent", "inherit", false);
+    assertFalse(detailRow(achieved, "Automation Usage").contains("🔥"));
+    assertFalse(detailRow(unavailable, "Automation Usage").contains("🐢"));
+    assertFalse(detailRow(achieved, "Automation Usage").contains("role=\"presentation\""));
   }
 
   @Test
@@ -504,6 +597,18 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(row.contains("background-color:" + backgroundColor + ";"));
     assertTrue(row.contains("color:" + fontColor + ";"));
     assertTrue(row.contains(">90%</td>"));
+  }
+
+  private void assertAutomationUsageCell(
+      String html, String value, String backgroundColor, String fontColor, boolean expectsBgcolor) {
+    String row = detailRow(html, "Automation Usage");
+    assertEquals(expectsBgcolor, row.contains("bgcolor="));
+    if (expectsBgcolor) {
+      assertTrue(row.contains("bgcolor=\"" + backgroundColor + "\""));
+    }
+    assertTrue(row.contains("background-color:" + backgroundColor + ";"));
+    assertTrue(row.contains("color:" + fontColor + ";"));
+    assertTrue(row.contains(">" + value + "</td>"));
   }
 
   private String passRateRow(String html) {
@@ -631,6 +736,64 @@ public class OctaneEmailBodyRendererTest {
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(
         state, "Reconciliation snapshot.", result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot automationSnapshot(int automated, int manual, int target) {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < automated; index++) {
+      runs.add(
+          new RunRecord(
+              "automated-" + index,
+              "Automated " + index,
+              "passed",
+              "Jenkins Agent",
+              "Assigned Tester",
+              "test-a-" + index,
+              "Test",
+              "",
+              ""));
+    }
+    for (int index = 0; index < manual; index++) {
+      runs.add(
+          new RunRecord(
+              "manual-" + index,
+              "Manual " + index,
+              "passed",
+              "Assigned Tester",
+              "Assigned Tester",
+              "test-m-" + index,
+              "Test",
+              "",
+              ""));
+    }
+    GateResult result =
+        new GateResult(
+            "suite-1",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("suite-1", runs),
+            Map.of(),
+            Instant.parse("2026-06-30T12:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Gate passed.", result, classifier, 30);
+    return snapshot
+        .withTestMetrics(snapshot.getTestMetrics().withAutomatedTestingTarget(target))
+        .withCalculatedTestMetrics(null);
+  }
+
+  private String renderDefinedScopeEmail(int count) {
+    List<OctaneDefinedScope> scopes = new ArrayList<>();
+    for (int index = 1; index <= count; index++) {
+      scopes.add(new OctaneDefinedScope("Project " + index, "Owner " + index));
+    }
+    OctaneGateReportSnapshot snapshot =
+        snapshot(OctaneGateReportState.PASSED, "Gate passed.").withDefinedScope(scopes);
+    return renderer.render(
+        "", "Project", "Domain", snapshot, REPORT_URL, "octane-report.png", "LIGHT");
   }
 
   private OctaneDefectGroup defectGroup(String name, String types) {

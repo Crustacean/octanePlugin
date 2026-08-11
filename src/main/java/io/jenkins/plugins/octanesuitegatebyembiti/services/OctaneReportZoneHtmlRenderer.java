@@ -48,6 +48,7 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<body>\n");
     int barChartWidth = emailBarChartWidth(viewportWidth);
     renderReportZone(html, safeSnapshot, maxVisibleBars(barChartWidth), barChartWidth);
+    appendCaptureMeasurementScript(html);
     html.append("</body>\n");
     html.append("</html>\n");
     return html.toString();
@@ -159,7 +160,6 @@ public class OctaneReportZoneHtmlRenderer {
           display: flex;
           flex-wrap: wrap;
           gap: 16px;
-          min-height: 100vh;
           padding: 16px;
           width: 100%;
         }
@@ -250,6 +250,7 @@ public class OctaneReportZoneHtmlRenderer {
         .octane-donut-wrap {
           align-items: center;
           box-sizing: border-box;
+          container-type: size;
           display: flex;
           height: 100%;
           justify-content: center;
@@ -260,13 +261,14 @@ public class OctaneReportZoneHtmlRenderer {
           width: 100%;
         }
         .octane-donut {
+          aspect-ratio: 1 / 1;
           display: block;
-          height: 100%;
+          height: min(100cqw, 100cqh);
           max-height: none;
           max-width: none;
           overflow: hidden;
           shape-rendering: geometricPrecision;
-          width: 100%;
+          width: min(100cqw, 100cqh);
         }
         .octane-donut-center-value {
           fill: var(--octane-text);
@@ -325,6 +327,16 @@ public class OctaneReportZoneHtmlRenderer {
         }
         .octane-donut-legend-label .octane-swatch {
           flex: 0 0 auto;
+        }
+        .octane-automation-icon {
+          align-items: center;
+          display: inline-flex;
+          flex: 0 0 13px;
+          height: 13px;
+          justify-content: center;
+          line-height: 1;
+          text-align: center;
+          width: 13px;
         }
         .octane-donut-legend-percentage {
           font-weight: 600;
@@ -583,6 +595,17 @@ public class OctaneReportZoneHtmlRenderer {
           justify-content: space-between;
           padding-top: 5px;
         }
+        .octane-bar-popup-automation {
+          align-items: center;
+          display: grid;
+          gap: 5px;
+          grid-template-columns: 9px minmax(0, 1fr) auto;
+        }
+        .octane-bar-popup-automation .octane-automation-icon {
+          flex-basis: 9px;
+          height: 9px;
+          width: 9px;
+        }
         .octane-vertical-segment {
           display: block;
           width: 100%;
@@ -659,6 +682,25 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("</div>\n");
   }
 
+  private void appendCaptureMeasurementScript(StringBuilder html) {
+    html.append(
+        """
+        <script>
+          (() => {
+            const reportZone = document.getElementById("octane-report-zone");
+            if (!reportZone) {
+              return;
+            }
+            const renderedBottom = reportZone.getBoundingClientRect().bottom;
+            document.documentElement.setAttribute(
+              "data-octane-capture-height",
+              String(Math.ceil(renderedBottom))
+            );
+          })();
+        </script>
+        """);
+  }
+
   private void renderDistributionCard(StringBuilder html, OctaneGateReportSection section) {
     html.append(
         "<section class=\"octane-chart-card\" draggable=\"true\" data-card-key=\"distribution-");
@@ -688,7 +730,7 @@ public class OctaneReportZoneHtmlRenderer {
     for (OctaneGatePieSlice slice : section.getPieSlices()) {
       renderSlice(html, slice);
     }
-    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"29\" />\n");
+    html.append("<circle class=\"octane-donut-hole\" cx=\"50\" cy=\"50\" r=\"37.36\" />\n");
     html.append(
         "<text class=\"octane-donut-center-value\" x=\"50\" y=\"46\" "
             + "dominant-baseline=\"central\" text-anchor=\"middle\">");
@@ -841,6 +883,18 @@ public class OctaneReportZoneHtmlRenderer {
         html.append("</td></tr>");
       }
     }
+    if (section.getExecutedTestCount() > 0) {
+      html.append("<tr data-automation-usage-row=\"true\">");
+      html.append("<th class=\"octane-donut-legend-status\" scope=\"row\">");
+      html.append("<span class=\"octane-donut-legend-label\">");
+      html.append("<span class=\"octane-automation-icon\" aria-hidden=\"true\">");
+      html.append(escapeHtml(section.getAutomationEmoji()));
+      html.append("</span>");
+      html.append("<span>Automation Usage</span></span></th>");
+      html.append("<td class=\"octane-donut-legend-percentage\">");
+      html.append(escapeHtml(section.getAutomationPercentageText()));
+      html.append("</td></tr>");
+    }
     html.append("</tbody></table>\n");
   }
 
@@ -883,6 +937,14 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(escapeAttribute(cardKey));
     html.append("\" data-bar-key=\"");
     html.append(escapeAttribute(suiteRun.getSuiteRunId()));
+    html.append("\" data-bar-name=\"");
+    html.append(escapeAttribute(suiteRun.getDisplayName()));
+    html.append("\" data-bar-total=\"");
+    html.append(suiteRun.getTotal());
+    html.append("\" data-automation-percentage=\"");
+    html.append(suiteRun.getAutomationPercentage());
+    html.append("\" data-automation-emoji=\"");
+    html.append(escapeAttribute(suiteRun.getAutomationEmoji()));
     html.append("\" data-dominant-status-color=\"");
     html.append(escapeAttribute(suiteRun.getDominantStatusColor()));
     html.append("\" data-dominant-status-label=\"");
@@ -1029,6 +1091,14 @@ public class OctaneReportZoneHtmlRenderer {
         html.append("</div>\n");
       }
     }
+    html.append("<div class=\"octane-bar-popup-automation\">");
+    html.append("<span class=\"octane-automation-icon\" aria-hidden=\"true\">");
+    html.append(escapeHtml(suiteRun.getAutomationEmoji()));
+    html.append("</span>");
+    html.append("<span class=\"octane-bar-popup-label\">Automation Usage</span>");
+    html.append("<span class=\"octane-bar-popup-value\">");
+    html.append(escapeHtml(suiteRun.getAutomationPercentageText()));
+    html.append("</span></div>\n");
     html.append("<div class=\"octane-bar-popup-total\">");
     html.append("<span>Total</span>");
     html.append("<span class=\"octane-bar-popup-total-value\">");

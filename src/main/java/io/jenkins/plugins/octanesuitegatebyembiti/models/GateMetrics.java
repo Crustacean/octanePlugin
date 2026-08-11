@@ -7,20 +7,31 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToDoubleFunction;
 
 public class GateMetrics implements Serializable {
   private static final long serialVersionUID = 1L;
+  private static final Map<String, ToDoubleFunction<GateMetrics>> METRIC_VALUES =
+      Map.ofEntries(
+          Map.entry("total", metrics -> metrics.total),
+          Map.entry("executed", metrics -> metrics.getExecuted()),
+          Map.entry("passed", metrics -> metrics.passed),
+          Map.entry("failed", metrics -> metrics.failed),
+          Map.entry("skipped", metrics -> metrics.skipped),
+          Map.entry("running", metrics -> metrics.running),
+          Map.entry("executionrate", metrics -> metrics.getExecutionRate()),
+          Map.entry("passrate", metrics -> metrics.getPassRate()),
+          Map.entry("failrate", metrics -> metrics.getFailRate()));
 
   private final int total;
-  private final int executed;
   private final int passed;
   private final int failed;
   private final int skipped;
   private final int running;
 
-  public GateMetrics(int total, int executed, int passed, int failed, int skipped, int running) {
+  public GateMetrics(
+      int total, int ignoredExecuted, int passed, int failed, int skipped, int running) {
     this.total = total;
-    this.executed = executed;
     this.passed = passed;
     this.failed = failed;
     this.skipped = skipped;
@@ -48,7 +59,7 @@ public class GateMetrics implements Serializable {
     }
 
     int total = runs.size();
-    int executed = passed + failed + skipped;
+    int executed = executedCount(passed, failed, 0);
     return new GateMetrics(total, executed, passed, failed, skipped, running);
   }
 
@@ -57,7 +68,9 @@ public class GateMetrics implements Serializable {
   }
 
   public int getExecuted() {
-    return executed;
+    // Failed includes both failed and blocked outcomes. Skipped and planned/running tests do not
+    // participate in execution or pass-rate calculations.
+    return executedCount(passed, failed, 0);
   }
 
   public int getPassed() {
@@ -77,15 +90,15 @@ public class GateMetrics implements Serializable {
   }
 
   public double getExecutionRate() {
-    return total == 0 ? 0.0 : percentage(executed, total);
+    return executionRate(getExecuted(), total);
   }
 
   public double getPassRate() {
-    return executed == 0 ? 0.0 : percentage(passed, executed);
+    return passRate(passed, getExecuted());
   }
 
   public double getFailRate() {
-    return executed == 0 ? 0.0 : percentage(failed, executed);
+    return Util.percentage(Math.max(0, failed), getExecuted());
   }
 
   public boolean isTerminal() {
@@ -94,28 +107,11 @@ public class GateMetrics implements Serializable {
 
   double value(String metricName) {
     String normalized = normalizeMetricName(metricName);
-    switch (normalized) {
-      case "total":
-        return total;
-      case "executed":
-        return executed;
-      case "passed":
-        return passed;
-      case "failed":
-        return failed;
-      case "skipped":
-        return skipped;
-      case "running":
-        return running;
-      case "executionrate":
-        return getExecutionRate();
-      case "passrate":
-        return getPassRate();
-      case "failrate":
-        return getFailRate();
-      default:
-        throw new CriteriaException("Unknown metric: " + metricName);
+    ToDoubleFunction<GateMetrics> metric = METRIC_VALUES.get(normalized);
+    if (metric == null) {
+      throw new CriteriaException("Unknown metric: " + metricName);
     }
+    return metric.applyAsDouble(this);
   }
 
   public static boolean isPercentageMetric(String metricName) {
@@ -128,7 +124,7 @@ public class GateMetrics implements Serializable {
   Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("total", total);
-    values.put("executed", executed);
+    values.put("executed", getExecuted());
     values.put("passed", passed);
     values.put("failed", failed);
     values.put("skipped", skipped);
@@ -139,8 +135,16 @@ public class GateMetrics implements Serializable {
     return values;
   }
 
-  private static double percentage(int numerator, int denominator) {
-    return numerator * 100.0 / denominator;
+  public static int executedCount(int passed, int failed, int blocked) {
+    return Math.max(0, passed) + Math.max(0, failed) + Math.max(0, blocked);
+  }
+
+  public static double executionRate(int executed, int total) {
+    return Util.percentage(executed, total);
+  }
+
+  public static double passRate(int passed, int executed) {
+    return Util.percentage(Math.max(0, passed), executed);
   }
 
   static String normalizeMetricName(String metricName) {

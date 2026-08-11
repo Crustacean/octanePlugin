@@ -16,6 +16,11 @@ public class GateRequest implements Serializable {
   public static final int DEFAULT_RISK_HEAT_MAP_MAX_DEFECTS = 1000;
   public static final int DEFAULT_BASE_PASSRATE_FIGURE = 95;
   public static final int DEFAULT_BASE_EXECUTION_FIGURE = 100;
+  public static final int DEFAULT_AUTOMATED_TESTING_TARGET = 100;
+  public static final String AUTOMATED_TESTING_TARGET_ENV = "AUTOMATED_TESTING_TARGET";
+  public static final String GLOBAL_AUTOMATED_TESTING_TARGET_ENV =
+      "global_automated_testing_target";
+  public static final String DEFINED_SCOPE_ENV = "OCTANE_DEFINED_SCOPE";
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
   public static final int MAX_POLL_INTERVAL_SECONDS = 3600;
   public static final int MAX_TIMEOUT_MINUTES = 10_080;
@@ -34,6 +39,8 @@ public class GateRequest implements Serializable {
   private int timeoutMinutesExtended = DEFAULT_TIMEOUT_MINUTES_EXTENDED;
   private int basePassrateFigure = DEFAULT_BASE_PASSRATE_FIGURE;
   private int baseExecutionFigure = DEFAULT_BASE_EXECUTION_FIGURE;
+  private int automatedTestingTarget = DEFAULT_AUTOMATED_TESTING_TARGET;
+  private List<OctaneDefinedScope> definedScope = new ArrayList<>();
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -145,6 +152,22 @@ public class GateRequest implements Serializable {
 
   public void setBaseExecutionFigure(int baseExecutionFigure) {
     this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
+  }
+
+  public int getAutomatedTestingTarget() {
+    return automatedTestingTarget <= 0 ? DEFAULT_AUTOMATED_TESTING_TARGET : automatedTestingTarget;
+  }
+
+  public void setAutomatedTestingTarget(int automatedTestingTarget) {
+    this.automatedTestingTarget = Math.min(100, Math.max(1, automatedTestingTarget));
+  }
+
+  public List<OctaneDefinedScope> getDefinedScope() {
+    return definedScope == null ? List.of() : Collections.unmodifiableList(definedScope);
+  }
+
+  public void setDefinedScope(String definedScope) {
+    this.definedScope = new ArrayList<>(OctaneDefinedScope.parse(definedScope));
   }
 
   public boolean isMarkUnstable() {

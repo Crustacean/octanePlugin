@@ -176,6 +176,11 @@ public class OctaneGateRunner {
 
     public PollOutcome pollOnce() throws IOException, InterruptedException {
       logManualExitFinalizingIfNeeded();
+      PollOutcome stoppingOutcome = finishAtExistingStopBoundary(clock.instant());
+      if (stoppingOutcome != null) {
+        return stoppingOutcome;
+      }
+
       CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
       GateResult result =
           poll(
@@ -193,7 +198,6 @@ public class OctaneGateRunner {
               state.getDefectLedger());
       logListener.logPollResult(listener, result);
       publishPollResult(reportPublisher, result, classifier, state.isExtendedTimeActive());
-      result = refreshPassedResultWhenRequired(result);
 
       PollOutcome outcome = finishWithoutExtendedTimeout(result);
       if (outcome != null) {
@@ -201,9 +205,13 @@ public class OctaneGateRunner {
       }
 
       Instant now = clock.instant();
+      outcome = finishPrimaryTimeoutWhenRequired(now);
+      if (outcome != null) {
+        return outcome;
+      }
       transitionAtPrimaryDeadline(result, now);
 
-      outcome = finishExtendedTimeWhenRequired(result, now);
+      outcome = finishExtendedTimeWhenRequired(now);
       if (outcome != null) {
         return outcome;
       }
@@ -213,45 +221,94 @@ public class OctaneGateRunner {
       return PollOutcome.continueAfter(delay);
     }
 
-    private GateResult refreshPassedResultWhenRequired(GateResult result)
-        throws InterruptedException {
-      return !extendedTimeoutConfigured && result.isPassed()
-          ? refreshCurrentPassedResult(result)
-          : result;
-    }
-
-    private PollOutcome finishWithoutExtendedTimeout(GateResult result) throws GateFailedException {
-      if (extendedTimeoutConfigured) {
-        return null;
+    private PollOutcome finishAtExistingStopBoundary(Instant now)
+        throws IOException, InterruptedException, GateFailedException {
+      if (state.isExtendedTimeActive()) {
+        boolean manualExitRequested = reportPublisher.isManualExitRequested();
+        if (manualExitRequested || !now.isBefore(extendedDeadline)) {
+          logManualExitFinalizingIfNeeded();
+          GateResult finalResult =
+              reconcileFinalResult(
+                  manualExitRequested
+                      ? "Exit Octane and Continue requested. Reconciling final ALM Octane data."
+                      : "Extended timeout elapsed. Reconciling final ALM Octane data.");
+          return PollOutcome.complete(
+              finishExtendedGate(
+                  request,
+                  listener,
+                  reportPublisher,
+                  finalResult,
+                  classifier,
+                  manualExitRequested));
+        }
       }
-      if (result.isPassed()) {
-        return PollOutcome.complete(passGate(listener, reportPublisher, result, classifier));
-      }
-      if (result.isTerminal()) {
-        String message = "ALM Octane suite gate failed.";
-        reportPublisher.onFinal(failureState(request), message, result, classifier);
-        throw new GateFailedException(message, result);
+      if (!state.isExtendedTimeActive()
+          && !extendedTimeoutConfigured
+          && !now.isBefore(primaryDeadline)) {
+        return finishPrimaryTimeout();
       }
       return null;
     }
 
-    private void transitionAtPrimaryDeadline(GateResult result, Instant now)
-        throws GateFailedException {
+    private PollOutcome finishWithoutExtendedTimeout(GateResult result)
+        throws IOException, InterruptedException, GateFailedException {
+      if (extendedTimeoutConfigured) {
+        return null;
+      }
+      if (!result.isPassed() && !result.isTerminal()) {
+        return null;
+      }
+
+      GateResult finalResult =
+          reconcileFinalResult(
+              result.isPassed()
+                  ? "Gate criteria satisfied. Reconciling final ALM Octane data."
+                  : "Execution reached a terminal state. Reconciling final ALM Octane data.");
+      if (finalResult.isPassed()) {
+        return PollOutcome.complete(passGate(listener, reportPublisher, finalResult, classifier));
+      }
+      if (finalResult.isTerminal()) {
+        String message = "ALM Octane suite gate failed.";
+        reportPublisher.onFinal(failureState(request), message, finalResult, classifier);
+        throw new GateFailedException(message, finalResult);
+      }
+      publishPollResult(reportPublisher, finalResult, classifier, false);
+      return null;
+    }
+
+    private PollOutcome finishPrimaryTimeoutWhenRequired(Instant now)
+        throws IOException, InterruptedException, GateFailedException {
+      if (state.isExtendedTimeActive()
+          || extendedTimeoutConfigured
+          || now.isBefore(primaryDeadline)) {
+        return null;
+      }
+      return finishPrimaryTimeout();
+    }
+
+    private PollOutcome finishPrimaryTimeout()
+        throws IOException, InterruptedException, GateFailedException {
+      GateResult finalResult =
+          reconcileFinalResult("Primary timeout elapsed. Reconciling final ALM Octane data.");
+      if (finalResult.isPassed()) {
+        return PollOutcome.complete(passGate(listener, reportPublisher, finalResult, classifier));
+      }
+      String message = "Timed out waiting for ALM Octane suite gate.";
+      reportPublisher.onFinal(timeoutState(request), message, finalResult, classifier);
+      throw new GateFailedException(message, finalResult);
+    }
+
+    private void transitionAtPrimaryDeadline(GateResult result, Instant now) {
       if (state.isExtendedTimeActive() || now.isBefore(primaryDeadline)) {
         return;
-      }
-      if (!extendedTimeoutConfigured) {
-        String message = "Timed out waiting for ALM Octane suite gate.";
-        reportPublisher.onFinal(timeoutState(request), message, result, classifier);
-        throw new GateFailedException(message, result);
       }
       state.setExtendedTimeActive(true);
       logListener.logExtendedTimeStarted(listener, request.getTimeoutMinutesExtended());
       reportPublisher.onExtendedTime(result, classifier);
     }
 
-    private PollOutcome finishExtendedTimeWhenRequired(GateResult result, Instant now)
-        throws GateFailedException {
+    private PollOutcome finishExtendedTimeWhenRequired(Instant now)
+        throws IOException, InterruptedException, GateFailedException {
       if (!state.isExtendedTimeActive()) {
         return null;
       }
@@ -260,9 +317,14 @@ public class OctaneGateRunner {
         return null;
       }
       logManualExitFinalizingIfNeeded();
+      GateResult finalResult =
+          reconcileFinalResult(
+              manualExitRequested
+                  ? "Exit Octane and Continue requested. Reconciling final ALM Octane data."
+                  : "Extended timeout elapsed. Reconciling final ALM Octane data.");
       return PollOutcome.complete(
           finishExtendedGate(
-              request, listener, reportPublisher, result, classifier, manualExitRequested));
+              request, listener, reportPublisher, finalResult, classifier, manualExitRequested));
     }
 
     private void logManualExitFinalizingIfNeeded() {
@@ -273,49 +335,47 @@ public class OctaneGateRunner {
       }
     }
 
-    private GateResult refreshCurrentPassedResult(GateResult previousResult)
-        throws InterruptedException {
+    private GateResult reconcileFinalResult(String message)
+        throws IOException, InterruptedException {
+      reportPublisher.onFinalizing(message);
       logListener.logFinalRefresh(listener);
-      try {
-        CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
-        GateResult refreshedResult =
-            poll(
-                client,
-                request,
-                currentSuiteRuns.regressionSuiteRuns,
-                currentSuiteRuns.scopeSuiteRuns,
-                regressionSelectionEnabled,
-                currentSuiteRuns.awaitingSuiteDiscovery,
-                sharedSpaceId,
-                workspaceId,
-                criteria,
-                classifier,
-                listener,
-                state.getDefectLedger());
-        logListener.logPollResult(listener, refreshedResult);
-        reportPublisher.onPoll(refreshedResult, classifier);
-        return refreshedResult;
-      } catch (IOException e) {
-        logListener.logFinalRefreshSkipped(listener, e);
-        return previousResult;
-      }
+      CurrentSuiteRuns currentSuiteRuns = refreshSuitePools();
+      GateResult finalResult =
+          poll(
+              client,
+              request,
+              currentSuiteRuns.regressionSuiteRuns,
+              currentSuiteRuns.scopeSuiteRuns,
+              regressionSelectionEnabled,
+              currentSuiteRuns.awaitingSuiteDiscovery,
+              sharedSpaceId,
+              workspaceId,
+              criteria,
+              classifier,
+              listener,
+              state.getDefectLedger());
+      logListener.logPollResult(listener, finalResult);
+      logListener.logFinalReconciliationCompleted(listener, finalResult.getPolledAt());
+      return finalResult;
     }
 
     private void preflightSuitePools() throws IOException, InterruptedException {
+      SuiteRunDiscoveryCycle discoveryCycle = new SuiteRunDiscoveryCycle();
       if (regressionSelectionEnabled) {
-        regressionSuitePool.preflight();
+        regressionSuitePool.preflight(discoveryCycle);
       }
       for (SuiteRunPool pool : suiteScopePools.values()) {
-        pool.preflight();
+        pool.preflight(discoveryCycle);
       }
     }
 
     private CurrentSuiteRuns refreshSuitePools() throws IOException, InterruptedException {
+      SuiteRunDiscoveryCycle discoveryCycle = new SuiteRunDiscoveryCycle();
       Map<String, List<RunRecord>> regressionSuiteRuns =
-          regressionSelectionEnabled ? regressionSuitePool.refresh() : Map.of();
+          regressionSelectionEnabled ? regressionSuitePool.refresh(discoveryCycle) : Map.of();
       Map<String, Map<String, List<RunRecord>>> scopeSuiteRuns = new LinkedHashMap<>();
       for (Map.Entry<String, SuiteRunPool> entry : suiteScopePools.entrySet()) {
-        scopeSuiteRuns.put(entry.getKey(), entry.getValue().refresh());
+        scopeSuiteRuns.put(entry.getKey(), entry.getValue().refresh(discoveryCycle));
       }
 
       Set<String> criticalIds = currentCriticalSuiteRunIds(scopeSuiteRuns);
@@ -390,12 +450,13 @@ public class OctaneGateRunner {
         this.selector = selector;
       }
 
-      private void preflight() throws IOException, InterruptedException {
+      private void preflight(SuiteRunDiscoveryCycle discoveryCycle)
+          throws IOException, InterruptedException {
         if (!selector.isConfigured()) {
           initialized = true;
           return;
         }
-        List<String> candidates = candidateIds();
+        List<String> candidates = candidateIds(discoveryCycle);
         Map<String, List<RunRecord>> available;
         if (selector.isDynamic()) {
           logListener.logDynamicSuiteSelector(
@@ -412,27 +473,33 @@ public class OctaneGateRunner {
         }
       }
 
-      private Map<String, List<RunRecord>> refresh() throws IOException, InterruptedException {
+      private Map<String, List<RunRecord>> refresh(SuiteRunDiscoveryCycle discoveryCycle)
+          throws IOException, InterruptedException {
         if (!selector.isConfigured()) {
           return Map.of();
         }
-        List<String> candidates = candidateIds();
+        List<String> candidates = candidateIds(discoveryCycle);
         Map<String, List<RunRecord>> available =
             client.fetchAvailableSuiteChildRuns(sharedSpaceId, workspaceId, candidates);
         reconcile(available.keySet());
         return available;
       }
 
-      private List<String> candidateIds() throws IOException, InterruptedException {
+      private List<String> candidateIds(SuiteRunDiscoveryCycle discoveryCycle)
+          throws IOException, InterruptedException {
         List<String> ids =
-            selector.isDynamic()
-                ? client.fetchSuiteRunIdsByReleaseAndSprint(
-                    sharedSpaceId, workspaceId, selector.getReleaseName(), selector.getSprintName())
-                : selector.getExplicitIds();
+            discoveryCycle.resolve(
+                selector,
+                dynamicSelector ->
+                    client.fetchSuiteRunIdsByReleaseAndSprint(
+                        sharedSpaceId,
+                        workspaceId,
+                        dynamicSelector.getReleaseName(),
+                        dynamicSelector.getSprintName()));
         if (ids.size() > GateRequest.MAX_SUITE_RUN_IDS) {
           throw new AbortException(
               label
-                  + " release/sprint selection returned more than "
+                  + " dynamic selection returned more than "
                   + GateRequest.MAX_SUITE_RUN_IDS
                   + " suite runs.");
         }
@@ -668,6 +735,7 @@ public class OctaneGateRunner {
               listener,
               defectLedger);
       logListener.logPollResult(listener, refreshedResult);
+      logListener.logFinalReconciliationCompleted(listener, refreshedResult.getPolledAt());
       reportPublisher.onPoll(refreshedResult, classifier);
       return refreshedResult;
     } catch (IOException e) {
@@ -965,6 +1033,7 @@ public class OctaneGateRunner {
               + scopeQueryHint(scope)
               + e.getMessage());
     }
+    scopedRuns = applySuiteOwnership(regressionSuiteRuns, scopedRuns);
     GateMetrics metrics = GateMetrics.fromRuns(scopedRuns, classifier);
     return new GateScopeResult(
         scope.getName(),
@@ -975,6 +1044,22 @@ public class OctaneGateRunner {
         metrics,
         scopedRuns,
         groupScopedRunsBySuiteRun(regressionSuiteRuns, scopedRuns));
+  }
+
+  private List<RunRecord> applySuiteOwnership(
+      Map<String, List<RunRecord>> suiteRuns, List<RunRecord> scopedRuns) {
+    Map<String, String> suiteOwnersByRunId = new LinkedHashMap<>();
+    for (List<RunRecord> runs : suiteRuns.values()) {
+      for (RunRecord run : runs) {
+        suiteOwnersByRunId.putIfAbsent(run.getId(), run.getSuiteOwnerName());
+      }
+    }
+    return scopedRuns.stream()
+        .map(
+            run ->
+                run.withSuiteOwnerName(
+                    suiteOwnersByRunId.getOrDefault(run.getId(), run.getSuiteOwnerName())))
+        .toList();
   }
 
   private OctaneGateReportState failureState(GateRequest request) {
@@ -1053,6 +1138,31 @@ public class OctaneGateRunner {
       }
     }
     return regressionSelector.isDynamic() || !regressionSuiteRunIdsForCriteria(request).isEmpty();
+  }
+
+  @FunctionalInterface
+  interface DynamicSuiteRunDiscovery {
+    List<String> discover(SuiteRunSelector selector) throws IOException, InterruptedException;
+  }
+
+  /** Shares identical dynamic selector results within one polling cycle only. */
+  static final class SuiteRunDiscoveryCycle {
+    private final Map<SuiteRunSelector, List<String>> resolvedDynamicSelectors =
+        new LinkedHashMap<>();
+
+    List<String> resolve(SuiteRunSelector selector, DynamicSuiteRunDiscovery discovery)
+        throws IOException, InterruptedException {
+      if (!selector.isDynamic()) {
+        return selector.getExplicitIds();
+      }
+      List<String> resolved = resolvedDynamicSelectors.get(selector);
+      if (resolved != null) {
+        return resolved;
+      }
+      List<String> discovered = List.copyOf(discovery.discover(selector));
+      resolvedDynamicSelectors.put(selector, discovered);
+      return discovered;
+    }
   }
 
   private static Set<String> criticalSuiteRunIds(GateRequest request) {

@@ -41,11 +41,11 @@ public class CriteriaExpressionTest {
     assertEquals(
         "regressions.executionRate == 100%",
         evaluation.getComparisons().get(0).getCriterionLabel());
-    assertEquals("100%", evaluation.getComparisons().get(0).getActualLabel());
-    assertEquals("OK", evaluation.getComparisons().get(0).getResultLabel());
+    assertEquals("75%", evaluation.getComparisons().get(0).getActualLabel());
+    assertEquals("NOT OK", evaluation.getComparisons().get(0).getResultLabel());
     assertEquals(
         "regressions.passRate >= 95%", evaluation.getComparisons().get(1).getCriterionLabel());
-    assertEquals("50%", evaluation.getComparisons().get(1).getActualLabel());
+    assertEquals("66.67%", evaluation.getComparisons().get(1).getActualLabel());
     assertEquals("NOT OK", evaluation.getComparisons().get(1).getResultLabel());
   }
 
@@ -306,8 +306,31 @@ public class CriteriaExpressionTest {
                 new RunRecord("3", "third", "failed"),
                 new RunRecord("4", "fourth", "skipped")));
 
-    assertTrue(CriteriaExpression.parse("100% execution AND 50% pass").evaluate(context));
+    assertTrue(CriteriaExpression.parse("75% execution AND 50% pass").evaluate(context));
+    assertFalse(CriteriaExpression.parse("100% execution AND 50% pass").evaluate(context));
     assertFalse(CriteriaExpression.parse("100% execution AND 90% pass").evaluate(context));
+  }
+
+  @Test
+  public void excludesSkippedAndPlannedTestsFromPassRateDenominator() {
+    GateMetrics metrics =
+        GateMetrics.fromRuns(
+            List.of(
+                new RunRecord("1", "passed one", "passed"),
+                new RunRecord("2", "passed two", "passed"),
+                new RunRecord("3", "failed", "failed"),
+                new RunRecord("4", "blocked", "blocked"),
+                new RunRecord("5", "skipped", "skipped"),
+                new RunRecord("6", "planned", "planned")),
+            classifier);
+
+    assertEquals(6, metrics.getTotal());
+    assertEquals(4, metrics.getExecuted());
+    assertEquals(66.667, metrics.getExecutionRate(), 0.001);
+    assertEquals(50.0, metrics.getPassRate(), 0.001);
+    assertTrue(
+        CriteriaExpression.parse("regressions.executionRate >= 66 AND regressions.passRate == 50")
+            .evaluate(new MetricsContext(metrics, Map.of())));
   }
 
   @Test

@@ -1,0 +1,10 @@
+{
+  "octane-prod": {
+    "sharedSpaceId": "1001",
+    "workspaceId": "2002"
+  },
+  "octane-nonprod": {
+    "sharedSpaceId": "1002",
+    "workspaceId": "2003"
+  }
+}

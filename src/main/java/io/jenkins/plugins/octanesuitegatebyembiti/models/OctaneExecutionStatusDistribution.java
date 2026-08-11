@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -152,7 +153,7 @@ public class OctaneExecutionStatusDistribution implements Serializable {
     }
 
     public String getPercentageLabel() {
-      return String.format(Locale.ROOT, "%.2f%%", percentage);
+      return Util.formatPercentage(percentage, 2);
     }
 
     public String getPath() {

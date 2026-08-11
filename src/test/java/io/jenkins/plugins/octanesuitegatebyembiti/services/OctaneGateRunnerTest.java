@@ -21,6 +21,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapsho
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.SuiteRunSelector;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -89,6 +90,16 @@ public class OctaneGateRunnerTest {
   }
 
   @Test
+  public void releaseOnlySelectionKeepsRegressionEvaluationEnabled() {
+    GateRequest request = new GateRequest("octane-prod", "Kanban Release 2.4");
+
+    assertTrue(OctaneGateRunner.regressionSelectionEnabled(request));
+    assertTrue(request.getSuiteRunSelector().isDynamic());
+    assertEquals("", request.getSuiteRunSelector().getSprintName());
+    assertTrue(OctaneGateRunner.regressionSuiteRunIdsForCriteria(request).isEmpty());
+  }
+
+  @Test
   public void identicalReleaseSprintSelectionsAreEvaluatedAsCriticalOnly() {
     GateRequest request = new GateRequest("octane-prod", "Release 2.4, Sprint 3");
     OctaneGateScope critical = new OctaneGateScope("critical");
@@ -96,6 +107,68 @@ public class OctaneGateRunnerTest {
     request.setScopes(List.of(critical));
 
     assertFalse(OctaneGateRunner.regressionSelectionEnabled(request));
+  }
+
+  @Test
+  public void identicalDynamicSelectorsShareOneLookupPerPollingCycle() throws Exception {
+    SuiteRunSelector regression = SuiteRunSelector.parse("Release 2.4, Sprint 3");
+    SuiteRunSelector critical = SuiteRunSelector.parse("Release 2.4, Sprint 3");
+    AtomicInteger lookups = new AtomicInteger();
+    OctaneGateRunner.SuiteRunDiscoveryCycle cycle = new OctaneGateRunner.SuiteRunDiscoveryCycle();
+
+    List<String> regressionIds =
+        cycle.resolve(
+            regression,
+            selector -> {
+              lookups.incrementAndGet();
+              return List.of("1001", "1002");
+            });
+    List<String> criticalIds =
+        cycle.resolve(
+            critical,
+            selector -> {
+              lookups.incrementAndGet();
+              return List.of("unexpected");
+            });
+
+    assertEquals(1, lookups.get());
+    assertEquals(List.of("1001", "1002"), regressionIds);
+    assertEquals(regressionIds, criticalIds);
+  }
+
+  @Test
+  public void dynamicSelectorDiscoveryRefreshesOnEveryPollingCycle() throws Exception {
+    SuiteRunSelector selector = SuiteRunSelector.parse("Release 2.4, Sprint 3");
+    AtomicInteger lookups = new AtomicInteger();
+    OctaneGateRunner.DynamicSuiteRunDiscovery discovery =
+        ignored -> lookups.incrementAndGet() == 1 ? List.of("1001") : List.of("1001", "1002");
+
+    List<String> firstPoll =
+        new OctaneGateRunner.SuiteRunDiscoveryCycle().resolve(selector, discovery);
+    List<String> secondPoll =
+        new OctaneGateRunner.SuiteRunDiscoveryCycle().resolve(selector, discovery);
+
+    assertEquals(List.of("1001"), firstPoll);
+    assertEquals(List.of("1001", "1002"), secondPoll);
+    assertEquals(2, lookups.get());
+  }
+
+  @Test
+  public void explicitIdSelectionDoesNotInvokeDynamicDiscovery() throws Exception {
+    SuiteRunSelector selector = SuiteRunSelector.parse("1001,1002,1002");
+    AtomicInteger lookups = new AtomicInteger();
+
+    List<String> ids =
+        new OctaneGateRunner.SuiteRunDiscoveryCycle()
+            .resolve(
+                selector,
+                ignored -> {
+                  lookups.incrementAndGet();
+                  return List.of();
+                });
+
+    assertEquals(List.of("1001", "1002"), ids);
+    assertEquals(0, lookups.get());
   }
 
   @Test
@@ -270,7 +343,10 @@ public class OctaneGateRunnerTest {
     assertTrue(refreshedResult.isPassed());
     assertNotNull(publishedResult.get());
     assertEquals(2, publishedResult.get().getMetrics().getTotal());
-    assertTrue(log.toString(StandardCharsets.UTF_8).contains("Refreshing ALM Octane suite runs"));
+    String auditLog = log.toString(StandardCharsets.UTF_8);
+    assertTrue(auditLog.contains("FINALIZING: fetching the authoritative final state"));
+    assertTrue(
+        auditLog.contains("Final ALM Octane reconciliation completed at 2026/05/16 17:00:00"));
   }
 
   @Test

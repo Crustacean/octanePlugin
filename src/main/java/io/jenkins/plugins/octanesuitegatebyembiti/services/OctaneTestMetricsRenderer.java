@@ -38,8 +38,8 @@ public class OctaneTestMetricsRenderer {
 
   private void renderVisualization(StringBuilder html, OctaneTestMetricCard card) {
     switch (card.getKey()) {
-      case "avg-time":
-        renderAverageTime(html, card);
+      case "automation-usage":
+        renderAutomationUsage(html, card);
         return;
       case "success-rate":
         renderSuccessRate(html, card);
@@ -55,14 +55,39 @@ public class OctaneTestMetricsRenderer {
     }
   }
 
-  private void renderAverageTime(StringBuilder html, OctaneTestMetricCard card) {
-    html.append("<div class=\"octane-test-metric-visual octane-test-metric-visual-sparkline\">");
+  private void renderAutomationUsage(StringBuilder html, OctaneTestMetricCard card) {
+    html.append("<div class=\"octane-test-metric-visual octane-test-metric-visual-automation\">");
     renderValue(html, card);
-    html.append(
-            "<svg class=\"octane-test-metric-sparkline\" viewBox=\"0 0 56 40\" preserveAspectRatio=\"xMidYMid meet\" aria-hidden=\"true\">")
-        .append("<polyline points=\"")
-        .append(escape(card.getSparklinePoints()))
-        .append("\" /></svg></div>");
+    html.append("<div class=\"octane-test-metric-automation-segments")
+        .append(card.isSegmented() ? "" : " octane-test-metric-automation-segments-empty")
+        .append("\" data-test-metric-segments=\"true\" role=\"img\" aria-label=\"")
+        .append(escape(card.getDetail()))
+        .append("\"><div class=\"octane-test-metric-automation-track\" aria-hidden=\"true\">");
+    for (OctaneTestMetricSegment segment : card.getSegments()) {
+      html.append(
+              "<span class=\"octane-test-metric-automation-color octane-test-metric-automation-")
+          .append(escape(segment.getSeverityKey()))
+          .append("\" style=\"--octane-test-metric-segment-share:")
+          .append(segment.getPercentageText())
+          .append("%\"></span>");
+    }
+    if (!card.isSegmented()) {
+      html.append("<span class=\"octane-test-metric-automation-empty-track\"></span>");
+    }
+    html.append("</div><div class=\"octane-test-metric-automation-labels\">");
+    for (OctaneTestMetricSegment segment : card.getSegments()) {
+      html.append(
+              "<div class=\"octane-test-metric-automation-segment\" data-test-metric-segment=\"true\" data-full-label=\"")
+          .append(escape(segment.getLabel()))
+          .append("\" data-short-label=\"")
+          .append(escape(segment.getShortLabel()))
+          .append("\" style=\"--octane-test-metric-segment-share:")
+          .append(segment.getPercentageText())
+          .append("%\"><span class=\"octane-test-metric-segment-label\">")
+          .append(escape(segment.getLabel()))
+          .append("</span></div>");
+    }
+    html.append("</div></div></div>");
   }
 
   private void renderSuccessRate(StringBuilder html, OctaneTestMetricCard card) {
@@ -133,6 +158,10 @@ public class OctaneTestMetricsRenderer {
   }
 
   private String icon(String icon) {
+    if ("automation".equals(icon)) {
+      return "<svg class=\"octane-test-metric-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">"
+          + "<path d=\"M13 2L4 14h7l-1 8 9-12h-7z\"/></svg>";
+    }
     if ("chart".equals(icon)) {
       return "<svg class=\"octane-test-metric-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">"
           + "<path d=\"M4 20h16\"/><path d=\"M6 16v-5\"/><path d=\"M12 16V7\"/>"

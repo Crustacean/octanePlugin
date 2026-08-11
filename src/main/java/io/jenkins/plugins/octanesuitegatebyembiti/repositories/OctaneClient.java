@@ -37,15 +37,37 @@ public class OctaneClient implements AutoCloseable {
   private static final int QUERY_CHUNK_SIZE = 40;
   private static final int MAX_ATTEMPTS = 3;
   private static final int RESPONSE_BODY_LIMIT = 1_000;
+  private static final int MAX_LOCKED_ATTRIBUTIONS = 20_000;
   static final int MAX_JSON_RESPONSE_BYTES = 16 * 1024 * 1024;
   private static final Pattern SAFE_ENTITY_ID = Pattern.compile("[A-Za-z0-9_-]{1,128}");
   private static final Pattern SENSITIVE_RESPONSE_VALUE =
       Pattern.compile(
           "(?i)(\\\"(?:client_secret|password|token|access_token|refresh_token|authorization)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")");
   private static final String TECH_PREVIEW_HEADER = "ALM-OCTANE-TECH-PREVIEW";
-  private static final String RUN_FIELDS =
+  private static final String SAFE_RUN_FIELDS =
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
           + "test{id,name},product_areas{id,name},runs_in_suite";
+  private static final String RUN_FIELDS = SAFE_RUN_FIELDS + ",native_tester{id,name}";
+  private static final String SUITE_RUN_FIELDS = RUN_FIELDS + ",owner{id,name}";
+  private static final String SAFE_SUITE_RUN_FIELDS = SAFE_RUN_FIELDS + ",owner{id,name}";
+  private static final String DEFAULT_RUN_BY_SUITE_RUN_FIELDS =
+      RUN_FIELDS + ",default_run_by{id,name}";
+  private static final String SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",default_run_by{id,name}";
+  private static final String ASSIGNED_TO_SUITE_RUN_FIELDS = RUN_FIELDS + ",assigned_to{id,name}";
+  private static final String SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",assigned_to{id,name}";
+  private static final String ASSIGNEE_SUITE_RUN_FIELDS = RUN_FIELDS + ",assignee{id,name}";
+  private static final String SAFE_ASSIGNEE_SUITE_RUN_FIELDS =
+      SAFE_RUN_FIELDS + ",assignee{id,name}";
+  private static final String DEFAULT_RUN_BY_FIELDS = "id,default_run_by{id,name}";
+  private static final String PARENT_RUN_BY_FIELDS = "id,run_by{id,name}";
+  private static final String SUITE_ASSIGNED_TO_FIELDS = "id,assigned_to{id,name}";
+  private static final String SUITE_ASSIGNEE_FIELDS = "id,assignee{id,name}";
+  private static final String SUITE_OWNER_FIELDS = "id,owner{id,name}";
+  private static final String SUITE_TEST_FIELDS = "id,test{id,name}";
+  private static final Pattern SYSTEM_PARENT_RUNNER =
+      Pattern.compile("(?:jenkins|default\\s+manual\\s+runner)", Pattern.CASE_INSENSITIVE);
   private static final String EXTENDED_DEFECT_FIELDS =
       "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
           + "run{id,name},detected_in_run{id,name},test{id,name},owner_test{id,name},"
@@ -66,6 +88,9 @@ public class OctaneClient implements AutoCloseable {
   private final String baseUrl;
   private final String clientId;
   private final String clientSecret;
+  // Parent suite ownership is immutable for this client session. Child execution actors never
+  // enter this map and are retained only on RunRecord for automation metrics.
+  private final Map<String, String> lockedSuiteOwners = new LinkedHashMap<>(256, 0.75f, true);
   private String cookieHeader = "";
 
   public OctaneClient(String baseUrl, String clientId, String clientSecret) {
@@ -107,10 +132,19 @@ public class OctaneClient implements AutoCloseable {
       throws IOException, InterruptedException {
     JsonNode suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
     List<String> runIds = parseRunsInSuite(suiteRun);
+    String suiteOwnerName = resolveSuiteOwnerName(sharedSpaceId, workspaceId, suiteRunId, suiteRun);
     if (runIds.isEmpty()) {
-      return List.of(parseRun(suiteRun));
+      return attributeSuiteRuns(
+          suiteAssignmentKey(sharedSpaceId, workspaceId, suiteRunId),
+          suiteRunId,
+          suiteOwnerName,
+          List.of(parseRun(suiteRun).withExecutionActorName("")));
     }
-    return fetchRunsByIds(sharedSpaceId, workspaceId, runIds, "");
+    return attributeSuiteRuns(
+        suiteAssignmentKey(sharedSpaceId, workspaceId, suiteRunId),
+        suiteRunId,
+        suiteOwnerName,
+        fetchRunsByIds(sharedSpaceId, workspaceId, runIds, ""));
   }
 
   public Map<String, List<RunRecord>> fetchSuiteChildRuns(
@@ -126,22 +160,17 @@ public class OctaneClient implements AutoCloseable {
     return fetchSuiteChildRuns(sharedSpaceId, workspaceId, suiteRunIds, true);
   }
 
-  /** Resolves suite runs assigned to the named release and sprint. */
+  /** Resolves suite runs assigned to the named release and, when supplied, sprint. */
   public List<String> fetchSuiteRunIdsByReleaseAndSprint(
       String sharedSpaceId, String workspaceId, String releaseName, String sprintName)
       throws IOException, InterruptedException {
-    String relationshipQuery =
-        "release EQ {name EQ "
-            + octaneStringLiteral(releaseName)
-            + "};sprint EQ {name EQ "
-            + octaneStringLiteral(sprintName)
-            + "}";
-    String aggregateQuery =
-        "test EQ {subtype EQ ^test_suite^};release EQ {name EQ "
-            + octaneStringLiteral(releaseName)
-            + "};sprint EQ {name EQ "
-            + octaneStringLiteral(sprintName)
-            + "}";
+    String releaseFilter = "release EQ {name EQ " + octaneStringLiteral(releaseName) + "}";
+    String sprintFilter =
+        Util.isBlank(sprintName)
+            ? ""
+            : ";sprint EQ {name EQ " + octaneStringLiteral(sprintName) + "}";
+    String relationshipQuery = releaseFilter + sprintFilter;
+    String aggregateQuery = "test EQ {subtype EQ ^test_suite^};" + relationshipQuery;
     try {
       return fetchEntityIds(sharedSpaceId, workspaceId, "runs", aggregateQuery);
     } catch (IOException aggregateFailure) {
@@ -149,7 +178,7 @@ public class OctaneClient implements AutoCloseable {
         return fetchEntityIds(sharedSpaceId, workspaceId, "suite_runs", relationshipQuery);
       } catch (IOException suiteRunsFailure) {
         throw new AbortException(
-            "ALM Octane release/sprint suite discovery failed. Runs collection lookup failed: "
+            "ALM Octane dynamic suite discovery failed. Runs collection lookup failed: "
                 + aggregateFailure.getMessage()
                 + ". suite_runs fallback failed: "
                 + suiteRunsFailure.getMessage());
@@ -202,34 +231,99 @@ public class OctaneClient implements AutoCloseable {
     if (suiteRunIds.isEmpty()) {
       return Map.of();
     }
-    String namespace =
-        baseUrl
-            + "\u0000"
-            + clientId
-            + "\u0000"
-            + sharedSpaceId
-            + "\u0000"
-            + workspaceId
-            + (tolerateMissingSuites ? "\u0000available" : "\u0000strict");
-    Map<String, List<String>> topology =
+    Map<String, OctaneSuiteTopologyCache.Topology> topology =
         OctaneSuiteTopologyCache.getAll(
-            namespace,
+            topologyNamespace(sharedSpaceId, workspaceId, tolerateMissingSuites),
             suiteRunIds,
             missing ->
                 fetchSuiteTopologies(sharedSpaceId, workspaceId, missing, tolerateMissingSuites));
+    topology = resolveCachedSuiteOwners(sharedSpaceId, workspaceId, suiteRunIds, topology);
+    List<String> childRunIds = childRunIds(suiteRunIds, topology);
+    List<RunRecord> childRuns = fetchRunsByIds(sharedSpaceId, workspaceId, childRunIds, "");
+    return assembleSuiteRuns(
+        sharedSpaceId,
+        workspaceId,
+        suiteRunIds,
+        topology,
+        runsById(childRuns),
+        tolerateMissingSuites);
+  }
+
+  private String topologyNamespace(
+      String sharedSpaceId, String workspaceId, boolean tolerateMissingSuites) {
+    return baseUrl
+        + "\u0000"
+        + clientId
+        + "\u0000"
+        + sharedSpaceId
+        + "\u0000"
+        + workspaceId
+        + (tolerateMissingSuites ? "\u0000available" : "\u0000strict");
+  }
+
+  private List<String> childRunIds(
+      List<String> suiteRunIds, Map<String, OctaneSuiteTopologyCache.Topology> topology) {
     LinkedHashSet<String> childRunIds = new LinkedHashSet<>();
     for (String suiteRunId : suiteRunIds) {
-      childRunIds.addAll(topology.getOrDefault(suiteRunId, List.of()));
+      childRunIds.addAll(
+          topology.getOrDefault(suiteRunId, OctaneSuiteTopologyCache.Topology.empty()).runIds());
     }
-    List<RunRecord> childRuns =
-        fetchRunsByIds(sharedSpaceId, workspaceId, new ArrayList<>(childRunIds), "");
+    return new ArrayList<>(childRunIds);
+  }
+
+  private Map<String, OctaneSuiteTopologyCache.Topology> resolveCachedSuiteOwners(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      Map<String, OctaneSuiteTopologyCache.Topology> topology)
+      throws InterruptedException {
+    Map<String, OctaneSuiteTopologyCache.Topology> resolved = new LinkedHashMap<>(topology);
+    for (String suiteRunId : suiteRunIds) {
+      OctaneSuiteTopologyCache.Topology current = resolved.get(suiteRunId);
+      if (current == null || !Util.isBlank(current.suiteOwnerName())) {
+        continue;
+      }
+      String owner =
+          lockedSuiteOwners.get(suiteAssignmentKey(sharedSpaceId, workspaceId, suiteRunId));
+      if (Util.isBlank(owner)) {
+        owner =
+            fetchDedicatedSuiteOwnerName(
+                sharedSpaceId,
+                workspaceId,
+                suiteRunId,
+                current.testSuiteId(),
+                current.fallbackOwnerName());
+      }
+      if (!Util.isBlank(owner)) {
+        resolved.put(
+            suiteRunId,
+            new OctaneSuiteTopologyCache.Topology(
+                current.runIds(), owner, current.testSuiteId(), current.fallbackOwnerName()));
+      }
+    }
+    return resolved;
+  }
+
+  private Map<String, RunRecord> runsById(List<RunRecord> childRuns) {
     Map<String, RunRecord> runsById = new LinkedHashMap<>();
     for (RunRecord run : childRuns) {
       runsById.putIfAbsent(run.getId(), run);
     }
+    return runsById;
+  }
+
+  private Map<String, List<RunRecord>> assembleSuiteRuns(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      Map<String, OctaneSuiteTopologyCache.Topology> topology,
+      Map<String, RunRecord> runsById,
+      boolean tolerateMissingSuites) {
     Map<String, List<RunRecord>> result = new LinkedHashMap<>();
     for (String suiteRunId : suiteRunIds) {
-      List<String> topologyRunIds = topology.getOrDefault(suiteRunId, List.of());
+      OctaneSuiteTopologyCache.Topology suiteTopology =
+          topology.getOrDefault(suiteRunId, OctaneSuiteTopologyCache.Topology.empty());
+      List<String> topologyRunIds = suiteTopology.runIds();
       // Existing suites always retain their own run ID when no child runs are present. An empty
       // topology therefore identifies a suite omitted by tolerant missing-suite resolution.
       if (tolerateMissingSuites && topologyRunIds.isEmpty()) {
@@ -245,7 +339,13 @@ public class OctaneClient implements AutoCloseable {
       if (tolerateMissingSuites && runs.isEmpty()) {
         continue;
       }
-      result.put(suiteRunId, List.copyOf(runs));
+      result.put(
+          suiteRunId,
+          attributeSuiteRuns(
+              suiteAssignmentKey(sharedSpaceId, workspaceId, suiteRunId),
+              suiteRunId,
+              suiteTopology.suiteOwnerName(),
+              runs));
     }
     return result;
   }
@@ -371,116 +471,190 @@ public class OctaneClient implements AutoCloseable {
   private JsonNode fetchSuiteRun(String sharedSpaceId, String workspaceId, String suiteRunId)
       throws IOException, InterruptedException {
     String query = "id EQ " + safeEntityId(suiteRunId);
-    String path =
-        workspacePath(sharedSpaceId, workspaceId)
-            + "/runs?"
-            + parameter("query", quote(query))
-            + "&"
-            + parameter("fields", RUN_FIELDS)
-            + "&"
-            + parameter("limit", "1");
-    Exception runsLookupFailure = null;
-    try {
-      JsonNode collection = getJson(path);
-      JsonNode data = collection.path("data");
-      if (data.isArray() && !data.isEmpty()) {
-        JsonNode candidate = data.get(0);
-        if (suiteRunId.equals(candidate.path("id").asString())) {
-          return candidate;
-        }
-      }
-    } catch (IOException | JacksonException e) {
-      // Some Octane versions reject querying suite runs through the aggregate collection.
-      runsLookupFailure = e;
+    SuiteRunLookup runsLookup = findSuiteRunInRuns(sharedSpaceId, workspaceId, suiteRunId, query);
+    if (runsLookup.node() != null) {
+      return runsLookup.node();
     }
-
-    String fallbackPath =
-        workspacePath(sharedSpaceId, workspaceId)
-            + "/suite_runs/"
-            + encode(suiteRunId)
-            + "?"
-            + parameter("fields", RUN_FIELDS);
-    JsonNode node;
-    try {
-      node = getJson(fallbackPath);
-    } catch (IOException e) {
-      if (isNotFound(e)) {
-        throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
-      }
-      if (runsLookupFailure != null) {
-        throw new AbortException(
-            "ALM Octane suite run lookup failed. Runs collection lookup failed: "
-                + runsLookupFailure.getMessage()
-                + ". suite_runs fallback failed: "
-                + e.getMessage());
-      }
-      throw e;
+    SuiteRunLookup suiteLookup = findSuiteRunEntity(sharedSpaceId, workspaceId, suiteRunId);
+    if (suiteLookup.node() != null) {
+      return suiteLookup.node();
     }
-    JsonNode data = node.path("data");
-    if (data.isArray() && !data.isEmpty()) {
-      return data.get(0);
-    }
-    if (!node.path("id").isMissingNode()) {
-      return node;
+    if (runsLookup.failure() != null && suiteLookup.failure() != null) {
+      throw new AbortException(
+          "ALM Octane suite run lookup failed. Runs collection lookup failed: "
+              + runsLookup.failure().getMessage()
+              + ". suite_runs fallback failed: "
+              + suiteLookup.failure().getMessage());
     }
     throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
   }
 
-  private Map<String, List<String>> fetchSuiteTopologies(
+  private SuiteRunLookup findSuiteRunInRuns(
+      String sharedSpaceId, String workspaceId, String suiteRunId, String query)
+      throws InterruptedException {
+    Exception lookupFailure = null;
+    for (String fields : suiteRunFieldCandidates()) {
+      String path =
+          workspacePath(sharedSpaceId, workspaceId)
+              + "/runs?"
+              + parameter("query", quote(query))
+              + "&"
+              + parameter("fields", fields)
+              + "&"
+              + parameter("limit", "1");
+      try {
+        JsonNode collection = getJson(path);
+        JsonNode data = collection.path("data");
+        if (data.isArray() && !data.isEmpty()) {
+          JsonNode candidate = data.get(0);
+          if (suiteRunId.equals(candidate.path("id").asString())) {
+            return new SuiteRunLookup(candidate, null);
+          }
+        }
+      } catch (IOException | JacksonException e) {
+        // Some Octane versions reject owner or aggregate suite-run fields.
+        lookupFailure = e;
+      }
+    }
+    return new SuiteRunLookup(null, lookupFailure);
+  }
+
+  private SuiteRunLookup findSuiteRunEntity(
+      String sharedSpaceId, String workspaceId, String suiteRunId)
+      throws IOException, InterruptedException {
+    IOException suiteLookupFailure = null;
+    for (String fields : suiteRunFieldCandidates()) {
+      String fallbackPath =
+          workspacePath(sharedSpaceId, workspaceId)
+              + "/suite_runs/"
+              + encode(suiteRunId)
+              + "?"
+              + parameter("fields", fields);
+      JsonNode node;
+      try {
+        node = getJson(fallbackPath);
+      } catch (IOException e) {
+        if (isNotFound(e)) {
+          throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
+        }
+        suiteLookupFailure = e;
+        continue;
+      }
+      JsonNode data = node.path("data");
+      if (data.isArray() && !data.isEmpty()) {
+        return new SuiteRunLookup(data.get(0), null);
+      }
+      if (!node.path("id").isMissingNode()) {
+        return new SuiteRunLookup(node, null);
+      }
+    }
+    return new SuiteRunLookup(null, suiteLookupFailure);
+  }
+
+  private Map<String, OctaneSuiteTopologyCache.Topology> fetchSuiteTopologies(
       String sharedSpaceId,
       String workspaceId,
       List<String> suiteRunIds,
       boolean tolerateMissingSuites)
       throws IOException, InterruptedException {
-    Map<String, List<String>> topology = new LinkedHashMap<>();
+    Map<String, OctaneSuiteTopologyCache.Topology> topology = new LinkedHashMap<>();
     for (int start = 0; start < suiteRunIds.size(); start += QUERY_CHUNK_SIZE) {
       int end = Math.min(start + QUERY_CHUNK_SIZE, suiteRunIds.size());
       List<String> chunk = suiteRunIds.subList(start, end);
-      try {
-        String path =
-            workspacePath(sharedSpaceId, workspaceId)
-                + "/runs?"
-                + parameter("query", quote(buildIdQuery(chunk)))
-                + "&"
-                + parameter("fields", RUN_FIELDS)
-                + "&"
-                + parameter("limit", Integer.toString(PAGE_SIZE));
-        JsonNode data = getJson(path).path("data");
-        if (data.isArray()) {
-          for (JsonNode suiteRun : data) {
-            String id = suiteRun.path("id").asString();
-            if (!chunk.contains(id)) {
-              continue;
-            }
-            List<String> runIds = parseRunsInSuite(suiteRun);
-            topology.put(id, runIds.isEmpty() ? List.of(id) : List.copyOf(runIds));
-          }
-        }
-      } catch (IOException ignored) {
-        // Older Octane versions may require the suite_runs entity endpoint.
-      }
-      for (String suiteRunId : chunk) {
-        if (topology.containsKey(suiteRunId)) {
-          continue;
-        }
-        JsonNode suiteRun;
-        try {
-          suiteRun = fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
-        } catch (AbortException e) {
-          if (tolerateMissingSuites && isMissingSuiteRun(e)) {
-            continue;
-          }
-          throw e;
-        }
-        List<String> runIds = parseRunsInSuite(suiteRun);
-        topology.put(
-            suiteRunId,
-            runIds.isEmpty()
-                ? List.of(suiteRun.path("id").asString(suiteRunId))
-                : List.copyOf(runIds));
-      }
+      fetchRunTopologies(sharedSpaceId, workspaceId, chunk, topology);
+      resolveMissingTopologies(sharedSpaceId, workspaceId, chunk, topology, tolerateMissingSuites);
     }
     return topology;
+  }
+
+  private void fetchRunTopologies(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      Map<String, OctaneSuiteTopologyCache.Topology> topology)
+      throws InterruptedException {
+    for (String fields : suiteRunFieldCandidates()) {
+      try {
+        JsonNode data =
+            getJson(suiteRunsPath(sharedSpaceId, workspaceId, suiteRunIds, fields)).path("data");
+        addRunTopologies(suiteRunIds, data, topology);
+        return;
+      } catch (IOException ignored) {
+        // Retry without owner before falling back to the suite_runs entity endpoint.
+      }
+    }
+  }
+
+  private String suiteRunsPath(
+      String sharedSpaceId, String workspaceId, List<String> suiteRunIds, String fields) {
+    return workspacePath(sharedSpaceId, workspaceId)
+        + "/runs?"
+        + parameter("query", quote(buildIdQuery(suiteRunIds)))
+        + "&"
+        + parameter("fields", fields)
+        + "&"
+        + parameter("limit", Integer.toString(PAGE_SIZE));
+  }
+
+  private List<String> suiteRunFieldCandidates() {
+    return List.of(
+        DEFAULT_RUN_BY_SUITE_RUN_FIELDS,
+        ASSIGNED_TO_SUITE_RUN_FIELDS,
+        ASSIGNEE_SUITE_RUN_FIELDS,
+        SAFE_DEFAULT_RUN_BY_SUITE_RUN_FIELDS,
+        SAFE_ASSIGNED_TO_SUITE_RUN_FIELDS,
+        SAFE_ASSIGNEE_SUITE_RUN_FIELDS,
+        SUITE_RUN_FIELDS,
+        SAFE_SUITE_RUN_FIELDS,
+        RUN_FIELDS,
+        SAFE_RUN_FIELDS);
+  }
+
+  private void addRunTopologies(
+      List<String> suiteRunIds,
+      JsonNode data,
+      Map<String, OctaneSuiteTopologyCache.Topology> topology) {
+    if (!data.isArray()) {
+      return;
+    }
+    for (JsonNode suiteRun : data) {
+      String id = suiteRun.path("id").asString();
+      if (suiteRunIds.contains(id)) {
+        topology.put(id, topologyFromSuiteRun(suiteRun, id));
+      }
+    }
+  }
+
+  private void resolveMissingTopologies(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      Map<String, OctaneSuiteTopologyCache.Topology> topology,
+      boolean tolerateMissingSuites)
+      throws IOException, InterruptedException {
+    for (String suiteRunId : suiteRunIds) {
+      if (topology.containsKey(suiteRunId)) {
+        continue;
+      }
+      JsonNode suiteRun =
+          fetchMissingSuiteRun(sharedSpaceId, workspaceId, suiteRunId, tolerateMissingSuites);
+      if (suiteRun != null) {
+        topology.put(suiteRunId, topologyFromSuiteRun(suiteRun, suiteRunId));
+      }
+    }
+  }
+
+  private JsonNode fetchMissingSuiteRun(
+      String sharedSpaceId, String workspaceId, String suiteRunId, boolean tolerateMissingSuites)
+      throws IOException, InterruptedException {
+    try {
+      return fetchSuiteRun(sharedSpaceId, workspaceId, suiteRunId);
+    } catch (AbortException e) {
+      if (tolerateMissingSuites && isMissingSuiteRun(e)) {
+        return null;
+      }
+      throw e;
+    }
   }
 
   private boolean isNotFound(IOException exception) {
@@ -519,6 +693,20 @@ public class OctaneClient implements AutoCloseable {
   private List<RunRecord> fetchRunsChunk(
       String sharedSpaceId, String workspaceId, List<String> runIds, String scopeQuery)
       throws IOException, InterruptedException {
+    try {
+      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, RUN_FIELDS);
+    } catch (IOException richFieldsFailure) {
+      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, SAFE_RUN_FIELDS);
+    }
+  }
+
+  private List<RunRecord> fetchRunsChunk(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> runIds,
+      String scopeQuery,
+      String fields)
+      throws IOException, InterruptedException {
     String query = buildIdQuery(runIds);
     if (!Util.isBlank(scopeQuery)) {
       query = "(" + query + ");(" + scopeQuery + ")";
@@ -533,7 +721,7 @@ public class OctaneClient implements AutoCloseable {
               + "/runs?"
               + parameter("query", quote(query))
               + "&"
-              + parameter("fields", RUN_FIELDS)
+              + parameter("fields", fields)
               + "&"
               + parameter("limit", Integer.toString(PAGE_SIZE))
               + "&"
@@ -744,27 +932,40 @@ public class OctaneClient implements AutoCloseable {
         continue;
       }
       rememberCookies(response.headers());
-      if (response.statusCode() == 401 && attempt == 1) {
-        authenticate();
-        continue;
+      switch (responseAction(response, attempt)) {
+        case REAUTHENTICATE -> authenticate();
+        case RETRY -> {
+          lastResponse = response;
+          pauseBeforeRetry(attempt, response);
+        }
+        case FAIL -> throw requestFailure(request, response);
+        case RETURN -> {
+          return response;
+        }
       }
-      if (response.statusCode() == 429 || response.statusCode() >= 500) {
-        lastResponse = response;
-        pauseBeforeRetry(attempt, response);
-        continue;
-      }
-      if (response.statusCode() >= 400) {
-        throw requestFailure(request, response);
-      }
-      return response;
     }
+    throw failedAfterRetries(lastRequest, lastResponse, lastException);
+  }
+
+  private ResponseAction responseAction(StringResponse response, int attempt) {
+    if (response.statusCode() == 401 && attempt == 1) {
+      return ResponseAction.REAUTHENTICATE;
+    }
+    if (response.statusCode() == 429 || response.statusCode() >= 500) {
+      return ResponseAction.RETRY;
+    }
+    return response.statusCode() >= 400 ? ResponseAction.FAIL : ResponseAction.RETURN;
+  }
+
+  private IOException failedAfterRetries(
+      HttpRequest lastRequest, StringResponse lastResponse, IOException lastException) {
     if (lastResponse != null) {
-      throw requestFailure(lastRequest, lastResponse);
+      return requestFailure(lastRequest, lastResponse);
     }
     if (lastException != null) {
-      throw lastException;
+      return lastException;
     }
-    throw new AbortException("ALM Octane request failed after retries.");
+    return new AbortException("ALM Octane request failed after retries.");
   }
 
   private HttpRequest.Builder requestBuilder(String uri) {
@@ -934,15 +1135,218 @@ public class OctaneClient implements AutoCloseable {
     }
     EntityReference test = readEntity(node.path("test"));
     EntityReference project = readFirstEntity(node, List.of("product_areas", "product_area"));
+    String executionActorName =
+        readPersonField(node.path("run_by"))
+            .or(() -> readPersonField(node.path("native_tester")))
+            .orElse("");
     return new RunRecord(
         node.path("id").asString(),
         node.path("name").asString(),
         status,
-        readPersonName(node),
+        executionActorName,
+        "",
         test.id,
         test.name,
         project.id,
         project.name);
+  }
+
+  private OctaneSuiteTopologyCache.Topology topologyFromSuiteRun(
+      JsonNode suiteRun, String fallbackId) {
+    List<String> runIds = parseRunsInSuite(suiteRun);
+    List<String> effectiveRunIds =
+        runIds.isEmpty() ? List.of(suiteRun.path("id").asString(fallbackId)) : List.copyOf(runIds);
+    return new OctaneSuiteTopologyCache.Topology(
+        effectiveRunIds,
+        readSuiteAssignmentName(suiteRun),
+        readEntity(suiteRun.path("test")).id,
+        readPersonField(suiteRun.path("owner")).orElse(""));
+  }
+
+  private String readSuiteAssignmentName(JsonNode suiteRun) {
+    Optional<String> defaultRunBy = readPersonField(suiteRun.path("default_run_by"));
+    if (defaultRunBy.isPresent()) {
+      return defaultRunBy.get();
+    }
+
+    // Older Octane schemas expose the parent suite run's "Default run by" as run_by. This
+    // method only receives parent suite nodes; child run_by is parsed separately as an actor.
+    Optional<String> parentRunBy =
+        readPersonField(suiteRun.path("run_by"))
+            .filter(name -> !SYSTEM_PARENT_RUNNER.matcher(name).find());
+    if (parentRunBy.isPresent()) {
+      return parentRunBy.get();
+    }
+
+    for (String fieldName : List.of("assigned_to", "assignee")) {
+      Optional<String> suiteOwner = readPersonField(suiteRun.path(fieldName));
+      if (suiteOwner.isPresent()) {
+        return suiteOwner.get();
+      }
+    }
+    return "";
+  }
+
+  private String readSuiteOwnerName(JsonNode suiteRun) {
+    String assignment = readSuiteAssignmentName(suiteRun);
+    return Util.isBlank(assignment)
+        ? readPersonField(suiteRun.path("owner")).orElse("")
+        : assignment;
+  }
+
+  private String resolveSuiteOwnerName(
+      String sharedSpaceId, String workspaceId, String suiteRunId, JsonNode suiteRun)
+      throws InterruptedException {
+    String suiteOwnerName = readSuiteAssignmentName(suiteRun);
+    return Util.isBlank(suiteOwnerName)
+        ? fetchDedicatedSuiteOwnerName(
+            sharedSpaceId,
+            workspaceId,
+            suiteRunId,
+            readEntity(suiteRun.path("test")).id,
+            readPersonField(suiteRun.path("owner")).orElse(""))
+        : suiteOwnerName;
+  }
+
+  private String fetchDedicatedSuiteOwnerName(
+      String sharedSpaceId,
+      String workspaceId,
+      String suiteRunId,
+      String testSuiteId,
+      String knownFallbackOwnerName)
+      throws InterruptedException {
+    for (String fields :
+        List.of(
+            DEFAULT_RUN_BY_FIELDS,
+            PARENT_RUN_BY_FIELDS,
+            SUITE_ASSIGNED_TO_FIELDS,
+            SUITE_ASSIGNEE_FIELDS)) {
+      String suiteOwnerName = fetchSuiteRunPerson(sharedSpaceId, workspaceId, suiteRunId, fields);
+      if (!Util.isBlank(suiteOwnerName)) {
+        return suiteOwnerName;
+      }
+    }
+
+    String plannedDefaultRunBy =
+        fetchRelatedTestSuiteDefaultRunBy(sharedSpaceId, workspaceId, suiteRunId, testSuiteId);
+    if (!Util.isBlank(plannedDefaultRunBy)) {
+      return plannedDefaultRunBy;
+    }
+
+    // Generic ownership is intentionally last. It must not mask the suite plan's Default run by.
+    if (!Util.isBlank(knownFallbackOwnerName)) {
+      return Util.trimToEmpty(knownFallbackOwnerName);
+    }
+    return fetchSuiteRunPerson(sharedSpaceId, workspaceId, suiteRunId, SUITE_OWNER_FIELDS);
+  }
+
+  private String fetchSuiteRunPerson(
+      String sharedSpaceId, String workspaceId, String suiteRunId, String fields)
+      throws InterruptedException {
+    String path =
+        workspacePath(sharedSpaceId, workspaceId)
+            + "/suite_runs/"
+            + encode(safeEntityId(suiteRunId))
+            + "?"
+            + parameter("fields", fields);
+    try {
+      return readSuiteOwnerName(singleEntity(getJson(path)));
+    } catch (IOException | JacksonException ignored) {
+      // Parent assignment field names vary across Octane versions.
+      return "";
+    }
+  }
+
+  private String fetchRelatedTestSuiteDefaultRunBy(
+      String sharedSpaceId, String workspaceId, String suiteRunId, String knownTestSuiteId)
+      throws InterruptedException {
+    String testSuiteId = Util.trimToEmpty(knownTestSuiteId);
+    if (testSuiteId.isEmpty()) {
+      testSuiteId = fetchSuiteRunTestId(sharedSpaceId, workspaceId, suiteRunId);
+    }
+    if (testSuiteId.isEmpty()) {
+      return "";
+    }
+
+    for (String collection : List.of("tests", "test_suites")) {
+      for (String fields : List.of(DEFAULT_RUN_BY_FIELDS, PARENT_RUN_BY_FIELDS)) {
+        String path =
+            workspacePath(sharedSpaceId, workspaceId)
+                + "/"
+                + collection
+                + "/"
+                + encode(safeEntityId(testSuiteId))
+                + "?"
+                + parameter("fields", fields);
+        try {
+          String defaultRunBy = readSuiteAssignmentName(singleEntity(getJson(path)));
+          if (!Util.isBlank(defaultRunBy)) {
+            return defaultRunBy;
+          }
+        } catch (IOException | JacksonException ignored) {
+          // Test suites are aggregate tests in some Octane versions and a subtype in others.
+        }
+      }
+    }
+    return "";
+  }
+
+  private String fetchSuiteRunTestId(String sharedSpaceId, String workspaceId, String suiteRunId)
+      throws InterruptedException {
+    String safeSuiteRunId = safeEntityId(suiteRunId);
+    String path =
+        workspacePath(sharedSpaceId, workspaceId)
+            + "/suite_runs/"
+            + encode(safeSuiteRunId)
+            + "?"
+            + parameter("fields", SUITE_TEST_FIELDS);
+    try {
+      return readEntity(singleEntity(getJson(path)).path("test")).id;
+    } catch (IOException | JacksonException ignored) {
+      return "";
+    }
+  }
+
+  private JsonNode singleEntity(JsonNode response) {
+    JsonNode data = response.path("data");
+    return data.isArray() && !data.isEmpty() ? data.get(0) : response;
+  }
+
+  private String suiteOwnerDisplayName(String suiteRunId, String ownerName) {
+    String owner = Util.trimToEmpty(ownerName);
+    return owner.isEmpty() ? "Unassigned (" + Util.trimToEmpty(suiteRunId) + ")" : owner;
+  }
+
+  private String suiteAssignmentKey(String sharedSpaceId, String workspaceId, String suiteRunId) {
+    return baseUrl
+        + "\u0000"
+        + clientId
+        + "\u0000"
+        + Util.trimToEmpty(sharedSpaceId)
+        + "\u0000"
+        + Util.trimToEmpty(workspaceId)
+        + "\u0000"
+        + Util.trimToEmpty(suiteRunId);
+  }
+
+  private List<RunRecord> attributeSuiteRuns(
+      String assignmentKey, String suiteRunId, String suiteOwnerName, List<RunRecord> runs) {
+    String assignment = lockedSuiteOwners.get(assignmentKey);
+    if (Util.isBlank(assignment) && !Util.isBlank(suiteOwnerName)) {
+      assignment = Util.trimToEmpty(suiteOwnerName);
+      rememberSuiteOwner(assignmentKey, assignment);
+    }
+    String groupingName =
+        Util.isBlank(assignment) ? suiteOwnerDisplayName(suiteRunId, "") : assignment;
+    return runs.stream().map(run -> run.withSuiteOwnerName(groupingName)).toList();
+  }
+
+  private void rememberSuiteOwner(String key, String assignment) {
+    lockedSuiteOwners.put(key, assignment);
+    while (lockedSuiteOwners.size() > MAX_LOCKED_ATTRIBUTIONS) {
+      String eldestAssignmentKey = lockedSuiteOwners.keySet().iterator().next();
+      lockedSuiteOwners.remove(eldestAssignmentKey);
+    }
   }
 
   private DefectRecord parseDefect(JsonNode node) {
@@ -1018,16 +1422,6 @@ public class OctaneClient implements AutoCloseable {
     return new EntityReference(entityNode.asString(), entityNode.asString());
   }
 
-  private String readPersonName(JsonNode node) {
-    for (String fieldName : List.of("run_by", "assigned_to", "assignee", "owner", "executor")) {
-      Optional<String> name = readPersonField(node.path(fieldName));
-      if (name.isPresent()) {
-        return name.get();
-      }
-    }
-    return "";
-  }
-
   private Optional<String> readPersonField(JsonNode personNode) {
     if (personNode.isMissingNode() || personNode.isNull()) {
       return Optional.empty();
@@ -1035,6 +1429,24 @@ public class OctaneClient implements AutoCloseable {
     if (personNode.isString()) {
       return Optional.of(personNode.asString());
     }
+    if (personNode.isArray()) {
+      return readPersonArray(personNode);
+    }
+    Optional<String> directValue = readNamedPersonValue(personNode);
+    return directValue.isPresent() ? directValue : readPersonField(personNode.path("data"));
+  }
+
+  private Optional<String> readPersonArray(JsonNode people) {
+    for (JsonNode person : people) {
+      Optional<String> value = readPersonField(person);
+      if (value.isPresent()) {
+        return value;
+      }
+    }
+    return Optional.empty();
+  }
+
+  private Optional<String> readNamedPersonValue(JsonNode personNode) {
     for (String fieldName : List.of("name", "full_name", "display_name", "email", "id")) {
       Optional<String> value = readOptionalText(personNode, fieldName);
       if (value.isPresent() && !value.get().isBlank()) {
@@ -1076,6 +1488,15 @@ public class OctaneClient implements AutoCloseable {
 
   private record StringResponse(
       int statusCode, HttpRequest request, HttpHeaders headers, String body) {}
+
+  private record SuiteRunLookup(JsonNode node, Exception failure) {}
+
+  private enum ResponseAction {
+    REAUTHENTICATE,
+    RETRY,
+    FAIL,
+    RETURN
+  }
 
   private static final class EntityReference {
     private static final EntityReference EMPTY = new EntityReference("", "");

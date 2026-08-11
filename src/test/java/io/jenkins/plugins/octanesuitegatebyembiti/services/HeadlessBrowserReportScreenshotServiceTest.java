@@ -68,6 +68,45 @@ public class HeadlessBrowserReportScreenshotServiceTest {
   }
 
   @Test
+  public void measuresRenderedReportHeightAtTheRequestedWidth() {
+    HeadlessBrowserReportScreenshotService service = new HeadlessBrowserReportScreenshotService();
+
+    List<String> command =
+        service.measurementCommand(
+            "chrome.exe",
+            "C:\\jenkins\\chrome-profile",
+            "file:///C:/jenkins/report.html",
+            1400,
+            880);
+
+    assertTrue(command.contains("--user-data-dir=C:\\jenkins\\chrome-profile"));
+    assertTrue(command.contains("--virtual-time-budget=3000"));
+    assertTrue(command.contains("--force-device-scale-factor=2"));
+    assertTrue(command.contains("--window-size=1400,880"));
+    assertTrue(command.contains("--dump-dom"));
+    assertEquals("file:///C:/jenkins/report.html", command.get(command.size() - 1));
+  }
+
+  @Test
+  public void usesMeasuredHeightWhenValidAndFallsBackForInvalidDom() {
+    HeadlessBrowserReportScreenshotService service = new HeadlessBrowserReportScreenshotService();
+
+    assertEquals(
+        742,
+        service.renderedHeightFromDom(
+            "<html data-octane-capture-height=\"742\"><body></body></html>", 880));
+    assertEquals(880, service.renderedHeightFromDom("<html><body></body></html>", 880));
+    assertEquals(
+        880,
+        service.renderedHeightFromDom(
+            "<html data-octane-capture-height=\"0\"><body></body></html>", 880));
+    assertEquals(
+        880,
+        service.renderedHeightFromDom(
+            "<html data-octane-capture-height=\"99999\"><body></body></html>", 880));
+  }
+
+  @Test
   public void validatesWebpFileSignature() throws Exception {
     HeadlessBrowserReportScreenshotService service = new HeadlessBrowserReportScreenshotService();
     Path webp = Files.createTempFile("octane-report", ".webp");

@@ -8,10 +8,16 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
 public class OctaneGateLogListener {
+  private static final DateTimeFormatter RECONCILIATION_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
+
   public void logWaiting(TaskListener listener, List<String> suiteRunIds) {
     logWaiting(listener, null, suiteRunIds);
   }
@@ -73,9 +79,9 @@ public class OctaneGateLogListener {
     listener
         .getLogger()
         .printf(
-            "[WARNING/AUDIT] No active %s suite runs were found for release '%s' and sprint '%s'. "
+            "[WARNING/AUDIT] No active %s suite runs were found for %s. "
                 + "Discovery will continue on every poll. Use Jenkins Abort/Cancel to stop this pipeline.%n",
-            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
+            Util.forLog(label), dynamicSelection(releaseName, sprintName));
   }
 
   public void logDynamicSuiteSelector(
@@ -83,8 +89,15 @@ public class OctaneGateLogListener {
     listener
         .getLogger()
         .printf(
-            "[INFO/AUDIT] %s suite runs use continuous discovery for release '%s' and sprint '%s'.%n",
-            Util.forLog(label), Util.forLog(releaseName), Util.forLog(sprintName));
+            "[INFO/AUDIT] %s suite runs use continuous discovery for %s.%n",
+            Util.forLog(label), dynamicSelection(releaseName, sprintName));
+  }
+
+  private String dynamicSelection(String releaseName, String sprintName) {
+    String release = "release '" + Util.forLog(releaseName) + "'";
+    return Util.isBlank(sprintName)
+        ? release
+        : release + " and sprint '" + Util.forLog(sprintName) + "'";
   }
 
   public void logSuiteRunsAdded(TaskListener listener, String label, List<String> suiteRunIds) {
@@ -124,13 +137,24 @@ public class OctaneGateLogListener {
   }
 
   public void logFinalRefresh(TaskListener listener) {
-    listener.getLogger().println("Refreshing ALM Octane suite runs before completing the gate.");
+    listener
+        .getLogger()
+        .println("FINALIZING: fetching the authoritative final state from ALM Octane.");
   }
 
   public void logFinalRefreshSkipped(TaskListener listener, IOException e) {
     listener
         .getLogger()
         .println("Skipped final ALM Octane refresh: " + Util.forLog(e.getMessage()));
+  }
+
+  public void logFinalReconciliationCompleted(TaskListener listener, Instant completedAt) {
+    listener
+        .getLogger()
+        .println(
+            "Final ALM Octane reconciliation completed at "
+                + RECONCILIATION_TIME_FORMATTER.format(completedAt)
+                + ".");
   }
 
   public void logExtendedTimeStarted(TaskListener listener, int timeoutMinutesExtended) {

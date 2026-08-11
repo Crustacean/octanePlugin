@@ -52,6 +52,8 @@
         .octane-dashboard {
           --octane-system-blue: #007AFF;
           --octane-system-gray: #8E8E93;
+          --octane-system-good: #0f766e;
+          --octane-system-bad: #4338ca;
           --octane-system-green: #34C759;
           --octane-system-orange: #FF9500;
           --octane-system-purple: #AF52DE;
@@ -82,6 +84,8 @@
         @media (prefers-color-scheme: dark) {
           .octane-dashboard {
             --octane-system-blue: #0A84FF;
+            --octane-system-good: #198980;
+            --octane-system-bad: #7268ED;
             --octane-system-green: #30D158;
             --octane-system-orange: #FF9F0A;
             --octane-system-purple: #BF5AF2;
@@ -96,6 +100,8 @@
         .jenkins-theme-dark .octane-dashboard,
         .theme-dark .octane-dashboard {
           --octane-system-blue: #0A84FF;
+          --octane-system-good: #198980;
+          --octane-system-bad: #7268ED;
           --octane-system-green: #30D158;
           --octane-system-orange: #FF9F0A;
           --octane-system-purple: #BF5AF2;
@@ -109,6 +115,8 @@
         .jenkins-theme-light .octane-dashboard,
         .theme-light .octane-dashboard {
           --octane-system-blue: #007AFF;
+          --octane-system-good: #0f766e;
+          --octane-system-bad: #4338ca;
           --octane-system-green: #34C759;
           --octane-system-orange: #FF9500;
           --octane-system-purple: #AF52DE;
@@ -294,6 +302,12 @@
           height: auto;
         }
         .octane-zone-focused .octane-timer-donut {
+          height: min(100cqw, 100cqh, 38vh, 38vw);
+          max-height: min(38vh, 38vw);
+          max-width: min(38vh, 38vw);
+          width: min(100cqw, 100cqh, 38vh, 38vw);
+        }
+        .octane-zone-focused .octane-activity-rings-svg {
           height: min(100cqw, 100cqh, 38vh, 38vw);
           max-height: min(38vh, 38vw);
           max-width: min(38vh, 38vw);
@@ -515,6 +529,7 @@
         .octane-chart-card[data-active-view="timer"] .octane-flip-face-timer,
         .octane-chart-card[data-active-view="heatmap"] .octane-flip-face-heatmap,
         .octane-chart-card[data-active-view="metrics"] .octane-flip-face-metrics,
+        .octane-chart-card[data-active-view="metrics"] .octane-flip-face-management-metrics,
         .octane-chart-card[data-active-view="breakdown"] .octane-flip-face-breakdown,
         .octane-chart-card[data-active-view="defects"] .octane-flip-face-defects {
           opacity: 1;
@@ -568,6 +583,23 @@
           .octane-flip-face-body {
           align-items: stretch;
           justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-pass-rate"][data-active-view="metrics"]
+          .octane-management-metrics-face-body,
+        .octane-test-management-defects-card .octane-management-card-body {
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .octane-chart-card[data-card-key="progress-pass-rate"]
+          .octane-management-metrics-grid {
+          height: 100%;
+        }
+        .octane-test-management-defects-card .octane-defect-face-header {
+          flex: 0 0 auto;
+          width: 100%;
+        }
+        .octane-test-management-defects-card .octane-defect-face-actions {
+          margin-left: auto;
         }
         .octane-chart-card[data-card-key="progress-pass-rate"][data-active-view="defects"]
           > .octane-card-actions {
@@ -1317,27 +1349,6 @@
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .octane-test-metric-visual-sparkline {
-          gap: clamp(0.5rem, 3cqw, 2rem);
-        }
-        .octane-test-metric-sparkline {
-          aspect-ratio: 7 / 5;
-          color: var(--text-color);
-          flex: 0 1 min(34%, 9rem);
-          height: auto;
-          max-width: 34%;
-          min-width: 2.5rem;
-          overflow: visible;
-          width: min(34%, 9rem);
-        }
-        .octane-test-metric-sparkline polyline {
-          fill: none;
-          stroke: currentColor;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          stroke-width: 2.4;
-          vector-effect: non-scaling-stroke;
-        }
         .octane-test-metric-gauge {
           align-items: center;
           container-name: octane-test-metric-gauge;
@@ -1377,6 +1388,7 @@
           letter-spacing: 0;
           text-anchor: middle;
         }
+        .octane-test-metric-visual-automation,
         .octane-test-metric-visual-progress,
         .octane-test-metric-visual-defects {
           flex-direction: column;
@@ -1417,6 +1429,7 @@
           background: var(--octane-system-green);
           border-radius: 999px;
         }
+        .octane-test-metric-automation-segments,
         .octane-test-metric-defect-segments {
           display: flex;
           flex: 0 0 auto;
@@ -1427,6 +1440,7 @@
           min-width: 0;
           width: min(82%, 30rem);
         }
+        .octane-test-metric-automation-track,
         .octane-test-metric-defect-track {
           aspect-ratio: 34 / 1;
           display: flex;
@@ -1434,6 +1448,7 @@
           min-width: 0;
           width: 100%;
         }
+        .octane-test-metric-automation-labels,
         .octane-test-metric-defect-labels {
           display: flex;
           gap: 2px;
@@ -1441,6 +1456,7 @@
           min-width: 0;
           width: 100%;
         }
+        .octane-test-metric-automation-empty-track,
         .octane-test-metric-defect-empty-track {
           background: rgba(142, 142, 147, 0.38);
           background: color-mix(in srgb, var(--text-color-secondary) 38%, transparent);
@@ -1449,6 +1465,7 @@
           height: 100%;
           width: 100%;
         }
+        .octane-test-metric-automation-segment,
         .octane-test-metric-defect-segment {
           flex: 0 1 var(--octane-test-metric-segment-share);
           min-width: 0;
@@ -1460,6 +1477,33 @@
           flex: 0 1 var(--octane-test-metric-segment-share);
           height: 100%;
           min-width: 0;
+        }
+        .octane-test-metric-automation-color {
+          border-radius: 0;
+          display: block;
+          flex: 0 1 var(--octane-test-metric-segment-share);
+          height: 100%;
+          min-width: 0;
+        }
+        .octane-test-metric-automation-track
+          .octane-test-metric-automation-color:first-child {
+          border-bottom-left-radius: 999px;
+          border-top-left-radius: 999px;
+        }
+        .octane-test-metric-automation-track
+          .octane-test-metric-automation-color:last-child {
+          border-bottom-right-radius: 999px;
+          border-top-right-radius: 999px;
+        }
+        .octane-test-metric-automation-track
+          .octane-test-metric-automation-color:only-child {
+          border-radius: 999px;
+        }
+        .octane-test-metric-automation-automated {
+          background: var(--octane-system-good);
+        }
+        .octane-test-metric-automation-manual {
+          background: var(--octane-system-bad);
         }
         .octane-test-metric-defect-track
           .octane-test-metric-defect-color:first-child {
@@ -1493,7 +1537,8 @@
         .octane-test-metric-defect-color-unspecified {
           background: var(--octane-severity-unspecified);
         }
-        .octane-test-metric-defect-label {
+        .octane-test-metric-defect-label,
+        .octane-test-metric-segment-label {
           color: var(--text-color-secondary);
           display: block;
           font-family: Inter, "Segoe UI", Arial, sans-serif;
@@ -1782,6 +1827,12 @@
           max-width: min(76vh, 76vw);
           width: min(100cqw, 100cqh, 76vh, 76vw);
         }
+        .octane-chart-card.octane-expanded .octane-activity-rings-svg {
+          height: min(100cqw, 100cqh, 76vh, 76vw);
+          max-height: min(76vh, 76vw);
+          max-width: min(76vh, 76vw);
+          width: min(100cqw, 100cqh, 76vh, 76vw);
+        }
         .octane-chart-card.octane-expanded .octane-timer-wrap {
           height: 100%;
         }
@@ -1824,6 +1875,45 @@
           min-width: 0;
           width: 100%;
         }
+        .octane-report-status {
+          align-items: baseline;
+          display: flex;
+          flex-wrap: wrap;
+          font-variant-numeric: tabular-nums;
+          gap: 0.35rem;
+        }
+        .octane-report-status-separator {
+          color: var(--text-color-secondary);
+        }
+        .octane-activity-rings {
+          box-sizing: border-box;
+          container-name: octane-activity-rings;
+          container-type: size;
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          padding: 0;
+          width: 100%;
+        }
+        .octane-activity-rings-layout {
+          display: grid;
+          height: 100%;
+          min-height: 0;
+          min-width: 0;
+          place-items: center;
+          position: relative;
+          width: 100%;
+        }
+        .octane-activity-rings-graphic {
+          align-items: center;
+          container-type: size;
+          display: flex;
+          height: 100%;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+        }
         .octane-timer-donut {
           aspect-ratio: 1 / 1;
           display: block;
@@ -1833,6 +1923,149 @@
           overflow: visible;
           shape-rendering: geometricPrecision;
           width: min(100cqw, 100cqh, 220px);
+        }
+        .octane-activity-rings-svg {
+          aspect-ratio: 1;
+          display: block;
+          height: min(100cqw, 100cqh, 220px);
+          max-height: 220px;
+          max-width: 220px;
+          overflow: visible;
+          shape-rendering: geometricPrecision;
+          width: min(100cqw, 100cqh, 220px);
+        }
+        .octane-activity-ring-track,
+        .octane-activity-ring-progress {
+          fill: none;
+          stroke-linecap: round;
+          stroke-width: 16;
+        }
+        .octane-activity-ring-track {
+          opacity: 0.2;
+        }
+        .octane-activity-ring-execution {
+          stroke: #FA114F;
+        }
+        .octane-activity-ring-pass {
+          stroke: #A6FF00;
+        }
+        .octane-activity-ring-automation {
+          stroke: #00FFF6;
+        }
+        .octane-activity-header-copy {
+          flex: 1 1 100%;
+          max-width: none;
+          min-width: 0;
+          width: 100%;
+        }
+        .octane-activity-subtitle {
+          container-name: octane-activity-legend;
+          container-type: inline-size;
+          max-width: none;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
+          width: 100%;
+        }
+        .octane-activity-inline-legend {
+          display: block;
+          font-variant-numeric: tabular-nums;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
+        }
+        .octane-activity-legend-item {
+          align-items: center;
+          display: inline-flex;
+          gap: 0.18rem;
+          white-space: nowrap;
+        }
+        .octane-activity-legend-item:not(:last-child) {
+          margin-inline-end: 0.45rem;
+        }
+        .octane-activity-legend-compact {
+          display: none;
+        }
+        .octane-activity-ring-swatch {
+          border-radius: 50%;
+          display: inline-block;
+          flex: 0 0 auto;
+          height: 0.56rem;
+          margin-right: 0.08rem;
+          width: 0.56rem;
+        }
+        .octane-activity-ring-swatch.octane-activity-ring-execution {
+          background: #FA114F;
+        }
+        .octane-activity-ring-swatch.octane-activity-ring-pass {
+          background: #A6FF00;
+        }
+        .octane-activity-ring-swatch.octane-activity-ring-automation {
+          background: #00FFF6;
+        }
+        .octane-activity-side-legend {
+          border-collapse: collapse;
+          color: var(--text-color);
+          display: none;
+          font-size: clamp(0.68rem, 1.45cqw, 0.9rem);
+          font-variant-numeric: tabular-nums;
+          justify-self: center;
+          line-height: 1.2;
+          table-layout: fixed;
+          width: min(100%, 18rem);
+        }
+        .octane-activity-side-legend caption {
+          border: 0;
+          clip-path: inset(50%);
+          height: 1px;
+          overflow: hidden;
+          position: absolute;
+          white-space: nowrap;
+          width: 1px;
+        }
+        .octane-activity-side-legend th,
+        .octane-activity-side-legend td {
+          border: 0;
+          padding-block: clamp(0.28rem, 0.8cqw, 0.52rem);
+          white-space: nowrap;
+        }
+        .octane-activity-side-legend th {
+          font-weight: 600;
+          padding-inline: 0 1rem;
+          text-align: left;
+        }
+        .octane-activity-side-legend td {
+          font-weight: 600;
+          text-align: right;
+          width: 8ch;
+        }
+        .octane-activity-side-legend-label {
+          align-items: center;
+          display: inline-flex;
+          gap: 0.45rem;
+        }
+        @container octane-activity-rings (min-width: 36rem) {
+          .octane-activity-rings[data-side-legend-visible="true"]
+              .octane-activity-side-legend {
+            display: table;
+            inset-inline-end: 0;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: min(30%, 18rem);
+          }
+        }
+        @container octane-activity-legend (max-width: 34rem) {
+          .octane-activity-legend-full {
+            display: none;
+          }
+          .octane-activity-legend-compact {
+            display: inline;
+          }
         }
         .octane-timer-track {
           fill: none;
@@ -1902,6 +2135,7 @@
         .octane-donut-wrap {
           align-items: center;
           box-sizing: border-box;
+          container-type: size;
           display: flex;
           height: 100%;
           justify-content: center;
@@ -1912,13 +2146,14 @@
           width: 100%;
         }
         .octane-donut {
+          aspect-ratio: 1 / 1;
           display: block;
-          height: 100%;
+          height: min(100cqw, 100cqh);
           max-height: none;
           max-width: none;
           overflow: hidden;
           shape-rendering: geometricPrecision;
-          width: 100%;
+          width: min(100cqw, 100cqh);
         }
         .octane-donut-center-value {
           fill: var(--text-color);
@@ -1977,6 +2212,16 @@
         }
         .octane-donut-legend-label .octane-swatch {
           flex: 0 0 auto;
+        }
+        .octane-automation-icon {
+          align-items: center;
+          display: inline-flex;
+          flex: 0 0 0.8rem;
+          height: 0.8rem;
+          justify-content: center;
+          line-height: 1;
+          text-align: center;
+          width: 0.8rem;
         }
         .octane-donut-legend-percentage {
           font-weight: 600;
@@ -2241,6 +2486,17 @@
           justify-content: space-between;
           padding-top: 0.32rem;
         }
+        .octane-bar-popup-automation {
+          align-items: center;
+          display: grid;
+          gap: 0.32rem;
+          grid-template-columns: 0.55rem minmax(0, 1fr) auto;
+        }
+        .octane-bar-popup-automation .octane-automation-icon {
+          flex-basis: 0.55rem;
+          height: 0.55rem;
+          width: 0.55rem;
+        }
         .octane-vertical-segment {
           display: block;
           width: 100%;
@@ -2371,6 +2627,8 @@
           display: none;
         }
         .octane-tester-tracker {
+          container-name: tester-tracker;
+          container-type: inline-size;
           display: grid;
           grid-template-rows: auto minmax(0, 1fr);
           min-height: 0;
@@ -2380,16 +2638,22 @@
           border-top: 1px solid var(--input-border);
         }
         .octane-tester-tracker-title {
-          font-size: clamp(0.78rem, 1.2vw, 1rem);
+          font-size: clamp(0.7rem, 3.2cqi, 1rem);
           font-weight: 600;
           line-height: 1.35;
           margin: 0;
-          overflow-wrap: anywhere;
+          max-width: 100%;
+          min-width: 0;
+          overflow: hidden;
           padding: clamp(0.7rem, 1.6vw, 1.1rem) clamp(0.75rem, 2vw, 1.25rem);
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
         }
         .octane-tester-column-content {
           max-height: min(58vh, 36rem);
           min-height: clamp(12rem, 28vh, 22rem);
+          overflow-x: hidden;
           overflow-y: auto;
           overscroll-behavior: contain;
           scrollbar-color: #666 transparent;
@@ -2410,7 +2674,11 @@
         }
         .octane-tester-table {
           border-collapse: collapse;
-          table-layout: fixed;
+          box-sizing: border-box;
+          inline-size: 100%;
+          max-width: 100%;
+          min-width: 0;
+          table-layout: auto;
           width: 100%;
         }
         .octane-tester-table[hidden] {
@@ -2445,13 +2713,57 @@
         .octane-tester-email {
           overflow-wrap: anywhere;
           text-align: left;
-          width: 68%;
         }
         .octane-tester-rate {
           font-variant-numeric: tabular-nums;
           text-align: right;
           white-space: nowrap;
-          width: 32%;
+        }
+        .octane-tester-table thead .octane-tester-rate-header {
+          font-size: clamp(0.7rem, 3.2cqi, 1rem);
+          max-width: 100%;
+          overflow: hidden;
+          overflow-wrap: normal;
+          padding-inline-end: clamp(0.75rem, 2vw, 1.25rem);
+          text-align: right;
+          text-overflow: ellipsis;
+          text-wrap: nowrap;
+          white-space: nowrap;
+          word-break: normal;
+        }
+        .octane-tester-responsive-prefix {
+          display: inline;
+        }
+        .octane-tester-comparison-full {
+          display: inline;
+        }
+        .octane-tester-comparison-compact {
+          display: none;
+        }
+        @container tester-tracker (max-width: 24rem) {
+          .octane-tester-responsive-prefix,
+          .octane-tester-comparison-full {
+            display: none;
+          }
+          .octane-tester-comparison-compact {
+            display: inline;
+          }
+        }
+        .octane-scope-project {
+          overflow-wrap: anywhere;
+          text-align: left;
+          width: 58%;
+        }
+        .octane-scope-owner {
+          overflow-wrap: anywhere;
+          text-align: left;
+          width: 42%;
+        }
+        @container tester-details (max-width: 35rem) {
+          .octane-tester-table th,
+          .octane-tester-table td {
+            font-size: 0.72rem;
+          }
         }
         .octane-tester-empty-state {
           align-items: center;
@@ -3487,7 +3799,7 @@
         }
         @media (min-width: 840px) {
           .octane-tester-details-body {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
           .octane-tester-tracker + .octane-tester-tracker {
             border-left: 1px solid var(--input-border);
@@ -3496,7 +3808,7 @@
         }
         @container tester-details (min-width: 52rem) {
           .octane-tester-details-body {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
           .octane-tester-tracker + .octane-tester-tracker {
             border-left: 1px solid var(--input-border);
@@ -3570,9 +3882,22 @@
       <j:set var="snapshot" value="${it.snapshot}" />
       <div class="octane-report">
         <h1>Octane Gate Report</h1>
-        <p class="octane-muted">
-          State: <span data-report-state-label="true">${snapshot.stateLabel}</span> |
-          Last update: <span data-report-updated-at="true">${snapshot.updatedAtText}</span>
+        <p class="octane-muted octane-report-status" data-report-status="true">
+          <span data-report-state-label="true">${snapshot.jobStateLabel}</span>
+          <span class="octane-report-status-separator" aria-hidden="true">|</span>
+          <span data-report-updated-at="true">
+            <j:choose>
+              <j:when test="${snapshot.finalizing}">
+                Finalizing...
+              </j:when>
+              <j:when test="${snapshot.building}">
+                Status Check In : ${snapshot.refreshCountdownText}
+              </j:when>
+              <j:otherwise>
+                LAST UPDATED: ${snapshot.reconciledAtDateTimeText}
+              </j:otherwise>
+            </j:choose>
+          </span>
         </p>
         <p data-report-message="true">${snapshot.message}</p>
           <div class="octane-exit-extended-form" data-exit-extended-form="true"
@@ -3598,7 +3923,12 @@
 
         <div class="octane-dashboard octane-card-zone" id="octane-dashboard"
             data-current-updated-at="${snapshot.updatedAt}"
+            data-current-updated-at-text="${snapshot.updatedAtDateTimeText}"
+            data-job-state-label="${snapshot.jobStateLabel}"
+            data-refresh-seconds="${snapshot.refreshSeconds}"
             data-report-building="${snapshot.building}"
+            data-report-finalizing="${snapshot.finalizing}"
+            data-risk-heat-map-populated="${snapshot.riskHeatMap.populatedData}"
             data-extended-time="${snapshot.extendedTime}"
             data-manual-exit-requested="${it.manualExitRequested}"
             data-manual-exit-requested-at-millis="${it.manualExitRequestedAtMillis}"
@@ -3618,7 +3948,7 @@
                 data-extended-active="${snapshot.extendedTime}"
                 data-started-at="${snapshot.startedAt}"
                 data-updated-at="${snapshot.updatedAt}"
-                data-active="${snapshot.building}"
+                data-active="${snapshot.timerActive}"
                 data-active-view="timer">
               <div class="octane-card-actions">
                 <button class="octane-view-toggle" type="button"
@@ -3674,7 +4004,14 @@
                       <h2 class="octane-card-title" data-timeout-title="true">
                         ${snapshot.testingTimeTitle}
                       </h2>
-                      <div class="octane-muted">Session Time Remaining</div>
+                      <div class="octane-muted" data-timeout-subtitle="true">
+                        <j:choose>
+                          <j:when test="${snapshot.building &amp;&amp; !it.manualExitRequested}">
+                            Session Time Remaining
+                          </j:when>
+                          <j:otherwise>Session Time Spent</j:otherwise>
+                        </j:choose>
+                      </div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
@@ -3693,10 +4030,11 @@
                           </linearGradient>
                         </defs>
                         <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <path class="octane-timer-progress" data-timer-progress="true"
-                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
-                            pathLength="100" stroke="url(#octane-timeout-gradient)"
-                            stroke-dasharray="100 100" stroke-linecap="round" />
+                        <circle class="octane-timer-progress" data-timer-progress="true"
+                            cx="120" cy="120" r="84" pathLength="100"
+                            stroke="url(#octane-timeout-gradient)"
+                            stroke-dasharray="100 100" stroke-linecap="round"
+                            transform="rotate(-90 120 120)" />
                         <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
                           --:--
                         </text>
@@ -3726,6 +4064,12 @@
                             data-test-metric-key="${metric.key}">
                           <div class="octane-test-metric-heading">
                             <j:choose>
+                              <j:when test="${metric.icon == 'automation'}">
+                                <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true">
+                                  <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
+                                </svg>
+                              </j:when>
                               <j:when test="${metric.icon == 'chart'}">
                                 <svg class="octane-test-metric-icon" viewBox="0 0 24 24"
                                     aria-hidden="true">
@@ -3761,13 +4105,41 @@
                             <span>${metric.title}</span>
                           </div>
                           <j:choose>
-                            <j:when test="${metric.key == 'avg-time'}">
-                              <div class="octane-test-metric-visual octane-test-metric-visual-sparkline">
+                            <j:when test="${metric.key == 'automation-usage'}">
+                              <div class="octane-test-metric-visual octane-test-metric-visual-automation">
                                 <div class="octane-test-metric-value">${metric.value}</div>
-                                <svg class="octane-test-metric-sparkline" viewBox="0 0 56 40"
-                                    preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                                  <polyline points="${metric.sparklinePoints}" />
-                                </svg>
+                                <div class="octane-test-metric-automation-segments"
+                                    data-test-metric-segments="true" role="img"
+                                    aria-label="${metric.detail}">
+                                  <j:if test="${!metric.segmented}">
+                                    <div class="octane-test-metric-automation-track"
+                                        aria-hidden="true">
+                                      <span class="octane-test-metric-automation-empty-track"></span>
+                                    </div>
+                                  </j:if>
+                                  <j:if test="${metric.segmented}">
+                                    <div class="octane-test-metric-automation-track"
+                                        aria-hidden="true">
+                                      <j:forEach var="segment" items="${metric.segments}">
+                                        <span class="octane-test-metric-automation-color octane-test-metric-automation-${segment.severityKey}"
+                                            style="--octane-test-metric-segment-share:${segment.percentageText}%"></span>
+                                      </j:forEach>
+                                    </div>
+                                  </j:if>
+                                  <div class="octane-test-metric-automation-labels">
+                                    <j:forEach var="segment" items="${metric.segments}">
+                                      <div class="octane-test-metric-automation-segment"
+                                          data-test-metric-segment="true"
+                                          data-full-label="${segment.label}"
+                                          data-short-label="${segment.shortLabel}"
+                                          style="--octane-test-metric-segment-share:${segment.percentageText}%">
+                                        <span class="octane-test-metric-segment-label">
+                                          ${segment.label}
+                                        </span>
+                                      </div>
+                                    </j:forEach>
+                                  </div>
+                                </div>
                               </div>
                             </j:when>
                             <j:when test="${metric.key == 'success-rate'}">
@@ -3851,7 +4223,7 @@
                 data-total-seconds="${snapshot.refreshSeconds}"
                 data-started-at="${snapshot.updatedAt}"
                 data-updated-at="${snapshot.updatedAt}"
-                data-active="${snapshot.building}"
+                data-active="${snapshot.timerActive}"
                 data-active-view="timer">
               <div class="octane-card-actions">
                 <j:if test="${snapshot.riskHeatMapEnabled}">
@@ -3904,60 +4276,104 @@
               <div class="octane-flip-viewport">
                 <div class="octane-flip-face octane-flip-face-timer" data-card-view="timer">
                   <div class="octane-flip-face-header">
-                    <div>
-                      <h2 class="octane-card-title">Status Check</h2>
-                      <j:choose>
-                        <j:when test="${snapshot.building}">
-                          <div class="octane-muted" data-live-update-line="true">
-                            <span data-live-update-title="true">Polling interval</span>
-                            <span class="octane-live-update" data-live-update-status="true"></span>
-                          </div>
-                        </j:when>
-                        <j:otherwise>
-                          <div class="octane-muted octane-live-update-last-updated"
-                              data-live-update-line="true">
-                            <span data-live-update-title="true">
-                              LAST UPDATED: ${snapshot.updatedAtText}
-                            </span>
-                            <span class="octane-live-update" data-live-update-status="true"></span>
-                          </div>
-                        </j:otherwise>
-                      </j:choose>
+                    <div class="octane-activity-header-copy">
+                      <h2 class="octane-card-title">Execution Activity Rings</h2>
+                      <div class="octane-muted octane-activity-subtitle">
+                        <span class="octane-activity-inline-legend"
+                            data-activity-inline-legend="true"
+                            aria-label="Execution Rate ${snapshot.executionProgressTwoDecimalText} Pass Rate ${snapshot.passRateProgressTwoDecimalText} Automation Usage ${snapshot.automationProgressTwoDecimalText}">
+                          <span class="octane-activity-legend-item">
+                            <span class="octane-activity-ring-swatch octane-activity-ring-execution"
+                                aria-hidden="true"></span>
+                            <span class="octane-activity-legend-full">Execution Rate</span>
+                            <span class="octane-activity-legend-compact" aria-hidden="true">Execution</span>
+                            (<span data-activity-rate="execution">${snapshot.executionProgressTwoDecimalText}</span>)
+                          </span>
+                          <span class="octane-activity-legend-item">
+                            <span class="octane-activity-ring-swatch octane-activity-ring-pass"
+                                aria-hidden="true"></span>
+                            <span class="octane-activity-legend-full">Pass Rate</span>
+                            <span class="octane-activity-legend-compact" aria-hidden="true">Pass</span>
+                            (<span data-activity-rate="pass">${snapshot.passRateProgressTwoDecimalText}</span>)
+                          </span>
+                          <span class="octane-activity-legend-item">
+                            <span class="octane-activity-ring-swatch octane-activity-ring-automation"
+                                aria-hidden="true"></span>
+                            <span class="octane-activity-legend-full">Automation Usage</span>
+                            <span class="octane-activity-legend-compact" aria-hidden="true">Automation</span>
+                            (<span data-activity-rate="automation">${snapshot.automationProgressTwoDecimalText}</span>)
+                          </span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
-                    <div class="octane-timer-wrap">
-                      <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
-                          aria-label="Status Check">
-                        <defs>
-                          <linearGradient id="octane-poll-gradient" x1="32" y1="208" x2="208"
-                              y2="32" gradientUnits="userSpaceOnUse">
-                            <stop data-timer-tail-stop="true" data-timer-gradient-stop="true"
-                                offset="0%" stop-color="#007AFF" />
-                            <stop data-timer-gradient-stop="true" offset="20%"
-                                stop-color="#007AFF" />
-                            <stop data-timer-mid-stop="true" data-timer-gradient-stop="true"
-                                offset="40%" stop-color="#007AFF" />
-                            <stop data-timer-gradient-stop="true" offset="60%"
-                                stop-color="#007AFF" />
-                            <stop data-timer-gradient-stop="true" offset="80%"
-                                stop-color="#007AFF" />
-                            <stop data-timer-head-stop="true" data-timer-gradient-stop="true"
-                                offset="100%" stop-color="#007AFF" />
-                          </linearGradient>
-                        </defs>
-                        <circle class="octane-timer-track" cx="120" cy="120" r="84" />
-                        <path class="octane-timer-progress" data-timer-progress="true"
-                            d="M120 36 A84 84 0 1 0 120 204 A84 84 0 1 0 120 36"
-                            pathLength="100" stroke="url(#octane-poll-gradient)"
-                            stroke-dasharray="100 100" stroke-linecap="round" />
-                        <text class="octane-timer-value" data-timer-value="true" x="120" y="118">
-                          --
-                        </text>
-                        <text class="octane-timer-unit" data-timer-unit="true" x="120" y="132.4">
-                          seconds
-                        </text>
-                      </svg>
+                    <div class="octane-activity-rings" data-activity-rings="true"
+                        data-side-legend-visible="false"
+                        data-activity-value-execution="${snapshot.executionProgress}"
+                        data-activity-value-pass="${snapshot.passRateProgress}"
+                        data-activity-value-automation="${snapshot.testMetrics.automationPercentage}">
+                      <div class="octane-activity-rings-layout">
+                        <div class="octane-activity-rings-graphic">
+                          <svg class="octane-activity-rings-svg" viewBox="0 0 240 240" role="img"
+                              aria-label="Execution rate ${snapshot.executionProgressTwoDecimalText}, pass rate ${snapshot.passRateProgressTwoDecimalText}, automation usage ${snapshot.automationProgressTwoDecimalText}">
+                            <circle class="octane-activity-ring-track octane-activity-ring-execution"
+                                cx="120" cy="120" r="84" pathLength="100" />
+                            <circle class="octane-activity-ring-progress octane-activity-ring-execution"
+                                data-activity-ring="execution" cx="120" cy="120" r="84"
+                                pathLength="100" stroke-dasharray="${snapshot.executionProgress} 100"
+                                transform="rotate(-90 120 120)" />
+                            <circle class="octane-activity-ring-track octane-activity-ring-pass"
+                                cx="120" cy="120" r="64.5" pathLength="100" />
+                            <circle class="octane-activity-ring-progress octane-activity-ring-pass"
+                                data-activity-ring="pass" cx="120" cy="120" r="64.5"
+                                pathLength="100" stroke-dasharray="${snapshot.passRateProgress} 100"
+                                transform="rotate(-90 120 120)" />
+                            <circle class="octane-activity-ring-track octane-activity-ring-automation"
+                                cx="120" cy="120" r="45" pathLength="100" />
+                            <circle class="octane-activity-ring-progress octane-activity-ring-automation"
+                                data-activity-ring="automation" cx="120" cy="120" r="45"
+                                pathLength="100"
+                                stroke-dasharray="${snapshot.testMetrics.automationPercentage} 100"
+                                transform="rotate(-90 120 120)" />
+                          </svg>
+                        </div>
+                        <table class="octane-activity-side-legend">
+                          <caption>Execution activity rates</caption>
+                          <tbody>
+                            <tr>
+                              <th scope="row">
+                                <span class="octane-activity-side-legend-label">
+                                  <span class="octane-activity-ring-swatch octane-activity-ring-execution"
+                                      aria-hidden="true"></span>
+                                  Execution Rate
+                                </span>
+                              </th>
+                              <td data-activity-rate="execution">${snapshot.executionProgressTwoDecimalText}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">
+                                <span class="octane-activity-side-legend-label">
+                                  <span class="octane-activity-ring-swatch octane-activity-ring-pass"
+                                      aria-hidden="true"></span>
+                                  Pass Rate
+                                </span>
+                              </th>
+                              <td data-activity-rate="pass">${snapshot.passRateProgressTwoDecimalText}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">
+                                <span class="octane-activity-side-legend-label">
+                                  <span class="octane-activity-ring-swatch octane-activity-ring-automation"
+                                      aria-hidden="true"></span>
+                                  Automation Usage
+                                </span>
+                              </th>
+                              <td data-activity-rate="automation">${snapshot.automationProgressTwoDecimalText}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4161,12 +4577,16 @@
                 data-active-view="timer">
               <div class="octane-card-actions">
                 <button class="octane-view-toggle octane-view-toggle-root" type="button"
-                    data-target-view="defects" data-target-view-label="execution defect rate"
-                    aria-label="Show execution defect rate" title="Show execution defect rate">
-                  <svg class="octane-action-icon octane-icon-defects" viewBox="0 0 24 24"
+                    data-target-view="metrics" data-target-view-label="QA health and compliance"
+                    aria-label="Show QA health and compliance"
+                    title="Show QA health and compliance">
+                  <svg class="octane-action-icon octane-icon-metrics" viewBox="0 0 24 24"
                       aria-hidden="true" focusable="false">
-                    <path d="M4 18l4-5 4 2 4-8 4 3" />
-                    <path d="M4 20h16" />
+                    <path d="M4 19V5" />
+                    <path d="M4 19h16" />
+                    <path d="M8 15h2" />
+                    <path d="M12 11h2" />
+                    <path d="M16 7h2" />
                   </svg>
                   <svg class="octane-action-icon octane-icon-timer" viewBox="0 0 24 24"
                       aria-hidden="true" focusable="false">
@@ -4791,7 +5211,7 @@
                                 </j:otherwise>
                               </j:choose>
                             </j:forEach>
-                            <circle class="octane-donut-hole" cx="50" cy="50" r="29" />
+                            <circle class="octane-donut-hole" cx="50" cy="50" r="37.36" />
                             <text class="octane-donut-center-value" x="50" y="46"
                                 dominant-baseline="central" text-anchor="middle">
                               ${section.metrics.total}
@@ -4822,6 +5242,19 @@
                                 </tr>
                               </j:if>
                             </j:forEach>
+                            <j:if test="${section.executedTestCount > 0}">
+                              <tr data-automation-usage-row="true">
+                                <th class="octane-donut-legend-status" scope="row">
+                                  <span class="octane-donut-legend-label">
+                                    <span class="octane-automation-icon" aria-hidden="true">${section.automationEmoji}</span>
+                                    <span>Automation Usage</span>
+                                  </span>
+                                </th>
+                                <td class="octane-donut-legend-percentage">
+                                  ${section.automationPercentageText}
+                                </td>
+                              </tr>
+                            </j:if>
                           </tbody>
                         </table>
                       </div>
@@ -4895,6 +5328,10 @@
                             <div class="octane-suite-column" tabindex="0"
                                 data-card-key="bars-${section.source}"
                                 data-bar-key="${suiteRun.suiteRunId}"
+                                data-bar-name="${suiteRun.displayName}"
+                                data-bar-total="${suiteRun.total}"
+                                data-automation-percentage="${suiteRun.automationPercentage}"
+                                data-automation-emoji="${suiteRun.automationEmoji}"
                                 data-dominant-status-color="${suiteRun.dominantStatusColor}"
                                 data-dominant-status-label="${suiteRun.dominantStatusLabel}"
                                 data-status-passed-count="${suiteRun.passedCount}"
@@ -4937,6 +5374,13 @@
                                     </div>
                                   </j:if>
                                 </j:forEach>
+                                <div class="octane-bar-popup-automation">
+                                  <span class="octane-automation-icon" aria-hidden="true">${suiteRun.automationEmoji}</span>
+                                  <span class="octane-bar-popup-label">Automation Usage</span>
+                                  <span class="octane-bar-popup-value">
+                                    ${suiteRun.automationPercentageText}
+                                  </span>
+                                </div>
                                 <div class="octane-bar-popup-total">
                                   <span>Total</span>
                                   <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
@@ -5043,17 +5487,28 @@
               <section class="octane-tester-tracker"
                   aria-labelledby="octane-execution-tracker-title">
                 <h3 class="octane-tester-tracker-title" id="octane-execution-tracker-title"
-                    data-tester-execution-title="true">
-                  Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})
+                    data-tester-execution-title="true"
+                    aria-label="Testers with LESS THAN ${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})">
+                  <span class="octane-tester-responsive-prefix">Testers with </span><span
+                      class="octane-tester-comparison-full">LESS THAN </span><span
+                      class="octane-tester-comparison-compact">&lt; </span><span
+                      data-tester-title-condition="true">${snapshot.baseExecutionFigure}% Execution (${snapshot.testerExecutionDetailsCount})</span>
                 </h3>
                 <div class="octane-tester-column-content"
                     data-tester-execution-content="true"
                     data-empty="${snapshot.testerExecutionDetailsEmpty}">
                   <table class="octane-tester-table">
+                    <colgroup>
+                      <col class="octane-tester-email-column" />
+                      <col class="octane-tester-rate-column" />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>
-                        <th class="octane-tester-rate" scope="col">Suiterun Execution</th>
+                        <th class="octane-tester-rate octane-tester-rate-header" scope="col"
+                            aria-label="Suiterun Execution">
+                          <span class="octane-tester-responsive-prefix">Suiterun </span><span>Execution</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody data-tester-execution-rows="true">
@@ -5070,17 +5525,28 @@
               </section>
               <section class="octane-tester-tracker" aria-labelledby="octane-pass-rate-tracker-title">
                 <h3 class="octane-tester-tracker-title" id="octane-pass-rate-tracker-title"
-                    data-tester-pass-rate-title="true">
-                  Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})
+                    data-tester-pass-rate-title="true"
+                    aria-label="Testers with LESS THAN ${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})">
+                  <span class="octane-tester-responsive-prefix">Testers with </span><span
+                      class="octane-tester-comparison-full">LESS THAN </span><span
+                      class="octane-tester-comparison-compact">&lt; </span><span
+                      data-tester-title-condition="true">${snapshot.basePassrateFigure}% Pass Rate (${snapshot.testerPassRateDetailsCount})</span>
                 </h3>
                 <div class="octane-tester-column-content"
                     data-tester-pass-rate-content="true"
                     data-empty="${snapshot.testerPassRateDetailsEmpty}">
                   <table class="octane-tester-table">
+                    <colgroup>
+                      <col class="octane-tester-email-column" />
+                      <col class="octane-tester-rate-column" />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th class="octane-tester-email" scope="col">Email</th>
-                        <th class="octane-tester-rate" scope="col">Suiterun Passrate</th>
+                        <th class="octane-tester-rate octane-tester-rate-header" scope="col"
+                            aria-label="Suiterun Pass Rate">
+                          <span class="octane-tester-responsive-prefix">Suiterun </span><span>Pass Rate</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody data-tester-pass-rate-rows="true">
@@ -5093,6 +5559,32 @@
                     </tbody>
                   </table>
                   <div class="octane-tester-empty-state">Everything Good!</div>
+                </div>
+              </section>
+              <section class="octane-tester-tracker" aria-labelledby="octane-defined-scope-title">
+                <h3 class="octane-tester-tracker-title" id="octane-defined-scope-title">
+                  Defined Scope
+                </h3>
+                <div class="octane-tester-column-content"
+                    data-defined-scope-content="true"
+                    data-empty="${snapshot.definedScopeEmpty}">
+                  <table class="octane-tester-table">
+                    <thead>
+                      <tr>
+                        <th class="octane-scope-project" scope="col">Project</th>
+                        <th class="octane-scope-owner" scope="col">Owner</th>
+                      </tr>
+                    </thead>
+                    <tbody data-defined-scope-rows="true">
+                      <j:forEach var="scope" items="${snapshot.definedScope}">
+                        <tr>
+                          <td class="octane-scope-project">${scope.project}</td>
+                          <td class="octane-scope-owner">${scope.owner}</td>
+                        </tr>
+                      </j:forEach>
+                    </tbody>
+                  </table>
+                  <div class="octane-tester-empty-state">No defined scope!</div>
                 </div>
               </section>
             </div>
@@ -5131,12 +5623,22 @@
           var snapshotUrl = dashboard.getAttribute("data-snapshot-url") || "snapshot";
           var snapshotEtag = "";
           var currentUpdatedAt = dashboard.getAttribute("data-current-updated-at") || "";
+          var currentUpdatedAtDateTimeText =
+              dashboard.getAttribute("data-current-updated-at-text") || "";
+          var currentJobStateLabel = dashboard.getAttribute("data-job-state-label") || "Started";
+          var heatMapPanel = dashboard.querySelector("[data-heat-map-panel]");
+          var lastViableRiskHeatMapHtml =
+              dashboard.getAttribute("data-risk-heat-map-populated") === "true" && heatMapPanel
+                  ? heatMapPanel.innerHTML
+                  : "";
+          var currentRefreshSeconds = parseInt(
+              dashboard.getAttribute("data-refresh-seconds") || "1", 10);
+          if (isNaN(currentRefreshSeconds)) {
+            currentRefreshSeconds = 1;
+          }
           var stateLabel = document.querySelector("[data-report-state-label]");
           var updatedAtLabel = document.querySelector("[data-report-updated-at]");
           var messageLabel = document.querySelector("[data-report-message]");
-          var liveUpdateLine = dashboard.querySelector("[data-live-update-line]");
-          var liveUpdateTitle = dashboard.querySelector("[data-live-update-title]");
-          var liveUpdateStatus = dashboard.querySelector("[data-live-update-status]");
           var exitExtendedForm = document.querySelector("[data-exit-extended-form]");
           var exitExtendedCommand = document.querySelector("[data-exit-extended-command]");
           var exitExtendedSubmitForm = exitExtendedCommand
@@ -5151,6 +5653,7 @@
             maximumRetryDelayMillis: 15000,
             retryDelayMillis: 500,
             retryTimer: 0,
+            finalizing: dashboard.getAttribute("data-report-finalizing") === "true",
             stopped: dashboard.getAttribute("data-report-building") !== "true",
             waiting: false,
             waitingSince: 0
@@ -5273,22 +5776,49 @@
               stops[index].setAttribute("stop-color", stopColorAt(colors, index, stops.length));
             }
           }
-          function formatLastUpdatedStatus(payload) {
-            var value = payload && (payload.updatedAtText || payload.updatedAt);
-            return "LAST UPDATED: " + (value || "UNKNOWN");
+          function formatClockDuration(milliseconds) {
+            var totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+            var minutes = Math.floor(totalSeconds / 60);
+            var seconds = totalSeconds % 60;
+            return String(minutes).padStart(2, "0") + ":"
+                + String(seconds).padStart(2, "0");
+          }
+          var lastRenderedReportStatus = "";
+          function renderReportStatus(now) {
+            if (!updatedAtLabel) {
+              return;
+            }
+            var building = dashboard.getAttribute("data-report-building") === "true";
+            var finalizing = dashboard.getAttribute("data-report-finalizing") === "true";
+            var status;
+            if (!building) {
+              status = "LAST UPDATED: "
+                  + (currentUpdatedAtDateTimeText || currentUpdatedAt || "Unknown");
+            } else if (finalizing) {
+              status = "Finalizing...";
+            } else if (liveRefresh.fetching || liveRefresh.waiting) {
+              status = "Updating ... "
+                  + formatClockDuration(Math.max(0, now - liveRefresh.waitingSince));
+            } else {
+              var nextUpdateAt = parseTimestamp(currentUpdatedAt)
+                  + Math.max(1, currentRefreshSeconds) * 1000;
+              status = "Status Check In : "
+                  + formatClockDuration(Math.max(0, nextUpdateAt - now));
+            }
+            if (status !== lastRenderedReportStatus) {
+              updatedAtLabel.textContent = status;
+              lastRenderedReportStatus = status;
+            }
           }
           function setLiveUpdateStatus(message, isLastUpdated) {
-            if (liveUpdateLine) {
-              liveUpdateLine.classList.toggle(
-                  "octane-live-update-last-updated", isLastUpdated === true);
+            if (message === "Finalizing..." && !liveRefresh.waiting) {
+              liveRefresh.waiting = true;
+              liveRefresh.waitingSince = currentWallTime();
             }
-            if (liveUpdateTitle) {
-              liveUpdateTitle.textContent =
-                  isLastUpdated === true ? message || "" : "Polling interval";
+            if (isLastUpdated === true) {
+              liveRefresh.waiting = false;
             }
-            if (liveUpdateStatus) {
-              liveUpdateStatus.textContent = isLastUpdated === true ? "" : message || "";
-            }
+            renderReportStatus(currentWallTime());
           }
           function setExtendedExitVisibility(extendedTime, manualExit, building) {
             var pending = manualExit === true && building === true;
@@ -5333,6 +5863,19 @@
             }
             content.setAttribute("data-empty", String(rows.length === 0));
           }
+          function updateTesterTrackerTitle(title, condition) {
+            if (!title) {
+              return;
+            }
+            var fullText = "Testers with LESS THAN " + condition;
+            title.setAttribute("aria-label", fullText);
+            var conditionElement = title.querySelector("[data-tester-title-condition]");
+            if (conditionElement) {
+              conditionElement.textContent = condition;
+              return;
+            }
+            title.textContent = fullText;
+          }
           function updateTesterDetails(payload) {
             var details = payload && payload.testerDetails;
             if (!details) {
@@ -5344,24 +5887,21 @@
             var executionTesters = Array.isArray(details.executionTesters)
                 ? details.executionTesters
                 : [];
+            var definedScope = Array.isArray(details.definedScope) ? details.definedScope : [];
             var passRateTitle = dashboard.querySelector("[data-tester-pass-rate-title]");
             var executionTitle = dashboard.querySelector("[data-tester-execution-title]");
-            if (passRateTitle) {
-              passRateTitle.textContent =
-                  "Testers with LESS THAN "
-                  + String(details.basePassrateFigure || 0)
+            updateTesterTrackerTitle(
+                passRateTitle,
+                String(details.basePassrateFigure || 0)
                   + "% Pass Rate ("
                   + String(passRateTesters.length)
-                  + ")";
-            }
-            if (executionTitle) {
-              executionTitle.textContent =
-                  "Testers with LESS THAN "
-                  + String(details.baseExecutionFigure || 0)
+                  + ")");
+            updateTesterTrackerTitle(
+                executionTitle,
+                String(details.baseExecutionFigure || 0)
                   + "% Execution ("
                   + String(executionTesters.length)
-                  + ")";
-            }
+                  + ")");
             replaceTesterRows(
                 "[data-tester-pass-rate-content]",
                 "[data-tester-pass-rate-rows]",
@@ -5372,6 +5912,31 @@
                 "[data-tester-execution-rows]",
                 executionTesters,
                 "executionRateText");
+            replaceDefinedScopeRows(definedScope);
+          }
+          function replaceDefinedScopeRows(scopes) {
+            var content = dashboard.querySelector("[data-defined-scope-content]");
+            var tableRows = dashboard.querySelector("[data-defined-scope-rows]");
+            if (!content || !tableRows) {
+              return;
+            }
+            while (tableRows.firstChild) {
+              tableRows.removeChild(tableRows.firstChild);
+            }
+            for (var index = 0; index < scopes.length; index += 1) {
+              var scope = scopes[index] || {};
+              var row = document.createElement("tr");
+              var project = document.createElement("td");
+              project.className = "octane-scope-project";
+              project.textContent = scope.project || "";
+              var owner = document.createElement("td");
+              owner.className = "octane-scope-owner";
+              owner.textContent = scope.owner || "-";
+              row.appendChild(project);
+              row.appendChild(owner);
+              tableRows.appendChild(row);
+            }
+            content.setAttribute("data-empty", String(scopes.length === 0));
           }
           function setTesterDetailsExpanded(zone, expanded) {
             if (!zone) {
@@ -5514,12 +6079,24 @@
             }
           }
           function updateRiskHeatMap(payload) {
-            if (!payload || typeof payload.riskHeatMapHtml !== "string") {
+            if (!payload
+                || typeof payload.riskHeatMapHtml !== "string"
+                || !payload.riskHeatMapHtml.trim()) {
               return;
             }
-            var panel = dashboard.querySelector("[data-heat-map-panel]");
-            if (panel) {
-              panel.innerHTML = payload.riskHeatMapHtml;
+            var terminalUpdate = payload.finalizing === true || payload.building === false;
+            if (terminalUpdate && payload.riskHeatMapPopulated !== true) {
+              if (heatMapPanel && lastViableRiskHeatMapHtml) {
+                heatMapPanel.innerHTML = lastViableRiskHeatMapHtml;
+              }
+              return;
+            }
+            if (heatMapPanel) {
+              heatMapPanel.innerHTML = payload.riskHeatMapHtml;
+              if (payload.riskHeatMapPopulated === true) {
+                lastViableRiskHeatMapHtml = payload.riskHeatMapHtml;
+                dashboard.setAttribute("data-risk-heat-map-populated", "true");
+              }
             }
           }
           /* OCTANE_TEST_METRIC_LABELS_START */
@@ -5531,7 +6108,8 @@
             var segments = scope.querySelectorAll("[data-test-metric-segment]");
             for (var index = 0; index < segments.length; index += 1) {
               var segment = segments[index];
-              var label = segment.querySelector(".octane-test-metric-defect-label");
+              var label = segment.querySelector(
+                  ".octane-test-metric-segment-label, .octane-test-metric-defect-label");
               if (!label) {
                 continue;
               }
@@ -5589,6 +6167,130 @@
               initializeTestMetricSegments(panel);
             }
           }
+          /* OCTANE_ACTIVITY_RING_LAYOUT_START */
+          var activityRingResizeObserver = null;
+          var activityRingResizeScheduled = false;
+          var activityRingResizeFallbackBound = false;
+          function fitActivityRingLegend(component) {
+            if (!component) {
+              return;
+            }
+            var legend = component.querySelector(".octane-activity-side-legend");
+            var graphic = component.querySelector(".octane-activity-rings-svg");
+            if (!legend || !graphic || component.getBoundingClientRect().width < 576) {
+              component.setAttribute("data-side-legend-visible", "false");
+              return;
+            }
+            component.setAttribute("data-side-legend-visible", "true");
+            var componentRect = component.getBoundingClientRect();
+            var graphicRect = graphic.getBoundingClientRect();
+            var legendRect = legend.getBoundingClientRect();
+            var clearance = 8;
+            var intersectsHorizontally =
+                graphicRect.left < legendRect.right + clearance
+                && graphicRect.right + clearance > legendRect.left;
+            var intersectsVertically =
+                graphicRect.top < legendRect.bottom + clearance
+                && graphicRect.bottom + clearance > legendRect.top;
+            var contained =
+                legendRect.left >= componentRect.left
+                && legendRect.right <= componentRect.right
+                && legendRect.top >= componentRect.top
+                && legendRect.bottom <= componentRect.bottom;
+            component.setAttribute(
+                "data-side-legend-visible",
+                String(contained && !(intersectsHorizontally && intersectsVertically)));
+          }
+          function fitActivityRingLegends() {
+            activityRingResizeScheduled = false;
+            var components = dashboard.querySelectorAll("[data-activity-rings]");
+            for (var index = 0; index < components.length; index += 1) {
+              fitActivityRingLegend(components[index]);
+            }
+          }
+          function scheduleActivityRingLayout() {
+            if (activityRingResizeScheduled) {
+              return;
+            }
+            activityRingResizeScheduled = true;
+            requestFrame(fitActivityRingLegends);
+          }
+          function initializeActivityRingLayout() {
+            if (activityRingResizeObserver) {
+              activityRingResizeObserver.disconnect();
+              activityRingResizeObserver = null;
+            }
+            var components = dashboard.querySelectorAll("[data-activity-rings]");
+            if (typeof window.ResizeObserver === "function") {
+              activityRingResizeObserver =
+                  new window.ResizeObserver(scheduleActivityRingLayout);
+              for (var index = 0; index < components.length; index += 1) {
+                activityRingResizeObserver.observe(components[index]);
+              }
+            } else if (!activityRingResizeFallbackBound) {
+              window.addEventListener("resize", scheduleActivityRingLayout);
+              activityRingResizeFallbackBound = true;
+            }
+            scheduleActivityRingLayout();
+          }
+          /* OCTANE_ACTIVITY_RING_LAYOUT_END */
+          /* OCTANE_ACTIVITY_RING_UPDATE_START */
+          function activityRingRate(component, key, value) {
+            var parsed = value === null || value === undefined || value === ""
+                ? NaN
+                : Number(value);
+            if (!isFinite(parsed)) {
+              parsed = Number(component.getAttribute("data-activity-value-" + key));
+            }
+            return isFinite(parsed) ? clamp(parsed, 0, 100) : 0;
+          }
+          function updateActivityRings(payload) {
+            var component = dashboard.querySelector("[data-activity-rings]");
+            if (!component || !payload) {
+              return;
+            }
+            var automation = payload.testMetrics
+                ? payload.testMetrics.automationPercentage
+                : null;
+            var rates = {
+              automation: activityRingRate(component, "automation", automation),
+              execution: activityRingRate(component, "execution", payload.executionProgress),
+              pass: activityRingRate(component, "pass", payload.passRateProgress)
+            };
+            var activityFace = component.closest(".octane-flip-face") || component;
+            var labels = [];
+            var accessibleNames = {
+              automation: "automation usage",
+              execution: "execution rate",
+              pass: "pass rate"
+            };
+            ["execution", "pass", "automation"].forEach(function (key) {
+              var rate = rates[key];
+              var text = rate.toFixed(2) + "%";
+              component.setAttribute("data-activity-value-" + key, trimNumber(rate));
+              var ring = component.querySelector('[data-activity-ring="' + key + '"]');
+              var labelsForRate =
+                  activityFace.querySelectorAll('[data-activity-rate="' + key + '"]');
+              if (ring) {
+                ring.setAttribute("stroke-dasharray", trimNumber(rate) + " 100");
+              }
+              for (var labelIndex = 0; labelIndex < labelsForRate.length; labelIndex += 1) {
+                labelsForRate[labelIndex].textContent = text;
+              }
+              labels.push(accessibleNames[key] + " " + text);
+            });
+            var graphic = component.querySelector(".octane-activity-rings-svg");
+            if (graphic) {
+              graphic.setAttribute("aria-label", labels.join(", "));
+            }
+            var inlineLegend =
+                activityFace.querySelector("[data-activity-inline-legend]");
+            if (inlineLegend) {
+              inlineLegend.setAttribute("aria-label", labels.join(", "));
+            }
+            scheduleActivityRingLayout();
+          }
+          /* OCTANE_ACTIVITY_RING_UPDATE_END */
           function updateExecutionStatusDistribution(payload) {
             if (!payload || typeof payload.executionStatusDistributionHtml !== "string") {
               return;
@@ -5813,21 +6515,29 @@
             }
             return defectTrendState.points[defectTrendState.points.length - 1];
           }
+          /* OCTANE_DEFECT_VOLUME_MATH_START */
           function niceDefectTrendScale(maximumCount) {
-            if (maximumCount <= 5) {
-              return {maximum: 5, step: 1};
+            var safeMaximum = Number(maximumCount);
+            if (!isFinite(safeMaximum) || safeMaximum < 0) {
+              safeMaximum = 0;
             }
-            var roughStep = maximumCount / 5;
-            var magnitude = Math.pow(10, Math.floor(Math.log(roughStep) / Math.LN10));
-            var normalizedStep = roughStep / magnitude;
-            var multiplier = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 :
-                normalizedStep <= 5 ? 5 : 10;
-            var step = multiplier * magnitude;
+            var maximum = Math.ceil(safeMaximum) + 1;
+            var intervals = maximum <= 5 ? maximum : 5;
             return {
-              maximum: Math.ceil(maximumCount / step) * step,
-              step: step
+              maximum: maximum,
+              step: maximum / intervals,
+              intervals: intervals
             };
           }
+          function defectTrendYAxisValues(scale) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            var values = [];
+            for (var tick = intervals; tick >= 0; tick -= 1) {
+              values.push(scale.step * tick);
+            }
+            return values;
+          }
+          /* OCTANE_DEFECT_VOLUME_MATH_END */
           function formatDefectTrendTime(milliseconds) {
             var totalSeconds = Math.max(0, Math.round(milliseconds / 1000));
             if (totalSeconds < 60) {
@@ -5911,7 +6621,9 @@
             yLabels.textContent = "";
             xLabels.textContent = "";
             var height = DEFECT_TREND_BOUNDS.bottom - DEFECT_TREND_BOUNDS.top;
-            for (var value = scale.step; value <= scale.maximum; value += scale.step) {
+            var intervals = Math.max(1, Math.round(scale.intervals || 1));
+            for (var tick = 1; tick <= intervals; tick += 1) {
+              var value = scale.step * tick;
               var y = DEFECT_TREND_BOUNDS.bottom - (value / scale.maximum) * height;
               grid.appendChild(createTrendSvgElement("line", {
                 "class": "octane-defect-trend-grid-line",
@@ -5921,8 +6633,9 @@
                 y2: y
               }));
             }
-            for (var yValue = scale.maximum; yValue >= 0; yValue -= scale.step) {
-              yLabels.appendChild(createTrendAxisLabel(String(yValue)));
+            var yAxisValues = defectTrendYAxisValues(scale);
+            for (var yIndex = 0; yIndex < yAxisValues.length; yIndex += 1) {
+              yLabels.appendChild(createTrendAxisLabel(trimNumber(yAxisValues[yIndex])));
             }
             for (var index = 0; index <= 4; index += 1) {
               var ratio = index / 4;
@@ -6265,12 +6978,17 @@
             var durationMillis = Math.max(
                 1, safeTrendNumber(trend.durationMillis, defectTrendState
                     ? defectTrendState.durationMillis : 1));
+            var points = normalizeDefectTrendPoints(trend.points, durationMillis);
+            var executedTestCount = Number(payload.executedTestCount);
+            if (points.length && isFinite(executedTestCount) && executedTestCount >= 0) {
+              points[points.length - 1].executed = executedTestCount;
+            }
             defectTrendState = {
               panel: panel,
               startedAt: parseTimestamp(trend.startedAt),
               durationMillis: durationMillis,
               building: payload.building === true,
-              points: normalizeDefectTrendPoints(trend.points, durationMillis),
+              points: points,
               renderedYMaximum: -1,
               renderedDurationMillis: -1,
               renderedDensityYMaximum: -1,
@@ -6310,6 +7028,7 @@
                 : 0;
             return {
               building: dashboard.getAttribute("data-report-building") === "true",
+              finalizing: dashboard.getAttribute("data-report-finalizing") === "true",
               extendedTime: dashboard.getAttribute("data-extended-time") === "true",
               manualExitRequested:
                   dashboard.getAttribute("data-manual-exit-requested") === "true",
@@ -6432,7 +7151,7 @@
             autoShowHeatMapOnCompletion(payload);
             autoShowTestMetricsOnCompletion(payload);
             autoShowExecutionBreakdownOnCompletion(payload);
-            autoShowDefectTrendOnCompletion(payload);
+            autoShowQaHealthMetricsOnCompletion(payload);
           }
           function autoShowHeatMapOnCompletion(payload) {
             autoShowCardViewOnce(payload, "timer-poll", "heatmap");
@@ -6443,11 +7162,8 @@
           function autoShowExecutionBreakdownOnCompletion(payload) {
             autoShowCardViewOnce(payload, "progress-execution", "breakdown");
           }
-          function autoShowDefectTrendOnCompletion(payload) {
-            var card = autoShowCardViewOnce(payload, "progress-pass-rate", "defects");
-            if (card) {
-              scheduleDefectTrendAnimation();
-            }
+          function autoShowQaHealthMetricsOnCompletion(payload) {
+            autoShowCardViewOnce(payload, "progress-pass-rate", "metrics");
           }
           function zoneKeyFor(zone) {
             if (!zone) {
@@ -6687,6 +7403,65 @@
               actions.appendChild(tools);
             }
           }
+          function installAnalyticsComponentSwap(root) {
+            if (!root) {
+              return null;
+            }
+            var passRateCard = root.querySelector('[data-card-key="progress-pass-rate"]');
+            var defectFace = passRateCard
+                ? passRateCard.querySelector('[data-card-view="defects"]')
+                : null;
+            var managementCard = root.querySelector(
+                '[data-card-key="test-management-metrics"]');
+            var passRateViewport = passRateCard
+                ? passRateCard.querySelector(".octane-flip-viewport")
+                : null;
+            var metricsHeader = managementCard
+                ? managementCard.querySelector(".octane-card-header")
+                : null;
+            var metricsBody = managementCard
+                ? managementCard.querySelector(".octane-management-card-body")
+                : null;
+            if (!passRateCard || !defectFace || !managementCard || !passRateViewport
+                || !metricsHeader || !metricsBody) {
+              return null;
+            }
+
+            var metricsHeaderActions = metricsHeader.querySelector(".octane-card-actions");
+            if (metricsHeaderActions) {
+              metricsHeaderActions.remove();
+            }
+            metricsHeader.className = "octane-flip-face-header";
+            metricsBody.className =
+                "octane-flip-face-body octane-management-metrics-face-body";
+            var metricsFace = document.createElement("div");
+            metricsFace.className =
+                "octane-flip-face octane-flip-face-management-metrics";
+            metricsFace.setAttribute("data-card-view", "metrics");
+            metricsFace.appendChild(metricsHeader);
+            metricsFace.appendChild(metricsBody);
+            passRateViewport.appendChild(metricsFace);
+
+            var defectHeader = defectFace.querySelector(".octane-defect-face-header");
+            var defectBody = defectFace.querySelector(".octane-flip-face-body");
+            var timerToggle = defectFace.querySelector(".octane-defect-main-view-toggle");
+            if (timerToggle) {
+              timerToggle.remove();
+            }
+            if (defectHeader) {
+              defectHeader.classList.add("octane-card-header");
+              managementCard.appendChild(defectHeader);
+            }
+            if (defectBody) {
+              defectBody.classList.add("octane-management-card-body");
+              managementCard.appendChild(defectBody);
+            }
+            defectFace.remove();
+            managementCard.setAttribute("data-card-key", "test-management-defects");
+            managementCard.classList.add("octane-test-management-defects-card");
+            return passRateCard;
+          }
+          var managementMetricsRoot = installAnalyticsComponentSwap(dashboard);
           decorateCardZones(dashboard);
           var testManagementZone = document.getElementById("octane-test-management-zone");
           function initialTestManagementPayload() {
@@ -6717,7 +7492,10 @@
             window.OctaneTestManagement.mount(
                 testManagementZone,
                 initialTestManagementPayload(),
-                {onCategorySelect: expandFailureCategory});
+                {
+                  metricsRoot: managementMetricsRoot,
+                  onCategorySelect: expandFailureCategory
+                });
           }
           function updateTestManagement(payload) {
             if (!testManagementZone || !window.OctaneTestManagement
@@ -6739,6 +7517,7 @@
           }
           initializeCardViews(dashboard);
           initializeTestMetricSegments(dashboard);
+          initializeActivityRingLayout();
           initializeExecutionBreakdownScaling(dashboard);
           initializeDefectAnalyticsViews(dashboard);
           initializeDefectTrend();
@@ -6779,6 +7558,7 @@
                               "data-manual-exit-requested-at-millis") || 0)
                       : 0,
               progressCircle: card.querySelector("[data-timer-progress]"),
+              subtitle: card.querySelector("[data-timeout-subtitle]"),
               title: card.querySelector("[data-timeout-title]"),
               totalMillis: totalMillis,
               unit: card.querySelector("[data-timer-unit]"),
@@ -6819,6 +7599,10 @@
           /* OCTANE_TIMER_DISPLAY_START */
           function timerSampleTimeMillis(active, updatedAt, manualExitAt, now) {
             return manualExitAt > 0 ? manualExitAt : active ? now : updatedAt;
+          }
+          function timeoutTimerShowsSpent(state) {
+            return state.mode === "timeout"
+                && (!state.active || state.manualExitRequestedAtMillis > 0);
           }
           function timeoutCountdownRemainingMillis(
               startedAt, baseTotalMillis, extendedTotalMillis, sampleTime) {
@@ -6918,11 +7702,17 @@
             var remaining = remainingMillis(state, now);
             return clamp(((state.totalMillis - remaining) / state.totalMillis) * 100, 0, 100);
           }
-          function setTimeoutTitle(state) {
-            if (state.mode !== "timeout" || !state.title) {
+          function setTimeoutCopy(state, showSpent) {
+            if (state.mode !== "timeout") {
               return;
             }
-            state.title.textContent = "Testing Session Monitor";
+            if (state.title) {
+              state.title.textContent = "Testing Session Monitor";
+            }
+            if (state.subtitle) {
+              state.subtitle.textContent =
+                  showSpent ? "Session Time Spent" : "Session Time Remaining";
+            }
           }
           function fitTimerText(state, displayValue, displayUnit, compactDisplayUnit) {
             if (!state.value || !state.unit) {
@@ -6942,7 +7732,7 @@
               state.unitCompact.style.fontSize = trimNumber(compactUnitSize) + "px";
             }
           }
-          function setTimerText(state, remaining) {
+          function setTimerText(state, duration, showSpent) {
             if (!state.value || !state.unit) {
               return;
             }
@@ -6950,21 +7740,22 @@
             var displayUnit;
             var compactDisplayUnit;
             if (state.mode === "timeout") {
-              var displayParts = timerDisplayParts(remaining);
+              var displayParts = timerDisplayParts(duration);
               displayValue = displayParts.value;
               displayUnit = displayParts.fullLabel;
               compactDisplayUnit = displayParts.compactLabel;
               if (state.graphic) {
                 state.graphic.setAttribute(
                     "aria-label",
-                    "Testing time remaining: " + displayParts.accessibleLabel);
+                    (showSpent ? "Testing time spent: " : "Testing time remaining: ")
+                    + displayParts.accessibleLabel);
               }
-            } else if (remaining < 60000) {
-              displayValue = String(Math.ceil(remaining / 1000));
+            } else if (duration < 60000) {
+              displayValue = String(Math.ceil(duration / 1000));
               displayUnit = displayValue === "1" ? "second" : "seconds";
               compactDisplayUnit = displayUnit;
             } else {
-              displayValue = String(Math.ceil(remaining / 60000));
+              displayValue = String(Math.ceil(duration / 60000));
               displayUnit = displayValue === "1" ? "minute" : "minutes";
               compactDisplayUnit = displayUnit;
             }
@@ -6985,10 +7776,13 @@
             fitTimerText(state, displayValue, displayUnit, compactDisplayUnit);
           }
           function updateTimer(state, now) {
-            setTimeoutTitle(state);
+            var showSpent = timeoutTimerShowsSpent(state);
             var remaining = remainingMillis(state, now);
             var trackTotalMillis = timerTrackTotalMillis(state);
             var trackRemaining = timerTrackRemainingMillis(state, now);
+            var displayDuration =
+                showSpent ? testingTimeSpentMillis(state, now) : trackRemaining;
+            setTimeoutCopy(state, showSpent);
             var remainingProgress = clamp((trackRemaining / trackTotalMillis) * 100, 0, 100);
             var colors = colorsForProgress(state.mode, timerColorProgress(state, now));
             if (state.progressCircle) {
@@ -6998,7 +7792,10 @@
                   remainingProgress <= 0 ? "0" : TIMER_ACTIVE_OPACITY;
             }
             applyGradientStops(state.gradientStops, colors);
-            setTimerText(state, state.mode === "timeout" ? trackRemaining : remaining);
+            setTimerText(
+                state,
+                state.mode === "timeout" ? displayDuration : remaining,
+                showSpent);
           }
           var timers = [];
           var hasActiveTimer = false;
@@ -7037,14 +7834,36 @@
             }
             window.clearTimeout(liveRefresh.retryTimer);
             liveRefresh.retryTimer =
-                window.setTimeout(fetchSnapshot, liveRefresh.retryDelayMillis);
+                window.setTimeout(
+                    fetchSnapshot,
+                    liveRefresh.finalizing ? 250 : liveRefresh.retryDelayMillis);
+          }
+          function canApplySnapshotPayload(payload) {
+            if (!payload) {
+              return false;
+            }
+            var incomingUpdatedAt = Date.parse(payload.updatedAt || "");
+            var renderedUpdatedAt = Date.parse(currentUpdatedAt || "");
+            if (!isNaN(incomingUpdatedAt)
+                && !isNaN(renderedUpdatedAt)
+                && incomingUpdatedAt < renderedUpdatedAt) {
+              return false;
+            }
+            var renderedBuilding =
+                dashboard.getAttribute("data-report-building") === "true";
+            if (!renderedBuilding && payload.building === true) {
+              return false;
+            }
+            return true;
           }
           function isFreshSnapshot(payload) {
-            if (!payload) {
+            if (!canApplySnapshotPayload(payload)) {
               return false;
             }
             return payload.updatedAt !== currentUpdatedAt
                 || payload.building === false
+                || payload.finalizing
+                    !== (dashboard.getAttribute("data-report-finalizing") === "true")
                 || payload.manualExitRequested
                     !== (dashboard.getAttribute("data-manual-exit-requested") === "true")
                 || Number(payload.manualExitRequestedAtMillis || 0)
@@ -7058,6 +7877,8 @@
             if (isNaN(refreshSeconds)) {
               refreshSeconds = 1;
             }
+            currentRefreshSeconds = Math.max(1, refreshSeconds);
+            dashboard.setAttribute("data-refresh-seconds", String(currentRefreshSeconds));
             var timeoutSeconds = parseInt(payload.timeoutSeconds || "1", 10);
             if (isNaN(timeoutSeconds)) {
               timeoutSeconds = 1;
@@ -7068,7 +7889,8 @@
             }
             for (var index = 0; index < timers.length; index += 1) {
               var state = timers[index];
-              state.active = payload.building === true;
+              state.active = payload.timerActive === true
+                  || (payload.building === true && payload.finalizing !== true);
               state.updatedAt = updatedAt;
               state.extendedActive = payload.extendedTime === true && state.mode === "timeout";
               if (state.mode === "timeout") {
@@ -7133,9 +7955,22 @@
             });
           }
           function applySnapshot(payload) {
+            if (!canApplySnapshotPayload(payload)) {
+              return;
+            }
             currentUpdatedAt = payload.updatedAt || currentUpdatedAt;
+            currentUpdatedAtDateTimeText =
+                payload.updatedAtDateTimeText || currentUpdatedAtDateTimeText;
+            currentJobStateLabel = payload.jobStateLabel
+                || (payload.building === true ? "In Progress" : payload.stateLabel)
+                || currentJobStateLabel;
             dashboard.setAttribute("data-current-updated-at", currentUpdatedAt);
+            dashboard.setAttribute(
+                "data-current-updated-at-text", currentUpdatedAtDateTimeText);
+            dashboard.setAttribute("data-job-state-label", currentJobStateLabel);
             dashboard.setAttribute("data-report-building", String(payload.building === true));
+            dashboard.setAttribute(
+                "data-report-finalizing", String(payload.finalizing === true));
             dashboard.setAttribute("data-extended-time", String(payload.extendedTime === true));
             dashboard.setAttribute(
                 "data-manual-exit-requested", String(payload.manualExitRequested === true));
@@ -7144,22 +7979,20 @@
                 String(payload.manualExitRequestedAtMillis || 0));
             dashboard.setAttribute(
                 "aria-busy",
-                String(payload.manualExitRequested === true && payload.building === true));
+                String(payload.finalizing === true));
             setExtendedExitVisibility(
                 payload.extendedTime === true,
                 payload.manualExitRequested === true,
                 payload.building === true);
             if (stateLabel) {
-              stateLabel.textContent = payload.stateLabel || "";
-            }
-            if (updatedAtLabel) {
-              updatedAtLabel.textContent = payload.updatedAtText || payload.updatedAt || "";
+              stateLabel.textContent = currentJobStateLabel;
             }
             if (messageLabel) {
               messageLabel.textContent = payload.message || "";
             }
             updateRiskHeatMap(payload);
             updateTestMetrics(payload);
+            updateActivityRings(payload);
             updateExecutionStatusDistribution(payload);
             updateDefectTrend(payload);
             updateTestManagement(payload);
@@ -7246,24 +8079,29 @@
               }
               updateExecutionProgress(progressCards[index]);
             }
-            hasActiveTimer = payload.building === true;
+            hasActiveTimer = payload.timerActive === true
+                || (payload.building === true && payload.finalizing !== true);
+            liveRefresh.finalizing = payload.finalizing === true;
             liveRefresh.stopped = payload.building !== true;
             var waitedMillis = Math.max(0, currentWallTime() - liveRefresh.waitingSince);
             liveRefresh.waiting = false;
             resetPollTimer(payload);
             setLiveUpdateStatus(
-                payload.manualExitRequested === true && payload.building === true
+                payload.finalizing === true
                     ? "Finalizing..."
                     : payload.building === true
                     ? "+" + (waitedMillis / 1000).toFixed(1) + "s"
-                    : formatLastUpdatedStatus(payload),
+                    : "",
                 payload.building !== true);
             if (payload.building === true) {
               scheduleTimerAnimation();
             }
+            if (payload.finalizing === true) {
+              scheduleSnapshotRetry();
+            }
           }
-          function fetchSnapshot() {
-            if (liveRefresh.fetching || liveRefresh.stopped) {
+          function fetchSnapshot(forceStoredSnapshot) {
+            if (liveRefresh.fetching || (liveRefresh.stopped && forceStoredSnapshot !== true)) {
               return;
             }
             liveRefresh.fetching = true;
@@ -7291,6 +8129,12 @@
                 scheduleSnapshotRetry();
                 return;
               }
+              if (forceStoredSnapshot === true && liveRefresh.stopped) {
+                updateRiskHeatMap(payload);
+                updateActivityRings(payload);
+                updateDefectTrend(payload);
+                return;
+              }
               if (isFreshSnapshot(payload)) {
                 applySnapshot(payload);
                 return;
@@ -7303,34 +8147,9 @@
               scheduleSnapshotRetry();
             });
           }
-          function fetchRiskHeatMapSnapshot() {
-            if (!dashboard.querySelector("[data-heat-map-panel]")
-                || typeof window.fetch !== "function") {
-              return;
-            }
-            window.fetch(snapshotUrl, {
-              cache: "no-store",
-              credentials: "same-origin",
-              headers: {"Accept": "application/json"}
-            }).then(function (response) {
-              if (!response.ok) {
-                throw new Error("Snapshot request failed: " + response.status);
-              }
-              return response.json();
-            }).then(function (payload) {
-              snapshotRequestSucceeded();
-              updateRiskHeatMap(payload);
-              updateTestMetrics(payload);
-              updateExecutionStatusDistribution(payload);
-              updateDefectTrend(payload);
-              updateTestManagement(payload);
-              runCompletionAutoFlips(payload);
-            }).catch(function () {
-              snapshotRequestFailed();
-            });
-          }
           function animateTimers() {
             var now = currentWallTime();
+            renderReportStatus(now);
             var activeTimerStillRunning = false;
             for (var index = 0; index < timers.length; index += 1) {
               var remaining = remainingMillis(timers[index], now);
@@ -7378,6 +8197,8 @@
             exitExtendedSubmitForm.addEventListener("submit", function () {
               var requestedAt = currentWallTime();
               dashboard.setAttribute("data-manual-exit-requested", "true");
+              dashboard.setAttribute("data-report-finalizing", "true");
+              liveRefresh.finalizing = true;
               dashboard.setAttribute(
                   "data-manual-exit-requested-at-millis", String(requestedAt));
               dashboard.setAttribute("aria-busy", "true");
@@ -7391,7 +8212,13 @@
               setLiveUpdateStatus("Finalizing...", false);
             });
           }
-          fetchRiskHeatMapSnapshot();
+          if (liveRefresh.finalizing) {
+            liveRefresh.waiting = true;
+            liveRefresh.waitingSince = currentWallTime();
+            fetchSnapshot();
+          } else if (liveRefresh.stopped) {
+            fetchSnapshot(true);
+          }
           function updateExecutionProgress(card) {
             var progress = parseFloat(card.getAttribute("data-progress-value") || "0");
             if (isNaN(progress)) {
@@ -7509,6 +8336,24 @@
               row.appendChild(percent);
               barPopupOverlay.appendChild(row);
             }
+            var automationRow = document.createElement("div");
+            automationRow.className = "octane-bar-popup-automation";
+            var automationIcon = document.createElement("span");
+            automationIcon.className = "octane-automation-icon";
+            automationIcon.setAttribute("aria-hidden", "true");
+            var automation = Number(column.getAttribute("data-automation-percentage") || 0);
+            automationIcon.textContent = column.getAttribute("data-automation-emoji")
+                || (Number.isFinite(automation) && automation > 0 ? "🔥" : "🐢");
+            var automationLabel = document.createElement("span");
+            automationLabel.className = "octane-bar-popup-label";
+            automationLabel.textContent = "Automation Usage";
+            var automationValue = document.createElement("span");
+            automationValue.className = "octane-bar-popup-value";
+            automationValue.textContent = (Number.isFinite(automation) ? automation : 0) + "%";
+            automationRow.appendChild(automationIcon);
+            automationRow.appendChild(automationLabel);
+            automationRow.appendChild(automationValue);
+            barPopupOverlay.appendChild(automationRow);
             var totalRow = document.createElement("div");
             totalRow.className = "octane-bar-popup-total";
             var totalLabel = document.createElement("span");

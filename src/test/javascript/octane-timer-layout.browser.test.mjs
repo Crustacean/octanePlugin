@@ -16,6 +16,12 @@ assert.ok(styleMatch, "The report page must contain its dashboard stylesheet");
 const metricLabelSource = jelly
     .split("/* OCTANE_TEST_METRIC_LABELS_START */")[1]
     .split("/* OCTANE_TEST_METRIC_LABELS_END */")[0];
+const activityRingLayoutSource = jelly
+    .split("/* OCTANE_ACTIVITY_RING_LAYOUT_START */")[1]
+    .split("/* OCTANE_ACTIVITY_RING_LAYOUT_END */")[0];
+const activityRingUpdateSource = jelly
+    .split("/* OCTANE_ACTIVITY_RING_UPDATE_START */")[1]
+    .split("/* OCTANE_ACTIVITY_RING_UPDATE_END */")[0];
 
 const viewports = [
   {height: 640, name: "compact", width: 360},
@@ -131,18 +137,40 @@ function timerCard(index, title) {
           </div>
           <div class="octane-flip-face-body" data-test-metrics-panel="true">
             <div class="octane-test-metrics-grid">
-              <article class="octane-test-metric-card octane-test-metric-avg-time">
-                <div class="octane-test-metric-heading"><span>Avg. Execution Time</span></div>
-                <div class="octane-test-metric-visual octane-test-metric-visual-sparkline">
-                  <div class="octane-test-metric-value">14m 22s</div>
-                  <svg class="octane-test-metric-sparkline" viewBox="0 0 56 40"
-                      preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                    <polyline points="4,32 20,24 36,29 52,8"></polyline>
-                  </svg>
+              <article class="octane-test-metric-card octane-test-metric-automation-usage">
+                <div class="octane-test-metric-heading"><span>Automation Usage</span></div>
+                <div class="octane-test-metric-visual octane-test-metric-visual-automation">
+                  <div class="octane-test-metric-value">80%</div>
+                  <div class="octane-test-metric-automation-segments"
+                      data-test-metric-segments="true">
+                    <div class="octane-test-metric-automation-track"
+                        aria-label="8/10 tests Automated" role="img">
+                      <span class="octane-test-metric-automation-color
+                          octane-test-metric-automation-automated"
+                          style="--octane-test-metric-segment-share:80%"></span>
+                      <span class="octane-test-metric-automation-color
+                          octane-test-metric-automation-manual"
+                          style="--octane-test-metric-segment-share:20%"></span>
+                    </div>
+                    <div class="octane-test-metric-automation-labels">
+                      <div class="octane-test-metric-automation-segment"
+                          data-test-metric-segment="true" data-full-label="🔥 Automated"
+                          data-short-label="🔥"
+                          style="--octane-test-metric-segment-share:80%">
+                        <span class="octane-test-metric-segment-label">🔥 Automated</span>
+                      </div>
+                      <div class="octane-test-metric-automation-segment"
+                          data-test-metric-segment="true" data-full-label="🐢 Manual"
+                          data-short-label="🐢"
+                          style="--octane-test-metric-segment-share:20%">
+                        <span class="octane-test-metric-segment-label">🐢 Manual</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="octane-test-metric-detail">779 executed tests</div>
-                <div class="octane-test-metric-trend octane-test-metric-trend-neutral">
-                  No change from last cycle
+                <div class="octane-test-metric-detail">8/10 tests Automated</div>
+                <div class="octane-test-metric-trend octane-test-metric-trend-positive">
+                  Target achieved
                 </div>
               </article>
               <article class="octane-test-metric-card octane-test-metric-success-rate">
@@ -236,8 +264,9 @@ function timerCard(index, title) {
               <svg class="octane-timer-donut" viewBox="0 0 240 240" role="img"
                   aria-label="${title}">
                 <circle class="octane-timer-track" cx="120" cy="120" r="92"></circle>
-                <circle class="octane-timer-progress" cx="120" cy="120" r="92"
-                    pathLength="100" stroke="#34C759" stroke-dasharray="72 100"></circle>
+                <circle class="octane-timer-progress" data-timer-progress="true"
+                    cx="120" cy="120" r="92" pathLength="100" stroke="#34C759"
+                    stroke-dasharray="72 100" transform="rotate(-90 120 120)"></circle>
                 <text class="octane-timer-value" x="120" y="118">72</text>
                 <text class="octane-timer-unit" x="120" y="139">percent</text>
               </svg>
@@ -245,6 +274,121 @@ function timerCard(index, title) {
           </div>
         </div>
         ${metricsFace}
+      </div>
+    </section>`;
+}
+
+function activityRingCard() {
+  return `
+    <section class="octane-chart-card" id="octane-activity-layout-fixture"
+        style="height:280px; margin-block-start:0.5rem; width:100%">
+      <div class="octane-flip-face" data-card-view="timer">
+       <div class="octane-flip-face-header">
+        <div class="octane-activity-header-copy">
+          <h2 class="octane-card-title">Execution Activity Rings</h2>
+          <div class="octane-muted octane-activity-subtitle">
+            <span class="octane-activity-inline-legend"
+                data-activity-inline-legend="true">
+              ${[
+                ["execution", "Execution Rate", "Execution", "87.50%"],
+                ["pass", "Pass Rate", "Pass", "92.25%"],
+                ["automation", "Automation Usage", "Automation", "74.75%"]
+              ].map(([key, full, compact, value]) => `
+                <span class="octane-activity-legend-item">
+                  <span class="octane-activity-ring-swatch octane-activity-ring-${key}"></span>
+                  <span class="octane-activity-legend-full">${full}</span>
+                  <span class="octane-activity-legend-compact">${compact}</span>
+                  (<span data-activity-rate="${key}">${value}</span>)
+                </span>`).join("")}
+            </span>
+          </div>
+        </div>
+       </div>
+       <div class="octane-flip-face-body">
+        <div class="octane-activity-rings" data-activity-rings="true"
+            data-side-legend-visible="false"
+            data-activity-value-execution="87.5"
+            data-activity-value-pass="92.25"
+            data-activity-value-automation="74.75">
+          <div class="octane-activity-rings-layout">
+            <div class="octane-activity-rings-graphic">
+              <svg class="octane-activity-rings-svg" viewBox="0 0 240 240">
+                <circle class="octane-activity-ring-track octane-activity-ring-execution"
+                    cx="120" cy="120" r="84"></circle>
+                <circle class="octane-activity-ring-progress octane-activity-ring-execution"
+                    data-activity-ring="execution" cx="120" cy="120" r="84" pathLength="100"
+                    stroke-dasharray="87.5 100" transform="rotate(-90 120 120)"></circle>
+                <circle class="octane-activity-ring-track octane-activity-ring-pass"
+                    cx="120" cy="120" r="64.5"></circle>
+                <circle class="octane-activity-ring-progress octane-activity-ring-pass"
+                    data-activity-ring="pass" cx="120" cy="120" r="64.5" pathLength="100"
+                    stroke-dasharray="92.25 100" transform="rotate(-90 120 120)"></circle>
+                <circle class="octane-activity-ring-track octane-activity-ring-automation"
+                    cx="120" cy="120" r="45"></circle>
+                <circle class="octane-activity-ring-progress octane-activity-ring-automation"
+                    data-activity-ring="automation" cx="120" cy="120" r="45" pathLength="100"
+                    stroke-dasharray="74.75 100" transform="rotate(-90 120 120)"></circle>
+              </svg>
+            </div>
+            <table class="octane-activity-side-legend">
+              <caption>Execution activity rates</caption>
+              <tbody>
+                <tr><th>Execution Rate</th><td data-activity-rate="execution">87.50%</td></tr>
+                <tr><th>Pass Rate</th><td data-activity-rate="pass">92.25%</td></tr>
+                <tr><th>Automation Usage</th><td data-activity-rate="automation">74.75%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+       </div>
+      </div>
+    </section>`;
+}
+
+function testerDetailsFixture() {
+  const tracker = (key, condition, rateLabel) => `
+    <section class="octane-tester-tracker" aria-labelledby="${key}-tracker-title">
+      <h3 class="octane-tester-tracker-title" id="${key}-tracker-title"
+          aria-label="Testers with LESS THAN ${condition}">
+        <span class="octane-tester-responsive-prefix">Testers with </span><span
+            class="octane-tester-comparison-full">LESS THAN </span><span
+            class="octane-tester-comparison-compact">&lt; </span><span
+            data-tester-title-condition="true">${condition}</span>
+      </h3>
+      <div class="octane-tester-column-content" data-empty="false">
+        <table class="octane-tester-table">
+          <colgroup>
+            <col class="octane-tester-email-column">
+            <col class="octane-tester-rate-column">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="octane-tester-email" scope="col">Email</th>
+              <th class="octane-tester-rate octane-tester-rate-header" scope="col"
+                  aria-label="Suiterun ${rateLabel}">
+                <span class="octane-tester-responsive-prefix">Suiterun </span><span>${rateLabel}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="octane-tester-email">
+                tester.with.a.long.identity@example.com
+              </td>
+              <td class="octane-tester-rate">97.25%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+  return `
+    <section class="octane-tester-details-zone" id="octane-tester-layout-fixture">
+      <header class="octane-tester-details-header">
+        <h2 class="octane-tester-details-title">Tester Details</h2>
+      </header>
+      <div class="octane-tester-details-body">
+        ${tracker("execution", "90% Execution (2)", "Execution")}
+        ${tracker("pass-rate", "70% Pass Rate (3)", "Pass Rate")}
       </div>
     </section>`;
 }
@@ -481,12 +625,23 @@ function fixtureHtml() {
               id="octane-test-management-zone">
             ${managementCards}
           </div>
+          ${activityRingCard()}
+          ${testerDetailsFixture()}
         </main>
         <script>
           var dashboard = document.getElementById("octane-dashboard");
           var requestFrame = window.requestAnimationFrame.bind(window);
+          function clamp(value, minimum, maximum) {
+            return Math.max(minimum, Math.min(maximum, value));
+          }
+          function trimNumber(value) {
+            return String(Number(Number(value).toFixed(2)));
+          }
           ${metricLabelSource}
+          ${activityRingLayoutSource}
+          ${activityRingUpdateSource}
           initializeTestMetricSegments(dashboard);
+          initializeActivityRingLayout();
         </script>
       </body>
     </html>`;
@@ -518,15 +673,28 @@ function chromiumFixtureHtml() {
                     && graphRect.bottom <= bodyRect.bottom + 1;
               });
             }
-            var checks = [cards.length === 4 && graphsFit(cards)];
-            zone.classList.add("octane-zone-focused");
-            checks.push(graphsFit(cards));
-            zone.classList.remove("octane-zone-focused");
-            cards[0].classList.add("octane-expanded");
-            checks.push(graphsFit([cards[0]]));
-            document.body.setAttribute("data-chromium-checks", checks.join(","));
-            document.body.setAttribute(
-                "data-chromium-layout", checks.every(Boolean) ? "pass" : "fail");
+            function afterPaint(callback) {
+              setTimeout(function () {
+                void zone.offsetHeight;
+                callback();
+              }, 0);
+            }
+            var checks = [];
+            afterPaint(function () {
+              checks.push(cards.length === 4 && graphsFit(cards));
+              zone.classList.add("octane-zone-focused");
+              afterPaint(function () {
+                checks.push(graphsFit(cards));
+                zone.classList.remove("octane-zone-focused");
+                cards[0].classList.add("octane-expanded");
+                afterPaint(function () {
+                  checks.push(graphsFit([cards[0]]));
+                  document.body.setAttribute("data-chromium-checks", checks.join(","));
+                  document.body.setAttribute(
+                      "data-chromium-layout", checks.every(Boolean) ? "pass" : "fail");
+                });
+              });
+            });
       })();
     </script>
   </body>`);
@@ -652,6 +820,161 @@ async function normalZoneMetrics(driver) {
   }
   assert.ok(result.duration < 500, `Zone layout took ${result.duration.toFixed(1)}ms`);
   return result.value;
+}
+
+async function activityRingMetrics(driver, constrainedWidth, constrainedHeight, expanded) {
+  const result = await executeAfterPaint(driver, `
+    var card = document.getElementById("octane-activity-layout-fixture");
+    card.style.width = arguments[0] > 0 ? arguments[0] + "px" : "100%";
+    card.style.maxWidth = arguments[0] > 0 ? arguments[0] + "px" : "none";
+    card.style.minWidth = arguments[0] > 0 ? "0" : "";
+    card.style.height = arguments[1] > 0 ? arguments[1] + "px" : "280px";
+    card.classList.toggle("octane-expanded", arguments[2] === true);
+    var rings = card.querySelector(".octane-activity-rings");
+    fitActivityRingLegend(rings);
+    var graphic = card.querySelector(".octane-activity-rings-svg");
+    var subtitle = card.querySelector(".octane-activity-subtitle");
+    var inlineLegend = card.querySelector(".octane-activity-inline-legend");
+    var sideLegend = card.querySelector(".octane-activity-side-legend");
+    var ringsRect = rings.getBoundingClientRect();
+    var graphicRect = graphic.getBoundingClientRect();
+    var sideLegendRect = sideLegend.getBoundingClientRect();
+    var subtitleStyle = getComputedStyle(subtitle);
+    var legendDisplay = getComputedStyle(sideLegend).display;
+    var legendOverlap = legendDisplay !== "none"
+        && graphicRect.left < sideLegendRect.right
+        && graphicRect.right > sideLegendRect.left
+        && graphicRect.top < sideLegendRect.bottom
+        && graphicRect.bottom > sideLegendRect.top;
+    return {
+      centerDelta: Math.abs(
+          (graphicRect.left + (graphicRect.width / 2))
+          - (ringsRect.left + (ringsRect.width / 2))),
+      inlineClientWidth: inlineLegend.clientWidth,
+      inlineScrollWidth: inlineLegend.scrollWidth,
+      legendDisplay: legendDisplay,
+      legendInside:
+          sideLegendRect.right <= ringsRect.right + 1
+          && sideLegendRect.left >= ringsRect.left - 1,
+      legendOverlap: legendOverlap,
+      ringsWidth: ringsRect.width,
+      subtitleOverflow: subtitleStyle.overflow,
+      subtitleTextOverflow: subtitleStyle.textOverflow,
+      subtitleWhiteSpace: subtitleStyle.whiteSpace
+    };`, [constrainedWidth || 0, constrainedHeight || 0, expanded === true]);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function activityRingPollingUpdate(driver) {
+  const result = await executeAfterPaint(driver, `
+    updateActivityRings({
+      executionProgress: 63.5,
+      passRateProgress: 81.25,
+      testMetrics: {automationPercentage: 44.75}
+    });
+    var card = document.getElementById("octane-activity-layout-fixture");
+    var inlineLegend = card.querySelector("[data-activity-inline-legend]");
+    var component = card.querySelector("[data-activity-rings]");
+    function valuesWithin(root) {
+      return ["execution", "pass", "automation"].map(function (key) {
+        return root.querySelector('[data-activity-rate="' + key + '"]').textContent;
+      });
+    }
+    return {
+      graphicAriaLabel:
+          card.querySelector(".octane-activity-rings-svg").getAttribute("aria-label"),
+      inlineAriaLabel: inlineLegend.getAttribute("aria-label"),
+      inlineValues: valuesWithin(inlineLegend),
+      ringValues: ["execution", "pass", "automation"].map(function (key) {
+        return component.querySelector('[data-activity-ring="' + key + '"]')
+            .getAttribute("stroke-dasharray");
+      }),
+      sideValues: valuesWithin(card.querySelector(".octane-activity-side-legend"))
+    };`);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function testerDetailsTableMetrics(driver, constrainedWidth) {
+  const result = await executeAfterPaint(driver, `
+    var zone = document.getElementById("octane-tester-layout-fixture");
+    zone.style.width = arguments[0] > 0 ? arguments[0] + "px" : "100%";
+    zone.style.maxWidth = arguments[0] > 0 ? arguments[0] + "px" : "none";
+    return Array.prototype.map.call(
+        zone.querySelectorAll(".octane-tester-table"), function (table) {
+          var tracker = table.closest(".octane-tester-tracker");
+          var title = tracker.querySelector(".octane-tester-tracker-title");
+          var header = table.querySelector(".octane-tester-rate-header");
+          var value = table.querySelector("tbody .octane-tester-rate");
+          var headerRect = header.getBoundingClientRect();
+          var titleRect = title.getBoundingClientRect();
+          var valueRect = value.getBoundingClientRect();
+          var style = getComputedStyle(header);
+          var titleStyle = getComputedStyle(title);
+          var textRange = document.createRange();
+          textRange.selectNodeContents(header);
+          var textRect = textRange.getBoundingClientRect();
+          var titleRange = document.createRange();
+          titleRange.selectNodeContents(title);
+          var titleTextRect = titleRange.getBoundingClientRect();
+          return {
+            headerAriaLabel: header.getAttribute("aria-label"),
+            headerContentInside:
+                textRect.left >= headerRect.left - 1
+                && textRect.right <= headerRect.right + 1
+                && textRect.top >= headerRect.top - 1
+                && textRect.bottom <= headerRect.bottom + 1,
+            headerFontSize: parseFloat(style.fontSize),
+            headerPrefixDisplay: getComputedStyle(
+                header.querySelector(".octane-tester-responsive-prefix")).display,
+            headerRightDelta: Math.abs(headerRect.right - valueRect.right),
+            headerSingleLine: textRect.height <= parseFloat(style.lineHeight) * 1.2,
+            paddingRight: parseFloat(style.paddingRight),
+            tableLayout: getComputedStyle(table).tableLayout,
+            tableOverflow: table.scrollWidth - table.clientWidth,
+            textAlign: style.textAlign,
+            textWrap: style.textWrap,
+            titleAriaLabel: title.getAttribute("aria-label"),
+            titleComparisonCompactDisplay: getComputedStyle(
+                title.querySelector(".octane-tester-comparison-compact")).display,
+            titleComparisonFullDisplay: getComputedStyle(
+                title.querySelector(".octane-tester-comparison-full")).display,
+            titleContentInside:
+                titleTextRect.left >= titleRect.left - 1
+                && titleTextRect.right <= titleRect.right + 1
+                && titleTextRect.top >= titleRect.top - 1
+                && titleTextRect.bottom <= titleRect.bottom + 1,
+            titleFontSize: parseFloat(titleStyle.fontSize),
+            titlePrefixDisplay: getComputedStyle(
+                title.querySelector(".octane-tester-responsive-prefix")).display,
+            titleSingleLine:
+                titleTextRect.height <= parseFloat(titleStyle.lineHeight) * 1.2,
+            titleTextWrap: titleStyle.textWrap,
+            titleVisibleText: title.innerText.trim(),
+            titleWhiteSpace: titleStyle.whiteSpace,
+            whiteSpace: style.whiteSpace,
+          };
+        });`, [constrainedWidth || 0]);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result.value;
+}
+
+async function timeoutDepletionEndpoint(driver) {
+  const result = await execute(driver, `
+    var progress = document.querySelector(
+        '#octane-timer-zone [data-card-key="timer-timeout"] [data-timer-progress]');
+    var point = progress.getPointAtLength(progress.getTotalLength() * 0.75);
+    var transformed = new DOMPoint(point.x, point.y).matrixTransform(progress.getCTM());
+    var center = new DOMPoint(120, 120).matrixTransform(progress.getCTM());
+    return {x: transformed.x, y: transformed.y, centerX: center.x, centerY: center.y};`);
+  return result;
 }
 
 async function constrainedManagementBarMetrics(driver) {
@@ -846,7 +1169,7 @@ async function testMetricLayout(driver, expanded, focused) {
         });
     var title = card.querySelector(".octane-flip-face-metrics .octane-card-title");
     var subtitle = card.querySelector(".octane-flip-face-metrics .octane-muted");
-    var sparkline = card.querySelector(".octane-test-metric-sparkline");
+    var automationTrack = card.querySelector(".octane-test-metric-automation-track");
     var gauge = card.querySelector(".octane-test-metric-gauge-svg");
     var gaugePath = card.querySelector(".octane-test-metric-gauge-fill");
     var gaugeValue = card.querySelector(".octane-test-metric-gauge-value");
@@ -886,7 +1209,7 @@ async function testMetricLayout(driver, expanded, focused) {
     var containedElements = card.querySelectorAll(
               ".octane-test-metric-heading, .octane-test-metric-value, "
               + ".octane-test-metric-detail, .octane-test-metric-trend, "
-              + ".octane-test-metric-sparkline, .octane-test-metric-gauge-svg, "
+              + ".octane-test-metric-automation-segments, .octane-test-metric-gauge-svg, "
               + ".octane-test-metric-progress, .octane-test-metric-defect-segments");
     var escapedContent = Array.prototype.filter.call(containedElements, function (element) {
       var rect = element.getBoundingClientRect();
@@ -944,9 +1267,13 @@ async function testMetricLayout(driver, expanded, focused) {
           && executionValue.scrollWidth <= executionValue.clientWidth + 1,
       executionValueFontSize: parseFloat(executionValueStyle.fontSize),
       executionValueLineHeight: parseFloat(executionValueStyle.lineHeight),
-      labels: Array.prototype.map.call(
+      automationLabels: Array.prototype.map.call(
+          card.querySelectorAll(".octane-test-metric-segment-label"),
+          function (label) { return label.textContent.trim(); }),
+      defectLabels: Array.prototype.map.call(
           card.querySelectorAll(".octane-test-metric-defect-label"),
           function (label) { return label.textContent.trim(); }),
+      automationRatio: ratio(automationTrack),
       progressRatio: ratio(progress),
       segmentRadii: Array.prototype.map.call(colors, function (color) {
         var style = getComputedStyle(color);
@@ -957,7 +1284,6 @@ async function testMetricLayout(driver, expanded, focused) {
           topRight: parseFloat(style.borderTopRightRadius)
         };
       }),
-      sparklineRatio: ratio(sparkline),
       subtitleFontSize: parseFloat(getComputedStyle(subtitle).fontSize),
       titleFontSize: parseFloat(getComputedStyle(title).fontSize),
       trends: Array.prototype.map.call(
@@ -1173,6 +1499,29 @@ test(
     });
 
 test(
+    "activity ring subtitle legend follows each polling payload",
+    {skip: !browserAvailable, timeout: 60000},
+    async () => {
+      await withFirefox(async driver => {
+        const fixture = Buffer.from(fixtureHtml()).toString("base64");
+        await webdriverRequest(
+            driver.baseUrl,
+            "POST",
+            `/session/${driver.sessionId}/url`,
+            {url: `data:text/html;base64,${fixture}`});
+
+        const update = await activityRingPollingUpdate(driver);
+        assert.deepEqual(update.inlineValues, ["63.50%", "81.25%", "44.75%"]);
+        assert.deepEqual(update.sideValues, update.inlineValues);
+        assert.deepEqual(update.ringValues, ["63.5 100", "81.25 100", "44.75 100"]);
+        assert.equal(
+            update.inlineAriaLabel,
+            "execution rate 63.50%, pass rate 81.25%, automation usage 44.75%");
+        assert.equal(update.graphicAriaLabel, update.inlineAriaLabel);
+      });
+    });
+
+test(
     "all timer graphs render and scale in normal, focused, and expanded modes",
     {skip: !browserAvailable, timeout: 120000},
     async () => {
@@ -1192,6 +1541,111 @@ test(
           await setMode(driver, "normal");
           const normal = await graphMetrics(driver);
           assertVisibleGraphs(normal, `${viewport.name} normal`);
+          const activity = await activityRingMetrics(driver, 0);
+          assert.ok(
+              activity.centerDelta <= 1,
+              `${viewport.name}: activity rings shifted away from the absolute center: `
+                  + JSON.stringify(activity));
+          assert.equal(activity.subtitleWhiteSpace, "nowrap");
+          assert.equal(activity.subtitleOverflow, "hidden");
+          assert.equal(activity.subtitleTextOverflow, "ellipsis");
+          if (activity.legendDisplay !== "none") {
+            assert.ok(
+                activity.legendInside,
+                `${viewport.name}: side legend escaped the activity container`);
+            assert.equal(
+                activity.legendOverlap,
+                false,
+                `${viewport.name}: side legend overlaps the activity rings`);
+          }
+          const testerTables = await testerDetailsTableMetrics(
+              driver, viewport.name === "compact" ? 170 : 0);
+          assert.equal(testerTables.length, 2);
+          assert.ok(
+              testerTables.every(metric => metric.tableLayout === "auto"),
+              `${viewport.name}: Tester Details retained a rigid table layout: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric => metric.textAlign === "right"),
+              `${viewport.name}: metric headers are not right-aligned: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric =>
+                metric.whiteSpace === "nowrap"
+                  && metric.textWrap === "nowrap"
+                  && metric.titleWhiteSpace === "nowrap"
+                  && metric.titleTextWrap === "nowrap"),
+              `${viewport.name}: Tester Details headers are not locked to one line: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric => metric.paddingRight >= 8),
+              `${viewport.name}: metric headers lost their right breathing room: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric =>
+                metric.tableOverflow <= 1
+                  && metric.headerContentInside
+                  && metric.headerRightDelta <= 1
+                  && metric.headerSingleLine
+                  && metric.titleContentInside
+                  && metric.titleSingleLine),
+              `${viewport.name}: Tester Details headers clip or miss the value-column edge: `
+                  + JSON.stringify(testerTables));
+          assert.ok(
+              testerTables.every(metric =>
+                metric.headerFontSize >= 11.1
+                  && metric.headerFontSize <= 16.1
+                  && metric.titleFontSize >= 11.1
+                  && metric.titleFontSize <= 16.1),
+              `${viewport.name}: Tester Details font scaling escaped its clamp: `
+                  + JSON.stringify(testerTables));
+          if (viewport.name === "compact") {
+            assert.ok(
+                testerTables.every(metric =>
+                  metric.headerPrefixDisplay === "none"
+                    && metric.titlePrefixDisplay === "none"
+                    && metric.titleComparisonFullDisplay === "none"
+                    && metric.titleComparisonCompactDisplay === "inline"
+                    && metric.titleVisibleText.startsWith("< ")
+                    && metric.titleAriaLabel.startsWith("Testers with LESS THAN ")),
+                `compact: responsive header prefixes remained visible: `
+                    + JSON.stringify(testerTables));
+          } else {
+            assert.ok(
+                testerTables.every(metric =>
+                  metric.headerPrefixDisplay === "inline"
+                    && metric.titlePrefixDisplay === "inline"
+                    && metric.titleComparisonFullDisplay === "inline"
+                    && metric.titleComparisonCompactDisplay === "none"
+                    && metric.titleVisibleText.startsWith("Testers with LESS THAN ")),
+                `${viewport.name}: full header prefixes disappeared with sufficient room: `
+                    + JSON.stringify(testerTables));
+          }
+          if (viewport.height >= 900) {
+            const tallSlimActivity = await activityRingMetrics(driver, 600, 760, true);
+            assert.equal(
+                tallSlimActivity.legendDisplay,
+                "none",
+                `${viewport.name}: tall slim activity card did not suppress an overlapping legend: `
+                    + JSON.stringify(tallSlimActivity));
+          }
+          if (viewport.name === "compact") {
+            const constrainedActivity = await activityRingMetrics(driver, 190);
+            assert.ok(
+                constrainedActivity.inlineScrollWidth
+                    > constrainedActivity.inlineClientWidth,
+                `compact: activity subtitle did not reach its ellipsis fallback: `
+                    + JSON.stringify(constrainedActivity));
+            const depletionEndpoint = await timeoutDepletionEndpoint(driver);
+            assert.ok(
+                depletionEndpoint.x < depletionEndpoint.centerX,
+                `75% remaining must place the retreating endpoint at 9 o'clock: `
+                    + JSON.stringify(depletionEndpoint));
+            assert.ok(
+                Math.abs(depletionEndpoint.y - depletionEndpoint.centerY) <= 2,
+                `75% remaining endpoint must remain level with the center: `
+                    + JSON.stringify(depletionEndpoint));
+          }
           const zones = await normalZoneMetrics(driver);
           assert.ok(
               Math.abs(zones.timer.height - zones.management.height) <= 1,
@@ -1265,8 +1719,9 @@ test(
               `${viewport.name}: Test Metrics content escaped its card: `
                   + JSON.stringify(testMetrics));
           assert.ok(
-              Math.abs(testMetrics.sparklineRatio - 1.4) <= 0.08,
-              `${viewport.name}: sparkline aspect ratio changed: ${JSON.stringify(testMetrics)}`);
+              Math.abs(testMetrics.automationRatio - 34) <= 1,
+              `${viewport.name}: automation bar aspect ratio changed: `
+                  + JSON.stringify(testMetrics));
           assert.ok(
               Math.abs(testMetrics.gaugeRatio - 1.75) <= 0.08,
               `${viewport.name}: gauge aspect ratio changed: ${JSON.stringify(testMetrics)}`);
@@ -1332,7 +1787,8 @@ test(
                 {left: false, right: true}],
               `${viewport.name}: defect segment outer corners are incorrect`);
           testMetricSizes[viewport.name] = {
-            labels: testMetrics.labels,
+            automationLabels: testMetrics.automationLabels,
+            defectLabels: testMetrics.defectLabels,
             subtitle: testMetrics.subtitleFontSize,
             title: testMetrics.titleFontSize
           };
@@ -1481,11 +1937,19 @@ test(
                 && testMetricSizes.wide.subtitle > testMetricSizes.compact.subtitle,
             `Test Metrics header typography did not scale: ${JSON.stringify(testMetricSizes)}`);
         assert.ok(
-            testMetricSizes.compact.labels.some(label => /^[A-Z] \(\d+\)$/.test(label)),
+            testMetricSizes.compact.defectLabels.some(label => /^[A-Z] \(\d+\)$/.test(label)),
             `Compact defect labels were not abbreviated: ${JSON.stringify(testMetricSizes)}`);
         assert.deepEqual(
-            testMetricSizes.wide.labels,
+            testMetricSizes.wide.defectLabels,
             ["Major (14)", "Medium (9)", "Unspecified (5)"],
             `Wide defect labels were not restored: ${JSON.stringify(testMetricSizes)}`);
+        assert.ok(
+            testMetricSizes.compact.automationLabels.includes("🐢"),
+            `Compact automation labels did not fall back to emojis: `
+                + JSON.stringify(testMetricSizes));
+        assert.deepEqual(
+            testMetricSizes.wide.automationLabels,
+            ["🔥 Automated", "🐢 Manual"],
+            `Wide automation labels were not restored: ${JSON.stringify(testMetricSizes)}`);
       });
     });

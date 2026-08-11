@@ -5,13 +5,16 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class RunRecord implements Serializable {
+public final class RunRecord implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private final String id;
   private final String name;
   private final String status;
+  // Serialized field names are retained for compatibility with existing Jenkins build snapshots.
+  // Access these identities through the explicit execution/suite-owner methods below.
   private final String runByName;
+  private final String assignedToName;
   private final String testId;
   private final String testName;
   private final String projectId;
@@ -21,15 +24,28 @@ public class RunRecord implements Serializable {
     this(id, name, status, "");
   }
 
-  public RunRecord(String id, String name, String status, String runByName) {
-    this(id, name, status, runByName, "", "", "", "");
+  public RunRecord(String id, String name, String status, String suiteOwnerName) {
+    this(id, name, status, "", suiteOwnerName, "", "", "", "");
   }
 
   public RunRecord(
       String id,
       String name,
       String status,
-      String runByName,
+      String suiteOwnerName,
+      String testId,
+      String testName,
+      String projectId,
+      String projectName) {
+    this(id, name, status, "", suiteOwnerName, testId, testName, projectId, projectName);
+  }
+
+  public RunRecord(
+      String id,
+      String name,
+      String status,
+      String executionActorName,
+      String suiteOwnerName,
       String testId,
       String testName,
       String projectId,
@@ -37,7 +53,8 @@ public class RunRecord implements Serializable {
     this.id = Util.trimToEmpty(id);
     this.name = Util.trimToEmpty(name);
     this.status = Util.trimToEmpty(status);
-    this.runByName = Util.trimToEmpty(runByName);
+    this.runByName = Util.trimToEmpty(executionActorName);
+    this.assignedToName = Util.trimToEmpty(suiteOwnerName);
     this.testId = Util.trimToEmpty(testId);
     this.testName = Util.trimToEmpty(testName);
     this.projectId = Util.trimToEmpty(projectId);
@@ -57,7 +74,41 @@ public class RunRecord implements Serializable {
   }
 
   public String getRunByName() {
+    return getExecutionActorName();
+  }
+
+  public String getAssignedToName() {
+    return getSuiteOwnerName();
+  }
+
+  public RunRecord withAssignedToName(String assignedToName) {
+    return withSuiteOwnerName(assignedToName);
+  }
+
+  public String getExecutionActorName() {
     return runByName;
+  }
+
+  public String getSuiteOwnerName() {
+    return assignedToName;
+  }
+
+  public RunRecord withExecutionActorName(String executionActorName) {
+    return new RunRecord(
+        id,
+        name,
+        status,
+        executionActorName,
+        assignedToName,
+        testId,
+        testName,
+        projectId,
+        projectName);
+  }
+
+  public RunRecord withSuiteOwnerName(String suiteOwnerName) {
+    return new RunRecord(
+        id, name, status, runByName, suiteOwnerName, testId, testName, projectId, projectName);
   }
 
   public String getTestId() {
@@ -82,6 +133,7 @@ public class RunRecord implements Serializable {
     values.put("name", name);
     values.put("status", status);
     values.put("runByName", runByName);
+    values.put("assignedToName", assignedToName);
     values.put("testId", testId);
     values.put("testName", testName);
     values.put("projectId", projectId);

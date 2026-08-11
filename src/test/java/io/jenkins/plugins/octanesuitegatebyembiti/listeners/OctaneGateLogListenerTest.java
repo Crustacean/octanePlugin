@@ -107,6 +107,22 @@ public class OctaneGateLogListenerTest {
     assertTrue(log.contains("55 [DELETED]"));
   }
 
+  @Test
+  public void logsReleaseOnlyContinuousDiscoveryWithoutAnEmptySprint() {
+    OctaneGateLogListener logListener = new OctaneGateLogListener();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    TaskListener listener = new CapturingTaskListener(output);
+
+    logListener.logDynamicSuiteSelector(listener, "Regressions", "Kanban Release", "");
+    logListener.logNoDynamicSuiteRuns(listener, "Regressions", "Kanban Release", "");
+
+    String log = output.toString(StandardCharsets.UTF_8);
+    assertTrue(log.contains("continuous discovery for release 'Kanban Release'"));
+    assertTrue(
+        log.contains("No active Regressions suite runs were found for release 'Kanban Release'"));
+    assertFalse(log.contains("sprint ''"));
+  }
+
   private GateResult resultWithCriticalScope() {
     return new GateResult(
         "450312,450309",

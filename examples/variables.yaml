@@ -1,0 +1,28 @@
+# ALM Octane connection. Shared-space and workspace IDs are resolved from
+# examples/clusters.json using this server ID.
+OCTANE_SERVER_ID: "octane-prod"
+
+# Suite-run discovery accepts numeric IDs, a release name, or Release, Sprint.
+# OCTANE_SUITE_RUN_ID is the concise alias for the regression suite-run source.
+OCTANE_SUITE_RUN_ID: "76644"
+OCTANE_CRITICAL_SUITE_RUN_ID: "76645"
+
+# Optional comma-separated defined scope names used by the report analytics.
+OCTANE_DEFINED_SCOPE: "ESA - Imelda Sanya, Bulk-data-Tony, Digisoc"
+
+# Report identity.
+OCTANE_PROJECT_NAME: "Business Payments Secure Checkout"
+OCTANE_DOMAIN_NAME: "FS_TRIBE_DOMAIN"
+
+# Project length.
+OCTANE_TIMEOUT_MINUTES: "5"
+# Leave blank or set to 0 to disable extended time.
+OCTANE_TIMEOUT_MINUTES_EXTENDED: "3"
+
+# Progress email scheduling. Leave the cron value blank to disable.
+# '* * * * 1-5' runs every minute on weekdays.
+PROGRESS_EMAIL_INTERVAL_CRONJOB: "* * * * 1-5"
+
+# Email recipients.
+OCTANE_EMAIL_TO: "embiti@safaricom.co.ke"
+OCTANE_EMAIL_CC: "embiti@safaricom.co.ke"

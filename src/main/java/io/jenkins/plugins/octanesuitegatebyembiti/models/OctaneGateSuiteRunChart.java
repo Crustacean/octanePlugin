@@ -23,6 +23,7 @@ public class OctaneGateSuiteRunChart implements Serializable {
   private final int total;
   private final int maxTotal;
   private final List<OctaneGateStatusCount> statuses;
+  private final OctaneAutomationUsage automationUsage;
 
   private OctaneGateSuiteRunChart(
       String suiteRunId,
@@ -30,13 +31,16 @@ public class OctaneGateSuiteRunChart implements Serializable {
       List<String> suiteRunIds,
       int total,
       int maxTotal,
-      List<OctaneGateStatusCount> statuses) {
+      List<OctaneGateStatusCount> statuses,
+      OctaneAutomationUsage automationUsage) {
     this.suiteRunId = suiteRunId;
     this.displayName = displayName;
     this.suiteRunIds = List.copyOf(suiteRunIds);
     this.total = total;
     this.maxTotal = maxTotal;
     this.statuses = List.copyOf(statuses);
+    this.automationUsage =
+        automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
   }
 
   static OctaneGateSuiteRunChart fromRuns(
@@ -53,7 +57,8 @@ public class OctaneGateSuiteRunChart implements Serializable {
         List.of(suiteRunId),
         runs.size(),
         runs.size(),
-        toStatusCounts(counts, runs.size()));
+        toStatusCounts(counts, runs.size()),
+        OctaneAutomationUsage.fromRuns(runs));
   }
 
   static OctaneGateSuiteRunChart fromRunByGroup(
@@ -73,12 +78,13 @@ public class OctaneGateSuiteRunChart implements Serializable {
         suiteRunIds,
         runs.size(),
         runs.size(),
-        toStatusCounts(counts, runs.size()));
+        toStatusCounts(counts, runs.size()),
+        OctaneAutomationUsage.fromRuns(runs));
   }
 
   OctaneGateSuiteRunChart scaledAgainst(int maxTotal) {
     return new OctaneGateSuiteRunChart(
-        suiteRunId, displayName, suiteRunIds, total, maxTotal, statuses);
+        suiteRunId, displayName, suiteRunIds, total, maxTotal, statuses, getAutomationUsage());
   }
 
   public String getSuiteRunId() {
@@ -110,6 +116,22 @@ public class OctaneGateSuiteRunChart implements Serializable {
 
   public List<OctaneGateStatusCount> getStatuses() {
     return statuses;
+  }
+
+  public int getAutomationPercentage() {
+    return getAutomationUsage().getPercentage();
+  }
+
+  public String getAutomationPercentageText() {
+    return getAutomationUsage().getPercentageText();
+  }
+
+  public String getAutomationEmoji() {
+    return getAutomationUsage().getEmoji();
+  }
+
+  private OctaneAutomationUsage getAutomationUsage() {
+    return automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
   }
 
   public String getDominantStatusLabel() {

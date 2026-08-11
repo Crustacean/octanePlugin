@@ -44,12 +44,55 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("height: 100.00%;", regressions.getSuiteRuns().get(1).getBarHeightStyle());
     assertEquals(83.333, snapshot.getExecutionProgress(), 0.001);
     assertEquals("83%", snapshot.getExecutionProgressText());
-    assertEquals(6, snapshot.getPassRateTotal());
+    assertEquals("83.33%", snapshot.getExecutionProgressTwoDecimalText());
+    assertEquals(5, snapshot.getPassRateTotal());
     assertEquals(3, snapshot.getPassRatePassed());
-    assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
-    assertEquals("50%", snapshot.getPassRateProgressText());
-    assertEquals("All Testcase Pass Rate (3 / 6)", snapshot.getPassRateLabel());
+    assertEquals(60.0, snapshot.getPassRateProgress(), 0.001);
+    assertEquals("60%", snapshot.getPassRateProgressText());
+    assertEquals("60.00%", snapshot.getPassRateProgressTwoDecimalText());
+    assertEquals("0.00%", snapshot.getAutomationProgressTwoDecimalText());
+    assertEquals("All Testcase Pass Rate (3 / 5)", snapshot.getPassRateLabel());
+    assertEquals("In Progress", snapshot.getJobStateLabel());
+    assertEquals("2026/05/15 03:00:00", snapshot.getUpdatedAtDateTimeText());
     assertFalse(regressions.getPieSlices().isEmpty());
+  }
+
+  @Test
+  public void calculatesPassRateFromPassedFailedAndBlockedTestsOnly() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord("1", "passed one", "passed", "Ada Tester"),
+            new RunRecord("2", "passed two", "passed", "Ada Tester"),
+            new RunRecord("3", "failed", "failed", "Ada Tester"),
+            new RunRecord("4", "blocked", "blocked", "Ada Tester"),
+            new RunRecord("5", "skipped", "skipped", "Ada Tester"),
+            new RunRecord("6", "planned", "planned", "Ada Tester"));
+    GateResult result =
+        new GateResult(
+            "4501",
+            "regressions.passRate == 50",
+            true,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("4501", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    assertEquals(6, snapshot.getProjectTestTotal());
+    assertEquals(4, snapshot.getExecutedTestCount());
+    assertEquals(66.667, snapshot.getExecutionProgress(), 0.001);
+    assertEquals(4, snapshot.getPassRateTotal());
+    assertEquals(2, snapshot.getPassRatePassed());
+    assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
+    assertEquals("All Testcase Pass Rate (2 / 4)", snapshot.getPassRateLabel());
+    OctaneTesterPerformance tester = snapshot.getTesterPerformances().get(0);
+    assertEquals(4, tester.getExecuted());
+    assertEquals(50.0, tester.getPassRate(), 0.001);
   }
 
   @Test
@@ -130,6 +173,77 @@ public class OctaneGateReportSnapshotTest {
         List.of("Gamma Tester", "Alpha Tester", "Beta Tester"),
         charts.stream().map(chart -> chart.getDisplayName()).toList());
     assertEquals(List.of(1, 2, 2), charts.stream().map(chart -> chart.getTotal()).toList());
+  }
+
+  @Test
+  public void parentOwnerProducesOneBarWhileChildRunnersDriveAutomationUsage() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord(
+                "1", "automated", "passed", "Jenkins Agent", "Suite Owner", "", "", "", ""),
+            new RunRecord(
+                "2", "manual", "failed", "Default Manual Runner", "Suite Owner", "", "", "", ""));
+    GateResult result =
+        new GateResult(
+            "55",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(2, 2, 1, 1, 0, 0),
+            runs,
+            Map.of("55", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
+    assertEquals(1, charts.size());
+    assertEquals("Suite Owner", charts.get(0).getDisplayName());
+    assertEquals(2, charts.get(0).getTotal());
+    assertEquals(1, snapshot.getTestMetrics().getAutomatedTestCount());
+    assertEquals(1, snapshot.getTestMetrics().getManualTestCount());
+  }
+
+  @Test
+  public void assignedAndUnassignedSuiteRunsRenderAsSeparateTesterBars() {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord("1", "assigned", "passed", "Jenkins Agent", "Ada Owner", "", "", "", ""),
+            new RunRecord(
+                "2",
+                "unassigned",
+                "failed",
+                "Default Manual Runner",
+                "Unassigned (55)",
+                "",
+                "",
+                "",
+                ""));
+    GateResult result =
+        new GateResult(
+            "55",
+            "100% execution",
+            false,
+            true,
+            new GateMetrics(2, 2, 1, 1, 0, 0),
+            runs,
+            Map.of("55", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
+    assertEquals(2, charts.size());
+    assertEquals(
+        List.of("Ada Owner", "Unassigned (55)"),
+        charts.stream().map(chart -> chart.getDisplayName()).toList());
+    assertEquals(List.of(1, 1), charts.stream().map(chart -> chart.getTotal()).toList());
   }
 
   @Test
@@ -323,6 +437,8 @@ public class OctaneGateReportSnapshotTest {
         OctaneGateReportSnapshot.waiting(request, 17, "2026-05-15T00:00:00Z");
 
     assertEquals(17, snapshot.getRefreshSeconds());
+    assertEquals("00:17", snapshot.getRefreshCountdownText());
+    assertEquals("Started", snapshot.getJobStateLabel());
     assertEquals(2700, snapshot.getTimeoutSeconds());
     assertEquals(720, snapshot.getTimeoutExtendedSeconds());
     assertEquals("2026-05-15T00:00:00Z", snapshot.getStartedAt());
@@ -456,6 +572,7 @@ public class OctaneGateReportSnapshotTest {
             OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
 
     assertTrue(snapshot.isCriticalOnlyReport());
+    assertEquals("Passed", snapshot.getJobStateLabel());
     assertEquals(1, snapshot.getSections().size());
     assertEquals("critical", snapshot.getSections().get(0).getSource());
     assertEquals(1, snapshot.getProjectTestTotal());
@@ -483,12 +600,13 @@ public class OctaneGateReportSnapshotTest {
                 "2026-05-14T23:50:00Z")
             .withCalculatedTestMetrics(previous);
 
-    assertEquals("2m 0s", metric(current, "avg-time").getValue());
-    assertEquals("5 executed tests", metric(current, "avg-time").getDetail());
-    assertEquals("-1m 0s from last cycle", metric(current, "avg-time").getTrendText());
-    assertEquals("positive", metric(current, "avg-time").getTrendTone());
-    assertEquals("50.0%", metric(current, "success-rate").getValue());
-    assertEquals("3 / 6 passed", metric(current, "success-rate").getDetail());
+    assertEquals("0%", metric(current, "automation-usage").getValue());
+    assertEquals(
+        "0/6 tests automated. Target 100%", metric(current, "automation-usage").getDetail());
+    assertEquals("No change from last cycle", metric(current, "automation-usage").getTrendText());
+    assertEquals("negative", metric(current, "automation-usage").getTrendTone());
+    assertEquals("60.0%", metric(current, "success-rate").getValue());
+    assertEquals("3 / 5 passed", metric(current, "success-rate").getDetail());
     assertEquals("83.3%", metric(current, "execution").getValue());
     assertEquals("5 / 6 executed", metric(current, "execution").getDetail());
     assertEquals("3 open", metric(current, "defects").getValue());
@@ -513,8 +631,8 @@ public class OctaneGateReportSnapshotTest {
         OctaneGateReportSnapshot.fromResult(
             OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
 
-    assertEquals("N/A", metric(snapshot, "avg-time").getValue());
-    assertEquals("Awaiting executed tests", metric(snapshot, "avg-time").getTrendText());
+    assertEquals("0%", metric(snapshot, "automation-usage").getValue());
+    assertEquals("Waiting for run data", metric(snapshot, "automation-usage").getTrendText());
     assertEquals("0.0%", metric(snapshot, "success-rate").getValue());
     assertEquals("0.0%", metric(snapshot, "execution").getValue());
     assertEquals("N/A", metric(snapshot, "defects").getValue());

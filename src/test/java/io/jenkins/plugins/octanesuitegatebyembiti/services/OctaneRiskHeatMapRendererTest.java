@@ -105,9 +105,9 @@ public class OctaneRiskHeatMapRendererTest {
                 List.of(defect("1", "Critical", "", "opened")),
                 classifier);
 
-    String html = new OctaneRiskHeatMapRenderer().render(heatMap, false, "17:53:39");
+    String html = new OctaneRiskHeatMapRenderer().render(heatMap, false, "2026/07/20 17:53:39");
 
-    assertTrue(html.contains("LAST UPDATED: 17:53:39"));
+    assertTrue(html.contains("LAST UPDATED: 2026/07/20 17:53:39"));
     assertFalse(html.contains("LAST UPDATED: JUST NOW"));
   }
 

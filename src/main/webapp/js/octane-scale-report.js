@@ -16,6 +16,7 @@
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
   var DONUT_CENTER = 50;
   var DONUT_RADIUS = 46;
+  var DONUT_HOLE_RADIUS = 37.36;
   var mountedZones = typeof WeakMap === "function" ? new WeakMap() : null;
 
   function computeVisibleBarCount(width, totalBars) {
@@ -237,7 +238,7 @@
     var hole = createSvgElement("circle", "octane-donut-hole");
     hole.setAttribute("cx", "50");
     hole.setAttribute("cy", "50");
-    hole.setAttribute("r", "29");
+    hole.setAttribute("r", String(DONUT_HOLE_RADIUS));
     svg.appendChild(hole);
     var value = appendSvgText(svg, "octane-donut-center-value", total, "50", "46");
     value.setAttribute("dominant-baseline", "central");
@@ -277,6 +278,29 @@
           row, "td", "octane-donut-legend-percentage", status.percentageLabel);
       body.appendChild(row);
     });
+    if (Number(section.executedTestCount) > 0) {
+      var automationRow = createElement("tr", "");
+      automationRow.setAttribute("data-automation-usage-row", "true");
+      var automationStatus = createElement("th", "octane-donut-legend-status");
+      automationStatus.setAttribute("scope", "row");
+      var automationLabel = createElement("span", "octane-donut-legend-label");
+      appendText(
+          automationLabel,
+          "span",
+          "octane-automation-icon",
+          section.automationEmoji
+              || (Number(section.automationPercentage) > 0 ? "🔥" : "🐢"))
+          .setAttribute("aria-hidden", "true");
+      appendText(automationLabel, "span", "", "Automation Usage");
+      automationStatus.appendChild(automationLabel);
+      automationRow.appendChild(automationStatus);
+      appendText(
+          automationRow,
+          "td",
+          "octane-donut-legend-percentage",
+          section.automationPercentageLabel || String(section.automationPercentage || 0) + "%");
+      body.appendChild(automationRow);
+    }
     table.appendChild(body);
     return table;
   }
@@ -358,6 +382,11 @@
     });
     group.setAttribute("data-bar-name", bar.name || "");
     group.setAttribute("data-bar-total", String(bar.total || 0));
+    group.setAttribute(
+        "data-automation-percentage", String(Number(bar.automationPercentage) || 0));
+    group.setAttribute(
+        "data-automation-emoji",
+        bar.automationEmoji || (Number(bar.automationPercentage) > 0 ? "🔥" : "🐢"));
   }
 
   function renderBarChart(card, section, page) {
@@ -765,6 +794,7 @@
 
   return {
     MAX_VISIBLE_BARS: MAX_VISIBLE_BARS,
+    DONUT_HOLE_RADIUS: DONUT_HOLE_RADIUS,
     OVERFLOW_WIDTH_PX: OVERFLOW_WIDTH_PX,
     computeDonutSlices: computeDonutSlices,
     computeVisibleBarCount: computeVisibleBarCount,

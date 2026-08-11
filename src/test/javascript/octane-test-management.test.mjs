@@ -521,6 +521,19 @@ test("coalesces repeated polling updates into one connected-frame render", () =>
       /function update\(zone, payload\)[\s\S]*?zone\.__octaneTestManagementPayload = payload \|\| \{\};[\s\S]*?scheduleRender\(zone\);/);
 });
 
+test("renders QA metrics through the relocated pass-rate face", () => {
+  assert.match(
+      source,
+      /var metricsRoot = zone\.__octaneTestManagementMetricsRoot \|\| zone;/);
+  assert.match(
+      source,
+      /options && options\.metricsRoot \? options\.metricsRoot : zone/);
+  assert.match(jelly, /function installAnalyticsComponentSwap\(root\)/);
+  assert.match(jelly, /metricsFace\.setAttribute\("data-card-view", "metrics"\)/);
+  assert.match(jelly, /managementCard\.setAttribute\("data-card-key", "test-management-defects"\)/);
+  assert.match(jelly, /metricsRoot: managementMetricsRoot/);
+});
+
 test("keeps defect ids, descriptions, status, and severity in aligned columns", () => {
   assert.match(source, /octane-management-defect-id/);
   assert.match(

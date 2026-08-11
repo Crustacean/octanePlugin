@@ -1,6 +1,8 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.AbortException;
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.Result;
 import hudson.model.Run;
@@ -284,6 +286,42 @@ public class OctaneSuiteGateStep extends Step {
     return Math.min(100, Math.max(0, value));
   }
 
+  static int automatedTestingTarget(EnvVars environment) throws AbortException {
+    String variableName = GateRequest.AUTOMATED_TESTING_TARGET_ENV;
+    String rawValue = environmentValue(environment, variableName);
+    if (isUndefinedEnvironmentValue(rawValue)) {
+      variableName = GateRequest.GLOBAL_AUTOMATED_TESTING_TARGET_ENV;
+      rawValue = environmentValue(environment, variableName);
+    }
+    if (isUndefinedEnvironmentValue(rawValue)) {
+      return GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET;
+    }
+    try {
+      int target = Integer.parseInt(rawValue);
+      if (target < 1) {
+        throw new NumberFormatException();
+      }
+      return Math.min(100, target);
+    } catch (NumberFormatException e) {
+      throw new AbortException(variableName + " must be a positive whole number.");
+    }
+  }
+
+  static String definedScope(EnvVars environment) {
+    return environmentValue(environment, GateRequest.DEFINED_SCOPE_ENV);
+  }
+
+  private static String environmentValue(EnvVars environment, String variableName) {
+    return environment == null ? "" : Util.trimToEmpty(environment.get(variableName));
+  }
+
+  private static boolean isUndefinedEnvironmentValue(String value) {
+    String normalized = Util.trimToEmpty(value);
+    return normalized.isEmpty()
+        || "null".equalsIgnoreCase(normalized)
+        || "undefined".equalsIgnoreCase(normalized);
+  }
+
   private static class Execution extends StepExecution {
     private static final long serialVersionUID = 1L;
 
@@ -291,6 +329,7 @@ public class OctaneSuiteGateStep extends Step {
     private OctaneGateRunner.PollingState pollingState;
     private boolean completed;
     private boolean reportLinkLogged;
+    private boolean environmentConfigured;
     private transient Future<?> pollFuture;
     private transient ScheduledFuture<?> wakeupFuture;
     private transient OctaneGateRunner.PollingSession pollingSession;
@@ -378,6 +417,7 @@ public class OctaneSuiteGateStep extends Step {
       }
       try {
         StepContext context = getContext();
+        configureEnvironment(context);
         Run<?, ?> run = context.get(Run.class);
         TaskListener listener = context.get(TaskListener.class);
         ensureReportAction(run, listener);
@@ -398,6 +438,17 @@ public class OctaneSuiteGateStep extends Step {
         finishPoll(t);
         completeWithFailure(t);
       }
+    }
+
+    private void configureEnvironment(StepContext context)
+        throws IOException, InterruptedException {
+      if (environmentConfigured) {
+        return;
+      }
+      request.setAutomatedTestingTarget(
+          OctaneSuiteGateStep.automatedTestingTarget(context.get(EnvVars.class)));
+      request.setDefinedScope(OctaneSuiteGateStep.definedScope(context.get(EnvVars.class)));
+      environmentConfigured = true;
     }
 
     private void ensureReportAction(Run<?, ?> run, TaskListener listener) {
@@ -602,7 +653,7 @@ public class OctaneSuiteGateStep extends Step {
 
     @Override
     public Set<? extends Class<?>> getRequiredContext() {
-      return Set.of(Run.class, TaskListener.class);
+      return Set.of(EnvVars.class, Run.class, TaskListener.class);
     }
 
     public ListBoxModel doFillServerIdItems() {

@@ -23,6 +23,8 @@ public class OctaneGateReportSnapshot implements Serializable {
   public static final int CLIENT_RENDER_BAR_THRESHOLD = 80;
   private static final DateTimeFormatter EAT_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
+  private static final DateTimeFormatter EAT_DATE_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss").withZone(ZoneId.of("Africa/Nairobi"));
 
   private final OctaneGateReportState state;
   private final String message;
@@ -41,6 +43,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final DefectCriteriaMetrics defectMetrics;
   private final CriteriaEvaluation criteriaEvaluation;
   private final List<OctaneTesterPerformance> testerPerformances;
+  private final List<OctaneDefinedScope> definedScope;
   private final int basePassrateFigure;
   private final int baseExecutionFigure;
 
@@ -62,6 +65,7 @@ public class OctaneGateReportSnapshot implements Serializable {
       DefectCriteriaMetrics defectMetrics,
       CriteriaEvaluation criteriaEvaluation,
       List<OctaneTesterPerformance> testerPerformances,
+      List<OctaneDefinedScope> definedScope,
       int basePassrateFigure,
       int baseExecutionFigure) {
     this.state = state;
@@ -94,6 +98,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         criteriaEvaluation == null ? CriteriaEvaluation.unavailable() : criteriaEvaluation;
     this.testerPerformances =
         testerPerformances == null ? List.of() : List.copyOf(testerPerformances);
+    this.definedScope = definedScope == null ? List.of() : List.copyOf(definedScope);
     this.basePassrateFigure = percentageThreshold(basePassrateFigure);
     this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
   }
@@ -135,6 +140,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable(),
             List.of(),
+            List.of(),
             GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
             GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     return snapshot.withCalculatedTestMetrics(null);
@@ -159,7 +165,8 @@ public class OctaneGateReportSnapshot implements Serializable {
             Instant.now().toString(),
             List.of(),
             request.isRiskHeatMap() ? OctaneRiskHeatMap.waiting() : OctaneRiskHeatMap.disabled(),
-            OctaneTestMetrics.empty(),
+            OctaneTestMetrics.empty()
+                .withAutomatedTestingTarget(request.getAutomatedTestingTarget()),
             OctaneDefectTrend.start(
                 startedAt,
                 (toSeconds(request.getTimeoutMinutes())
@@ -173,6 +180,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable(),
             List.of(),
+            request.getDefinedScope(),
             request.getBasePassrateFigure(),
             request.getBaseExecutionFigure());
     return snapshot.withCalculatedTestMetrics(null);
@@ -245,7 +253,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             result.getPolledAt().toString(),
             sections,
             result.getRiskHeatMap(),
-            OctaneTestMetrics.empty(),
+            OctaneTestMetrics.fromResult(result),
             OctaneDefectTrend.start(startedAt, (timeoutSeconds + timeoutExtendedSeconds) * 1000L),
             OctaneTestManagementAnalytics.fromResult(
                 startedAt,
@@ -256,6 +264,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             result.getDefectMetrics(),
             result.getCriteriaEvaluation(),
             OctaneTesterPerformance.fromResult(result, classifier),
+            List.of(),
             GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
             GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     OctaneDefectTrend trend =
@@ -331,6 +340,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
             CriteriaEvaluation.unavailable(),
             List.of(),
+            List.of(),
             GateRequest.DEFAULT_BASE_PASSRATE_FIGURE,
             GateRequest.DEFAULT_BASE_EXECUTION_FIGURE);
     return snapshot.withCalculatedTestMetrics(null);
@@ -360,6 +370,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -383,6 +394,31 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
+  public OctaneGateReportSnapshot withRiskHeatMap(OctaneRiskHeatMap riskHeatMap) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -407,6 +443,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -430,6 +467,56 @@ public class OctaneGateReportSnapshot implements Serializable {
         getDefectMetrics(),
         getCriteriaEvaluation(),
         testerPerformances,
+        getDefinedScope(),
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
+  public OctaneGateReportSnapshot withState(
+      OctaneGateReportState state, String message, String updatedAt) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        getDefinedScope(),
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
+  public OctaneGateReportSnapshot withDefinedScope(List<OctaneDefinedScope> definedScope) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        definedScope,
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -490,6 +577,10 @@ public class OctaneGateReportSnapshot implements Serializable {
     return refreshSeconds;
   }
 
+  public String getRefreshCountdownText() {
+    return String.format(Locale.ROOT, "%02d:%02d", refreshSeconds / 60, refreshSeconds % 60);
+  }
+
   public int getTimeoutSeconds() {
     return timeoutSeconds;
   }
@@ -514,6 +605,27 @@ public class OctaneGateReportSnapshot implements Serializable {
     }
   }
 
+  public String getUpdatedAtDateTimeText() {
+    try {
+      return EAT_DATE_TIME_FORMATTER.format(Instant.parse(updatedAt));
+    } catch (RuntimeException e) {
+      return updatedAt;
+    }
+  }
+
+  public String getJobStateLabel() {
+    if (state == OctaneGateReportState.WAITING) {
+      return "Started";
+    }
+    if (isFinalizing()) {
+      return state.getLabel();
+    }
+    if (state.isBuilding()) {
+      return "In Progress";
+    }
+    return state.getLabel();
+  }
+
   public List<OctaneGateReportSection> getSections() {
     return sections;
   }
@@ -527,7 +639,8 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public String getRiskHeatMapHtml() {
-    return new OctaneRiskHeatMapRenderer().render(riskHeatMap, isBuilding(), getUpdatedAtText());
+    return new OctaneRiskHeatMapRenderer()
+        .render(riskHeatMap, isBuilding(), getUpdatedAtDateTimeText());
   }
 
   public OctaneTestMetrics getTestMetrics() {
@@ -564,6 +677,14 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public List<OctaneTesterPerformance> getTesterPerformances() {
     return testerPerformances == null ? List.of() : testerPerformances;
+  }
+
+  public List<OctaneDefinedScope> getDefinedScope() {
+    return definedScope == null ? List.of() : definedScope;
+  }
+
+  public boolean isDefinedScopeEmpty() {
+    return getDefinedScope().isEmpty();
   }
 
   public List<OctaneTesterPerformance> getTesterPassRateDetails() {
@@ -616,6 +737,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     details.put(
         "executionTesters",
         getTesterExecutionDetails().stream().map(tester -> tester.toMap()).toList());
+    details.put("definedScope", getDefinedScope().stream().map(scope -> scope.toMap()).toList());
     return details;
   }
 
@@ -648,6 +770,22 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public boolean isExtendedTime() {
     return state == OctaneGateReportState.EXTENDED_TIME;
+  }
+
+  public boolean isFinalizing() {
+    return state == OctaneGateReportState.FINALIZING;
+  }
+
+  public boolean isTimerActive() {
+    return isBuilding() && !isFinalizing();
+  }
+
+  public String getReconciledAt() {
+    return isBuilding() ? "" : updatedAt;
+  }
+
+  public String getReconciledAtDateTimeText() {
+    return isBuilding() ? "" : getUpdatedAtDateTimeText();
   }
 
   public String getTestingTimeTitle() {
@@ -698,18 +836,19 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public double getExecutionProgress() {
     ProjectProgressCounts counts = projectProgressCounts();
-    if (counts.total == 0) {
-      return 0.0;
-    }
-    return counts.executed * 100.0 / counts.total;
+    return GateMetrics.executionRate(counts.executed, counts.total);
   }
 
   public String getExecutionProgressText() {
-    return String.format(Locale.ROOT, "%.0f%%", getExecutionProgress());
+    return Util.formatPercentage(getExecutionProgress(), 0);
+  }
+
+  public String getExecutionProgressTwoDecimalText() {
+    return Util.formatPercentage(getExecutionProgress(), 2);
   }
 
   public int getPassRateTotal() {
-    return projectProgressCounts().total;
+    return projectProgressCounts().executed;
   }
 
   public int getPassRatePassed() {
@@ -717,15 +856,19 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public double getPassRateProgress() {
-    int total = getPassRateTotal();
-    if (total == 0) {
-      return 0.0;
-    }
-    return getPassRatePassed() * 100.0 / total;
+    return GateMetrics.passRate(getPassRatePassed(), getPassRateTotal());
   }
 
   public String getPassRateProgressText() {
-    return String.format(Locale.ROOT, "%.0f%%", getPassRateProgress());
+    return Util.formatPercentage(getPassRateProgress(), 0);
+  }
+
+  public String getPassRateProgressTwoDecimalText() {
+    return Util.formatPercentage(getPassRateProgress(), 2);
+  }
+
+  public String getAutomationProgressTwoDecimalText() {
+    return Util.formatPercentage(getTestMetrics().getAutomationPercentage(), 2);
   }
 
   public String getPassRateLabel() {
@@ -818,7 +961,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     private void add(OctaneGateSuiteRunChart suiteRun) {
       total += suiteRun.getTotal();
       for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
-        if (status.getBucket() != OctaneGateStatusBucket.RUNNING) {
+        if (status.getBucket().isExecuted()) {
           executed += status.getCount();
         }
         if (status.getBucket() == OctaneGateStatusBucket.PASSED) {

@@ -6,6 +6,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectCriteriaMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.DefectLoggingCompliance;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefinedScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneExecutionStatusDistribution;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
@@ -221,17 +222,18 @@ public class OctaneEmailBodyRenderer {
       String screenshotContentId,
       String theme) {
     String details = renderExecutionDetails(projectName, domainName, snapshot, theme);
+    String definedScope = renderDefinedScope(snapshot);
     String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
     int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
     int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
     if (detailsStart >= 0 && screenshotStart > detailsStart) {
-      String contents = details + screenshot;
+      String contents = details + definedScope + screenshot;
       return template.substring(0, detailsStart)
           + wrapExecutionReport(contents)
           + template.substring(screenshotStart + REPORT_SCREENSHOT_TOKEN.length());
     }
     return template
-        .replace(EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details))
+        .replace(EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details + definedScope))
         .replace(REPORT_SCREENSHOT_TOKEN, screenshot);
   }
 
@@ -264,6 +266,80 @@ public class OctaneEmailBodyRenderer {
     appendSpacer(html, 28);
     appendCriteriaAndReconciliationTables(html, snapshot, theme);
     return html.toString();
+  }
+
+  private String renderDefinedScope(OctaneGateReportSnapshot snapshot) {
+    List<OctaneDefinedScope> scopes = snapshot == null ? List.of() : snapshot.getDefinedScope();
+    if (scopes.isEmpty()) {
+      return "";
+    }
+    int split = definedScopeSplit(scopes.size());
+    StringBuilder html = new StringBuilder();
+    appendSpacer(html, 28);
+    html.append(
+            "<table data-octane-email-section=\"defined-scope\" role=\"presentation\" "
+                + "cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"border-collapse:collapse;width:100%;\"><tr><td style=\"")
+        .append(SECTION_TITLE_STYLE)
+        .append("\">Defined Scope</td></tr><tr><td>");
+    if (split >= scopes.size()) {
+      appendDefinedScopeTable(html, scopes);
+    } else {
+      html.append(
+          "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
+              + "style=\"border-collapse:collapse;width:100%;\"><tr>");
+      html.append("<td style=\"vertical-align:top;width:50%;\">");
+      appendDefinedScopeTable(html, scopes.subList(0, split));
+      html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
+      html.append("<td style=\"vertical-align:top;width:50%;\">");
+      appendDefinedScopeTable(html, scopes.subList(split, scopes.size()));
+      html.append("</td></tr></table>");
+    }
+    html.append("</td></tr></table>");
+    return html.toString();
+  }
+
+  private int definedScopeSplit(int total) {
+    if (total <= 10) {
+      return total;
+    }
+    if (total <= 20) {
+      return 10;
+    }
+    return (total + 1) / 2;
+  }
+
+  private void appendDefinedScopeTable(StringBuilder html, List<OctaneDefinedScope> definedScope) {
+    html.append(
+        "<table data-octane-email-table=\"defined-scope\" cellpadding=\"0\" "
+            + "cellspacing=\"0\" style=\"border-collapse:collapse;table-layout:fixed;"
+            + "width:100%;\"><colgroup><col style=\"width:58%;\">"
+            + "<col style=\"width:42%;\"></colgroup><thead><tr>");
+    html.append("<th scope=\"col\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+        .append(TABLE_HEADER_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:left;\">Project</th>");
+    html.append("<th scope=\"col\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+        .append(TABLE_HEADER_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("overflow-wrap:anywhere;text-align:left;word-break:break-word;\">Owner</th>")
+        .append("</tr></thead><tbody>");
+    for (OctaneDefinedScope scope : definedScope) {
+      html.append("<tr><td style=\"border:1px solid #d0d7de;")
+          .append(TABLE_VALUE_STYLE)
+          .append(TABLE_CELL_PADDING)
+          .append("overflow-wrap:anywhere;text-align:left;vertical-align:middle;")
+          .append("white-space:normal;word-break:break-word;\">")
+          .append(escape(scope.getProject()))
+          .append("</td><td style=\"border:1px solid #d0d7de;")
+          .append(TABLE_VALUE_STYLE)
+          .append(TABLE_CELL_PADDING)
+          .append("overflow-wrap:anywhere;text-align:left;vertical-align:middle;")
+          .append("white-space:normal;word-break:break-word;\">")
+          .append(escape(scope.getOwner()))
+          .append("</td></tr>");
+    }
+    html.append("</tbody></table>");
   }
 
   private void appendCriteriaAndReconciliationTables(
@@ -336,7 +412,7 @@ public class OctaneEmailBodyRenderer {
         reconciliation.getStatus() == DefectLoggingCompliance.Status.SURPLUS ? "+" : "";
     String statusText =
         percentagePrefix
-            + formatPercentage(reconciliation.getDiscrepancyPercentage())
+            + Util.formatCompactPercentage(reconciliation.getDiscrepancyPercentage())
             + " ("
             + reconciliation.getStatus().getLabel()
             + ")";
@@ -678,10 +754,11 @@ public class OctaneEmailBodyRenderer {
       StringBuilder html, OctaneGateReportSnapshot snapshot, String theme) {
     int total = snapshot == null ? 0 : snapshot.getProjectTestTotal();
     int executed = snapshot == null ? 0 : snapshot.getExecutedTestCount();
-    int passed = snapshot == null ? 0 : snapshot.getPassedTestCount();
+    int skipped = statusCount(snapshot, "Skipped");
     String executionRate =
-        snapshot == null ? "0%" : formatPercentage(snapshot.getExecutionProgress());
-    String passRate = executed == 0 ? "0%" : formatPercentage(passed * 100.0 / executed);
+        snapshot == null ? "0%" : Util.formatCompactPercentage(snapshot.getExecutionProgress());
+    String passRate =
+        snapshot == null ? "0%" : Util.formatCompactPercentage(snapshot.getPassRateProgress());
     EmailValueCellStyle passRateStyle = passRateCellStyle(snapshot, theme);
     html.append(dataTableStart("Test case execution"));
     appendDetailRow(html, "Total test cases", total);
@@ -689,10 +766,14 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(html, "Blocked test cases", statusCount(snapshot, "Blocked"));
     appendDetailRow(html, "Passed test cases", statusCount(snapshot, "Passed"));
     appendDetailRow(html, "Failed test cases", statusCount(snapshot, "Failed"));
-    appendDetailRow(html, "No run test cases", Math.max(0, total - executed));
-    appendDetailRow(html, "Skipped test cases", statusCount(snapshot, "Skipped"));
+    appendDetailRow(html, "No run test cases", Math.max(0, total - executed - skipped));
+    appendDetailRow(html, "Skipped test cases", skipped);
     appendDetailRow(html, "Execution rate", executionRate);
     appendDetailRow(html, "Pass Rate", passRate, passRateStyle);
+    String automationUsage =
+        snapshot == null ? "0%" : snapshot.getTestMetrics().getAutomationPercentageText();
+    appendDetailRow(
+        html, "Automation Usage", automationUsage, automationUsageCellStyle(snapshot, theme));
     html.append("</tbody></table>");
   }
 
@@ -747,27 +828,44 @@ public class OctaneEmailBodyRenderer {
     OctaneReportTheme emailTheme = emailTheme(theme);
     OctaneGateReportState state = snapshot == null ? null : snapshot.getState();
     if (state != null && state.isBuilding()) {
-      String ongoingColor =
-          emailTheme == OctaneReportTheme.DARK ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE;
-      return EmailValueCellStyle.painted(ongoingColor, "#000000");
+      return EmailValueCellStyle.painted(systemOrange(emailTheme), "#000000");
     }
-    if (emailTheme == OctaneReportTheme.LIGHT) {
-      if (state == OctaneGateReportState.PASSED) {
-        return EmailValueCellStyle.painted(LIGHT_SYSTEM_GREEN, "#FFFFFF");
-      }
-      if (isFailState(state)) {
-        return EmailValueCellStyle.painted(LIGHT_SYSTEM_RED, "#FFFFFF");
-      }
+    if (state == OctaneGateReportState.PASSED) {
+      return EmailValueCellStyle.painted(systemGreen(emailTheme), "#000000");
     }
-    if (emailTheme == OctaneReportTheme.DARK) {
-      if (state == OctaneGateReportState.PASSED) {
-        return EmailValueCellStyle.painted(DARK_SYSTEM_GREEN, "#000000");
-      }
-      if (isFailState(state)) {
-        return EmailValueCellStyle.painted(DARK_SYSTEM_RED, "#FFFFFF");
-      }
+    if (isFailState(state)) {
+      return EmailValueCellStyle.painted(systemRed(emailTheme), "#000000");
     }
     return EmailValueCellStyle.fallbackStyle();
+  }
+
+  private EmailValueCellStyle automationUsageCellStyle(
+      OctaneGateReportSnapshot snapshot, String theme) {
+    if (snapshot == null || snapshot.getTestMetrics().getAutomationTestTotal() == 0) {
+      return EmailValueCellStyle.fallbackStyle();
+    }
+    switch (snapshot.getTestMetrics().getAutomationTone()) {
+      case "positive":
+        return EmailValueCellStyle.painted(systemGreen(emailTheme(theme)), "#000000");
+      case "warning":
+        return EmailValueCellStyle.painted(systemOrange(emailTheme(theme)), "#000000");
+      case "negative":
+        return EmailValueCellStyle.painted(systemRed(emailTheme(theme)), "#000000");
+      default:
+        return EmailValueCellStyle.fallbackStyle();
+    }
+  }
+
+  private String systemGreen(OctaneReportTheme theme) {
+    return theme == OctaneReportTheme.DARK ? DARK_SYSTEM_GREEN : LIGHT_SYSTEM_GREEN;
+  }
+
+  private String systemOrange(OctaneReportTheme theme) {
+    return theme == OctaneReportTheme.DARK ? DARK_SYSTEM_ORANGE : LIGHT_SYSTEM_ORANGE;
+  }
+
+  private String systemRed(OctaneReportTheme theme) {
+    return theme == OctaneReportTheme.DARK ? DARK_SYSTEM_RED : LIGHT_SYSTEM_RED;
   }
 
   private OctaneReportTheme emailTheme(String theme) {
@@ -823,13 +921,6 @@ public class OctaneEmailBodyRenderer {
     } catch (RuntimeException e) {
       return defaultText(value, "Not available");
     }
-  }
-
-  private String formatPercentage(double value) {
-    if (Math.abs(value - Math.rint(value)) < 0.0001) {
-      return String.format(Locale.ROOT, "%.0f%%", value);
-    }
-    return String.format(Locale.ROOT, "%.1f%%", value);
   }
 
   private String defaultText(String value, String fallback) {

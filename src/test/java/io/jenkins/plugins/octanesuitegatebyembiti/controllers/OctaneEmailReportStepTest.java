@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import hudson.FilePath;
@@ -9,6 +10,8 @@ import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -94,9 +97,18 @@ public class OctaneEmailReportStepTest {
     AtomicReference<String> sentSubject = new AtomicReference<>();
     AtomicReference<String> sentBody = new AtomicReference<>();
     AtomicReference<String> sentAttachment = new AtomicReference<>();
+    AtomicReference<OctaneGateReportSnapshot> screenshotSnapshot = new AtomicReference<>();
 
     OctaneEmailReportStep.setServicesForTesting(
-        (action, workspace, envVars, launcher, listener, browserPath, viewportWidth, theme) -> {
+        (snapshot, workspace, envVars, launcher, listener, browserPath, viewportWidth, theme) -> {
+          screenshotSnapshot.set(snapshot);
+          WorkflowJob currentJob =
+              jenkins.jenkins.getItemByFullName("interval-email-success", WorkflowJob.class);
+          OctaneGateReportAction currentAction =
+              currentJob.getLastBuild().getAction(OctaneGateReportAction.class);
+          currentAction.onError(
+              "A newer action snapshot must not leak into this email.",
+              new GateRequest("octane-prod", "4501"));
           FilePath reportDirectory = workspace.child("interval-email-test");
           reportDirectory.mkdirs();
           FilePath htmlFile = reportDirectory.child("report.html");
@@ -147,6 +159,9 @@ public class OctaneEmailReportStepTest {
     assertTrue(sentBody.get().contains("src=\"cid:report.png\""));
     assertFalse(sentBody.get().contains("{{UPDATED_AT_TEXT}}"));
     assertEquals("interval-email-test/report.png", sentAttachment.get());
+    assertNotNull(screenshotSnapshot.get());
+    assertTrue(screenshotSnapshot.get().isBuilding());
+    assertFalse(sentBody.get().contains("A newer action snapshot must not leak"));
     jenkins.assertLogContains("Jenkins Mailer completed the SMTP handoff", run);
   }
 

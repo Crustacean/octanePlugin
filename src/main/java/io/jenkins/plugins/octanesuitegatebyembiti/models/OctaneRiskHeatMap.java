@@ -114,6 +114,13 @@ public class OctaneRiskHeatMap implements Serializable {
     return root;
   }
 
+  public boolean isPopulatedData() {
+    return enabled
+        && available
+        && root != null
+        && (root.getCount() > 0 || root.getDefectCount() > 0 || !root.getChildren().isEmpty());
+  }
+
   public int getRiskScore() {
     return root == null ? 0 : root.getRiskScore();
   }
