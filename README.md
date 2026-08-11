@@ -8,7 +8,7 @@ flow, Octane API calls, metrics model, and criteria evaluation behavior.
 
 ## Requirements
 
-- Jenkins `2.555.3` or newer
+- Jenkins `2.568.1` or newer
 - Java 21 or newer for the Jenkins controller, agents, and plugin development
 
 ## Pipeline
@@ -282,10 +282,9 @@ Examples with a manual `input` confirmation before the Octane gate:
 ## Local Development
 
 ```bash
-mvn spotless:check test
-mvn hpi:run
+./mvnw spotless:check test
+./mvnw hpi:run
 ```
 
-Use Java 21 for Jenkins plugin development. If your system Maven reports
-`Unknown packaging: hpi`, use a Jenkins-plugin-compatible Maven distribution rather than a
-distribution-packaged Maven runtime that does not load the HPI lifecycle correctly.
+Use Java 21 for Jenkins plugin development. The Maven wrapper pins Maven 3.9.11 so the Jenkins HPI
+lifecycle and its custom dependency types are loaded consistently across development and CI hosts.

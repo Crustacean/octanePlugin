@@ -53,11 +53,9 @@ Trust boundaries:
 
 ## Dependency Exceptions
 
-All exceptions are explicit and reviewable. `commons-lang:2.6` and Spring Framework are provided by
-Jenkins core and are not packaged in this plugin HPI. The Spring SpEL advisory requires evaluation of
-user-controlled SpEL; this plugin has no SpEL evaluation path. Its exception expires 2026-10-31 and
-requires controller migration to a Jenkins release carrying Spring Framework 6.2.19 or 7.0.8. The
-Jenkins core advisory exception records the official 2.555.3 LTS backport and expires 2026-12-31.
+All exceptions are explicit and reviewable. `commons-lang:2.6` is provided by Jenkins core and is not
+packaged in this plugin HPI. The plugin baseline is Jenkins 2.568.1, which provides Spring Framework
+7.0.8 and Spring Security 7.1.0; the former Spring Framework exception is therefore no longer needed.
 
 ## Residual Risk
 

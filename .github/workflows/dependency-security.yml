@@ -75,7 +75,7 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          mvn org.owasp:dependency-check-maven:12.2.1:check \
+          ./mvnw org.owasp:dependency-check-maven:12.2.1:check \
             -DnvdApiKey="$NVD_API_KEY" \
             -Dformat=JSON \
             -DfailBuildOnCVSS=11 \
