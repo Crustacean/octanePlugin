@@ -1,6 +1,7 @@
-# ALM Octane connection. Shared-space and workspace IDs are resolved from
-# examples/clusters.json using this server ID.
-OCTANE_SERVER_ID: "octane-prod"
+# ALM Octane connection. Space selectors accept a case-insensitive name or numeric ID.
+# The selected shared-space name resolves the globally configured Jenkins server ID.
+OCTANE_SHARED_SPACE_NAME: "Default Shared Space"
+OCTANE_WORKSPACE_NAME: "Abbybot Mail Service"
 
 # Suite-run discovery accepts numeric IDs, a release name, or Release, Sprint.
 OCTANE_REGRESSION_SUITE_RUN_ID: "76644"

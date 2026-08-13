@@ -225,13 +225,17 @@ Jenkins username/password credentials, with the username as `client_id` and the 
 in the build workspace. Matching Jenkins Job UI parameters take priority over YAML values; omitted
 YAML values fall back to the neutral defaults in the Jenkinsfile.
 
-The YAML selects the globally configured Octane connection through `OCTANE_SERVER_ID`.
-[`examples/clusters.json`](examples/clusters.json) maps that server ID to its shared-space and
-workspace IDs, so pipeline users do not need to provide those IDs separately. Set `CLUSTERS_FILE`
-as a Jenkins parameter or YAML value to select another mapping file. Keep client IDs and secrets in
-Jenkins Credentials rather than in either configuration file. `OCTANE_REGRESSION_SUITE_RUN_ID`
-provides the regression suite-run source, while `OCTANE_DEFINED_SCOPE` supplies the optional
-defined-scope selections consumed by the report analytics.
+The YAML identifies the target space with `OCTANE_SHARED_SPACE_NAME` and `OCTANE_WORKSPACE_NAME`.
+Each selector accepts either its numeric ID or a human-readable name; name matching ignores
+surrounding whitespace and letter case.
+[`examples/octane_spaces_mapping.json`](examples/octane_spaces_mapping.json) resolves both selectors
+to the canonical names and numeric IDs required by the existing Octane API calls. The canonical
+shared-space name also selects the globally configured Jenkins Octane connection as
+`OCTANE_SERVER_ID`. Set `OCTANE_SPACES_MAPPING_FILE` as a Jenkins parameter or YAML value to select
+another workspace-tree mapping. Keep client IDs and secrets in Jenkins Credentials rather than in
+either configuration file. `OCTANE_REGRESSION_SUITE_RUN_ID` provides the regression suite-run source,
+while `OCTANE_DEFINED_SCOPE` supplies the optional defined-scope selections consumed by the report
+analytics.
 
 ## Configuration
 

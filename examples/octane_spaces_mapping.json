@@ -1,0 +1,784 @@
+{
+    "shared_spaces": [
+        {
+            "sharedSpaceId": "1001",
+            "sharedSpaceName": "Default Shared Space",
+            "workspaces": [
+                {
+                    "workspaceId": "5002",
+                    "workspaceName": "Abbybot Mail Service"
+                },
+                {
+                    "workspaceId": "5003",
+                    "workspaceName": "Acquiition & Retention"
+                },
+                {
+                    "workspaceId": "5004",
+                    "workspaceName": "Ageeza"
+                },
+                {
+                    "workspaceId": "5005",
+                    "workspaceName": "AGM SMS Portal"
+                },
+                {
+                    "workspaceId": "5006",
+                    "workspaceName": "Angaza(Process Automation) Squad"
+                },
+                {
+                    "workspaceId": "5007",
+                    "workspaceName": "Apigee"
+                },
+                {
+                    "workspaceId": "5008",
+                    "workspaceName": "Automation"
+                },
+                {
+                    "workspaceId": "5009",
+                    "workspaceName": "Automation_Demo"
+                },
+                {
+                    "workspaceId": "5010",
+                    "workspaceName": "AWS Changes"
+                },
+                {
+                    "workspaceId": "5011",
+                    "workspaceName": "B2C Decoupling"
+                },
+                {
+                    "workspaceId": "3001",
+                    "workspaceName": "BAU"
+                },
+                {
+                    "workspaceId": "5012",
+                    "workspaceName": "Benefit and Compesation Squad"
+                },
+                {
+                    "workspaceId": "5013",
+                    "workspaceName": "BFSI"
+                },
+                {
+                    "workspaceId": "5014",
+                    "workspaceName": "Big Data"
+                },
+                {
+                    "workspaceId": "5015",
+                    "workspaceName": "Bima"
+                },
+                {
+                    "workspaceId": "5016",
+                    "workspaceName": "Bingwa Sokoni"
+                },
+                {
+                    "workspaceId": "5017",
+                    "workspaceName": "Bonga For Good"
+                },
+                {
+                    "workspaceId": "5018",
+                    "workspaceName": "BSS Tribe"
+                },
+                {
+                    "workspaceId": "5001",
+                    "workspaceName": "Business Payments LNM Squad"
+                },
+                {
+                    "workspaceId": "5019",
+                    "workspaceName": "Campaign Management"
+                },
+                {
+                    "workspaceId": "5020",
+                    "workspaceName": "Campaigns"
+                },
+                {
+                    "workspaceId": "5021",
+                    "workspaceName": "CartNshop"
+                },
+                {
+                    "workspaceId": "5022",
+                    "workspaceName": "CBS"
+                },
+                {
+                    "workspaceId": "5023",
+                    "workspaceName": "CBU DATA"
+                },
+                {
+                    "workspaceId": "5024",
+                    "workspaceName": "CBU Digital Product & Services"
+                },
+                {
+                    "workspaceId": "5025",
+                    "workspaceName": "CC"
+                },
+                {
+                    "workspaceId": "5027",
+                    "workspaceName": "Cell - ID Activation"
+                },
+                {
+                    "workspaceId": "5026",
+                    "workspaceName": "Cell Site Profitability - Dashboard"
+                },
+                {
+                    "workspaceId": "5028",
+                    "workspaceName": "CEM_Portal"
+                },
+                {
+                    "workspaceId": "5029",
+                    "workspaceName": "ChapterBoot"
+                },
+                {
+                    "workspaceId": "5030",
+                    "workspaceName": "Christopher Test"
+                },
+                {
+                    "workspaceId": "3004",
+                    "workspaceName": "CLOUD"
+                },
+                {
+                    "workspaceId": "5031",
+                    "workspaceName": "Cloud Computing ICT"
+                },
+                {
+                    "workspaceId": "5032",
+                    "workspaceName": "Cloud Portal"
+                },
+                {
+                    "workspaceId": "5033",
+                    "workspaceName": "Coaching Portal"
+                },
+                {
+                    "workspaceId": "5034",
+                    "workspaceName": "Collabortion Bundles"
+                },
+                {
+                    "workspaceId": "5035",
+                    "workspaceName": "Consent Management"
+                },
+                {
+                    "workspaceId": "5036",
+                    "workspaceName": "Consumer Payments"
+                },
+                {
+                    "workspaceId": "5037",
+                    "workspaceName": "Core EBU Products"
+                },
+                {
+                    "workspaceId": "5038",
+                    "workspaceName": "Core MPESA Products"
+                },
+                {
+                    "workspaceId": "5039",
+                    "workspaceName": "CRBT"
+                },
+                {
+                    "workspaceId": "5040",
+                    "workspaceName": "Credit Scoring"
+                },
+                {
+                    "workspaceId": "5041",
+                    "workspaceName": "Credit Squad"
+                },
+                {
+                    "workspaceId": "3002",
+                    "workspaceName": "CRM"
+                },
+                {
+                    "workspaceId": "5042",
+                    "workspaceName": "CRM Golden/Regressions"
+                },
+                {
+                    "workspaceId": "5043",
+                    "workspaceName": "Customer Payment Portal"
+                },
+                {
+                    "workspaceId": "5044",
+                    "workspaceName": "CVM"
+                },
+                {
+                    "workspaceId": "5045",
+                    "workspaceName": "CX Analytics"
+                },
+                {
+                    "workspaceId": "5046",
+                    "workspaceName": "Daraja APIs"
+                },
+                {
+                    "workspaceId": "5047",
+                    "workspaceName": "Daraja Tests"
+                },
+                {
+                    "workspaceId": "5048",
+                    "workspaceName": "DAT"
+                },
+                {
+                    "workspaceId": "5049",
+                    "workspaceName": "Data Minimization"
+                },
+                {
+                    "workspaceId": "5050",
+                    "workspaceName": "Data Operation Platform (DOP)"
+                },
+                {
+                    "workspaceId": "5051",
+                    "workspaceName": "Data Use Cases"
+                },
+                {
+                    "workspaceId": "5052",
+                    "workspaceName": "DE Tribe"
+                },
+                {
+                    "workspaceId": "5053",
+                    "workspaceName": "Dealer Portal"
+                },
+                {
+                    "workspaceId": "1002",
+                    "workspaceName": "default_workspace"
+                },
+                {
+                    "workspaceId": "5054",
+                    "workspaceName": "Defect Managers"
+                },
+                {
+                    "workspaceId": "5055",
+                    "workspaceName": "Demo Workspace"
+                },
+                {
+                    "workspaceId": "5056",
+                    "workspaceName": "DevEngine(Developer Experience)"
+                },
+                {
+                    "workspaceId": "5057",
+                    "workspaceName": "Digi App"
+                },
+                {
+                    "workspaceId": "5058",
+                    "workspaceName": "Digi_Market"
+                },
+                {
+                    "workspaceId": "5059",
+                    "workspaceName": "Digi_Market_SITs"
+                },
+                {
+                    "workspaceId": "5060",
+                    "workspaceName": "Digifarm"
+                },
+                {
+                    "workspaceId": "5061",
+                    "workspaceName": "Digifarm - Mezanine Deliverables"
+                },
+                {
+                    "workspaceId": "5062",
+                    "workspaceName": "Digifarm Term Loan"
+                },
+                {
+                    "workspaceId": "5063",
+                    "workspaceName": "Digital BSS"
+                },
+                {
+                    "workspaceId": "5064",
+                    "workspaceName": "Digital Care - End-End Frontend Automation"
+                },
+                {
+                    "workspaceId": "5065",
+                    "workspaceName": "Digital Channels Tribe - My County Apps"
+                },
+                {
+                    "workspaceId": "5066",
+                    "workspaceName": "Digital Identity"
+                },
+                {
+                    "workspaceId": "5186",
+                    "workspaceName": "Digital Services"
+                },
+                {
+                    "workspaceId": "5067",
+                    "workspaceName": "DIT Elastic Search stack"
+                },
+                {
+                    "workspaceId": "5068",
+                    "workspaceName": "Dlight"
+                },
+                {
+                    "workspaceId": "5069",
+                    "workspaceName": "DPI - GavaWallet"
+                },
+                {
+                    "workspaceId": "5070",
+                    "workspaceName": "DPI - OpenAPI"
+                },
+                {
+                    "workspaceId": "5071",
+                    "workspaceName": "DVA APP"
+                },
+                {
+                    "workspaceId": "5072",
+                    "workspaceName": "DXL"
+                },
+                {
+                    "workspaceId": "5073",
+                    "workspaceName": "E_SIM"
+                },
+                {
+                    "workspaceId": "5074",
+                    "workspaceName": "EB Process Automation"
+                },
+                {
+                    "workspaceId": "5076",
+                    "workspaceName": "EBU - AWS"
+                },
+                {
+                    "workspaceId": "5077",
+                    "workspaceName": "EBU - Cloud Market"
+                },
+                {
+                    "workspaceId": "5075",
+                    "workspaceName": "EBU - IEBC New NDC"
+                },
+                {
+                    "workspaceId": "5078",
+                    "workspaceName": "EBU - IFB Comeback Initiative"
+                },
+                {
+                    "workspaceId": "5079",
+                    "workspaceName": "EBU - MPLS LTE 6mbps"
+                },
+                {
+                    "workspaceId": "5080",
+                    "workspaceName": "Ecommerce"
+                },
+                {
+                    "workspaceId": "5081",
+                    "workspaceName": "EDMS"
+                },
+                {
+                    "workspaceId": "5082",
+                    "workspaceName": "Eflow"
+                },
+                {
+                    "workspaceId": "5083",
+                    "workspaceName": "Egain Migration Dry Run"
+                },
+                {
+                    "workspaceId": "5084",
+                    "workspaceName": "Employee Super App (Android/IOS)"
+                },
+                {
+                    "workspaceId": "5085",
+                    "workspaceName": "Employee Super App (Web)"
+                },
+                {
+                    "workspaceId": "5086",
+                    "workspaceName": "Enterpise Architecture"
+                },
+                {
+                    "workspaceId": "5087",
+                    "workspaceName": "Enterpise Network Programmability"
+                },
+                {
+                    "workspaceId": "5088",
+                    "workspaceName": "Enterprie Reporting"
+                },
+                {
+                    "workspaceId": "5089",
+                    "workspaceName": "Enterprie Security"
+                },
+                {
+                    "workspaceId": "5090",
+                    "workspaceName": "EPM"
+                },
+                {
+                    "workspaceId": "5091",
+                    "workspaceName": "ERP Project"
+                },
+                {
+                    "workspaceId": "5092",
+                    "workspaceName": "ERP Space"
+                },
+                {
+                    "workspaceId": "5093",
+                    "workspaceName": "EUDA_ERP Integration"
+                },
+                {
+                    "workspaceId": "5094",
+                    "workspaceName": "FAAS(Fintech as a Service)"
+                },
+                {
+                    "workspaceId": "5095",
+                    "workspaceName": "Fintech FS-Ops"
+                }
+            ]
+        },
+        {
+            "sharedSpaceId": "10027",
+            "sharedSpaceName": "FINANCIAL SERVICES TRIBE",
+            "workspaces": [
+                {
+                    "workspaceId": "8001",
+                    "workspaceName": "Business Credit"
+                },
+                {
+                    "workspaceId": "4004",
+                    "workspaceName": "Business Payments"
+                },
+                {
+                    "workspaceId": "4006",
+                    "workspaceName": "Consumer Credit"
+                },
+                {
+                    "workspaceId": "4010",
+                    "workspaceName": "Consumer Experience"
+                },
+                {
+                    "workspaceId": "4001",
+                    "workspaceName": "Daraja"
+                },
+                {
+                    "workspaceId": "6001",
+                    "workspaceName": "DAT"
+                },
+                {
+                    "workspaceId": "1002",
+                    "workspaceName": "default_workspace"
+                },
+                {
+                    "workspaceId": "2002",
+                    "workspaceName": "Device Financing"
+                },
+                {
+                    "workspaceId": "4011",
+                    "workspaceName": "Fintech Operations"
+                },
+                {
+                    "workspaceId": "4007",
+                    "workspaceName": "GlobalPay"
+                },
+                {
+                    "workspaceId": "2001",
+                    "workspaceName": "Hustler Bond"
+                },
+                {
+                    "workspaceId": "2004",
+                    "workspaceName": "IMT"
+                },
+                {
+                    "workspaceId": "4009",
+                    "workspaceName": "Insurance"
+                },
+                {
+                    "workspaceId": "4012",
+                    "workspaceName": "Integrated Business"
+                },
+                {
+                    "workspaceId": "3001",
+                    "workspaceName": "Integrated Credit"
+                },
+                {
+                    "workspaceId": "2003",
+                    "workspaceName": "MAPS"
+                },
+                {
+                    "workspaceId": "5001",
+                    "workspaceName": "Miniapps"
+                },
+                {
+                    "workspaceId": "4013",
+                    "workspaceName": "M-PESA Business App"
+                },
+                {
+                    "workspaceId": "4014",
+                    "workspaceName": "M-PESA Consumer App"
+                },
+                {
+                    "workspaceId": "4002",
+                    "workspaceName": "M-PESA GO"
+                },
+                {
+                    "workspaceId": "7001",
+                    "workspaceName": "NFC"
+                },
+                {
+                    "workspaceId": "1003",
+                    "workspaceName": "One App"
+                },
+                {
+                    "workspaceId": "4003",
+                    "workspaceName": "Payment Schedule/Campaigns"
+                },
+                {
+                    "workspaceId": "7002",
+                    "workspaceName": "Public Sector"
+                },
+                {
+                    "workspaceId": "3002",
+                    "workspaceName": "SHIF"
+                },
+                {
+                    "workspaceId": "4005",
+                    "workspaceName": "SME Credit"
+                },
+                {
+                    "workspaceId": "3003",
+                    "workspaceName": "SME Payments"
+                },
+                {
+                    "workspaceId": "4008",
+                    "workspaceName": "Wealth Management"
+                }
+            ]
+        },
+        {
+            "sharedSpaceId": "9016",
+            "sharedSpaceName": "FS_TRIBE_DOMAIN",
+            "workspaces": [
+                {
+                    "workspaceId": "2044",
+                    "workspaceName": "4C_Aggregator_Model"
+                },
+                {
+                    "workspaceId": "1004",
+                    "workspaceName": "AFCON_PROMO"
+                },
+                {
+                    "workspaceId": "1005",
+                    "workspaceName": "Apigee_Upgrade"
+                },
+                {
+                    "workspaceId": "1006",
+                    "workspaceName": "Bill_Manager"
+                },
+                {
+                    "workspaceId": "1007",
+                    "workspaceName": "Bloom_IPF"
+                },
+                {
+                    "workspaceId": "2001",
+                    "workspaceName": "CREDITSCORING"
+                },
+                {
+                    "workspaceId": "2002",
+                    "workspaceName": "DataPrivacy"
+                },
+                {
+                    "workspaceId": "1002",
+                    "workspaceName": "default_workspace"
+                },
+                {
+                    "workspaceId": "2003",
+                    "workspaceName": "EReceipts"
+                },
+                {
+                    "workspaceId": "4001",
+                    "workspaceName": "FINTECH"
+                },
+                {
+                    "workspaceId": "2004",
+                    "workspaceName": "FS_AUDIT"
+                },
+                {
+                    "workspaceId": "2005",
+                    "workspaceName": "FSI"
+                },
+                {
+                    "workspaceId": "2006",
+                    "workspaceName": "IMT_SQUAD"
+                },
+                {
+                    "workspaceId": "2007",
+                    "workspaceName": "INTELLIMATCH"
+                },
+                {
+                    "workspaceId": "2008",
+                    "workspaceName": "LKE115"
+                },
+                {
+                    "workspaceId": "2009",
+                    "workspaceName": "MALI"
+                },
+                {
+                    "workspaceId": "2010",
+                    "workspaceName": "Mchanga"
+                },
+                {
+                    "workspaceId": "2011",
+                    "workspaceName": "Merchant_Management_System"
+                },
+                {
+                    "workspaceId": "2012",
+                    "workspaceName": "MerchantSelfonBoarding"
+                },
+                {
+                    "workspaceId": "2013",
+                    "workspaceName": "MerchantSelfOnBoardingAPIs"
+                },
+                {
+                    "workspaceId": "2014",
+                    "workspaceName": "MicroSME"
+                },
+                {
+                    "workspaceId": "2015",
+                    "workspaceName": "Mkesho"
+                },
+                {
+                    "workspaceId": "2016",
+                    "workspaceName": "MMI_20190"
+                },
+                {
+                    "workspaceId": "2017",
+                    "workspaceName": "MPESA_BROKER_CUTOVER"
+                },
+                {
+                    "workspaceId": "2018",
+                    "workspaceName": "Mpesa_Ethiopia"
+                },
+                {
+                    "workspaceId": "2019",
+                    "workspaceName": "MPESA_GLOBAL"
+                },
+                {
+                    "workspaceId": "2020",
+                    "workspaceName": "MPESA_ON_USSD"
+                },
+                {
+                    "workspaceId": "2021",
+                    "workspaceName": "MPESA_R6"
+                },
+                {
+                    "workspaceId": "2045",
+                    "workspaceName": "MPESA_R6_II"
+                },
+                {
+                    "workspaceId": "2023",
+                    "workspaceName": "MPESA_R6_III"
+                },
+                {
+                    "workspaceId": "2024",
+                    "workspaceName": "MPESA_REGRESSION"
+                },
+                {
+                    "workspaceId": "2025",
+                    "workspaceName": "Mpesa_Statements"
+                },
+                {
+                    "workspaceId": "3001",
+                    "workspaceName": "Mpesa_Tariff_Change"
+                },
+                {
+                    "workspaceId": "2027",
+                    "workspaceName": "MpesaBusinessApp"
+                },
+                {
+                    "workspaceId": "2028",
+                    "workspaceName": "MpesaConsumerApp"
+                },
+                {
+                    "workspaceId": "2029",
+                    "workspaceName": "Mshariah"
+                },
+                {
+                    "workspaceId": "2030",
+                    "workspaceName": "NDMA"
+                },
+                {
+                    "workspaceId": "2031",
+                    "workspaceName": "PROMOS"
+                },
+                {
+                    "workspaceId": "2032",
+                    "workspaceName": "STK_Push_USSD_Fallback"
+                },
+                {
+                    "workspaceId": "2033",
+                    "workspaceName": "Store_Credit"
+                },
+                {
+                    "workspaceId": "2034",
+                    "workspaceName": "SurePay"
+                },
+                {
+                    "workspaceId": "2035",
+                    "workspaceName": "SUREPAYCLEANER_REGRES_13022020"
+                },
+                {
+                    "workspaceId": "3002",
+                    "workspaceName": "TIBCO_FS"
+                },
+                {
+                    "workspaceId": "2037",
+                    "workspaceName": "TRANSACTION_DUMPS"
+                },
+                {
+                    "workspaceId": "2038",
+                    "workspaceName": "UniversalPaymentsVirtualCard"
+                },
+                {
+                    "workspaceId": "2039",
+                    "workspaceName": "VAS_UPGRADE"
+                },
+                {
+                    "workspaceId": "2040",
+                    "workspaceName": "VIP_REGISTRATION"
+                },
+                {
+                    "workspaceId": "2041",
+                    "workspaceName": "WAP"
+                },
+                {
+                    "workspaceId": "2042",
+                    "workspaceName": "WEALTH_MANAGEMENT"
+                },
+                {
+                    "workspaceId": "2043",
+                    "workspaceName": "WFP"
+                }
+            ]
+        },
+        {
+            "sharedSpaceId": "9008",
+            "sharedSpaceName": "MPESA_REFRESH",
+            "workspaces": [
+                {
+                    "workspaceId": "1002",
+                    "workspaceName": "default_workspace"
+                },
+                {
+                    "workspaceId": "1003",
+                    "workspaceName": "MPESA_R6"
+                },
+                {
+                    "workspaceId": "1004",
+                    "workspaceName": "Mpesa_R6CV1"
+                },
+                {
+                    "workspaceId": "1005",
+                    "workspaceName": "R6CV1"
+                }
+            ]
+        },
+        {
+            "sharedSpaceId": "9006",
+            "sharedSpaceName": "NEW_NDC",
+            "workspaces": [
+                {
+                    "workspaceId": "1002",
+                    "workspaceName": "default_workspace"
+                },
+                {
+                    "workspaceId": "1003",
+                    "workspaceName": "NEW_NDC2"
+                }
+            ]
+        },
+        {
+            "sharedSpaceId": "8002",
+            "sharedSpaceName": "SAF_BCP",
+            "workspaces": [
+                {
+                    "workspaceId": "2001",
+                    "workspaceName": "BCP"
+                },
+                {
+                    "workspaceId": "1002",
+                    "workspaceName": "default_workspace"
+                }
+            ]
+        }
+    ]
+}

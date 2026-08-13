@@ -4,8 +4,10 @@ pipeline {
   environment {
     // Neutral fallbacks. Jenkins Job UI parameters override variables.yaml, which overrides these.
     PARAMS_FILE = 'examples/variables.yaml'
-    CLUSTERS_FILE = 'examples/clusters.json'
-    OCTANE_SERVER_ID = 'octane-prod'
+    OCTANE_SPACES_MAPPING_FILE = 'examples/octane_spaces_mapping.json'
+    OCTANE_SERVER_ID = ''
+    OCTANE_SHARED_SPACE_NAME = ''
+    OCTANE_WORKSPACE_NAME = ''
     OCTANE_SHARED_SPACE_ID = ''
     OCTANE_WORKSPACE_ID = ''
     OCTANE_REGRESSION_SUITE_RUN_ID = ''
@@ -73,10 +75,9 @@ pipeline {
           }
           Map yamlConfiguration = loadedConfiguration as Map
           List<String> configurationKeys = [
-            'CLUSTERS_FILE',
-            'OCTANE_SERVER_ID',
-            'OCTANE_SHARED_SPACE_ID',
-            'OCTANE_WORKSPACE_ID',
+            'OCTANE_SPACES_MAPPING_FILE',
+            'OCTANE_SHARED_SPACE_NAME',
+            'OCTANE_WORKSPACE_NAME',
             'OCTANE_REGRESSION_SUITE_RUN_ID',
             'OCTANE_CRITICAL_SUITE_RUN_ID',
             'OCTANE_DEFINED_SCOPE',
@@ -138,40 +139,9 @@ pipeline {
             env[key] = selectedValue == null ? '' : selectedValue.toString()
           }
 
-          String clustersFile = env.CLUSTERS_FILE?.trim()
-          if (!clustersFile || !fileExists(clustersFile)) {
-            error "Octane cluster mapping file was not found in the workspace: ${clustersFile}"
-          }
-          def loadedClusters = readJSON(file: clustersFile)
-          if (!(loadedClusters instanceof Map)) {
-            error "Octane cluster mapping file must contain a top-level JSON object: ${clustersFile}"
-          }
-          String serverId = env.OCTANE_SERVER_ID?.trim()
-          def selectedCluster = loadedClusters[serverId]
-          if (!(selectedCluster instanceof Map)) {
-            error "OCTANE_SERVER_ID '${serverId}' has no mapping in ${clustersFile}."
-          }
-          String mappedSharedSpaceId = selectedCluster.sharedSpaceId?.toString()?.trim()
-          String mappedWorkspaceId = selectedCluster.workspaceId?.toString()?.trim()
-          if (!(mappedSharedSpaceId ==~ /[0-9]{1,18}/) ||
-              !(mappedWorkspaceId ==~ /[0-9]{1,18}/)) {
-            error(
-                "Cluster '${serverId}' must define numeric sharedSpaceId and workspaceId values "
-                    + "in ${clustersFile}.")
-          }
-          if (!params.containsKey('OCTANE_SHARED_SPACE_ID') &&
-              !yamlConfiguration.containsKey('OCTANE_SHARED_SPACE_ID')) {
-            env.OCTANE_SHARED_SPACE_ID = mappedSharedSpaceId
-          }
-          if (!params.containsKey('OCTANE_WORKSPACE_ID') &&
-              !yamlConfiguration.containsKey('OCTANE_WORKSPACE_ID')) {
-            env.OCTANE_WORKSPACE_ID = mappedWorkspaceId
-          }
-
           List<String> requiredKeys = [
-            'OCTANE_SERVER_ID',
-            'OCTANE_SHARED_SPACE_ID',
-            'OCTANE_WORKSPACE_ID',
+            'OCTANE_SHARED_SPACE_NAME',
+            'OCTANE_WORKSPACE_NAME',
             'OCTANE_CRITICAL_SUITE_RUN_ID',
             'OCTANE_CRITERIA'
           ]
@@ -181,11 +151,83 @@ pipeline {
             error "Required Octane configuration is blank: ${missingKeys.join(', ')}"
           }
 
+          String spacesMappingFile = env.OCTANE_SPACES_MAPPING_FILE?.trim()
+          if (!spacesMappingFile || !fileExists(spacesMappingFile)) {
+            error "Octane spaces mapping file was not found in the workspace: ${spacesMappingFile}"
+          }
+          def loadedSpacesMapping = readJSON(file: spacesMappingFile)
+          if (!(loadedSpacesMapping instanceof Map) ||
+              !(loadedSpacesMapping.shared_spaces instanceof Collection)) {
+            error(
+                "Octane spaces mapping file must contain a shared_spaces array: "
+                    + spacesMappingFile)
+          }
+
+          String sharedSpaceSelector = env.OCTANE_SHARED_SPACE_NAME.trim()
+          String workspaceSelector = env.OCTANE_WORKSPACE_NAME.trim()
+          boolean sharedSpaceSelectorIsId = sharedSpaceSelector ==~ /[0-9]{1,18}/
+          boolean workspaceSelectorIsId = workspaceSelector ==~ /[0-9]{1,18}/
+          String normalizedSharedSpaceName = sharedSpaceSelector.toLowerCase()
+          String normalizedWorkspaceName = workspaceSelector.toLowerCase()
+          def selectedSharedSpace =
+              loadedSpacesMapping.shared_spaces.find { space ->
+                if (!(space instanceof Map)) {
+                  return false
+                }
+                return sharedSpaceSelectorIsId
+                    ? space.sharedSpaceId?.toString()?.trim() == sharedSpaceSelector
+                    : space.sharedSpaceName?.toString()?.trim()?.toLowerCase() ==
+                        normalizedSharedSpaceName
+              }
+          if (!(selectedSharedSpace instanceof Map)) {
+            error(
+                "OCTANE_SHARED_SPACE_NAME '${sharedSpaceSelector}' did not match a name or ID in "
+                    + spacesMappingFile)
+          }
+          if (!(selectedSharedSpace.workspaces instanceof Collection)) {
+            error(
+                "Shared space '${sharedSpaceSelector}' has no workspaces array in "
+                    + spacesMappingFile)
+          }
+          def selectedWorkspace =
+              selectedSharedSpace.workspaces.find { workspace ->
+                if (!(workspace instanceof Map)) {
+                  return false
+                }
+                return workspaceSelectorIsId
+                    ? workspace.workspaceId?.toString()?.trim() == workspaceSelector
+                    : workspace.workspaceName?.toString()?.trim()?.toLowerCase() ==
+                        normalizedWorkspaceName
+              }
+          if (!(selectedWorkspace instanceof Map)) {
+            error(
+                "OCTANE_WORKSPACE_NAME '${workspaceSelector}' did not match a name or ID under "
+                    + "shared space '${sharedSpaceSelector}' in ${spacesMappingFile}")
+          }
+
+          String mappedSharedSpaceId = selectedSharedSpace.sharedSpaceId?.toString()?.trim()
+          String mappedWorkspaceId = selectedWorkspace.workspaceId?.toString()?.trim()
+          String resolvedSharedSpaceName =
+              selectedSharedSpace.sharedSpaceName?.toString()?.trim()
+          String resolvedWorkspaceName = selectedWorkspace.workspaceName?.toString()?.trim()
+          if (!(mappedSharedSpaceId ==~ /[0-9]{1,18}/) ||
+              !(mappedWorkspaceId ==~ /[0-9]{1,18}/) ||
+              !resolvedSharedSpaceName ||
+              !resolvedWorkspaceName) {
+            error(
+                "Shared space '${sharedSpaceSelector}' and workspace '${workspaceSelector}' must "
+                    + "define names and numeric IDs in ${spacesMappingFile}.")
+          }
+          env.OCTANE_SERVER_ID = resolvedSharedSpaceName
+          env.OCTANE_SHARED_SPACE_ID = mappedSharedSpaceId
+          env.OCTANE_WORKSPACE_ID = mappedWorkspaceId
+
           echo "Loaded Octane configuration from ${paramsFile}."
           echo(
-              "Resolved ${env.OCTANE_SERVER_ID} to shared space "
-                  + "${env.OCTANE_SHARED_SPACE_ID} and workspace ${env.OCTANE_WORKSPACE_ID} "
-                  + "from ${clustersFile}.")
+              "Resolved shared space '${sharedSpaceSelector}' to '${resolvedSharedSpaceName}' "
+                  + "(${env.OCTANE_SHARED_SPACE_ID}) and workspace '${workspaceSelector}' to "
+                  + "'${resolvedWorkspaceName}' (${env.OCTANE_WORKSPACE_ID}) from "
+                  + "${spacesMappingFile}; using Octane server '${env.OCTANE_SERVER_ID}'.")
           echo(
               'Configuration priority: Jenkins Job UI parameters, YAML values, '
                   + 'then Jenkinsfile defaults.')
