@@ -32,6 +32,7 @@ public final class OctaneReportDataMapper {
     Map<String, Object> index = rootData(safeSnapshot);
     index.put("sections", sectionIndexes);
     Map<String, Object> complete = new LinkedHashMap<>(index);
+    complete.put("suiteAttributions", safeSnapshot.getSuiteAttributions());
     complete.put("riskHeatMap", safeSnapshot.getRiskHeatMap().toMap());
     complete.put("sections", sections);
     return new ReportData(index, complete, sections);

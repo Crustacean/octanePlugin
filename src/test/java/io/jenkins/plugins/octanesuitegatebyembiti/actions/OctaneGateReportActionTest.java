@@ -19,6 +19,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMapNode;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -91,6 +92,38 @@ public class OctaneGateReportActionTest {
         action.refreshIfStale(Duration.ofMinutes(1L), now);
 
     assertEquals(OctaneGateReportAction.RefreshStatus.NOT_BUILDING, refreshResult.status());
+  }
+
+  @Test
+  public void persistsFirstOwnerAcrossPartialPollAndContinuouslyDiscoveredSuite() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501,4502");
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+
+    action.onPoll(
+        attributionResult(
+            Map.of("4501", List.of(new RunRecord("run-1", "One", "planned", "Ada Tester")))),
+        classifier());
+    action.onPoll(
+        attributionResult(
+            Map.of(
+                "4501",
+                List.of(new RunRecord("run-1", "One", "passed", "Unassigned (4501)")),
+                "4502",
+                List.of(new RunRecord("run-2", "Two", "planned", "ada tester")))),
+        classifier());
+
+    assertEquals(
+        Map.of("4501", "Ada Tester", "4502", "ada tester"),
+        action.getSnapshot().getSuiteAttributions());
+    assertEquals(1, action.getSnapshot().getReportSections().get(0).getSuiteRuns().size());
+    assertEquals(
+        List.of("4501", "4502"),
+        action.getSnapshot().getReportSections().get(0).getSuiteRuns().get(0).getSuiteRunIds());
+    assertFalse(
+        action.getSnapshot().getTesterPerformances().stream()
+            .anyMatch(tester -> tester.getEmail().startsWith("Unassigned")));
   }
 
   @Test
@@ -1225,6 +1258,7 @@ public class OctaneGateReportActionTest {
     assertFalse(payload.getBoolean("timerActive"));
     assertEquals("Passed", payload.getString("stateLabel"));
     assertEquals("Passed", payload.getString("jobStateLabel"));
+    assertEquals("Ada Tester", payload.getJSONObject("suiteAttributions").getString("4501"));
     assertEquals(15, payload.getInt("refreshSeconds"));
     assertEquals(7200, payload.getInt("timeoutSeconds"));
     assertEquals(0, payload.getInt("timeoutExtendedSeconds"));
@@ -1482,6 +1516,27 @@ public class OctaneGateReportActionTest {
         base.getScopedResults(),
         riskHeatMap,
         polledAt);
+  }
+
+  private GateResult attributionResult(Map<String, List<RunRecord>> suiteRuns) {
+    Map<String, List<RunRecord>> orderedSuiteRuns = new LinkedHashMap<>();
+    suiteRuns.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey())
+        .forEach(entry -> orderedSuiteRuns.put(entry.getKey(), entry.getValue()));
+    List<RunRecord> runs =
+        orderedSuiteRuns.values().stream()
+            .flatMap((List<RunRecord> suiteRunRecords) -> suiteRunRecords.stream())
+            .toList();
+    return new GateResult(
+        String.join(",", orderedSuiteRuns.keySet()),
+        "regressions.executionRate >= 0",
+        false,
+        false,
+        GateMetrics.fromRuns(runs, classifier()),
+        runs,
+        orderedSuiteRuns,
+        Map.of(),
+        Instant.parse("2026-08-11T12:00:00Z"));
   }
 
   private OctaneRiskHeatMap populatedHeatMap(int riskScore) {

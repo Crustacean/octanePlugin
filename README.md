@@ -229,9 +229,9 @@ The YAML selects the globally configured Octane connection through `OCTANE_SERVE
 [`examples/clusters.json`](examples/clusters.json) maps that server ID to its shared-space and
 workspace IDs, so pipeline users do not need to provide those IDs separately. Set `CLUSTERS_FILE`
 as a Jenkins parameter or YAML value to select another mapping file. Keep client IDs and secrets in
-Jenkins Credentials rather than in either configuration file. `OCTANE_SUITE_RUN_ID` is an alias for
-the regression suite-run source, while `OCTANE_DEFINED_SCOPE` supplies the optional defined-scope
-selections consumed by the report analytics.
+Jenkins Credentials rather than in either configuration file. `OCTANE_REGRESSION_SUITE_RUN_ID`
+provides the regression suite-run source, while `OCTANE_DEFINED_SCOPE` supplies the optional
+defined-scope selections consumed by the report analytics.
 
 ## Configuration
 

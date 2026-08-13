@@ -8,7 +8,7 @@ pipeline {
     OCTANE_SERVER_ID = 'octane-prod'
     OCTANE_SHARED_SPACE_ID = ''
     OCTANE_WORKSPACE_ID = ''
-    OCTANE_SUITE_RUN_ID = ''
+    OCTANE_REGRESSION_SUITE_RUN_ID = ''
     OCTANE_CRITICAL_SUITE_RUN_ID = ''
     OCTANE_DEFINED_SCOPE = ''
     OCTANE_CRITICAL_SCOPE_NAME = 'critical'
@@ -77,7 +77,6 @@ pipeline {
             'OCTANE_SERVER_ID',
             'OCTANE_SHARED_SPACE_ID',
             'OCTANE_WORKSPACE_ID',
-            'OCTANE_SUITE_RUN_ID',
             'OCTANE_REGRESSION_SUITE_RUN_ID',
             'OCTANE_CRITICAL_SUITE_RUN_ID',
             'OCTANE_DEFINED_SCOPE',
@@ -169,15 +168,6 @@ pipeline {
             env.OCTANE_WORKSPACE_ID = mappedWorkspaceId
           }
 
-          if (!params.containsKey('OCTANE_SUITE_RUN_ID')) {
-            if (params.containsKey('OCTANE_REGRESSION_SUITE_RUN_ID')) {
-              env.OCTANE_SUITE_RUN_ID = env.OCTANE_REGRESSION_SUITE_RUN_ID
-            } else if (!yamlConfiguration.containsKey('OCTANE_SUITE_RUN_ID') &&
-                yamlConfiguration.containsKey('OCTANE_REGRESSION_SUITE_RUN_ID')) {
-              env.OCTANE_SUITE_RUN_ID = env.OCTANE_REGRESSION_SUITE_RUN_ID
-            }
-          }
-
           List<String> requiredKeys = [
             'OCTANE_SERVER_ID',
             'OCTANE_SHARED_SPACE_ID',
@@ -220,7 +210,7 @@ pipeline {
         input(
             message:
                 "Continue and wait for ALM Octane regression suite run(s) "
-                    + "${env.OCTANE_SUITE_RUN_ID}"
+                    + "${env.OCTANE_REGRESSION_SUITE_RUN_ID}"
                     + " with critical suite run(s) ${env.OCTANE_CRITICAL_SUITE_RUN_ID}?",
             ok: 'Wait for Octane')
       }
@@ -307,7 +297,7 @@ QA Automation Team''',
                 catchInterruptions: false,
                 stageResult: 'FAILURE') {
               // Each source accepts numeric IDs, "Release Name", or "Release Name, Sprint Name".
-              def suiteRunSource = (env.OCTANE_SUITE_RUN_ID ?: '').trim()
+              def suiteRunSource = (env.OCTANE_REGRESSION_SUITE_RUN_ID ?: '').trim()
               def criticalSuiteRunSource = (env.OCTANE_CRITICAL_SUITE_RUN_ID ?: '').trim()
               if (!criticalSuiteRunSource) {
                 error 'OCTANE_CRITICAL_SUITE_RUN_ID must contain a suite run selection.'

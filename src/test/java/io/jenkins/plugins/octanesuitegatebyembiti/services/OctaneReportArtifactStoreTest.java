@@ -42,6 +42,7 @@ public class OctaneReportArtifactStoreTest {
     OctaneGateReportSnapshot reloaded = store.loadSnapshot(build, metadata);
     assertNotNull(reloaded);
     assertEquals(snapshot.getUpdatedAt(), reloaded.getUpdatedAt());
+    assertEquals(snapshot.getSuiteAttributions(), reloaded.getSuiteAttributions());
     assertEquals(500, reloaded.getReportSections().get(0).getSuiteRuns().size());
     assertTrue(
         Files.isRegularFile(

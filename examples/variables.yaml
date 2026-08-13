@@ -3,8 +3,7 @@
 OCTANE_SERVER_ID: "octane-prod"
 
 # Suite-run discovery accepts numeric IDs, a release name, or Release, Sprint.
-# OCTANE_SUITE_RUN_ID is the concise alias for the regression suite-run source.
-OCTANE_SUITE_RUN_ID: "76644"
+OCTANE_REGRESSION_SUITE_RUN_ID: "76644"
 OCTANE_CRITICAL_SUITE_RUN_ID: "76645"
 
 # Optional comma-separated defined scope names used by the report analytics.

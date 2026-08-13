@@ -65,7 +65,7 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(yamlKeys.contains("OCTANE_SERVER_ID"));
     assertFalse(yamlKeys.contains("OCTANE_SHARED_SPACE_ID"));
     assertFalse(yamlKeys.contains("OCTANE_WORKSPACE_ID"));
-    assertTrue(yamlKeys.contains("OCTANE_SUITE_RUN_ID"));
+    assertTrue(yamlKeys.contains("OCTANE_REGRESSION_SUITE_RUN_ID"));
     assertTrue(yamlKeys.contains("OCTANE_CRITICAL_SUITE_RUN_ID"));
     assertTrue(yamlKeys.contains("OCTANE_DEFINED_SCOPE"));
 

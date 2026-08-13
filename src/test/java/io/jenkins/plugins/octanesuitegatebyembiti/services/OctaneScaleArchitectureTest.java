@@ -42,6 +42,8 @@ public class OctaneScaleArchitectureTest {
         data.sections().stream().mapToInt(section -> ((List<?>) section.get("bars")).size()).sum());
     assertTrue(data.sections().get(0).containsKey("automationPercentage"));
     assertTrue(data.sections().get(0).containsKey("automationPercentageLabel"));
+    assertTrue(!data.index().containsKey("suiteAttributions"));
+    assertEquals(suites, ((java.util.Map<?, ?>) data.complete().get("suiteAttributions")).size());
     @SuppressWarnings("unchecked")
     List<java.util.Map<String, Object>> bars =
         (List<java.util.Map<String, Object>>) data.sections().get(0).get("bars");

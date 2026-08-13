@@ -11,6 +11,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefinedScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneSuiteAttributions;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestManagementAnalytics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportArtifactStore;
@@ -22,6 +23,7 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import jenkins.model.Jenkins;
 import jenkins.model.RunAction2;
 import net.sf.json.JSONObject;
@@ -111,30 +113,22 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   public synchronized void onPoll(GateResult result, StatusClassifier classifier) {
     publishSnapshot(
         withLiveReportData(
-            OctaneGateReportSnapshot.fromResult(
+            attributedSnapshot(
                 OctaneGateReportState.POLLING,
                 "Polling ALM Octane suite runs.",
                 result,
-                classifier,
-                refreshSeconds,
-                timeoutSeconds,
-                timeoutExtendedSeconds,
-                startedAt)));
+                classifier)));
   }
 
   @Override
   public synchronized void onExtendedTime(GateResult result, StatusClassifier classifier) {
     publishSnapshot(
         withLiveReportData(
-            OctaneGateReportSnapshot.fromResult(
+            attributedSnapshot(
                 OctaneGateReportState.EXTENDED_TIME,
                 "Extended Octane polling time is active.",
                 result,
-                classifier,
-                refreshSeconds,
-                timeoutSeconds,
-                timeoutExtendedSeconds,
-                startedAt)));
+                classifier)));
   }
 
   @Override
@@ -151,17 +145,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   @Override
   public synchronized void onFinal(
       OctaneGateReportState state, String message, GateResult result, StatusClassifier classifier) {
-    publishSnapshot(
-        withLiveReportData(
-            OctaneGateReportSnapshot.fromResult(
-                state,
-                message,
-                result,
-                classifier,
-                refreshSeconds,
-                timeoutSeconds,
-                timeoutExtendedSeconds,
-                startedAt)));
+    publishSnapshot(withLiveReportData(attributedSnapshot(state, message, result, classifier)));
   }
 
   @Override
@@ -283,6 +267,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
         safeSnapshot.isClientRenderedReport()
             ? safeSnapshot.getRiskHeatMap().toSummaryMap()
             : safeSnapshot.getRiskHeatMap().toMap());
+    payload.put("suiteAttributions", safeSnapshot.getSuiteAttributions());
     payload.put("testerDetails", safeSnapshot.getTesterDetails());
     payload.put("reportZoneDeferred", safeSnapshot.isClientRenderedReport());
     payload.put("reportDataUrl", "data");
@@ -704,6 +689,24 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   public record RefreshResult(RefreshStatus status, Duration age) {}
+
+  private OctaneGateReportSnapshot attributedSnapshot(
+      OctaneGateReportState state, String message, GateResult result, StatusClassifier classifier) {
+    OctaneGateReportSnapshot previous = currentSnapshot();
+    Map<String, String> persisted = previous == null ? Map.of() : previous.getSuiteAttributions();
+    Map<String, String> merged = OctaneSuiteAttributions.mergeFirstValid(persisted, result);
+    GateResult attributed = OctaneSuiteAttributions.apply(result, merged);
+    return OctaneGateReportSnapshot.fromResult(
+            state,
+            message,
+            attributed,
+            classifier,
+            refreshSeconds,
+            timeoutSeconds,
+            timeoutExtendedSeconds,
+            startedAt)
+        .withSuiteAttributions(merged);
+  }
 
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
     return current

@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -35,6 +36,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private final int timeoutExtendedSeconds;
   private final String startedAt;
   private final String updatedAt;
+  private final Map<String, String> suiteAttributions;
   private final List<OctaneGateReportSection> sections;
   private final OctaneRiskHeatMap riskHeatMap;
   private final OctaneTestMetrics testMetrics;
@@ -57,6 +59,7 @@ public class OctaneGateReportSnapshot implements Serializable {
       int timeoutExtendedSeconds,
       String startedAt,
       String updatedAt,
+      Map<String, String> suiteAttributions,
       List<OctaneGateReportSection> sections,
       OctaneRiskHeatMap riskHeatMap,
       OctaneTestMetrics testMetrics,
@@ -77,6 +80,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     this.timeoutExtendedSeconds = Math.max(0, timeoutExtendedSeconds);
     this.startedAt = startedAt;
     this.updatedAt = updatedAt;
+    this.suiteAttributions = immutableAttributions(suiteAttributions);
     this.sections = List.copyOf(sections);
     this.riskHeatMap = riskHeatMap == null ? OctaneRiskHeatMap.disabled() : riskHeatMap;
     this.testMetrics = testMetrics == null ? OctaneTestMetrics.empty() : testMetrics;
@@ -124,6 +128,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             toExtendedSeconds(GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED),
             now,
             now,
+            Map.of(),
             List.of(),
             OctaneRiskHeatMap.disabled(),
             OctaneTestMetrics.empty(),
@@ -163,6 +168,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             toExtendedSeconds(request.getTimeoutMinutesExtended()),
             startedAt,
             Instant.now().toString(),
+            Map.of(),
             List.of(),
             request.isRiskHeatMap() ? OctaneRiskHeatMap.waiting() : OctaneRiskHeatMap.disabled(),
             OctaneTestMetrics.empty()
@@ -251,6 +257,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             timeoutExtendedSeconds,
             startedAt,
             result.getPolledAt().toString(),
+            OctaneSuiteAttributions.mergeFirstValid(Map.of(), result),
             sections,
             result.getRiskHeatMap(),
             OctaneTestMetrics.fromResult(result),
@@ -328,6 +335,7 @@ public class OctaneGateReportSnapshot implements Serializable {
             timeoutExtendedSeconds,
             startedAt,
             Instant.now().toString(),
+            Map.of(),
             List.of(),
             riskHeatMapEnabled
                 ? OctaneRiskHeatMap.unavailable(
@@ -362,6 +370,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutExtendedSeconds,
         startedAt,
         updatedAt,
+        getSuiteAttributions(),
         sections,
         riskHeatMap,
         testMetrics,
@@ -386,6 +395,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutExtendedSeconds,
         startedAt,
         updatedAt,
+        getSuiteAttributions(),
         sections,
         riskHeatMap,
         testMetrics,
@@ -410,6 +420,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutExtendedSeconds,
         startedAt,
         updatedAt,
+        getSuiteAttributions(),
         sections,
         riskHeatMap,
         testMetrics,
@@ -435,6 +446,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutExtendedSeconds,
         startedAt,
         updatedAt,
+        getSuiteAttributions(),
         sections,
         riskHeatMap,
         testMetrics,
@@ -459,6 +471,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutExtendedSeconds,
         startedAt,
         updatedAt,
+        getSuiteAttributions(),
         sections,
         riskHeatMap,
         testMetrics,
@@ -484,6 +497,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutExtendedSeconds,
         startedAt,
         updatedAt,
+        getSuiteAttributions(),
         sections,
         riskHeatMap,
         testMetrics,
@@ -508,6 +522,7 @@ public class OctaneGateReportSnapshot implements Serializable {
         timeoutExtendedSeconds,
         startedAt,
         updatedAt,
+        getSuiteAttributions(),
         sections,
         riskHeatMap,
         testMetrics,
@@ -517,6 +532,31 @@ public class OctaneGateReportSnapshot implements Serializable {
         getCriteriaEvaluation(),
         testerPerformances,
         definedScope,
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
+  public OctaneGateReportSnapshot withSuiteAttributions(Map<String, String> suiteAttributions) {
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        suiteAttributions,
+        sections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        getDefinedScope(),
         basePassrateFigure,
         baseExecutionFigure);
   }
@@ -595,6 +635,26 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public String getUpdatedAt() {
     return updatedAt;
+  }
+
+  public Map<String, String> getSuiteAttributions() {
+    if (suiteAttributions != null && !suiteAttributions.isEmpty()) {
+      return suiteAttributions;
+    }
+    Map<String, String> derived = new LinkedHashMap<>();
+    for (OctaneGateReportSection section : sections) {
+      for (OctaneGateSuiteRunChart chart : section.getSuiteRuns()) {
+        if (!OctaneSuiteAttributions.isValidOwner(chart.getDisplayName())) {
+          continue;
+        }
+        for (String attributedSuiteRunId : chart.getSuiteRunIds()) {
+          if (!Util.isBlank(attributedSuiteRunId)) {
+            derived.putIfAbsent(attributedSuiteRunId, chart.getDisplayName());
+          }
+        }
+      }
+    }
+    return Collections.unmodifiableMap(derived);
   }
 
   public String getUpdatedAtText() {
@@ -939,6 +999,20 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   private static int percentageThreshold(int value) {
     return Math.min(100, Math.max(0, value));
+  }
+
+  private static Map<String, String> immutableAttributions(Map<String, String> source) {
+    Map<String, String> values = new LinkedHashMap<>();
+    if (source != null) {
+      for (Map.Entry<String, String> entry : source.entrySet()) {
+        String attributedSuiteRunId = Util.trimToEmpty(entry.getKey());
+        String owner = Util.trimToEmpty(entry.getValue());
+        if (!attributedSuiteRunId.isEmpty() && OctaneSuiteAttributions.isValidOwner(owner)) {
+          values.putIfAbsent(attributedSuiteRunId, owner);
+        }
+      }
+    }
+    return Collections.unmodifiableMap(values);
   }
 
   private static class ProjectProgressCounts {
