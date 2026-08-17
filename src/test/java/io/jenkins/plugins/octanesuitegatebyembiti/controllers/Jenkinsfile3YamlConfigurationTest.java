@@ -36,15 +36,46 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(jenkinsfile.contains("readJSON(file: spacesMappingFile)"));
     assertTrue(jenkinsfile.contains("space.sharedSpaceName?.toString()?.trim()?.toLowerCase()"));
     assertTrue(jenkinsfile.contains("workspace.workspaceName?.toString()?.trim()?.toLowerCase()"));
-    assertTrue(jenkinsfile.contains("params.containsKey(key)"));
+    assertTrue(jenkinsfile.contains("jobParameters.containsKey(key)"));
     assertTrue(jenkinsfile.contains("yamlConfiguration.containsKey(key)"));
-    assertTrue(jenkinsfile.contains("selectedValue = env[key]"));
+    assertTrue(jenkinsfile.contains("return environment[key]"));
+    assertTrue(
+        jenkinsfile.contains("selectConfigurationValue(key, params, yamlConfiguration, env)"));
     assertTrue(jenkinsfile.contains("selectedValue instanceof Map"));
     assertTrue(jenkinsfile.contains("selectedValue instanceof Collection"));
 
     for (String key : yamlKeys) {
       assertTrue(jenkinsfile.contains("'" + key + "'"), () -> key + " is not allow-listed");
     }
+  }
+
+  @Test
+  void yamlValuesOverrideJenkinsfileDefaultsUnlessAJobParameterIsPresent()
+      throws IOException, CompilationFailedException {
+    String jenkinsfile = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
+    String yaml = Files.readString(YAML_TEMPLATE, StandardCharsets.UTF_8);
+    groovy.lang.Script script = new groovy.lang.GroovyShell().parse(jenkinsfile);
+    String key = "OCTANE_TIMEOUT_MINUTES";
+    String jenkinsfileDefault = jenkinsfileDefault(jenkinsfile, key);
+    String yamlValue = yamlScalar(yaml, key);
+
+    assertEquals("120", jenkinsfileDefault);
+    assertEquals("5", yamlValue);
+    assertEquals(
+        yamlValue,
+        selectedValue(
+            script, key, Map.of(), Map.of(key, yamlValue), Map.of(key, jenkinsfileDefault)));
+    assertEquals(
+        "30",
+        selectedValue(
+            script,
+            key,
+            Map.of(key, "30"),
+            Map.of(key, yamlValue),
+            Map.of(key, jenkinsfileDefault)));
+    assertEquals(
+        jenkinsfileDefault,
+        selectedValue(script, key, Map.of(), Map.of(), Map.of(key, jenkinsfileDefault)));
   }
 
   @Test
@@ -79,7 +110,8 @@ class Jenkinsfile3YamlConfigurationTest {
             (Collection<?>) sharedSpace.get("workspaces"), "workspaceName", "workspaceId", "5002");
 
     assertFalse(yamlKeys.contains("OCTANE_SERVER_ID"));
-    assertTrue(yamlKeys.contains("OCTANE_SPACES_MAPPING_FILE"));
+    assertTrue(
+        jenkinsfile.contains("OCTANE_SPACES_MAPPING_FILE = 'examples/octane_spaces_mapping.json'"));
     assertTrue(yamlKeys.contains("OCTANE_SHARED_SPACE_NAME"));
     assertTrue(yamlKeys.contains("OCTANE_WORKSPACE_NAME"));
     assertFalse(yamlKeys.contains("OCTANE_SHARED_SPACE_ID"));
@@ -136,6 +168,32 @@ class Jenkinsfile3YamlConfigurationTest {
                             .equals(normalized))
         .findFirst()
         .orElseThrow();
+  }
+
+  private static Object selectedValue(
+      groovy.lang.Script script,
+      String key,
+      Map<String, String> parameters,
+      Map<String, String> yaml,
+      Map<String, String> environment) {
+    return script.invokeMethod(
+        "selectConfigurationValue", new Object[] {key, parameters, yaml, environment});
+  }
+
+  private static String jenkinsfileDefault(String jenkinsfile, String key) {
+    Pattern pattern = Pattern.compile("(?m)^\\s+" + Pattern.quote(key) + "\\s*=\\s*'([^']*)'\\s*$");
+    Matcher matcher = pattern.matcher(jenkinsfile);
+    assertTrue(matcher.find(), () -> key + " has no Jenkinsfile default");
+    return matcher.group(1);
+  }
+
+  private static String yamlScalar(String yaml, String key) {
+    Pattern pattern =
+        Pattern.compile(
+            "(?m)^" + Pattern.quote(key) + ":\\s*[\\\"']?([^\\\"'\\r\\n#]+?)[\\\"']?\\s*$");
+    Matcher matcher = pattern.matcher(yaml);
+    assertTrue(matcher.find(), () -> key + " has no YAML value");
+    return matcher.group(1).trim();
   }
 
   private static Set<String> yamlKeys(String yaml) {

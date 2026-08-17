@@ -1,3 +1,14 @@
+def selectConfigurationValue(
+    String key, Map jobParameters, Map yamlConfiguration, environment) {
+  if (jobParameters.containsKey(key)) {
+    return jobParameters[key]
+  }
+  if (yamlConfiguration.containsKey(key)) {
+    return yamlConfiguration[key]
+  }
+  return environment[key]
+}
+
 pipeline {
   agent any
 
@@ -125,14 +136,8 @@ pipeline {
           }
 
           configurationKeys.each { String key ->
-            def selectedValue
-            if (params.containsKey(key)) {
-              selectedValue = params[key]
-            } else if (yamlConfiguration.containsKey(key)) {
-              selectedValue = yamlConfiguration[key]
-            } else {
-              selectedValue = env[key]
-            }
+            def selectedValue =
+                selectConfigurationValue(key, params, yamlConfiguration, env)
             if (selectedValue instanceof Map || selectedValue instanceof Collection) {
               error "Octane configuration value ${key} must be a scalar."
             }
