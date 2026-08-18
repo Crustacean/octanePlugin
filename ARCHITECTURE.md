@@ -291,6 +291,12 @@ null input disables progress emails for that run without failing the gate. Sched
 the same report screenshot, HTML body, recipient, theme, and SMTP implementation as
 `octaneEmailReport`; their gate result is rendered as `ONGOING`.
 
+`PROGRESS_EMAIL_INTERVAL_TIMEOUT` controls delivery when execution has not advanced since the
+previous scheduled email. Values `true` and `1` suppress unchanged follow-up emails; values `false`
+and `0` continue sending on every cron tick. The first scheduled email is always sent. The
+per-wrapper execution-progress high-water mark is retained by the Pipeline step and is not shared
+between builds.
+
 Before rendering, `PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES` (default `1`) is compared with the
 latest report timestamp. When a running report is older than that threshold, email delivery starts
 an immediate gate poll or waits for the gate's active poll, then renders the refreshed snapshot.

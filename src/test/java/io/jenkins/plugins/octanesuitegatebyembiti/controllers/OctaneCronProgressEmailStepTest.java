@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -38,11 +39,44 @@ public class OctaneCronProgressEmailStepTest {
   }
 
   @Test
+  public void normalizesProgressEmailIntervalTimeoutFlag() throws Exception {
+    EnvVars configured = new EnvVars();
+    assertFalse(OctaneCronProgressEmailStep.intervalTimeoutEnabled(configured));
+
+    configured.put(OctaneCronProgressEmailStep.INTERVAL_TIMEOUT_ENV, " TRUE ");
+    assertTrue(OctaneCronProgressEmailStep.intervalTimeoutEnabled(configured));
+    configured.put(OctaneCronProgressEmailStep.INTERVAL_TIMEOUT_ENV, "1");
+    assertTrue(OctaneCronProgressEmailStep.intervalTimeoutEnabled(configured));
+    configured.put(OctaneCronProgressEmailStep.INTERVAL_TIMEOUT_ENV, " False ");
+    assertFalse(OctaneCronProgressEmailStep.intervalTimeoutEnabled(configured));
+    configured.put(OctaneCronProgressEmailStep.INTERVAL_TIMEOUT_ENV, "0");
+    assertFalse(OctaneCronProgressEmailStep.intervalTimeoutEnabled(configured));
+
+    configured.put(OctaneCronProgressEmailStep.INTERVAL_TIMEOUT_ENV, "sometimes");
+    try {
+      OctaneCronProgressEmailStep.intervalTimeoutEnabled(configured);
+      fail("Expected an unsupported interval timeout value to be rejected.");
+    } catch (AbortException expected) {
+      assertTrue(expected.getMessage().contains("true, false, 1, or 0"));
+    }
+  }
+
+  @Test
+  public void firstEmailAlwaysSendsAndSubsequentTicksHonorTimeoutFlag() {
+    assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(null, 0.0, true));
+    assertFalse(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 40.0, true));
+    assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 41.0, true));
+    assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 40.0, false));
+  }
+
+  @Test
   public void blankCronDisablesEmailAndRunsBody() throws Exception {
     WorkflowJob job = jenkins.createProject(WorkflowJob.class);
     job.setDefinition(
         new CpsFlowDefinition(
-            "node { octaneCronProgressEmail(cron: '', to: 'qa@example.com') { } }", true));
+            "node { withEnv(['PROGRESS_EMAIL_INTERVAL_TIMEOUT=invalid']) { "
+                + "octaneCronProgressEmail(cron: '', to: 'qa@example.com') { } } }",
+            true));
 
     WorkflowRun run = jenkins.buildAndAssertSuccess(job);
 

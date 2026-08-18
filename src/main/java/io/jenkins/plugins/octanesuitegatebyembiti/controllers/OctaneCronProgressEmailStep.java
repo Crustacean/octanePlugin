@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
@@ -29,6 +30,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
   static final String STALENESS_THRESHOLD_ENV = "PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES";
+  static final String INTERVAL_TIMEOUT_ENV = "PROGRESS_EMAIL_INTERVAL_TIMEOUT";
   static final Duration DEFAULT_STALENESS_THRESHOLD = Duration.ofMinutes(1L);
 
   private final String cron;
@@ -69,6 +71,25 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
     }
   }
 
+  static boolean intervalTimeoutEnabled(EnvVars envVars) throws AbortException {
+    String configured =
+        envVars == null
+            ? ""
+            : Util.trimToEmpty(envVars.get(INTERVAL_TIMEOUT_ENV)).toLowerCase(Locale.ROOT);
+    return switch (configured) {
+      case "", "false", "0" -> false;
+      case "true", "1" -> true;
+      default -> throw new AbortException(INTERVAL_TIMEOUT_ENV + " must be true, false, 1, or 0.");
+    };
+  }
+
+  static boolean shouldSendProgressEmail(
+      Double lastExecutionProgress, double currentProgress, boolean intervalTimeoutEnabled) {
+    return lastExecutionProgress == null
+        || currentProgress > lastExecutionProgress
+        || !intervalTimeoutEnabled;
+  }
+
   private static final class Execution extends StepExecution
       implements OctaneProgressEmailScheduler.Delivery {
     private static final long serialVersionUID = 1L;
@@ -80,6 +101,8 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
     private final String registrationId = UUID.randomUUID().toString();
     private transient volatile OctaneProgressEmailScheduler.Registration registration;
     private transient volatile BodyExecution bodyExecution;
+    private volatile Double lastExecutionProgress;
+    private boolean intervalTimeoutEnabled;
     private volatile boolean completed;
 
     private Execution(
@@ -136,7 +159,31 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
       }
       auditSchedule(occurrence);
       refreshStaleReport();
+      double currentProgress = currentExecutionProgress();
+      Double previousProgress = lastExecutionProgress;
+      if (!shouldSendProgressEmail(previousProgress, currentProgress, intervalTimeoutEnabled)) {
+        log(
+            "Skipping scheduled Octane progress email because execution progress remains at "
+                + formatProgress(currentProgress)
+                + " and "
+                + INTERVAL_TIMEOUT_ENV
+                + " is enabled.");
+        return;
+      }
       OctaneEmailReportStep.executeRequest(emailRequest, getContext());
+      if (previousProgress == null || currentProgress > previousProgress) {
+        lastExecutionProgress = currentProgress;
+      }
+    }
+
+    private double currentExecutionProgress() throws Exception {
+      Run<?, ?> run = getContext().get(Run.class);
+      OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
+      return action == null ? 0.0 : action.getSnapshot().getExecutionProgress();
+    }
+
+    private String formatProgress(double progress) {
+      return String.format(Locale.ROOT, "%.2f%%", progress);
     }
 
     private void refreshStaleReport() throws Exception {
@@ -225,6 +272,8 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
                     + "PROGRESS_EMAIL_INTERVAL_CRONJOB is blank.");
         return;
       }
+      intervalTimeoutEnabled =
+          OctaneCronProgressEmailStep.intervalTimeoutEnabled(getContext().get(EnvVars.class));
       register();
     }
 
