@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -20,7 +21,8 @@ import tools.jackson.databind.ObjectMapper;
 
 class Jenkinsfile3YamlConfigurationTest {
   private static final Path JENKINSFILE = Path.of("examples/Jenkinsfile3");
-  private static final Path YAML_TEMPLATE = Path.of("examples/variables.yaml");
+  private static final Path YAML_TEMPLATE =
+      Path.of("src/test/resources/jenkinsfile3-variables.yaml");
   private static final Path SPACES_MAPPING = Path.of("examples/octane_spaces_mapping.json");
   private static final Pattern YAML_KEY = Pattern.compile("(?m)^([A-Z][A-Z0-9_]*):");
 
@@ -38,11 +40,34 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(jenkinsfile.contains("workspace.workspaceName?.toString()?.trim()?.toLowerCase()"));
     assertTrue(jenkinsfile.contains("jobParameters.containsKey(key)"));
     assertTrue(jenkinsfile.contains("yamlConfiguration.containsKey(key)"));
-    assertTrue(jenkinsfile.contains("return environment[key]"));
+    assertTrue(jenkinsfile.contains("return yamlConfiguration.get(key)"));
+    assertTrue(jenkinsfile.contains("return jobParameters.get(key)"));
+    assertTrue(jenkinsfile.contains("return configurationDefaults.get(key)"));
+    assertTrue(jenkinsfile.contains("bootstrappedConfigurationJson(env)"));
+    assertTrue(jenkinsfile.contains("OCTANE_BOOTSTRAP_CONFIGURATION_JSON"));
+    assertTrue(jenkinsfile.contains("readJSON(text: transportedConfigurationJson)"));
+    assertTrue(jenkinsfile.contains("validated variables.yaml from the dir2 bootstrap"));
+    assertFalse(jenkinsfile.contains("return yamlConfiguration[key]"));
+    assertFalse(jenkinsfile.contains("return jobParameters[key]"));
+    assertFalse(jenkinsfile.contains("return environment[key]"));
+    assertTrue(jenkinsfile.contains("env.setProperty(key,"));
+    assertTrue(jenkinsfile.contains("env.getProperty(key)"));
+    assertFalse(jenkinsfile.contains("env[key]"));
+    assertFalse(jenkinsfile.contains("env[it]"));
     assertTrue(
-        jenkinsfile.contains("selectConfigurationValue(key, params, yamlConfiguration, env)"));
+        jenkinsfile.contains(
+            "selectConfigurationValue(key, params, yamlConfiguration, configurationDefaults)"));
+    assertTrue(jenkinsfile.contains("resolvePipelineSourcePath(paramsFile, env)"));
+    assertTrue(
+        jenkinsfile.contains("resolvePipelineSourcePath(env.OCTANE_SPACES_MAPPING_FILE, env)"));
     assertTrue(jenkinsfile.contains("selectedValue instanceof Map"));
     assertTrue(jenkinsfile.contains("selectedValue instanceof Collection"));
+    String declarativeEnvironment =
+        jenkinsfile.substring(
+            jenkinsfile.indexOf("  environment {"), jenkinsfile.indexOf("  stages {"));
+    assertTrue(declarativeEnvironment.contains("PARAMS_FILE = 'variables.yaml'"));
+    assertFalse(declarativeEnvironment.contains("OCTANE_SHARED_SPACE_NAME"));
+    assertFalse(declarativeEnvironment.contains("OCTANE_CRITICAL_SUITE_RUN_ID"));
 
     for (String key : yamlKeys) {
       assertTrue(jenkinsfile.contains("'" + key + "'"), () -> key + " is not allow-listed");
@@ -50,13 +75,13 @@ class Jenkinsfile3YamlConfigurationTest {
   }
 
   @Test
-  void yamlValuesOverrideJenkinsfileDefaultsUnlessAJobParameterIsPresent()
+  void yamlValuesOverrideJobParametersAndJenkinsfileDefaults()
       throws IOException, CompilationFailedException {
     String jenkinsfile = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
     String yaml = Files.readString(YAML_TEMPLATE, StandardCharsets.UTF_8);
     groovy.lang.Script script = new groovy.lang.GroovyShell().parse(jenkinsfile);
     String key = "OCTANE_TIMEOUT_MINUTES";
-    String jenkinsfileDefault = jenkinsfileDefault(jenkinsfile, key);
+    String jenkinsfileDefault = configurationDefault(script, key);
     String yamlValue = yamlScalar(yaml, key);
 
     assertEquals("120", jenkinsfileDefault);
@@ -66,13 +91,16 @@ class Jenkinsfile3YamlConfigurationTest {
         selectedValue(
             script, key, Map.of(), Map.of(key, yamlValue), Map.of(key, jenkinsfileDefault)));
     assertEquals(
-        "30",
+        yamlValue,
         selectedValue(
             script,
             key,
             Map.of(key, "30"),
             Map.of(key, yamlValue),
             Map.of(key, jenkinsfileDefault)));
+    assertEquals(
+        "30",
+        selectedValue(script, key, Map.of(key, "30"), Map.of(), Map.of(key, jenkinsfileDefault)));
     assertEquals(
         jenkinsfileDefault,
         selectedValue(script, key, Map.of(), Map.of(), Map.of(key, jenkinsfileDefault)));
@@ -84,6 +112,65 @@ class Jenkinsfile3YamlConfigurationTest {
     String jenkinsfile = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
 
     new groovy.lang.GroovyShell().parse(jenkinsfile);
+  }
+
+  @Test
+  void copiedConfigurationPathsResolveAgainstTargetRepositoryDirectory()
+      throws IOException, CompilationFailedException {
+    String jenkinsfile = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
+    groovy.lang.Script script = new groovy.lang.GroovyShell().parse(jenkinsfile);
+
+    assertEquals(
+        "/workspace/dir1/variables.yaml",
+        resolvedPath(
+            script, "variables.yaml", Map.of("OCTANE_PIPELINE_SOURCE_DIR", "/workspace/dir1")));
+    assertEquals(
+        "/workspace/dir1/examples/octane_spaces_mapping.json",
+        resolvedPath(
+            script,
+            "examples/octane_spaces_mapping.json",
+            Map.of("OCTANE_PIPELINE_SOURCE_DIR", "/workspace/dir1")));
+    assertEquals(
+        "/external/variables.yaml",
+        resolvedPath(
+            script,
+            "/external/variables.yaml",
+            Map.of("OCTANE_PIPELINE_SOURCE_DIR", "/workspace/dir1")));
+    assertEquals(
+        "C:\\config\\variables.yaml",
+        resolvedPath(
+            script,
+            "C:\\config\\variables.yaml",
+            Map.of("OCTANE_PIPELINE_SOURCE_DIR", "/workspace/dir1")));
+    assertEquals("variables.yaml", resolvedPath(script, "variables.yaml", Map.of()));
+  }
+
+  @Test
+  void validatedBootstrapConfigurationEnvelopeSurvivesDeclarativeEnvironmentDefaults()
+      throws IOException, CompilationFailedException {
+    String jenkinsfile = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
+    groovy.lang.Script script = new groovy.lang.GroovyShell().parse(jenkinsfile);
+    groovy.util.Expando transportedEnvironment = new groovy.util.Expando();
+    String transportedJson =
+        """
+        {"OCTANE_SHARED_SPACE_NAME":"Default Shared Space",\
+        "OCTANE_WORKSPACE_NAME":"Abbybot Mail Service",\
+        "OCTANE_CRITICAL_SUITE_RUN_ID":"76645"}
+        """
+            .strip();
+    transportedEnvironment.setProperty("OCTANE_BOOTSTRAP_CONFIGURATION_JSON", transportedJson);
+
+    Object result =
+        script.invokeMethod("bootstrappedConfigurationJson", new Object[] {transportedEnvironment});
+
+    assertEquals(transportedJson, result);
+    Map<?, ?> configuration = new ObjectMapper().readValue(result.toString(), Map.class);
+    assertEquals("Default Shared Space", configuration.get("OCTANE_SHARED_SPACE_NAME"));
+    assertEquals("Abbybot Mail Service", configuration.get("OCTANE_WORKSPACE_NAME"));
+    assertEquals("76645", configuration.get("OCTANE_CRITICAL_SUITE_RUN_ID"));
+    assertNull(
+        script.invokeMethod(
+            "bootstrappedConfigurationJson", new Object[] {new groovy.util.Expando()}));
   }
 
   @Test
@@ -111,7 +198,8 @@ class Jenkinsfile3YamlConfigurationTest {
 
     assertFalse(yamlKeys.contains("OCTANE_SERVER_ID"));
     assertTrue(
-        jenkinsfile.contains("OCTANE_SPACES_MAPPING_FILE = 'examples/octane_spaces_mapping.json'"));
+        jenkinsfile.contains(
+            "'OCTANE_SPACES_MAPPING_FILE': 'examples/octane_spaces_mapping.json'"));
     assertTrue(yamlKeys.contains("OCTANE_SHARED_SPACE_NAME"));
     assertTrue(yamlKeys.contains("OCTANE_WORKSPACE_NAME"));
     assertFalse(yamlKeys.contains("OCTANE_SHARED_SPACE_ID"));
@@ -180,11 +268,19 @@ class Jenkinsfile3YamlConfigurationTest {
         "selectConfigurationValue", new Object[] {key, parameters, yaml, environment});
   }
 
-  private static String jenkinsfileDefault(String jenkinsfile, String key) {
-    Pattern pattern = Pattern.compile("(?m)^\\s+" + Pattern.quote(key) + "\\s*=\\s*'([^']*)'\\s*$");
-    Matcher matcher = pattern.matcher(jenkinsfile);
-    assertTrue(matcher.find(), () -> key + " has no Jenkinsfile default");
-    return matcher.group(1);
+  private static Object resolvedPath(
+      groovy.lang.Script script, String path, Map<String, String> environment) {
+    groovy.util.Expando environmentGlobal = new groovy.util.Expando();
+    environment.forEach(environmentGlobal::setProperty);
+    return script.invokeMethod("resolvePipelineSourcePath", new Object[] {path, environmentGlobal});
+  }
+
+  private static String configurationDefault(groovy.lang.Script script, String key) {
+    Object result = script.invokeMethod("pipelineConfigurationDefaults", new Object[0]);
+    assertTrue(result instanceof Map, "pipelineConfigurationDefaults must return a map");
+    Object value = ((Map<?, ?>) result).get(key);
+    assertTrue(value != null, () -> key + " has no Jenkinsfile default");
+    return value.toString();
   }
 
   private static String yamlScalar(String yaml, String key) {

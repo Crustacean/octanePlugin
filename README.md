@@ -219,11 +219,18 @@ Jenkins username/password credentials, with the username as `client_id` and the 
 
 ### External Jenkinsfile3 configuration
 
-[`examples/Jenkinsfile3`](examples/Jenkinsfile3) loads its runtime configuration from
-[`examples/variables.yaml`](examples/variables.yaml) with the Pipeline Utility Steps plugin's
-`readYaml` step. Set a Jenkins string parameter named `PARAMS_FILE` to select a different YAML file
-in the build workspace. Matching Jenkins Job UI parameters take priority over YAML values; omitted
-YAML values fall back to the neutral defaults in the Jenkinsfile.
+[`examples/Jenkinsfile3`](examples/Jenkinsfile3) loads its runtime configuration from the
+`variables.yaml` copied into the target repository root by the trigger repository's bootstrap
+Pipeline. The Pipeline Utility Steps plugin supplies the `readYaml` step. Set a Jenkins string
+parameter named `PARAMS_FILE` only when the copied file has another workspace-relative name. Values
+present in YAML are authoritative; Jenkins Job UI parameters and then the neutral Jenkinsfile
+defaults fill keys omitted from YAML. A multi-repository bootstrap sets
+`OCTANE_PIPELINE_SOURCE_DIR` to the absolute `dir1` checkout path and transports the validated YAML
+values through namespaced environment entries before loading the target pipeline. The transport
+keeps configuration authoritative when Declarative Pipeline allocates a distinct runtime workspace,
+while the absolute source path keeps `examples/octane_spaces_mapping.json` available there. Runtime
+defaults live outside the Declarative `environment` directive so its inner `withEnv` scope cannot
+mask values selected from YAML.
 
 The YAML identifies the target space with `OCTANE_SHARED_SPACE_NAME` and `OCTANE_WORKSPACE_NAME`.
 Each selector accepts either its numeric ID or a human-readable name; name matching ignores
