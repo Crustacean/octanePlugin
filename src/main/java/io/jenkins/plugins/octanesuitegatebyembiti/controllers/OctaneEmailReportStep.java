@@ -27,6 +27,8 @@ import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -42,6 +44,8 @@ import org.kohsuke.stapler.QueryParameter;
 public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
   static final int DEFAULT_VIEWPORT_WIDTH = 1400;
   public static final int MAX_VIEWPORT_WIDTH = 3840;
+  private static final DateTimeFormatter EAST_AFRICA_DATE_FORMATTER =
+      DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.of("Africa/Nairobi"));
 
   private static OctaneReportScreenshotService screenshotService =
       new HeadlessBrowserReportScreenshotService();
@@ -289,7 +293,9 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
     }
 
     private String replaceRuntimeTokens(String value, String remainingTime) {
-      return Util.trimToEmpty(value).replace("{{REMAINING_TIME}}", remainingTime);
+      return Util.trimToEmpty(value)
+          .replace("{{REMAINING_TIME}}", remainingTime)
+          .replace("{{EAT_DATE}}", formatEastAfricaDate(Instant.now()));
     }
 
     private String remainingTime(
@@ -361,6 +367,10 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       }
       return message;
     }
+  }
+
+  static String formatEastAfricaDate(Instant instant) {
+    return EAST_AFRICA_DATE_FORMATTER.format(instant);
   }
 
   @Extension

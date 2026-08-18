@@ -13,6 +13,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -37,6 +38,13 @@ public class OctaneEmailReportStepTest {
         "qa@example.com,dev@example.com,cc:lead@example.com,bcc:audit@example.com",
         OctaneEmailReportStep.composeRecipients(
             "qa@example.com dev@example.com", "lead@example.com", "audit@example.com"));
+  }
+
+  @Test
+  public void formatsEmailDateUsingEastAfricaTime() {
+    assertEquals(
+        "01.07.2026",
+        OctaneEmailReportStep.formatEastAfricaDate(Instant.parse("2026-06-30T21:30:00Z")));
   }
 
   @Test
@@ -137,7 +145,7 @@ public class OctaneEmailReportStepTest {
               long remainingMinutes = (remainingSeconds + 59L) / 60L
               octaneEmailReport(
                   to: 'qa@example.com',
-                  subject: 'Interval {{REMAINING_TIME}}',
+                  subject: 'Interval {{EAT_DATE}} EAT {{REMAINING_TIME}}',
                   body: 'State {{GATE_RESULT}} with {{REMAINING_TIME}} '
                       + 'updated {{UPDATED_AT_TEXT}} '
                       + '{{EXECUTION_DETAILS}} {{REPORT_SCREENSHOT}}',
@@ -152,7 +160,9 @@ public class OctaneEmailReportStepTest {
 
     assertEquals("qa@example.com", sentRecipients.get());
     assertTrue(sentSubject.get().startsWith("Interval "));
+    assertTrue(sentSubject.get().matches("Interval \\d{2}\\.\\d{2}\\.\\d{4} EAT .+"));
     assertTrue(sentSubject.get().endsWith("remaining"));
+    assertFalse(sentSubject.get().contains("{{EAT_DATE}}"));
     assertFalse(sentSubject.get().contains("{{REMAINING_TIME}}"));
     assertTrue(sentBody.get().contains("color:#FF9F0A;font-weight:700;\">ONGOING"));
     assertFalse(sentBody.get().contains("{{REMAINING_TIME}}"));
