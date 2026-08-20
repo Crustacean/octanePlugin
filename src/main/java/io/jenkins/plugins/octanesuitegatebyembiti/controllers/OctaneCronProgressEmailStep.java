@@ -10,6 +10,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneEmailFailureMode;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneProgressEmailScheduler;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.time.Duration;
@@ -90,6 +91,10 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
         || !intervalTimeoutEnabled;
   }
 
+  static boolean hasRenderableReportData(OctaneGateReportSnapshot snapshot) {
+    return snapshot != null && snapshot.hasReportSections();
+  }
+
   private static final class Execution extends StepExecution
       implements OctaneProgressEmailScheduler.Delivery {
     private static final long serialVersionUID = 1L;
@@ -158,43 +163,62 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
         return;
       }
       auditSchedule(occurrence);
-      refreshStaleReport();
-      double currentProgress = currentExecutionProgress();
-      Double previousProgress = lastExecutionProgress;
-      if (!shouldSendProgressEmail(previousProgress, currentProgress, intervalTimeoutEnabled)) {
+      OctaneGateReportAction action = refreshReportForDelivery();
+      if (action == null || !hasRenderableReportData(action.awaitReconciledSnapshot())) {
         log(
-            "Skipping scheduled Octane progress email because execution progress remains at "
-                + formatProgress(currentProgress)
-                + " and "
-                + INTERVAL_TIMEOUT_ENV
-                + " is enabled.");
+            "Deferring scheduled Octane progress email until a completed poll produces "
+                + "renderable report data.");
         return;
       }
-      OctaneEmailReportStep.executeRequest(emailRequest, getContext());
-      if (previousProgress == null || currentProgress > previousProgress) {
-        lastExecutionProgress = currentProgress;
-      }
-    }
 
-    private double currentExecutionProgress() throws Exception {
-      Run<?, ?> run = getContext().get(Run.class);
-      OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
-      return action == null ? 0.0 : action.getSnapshot().getExecutionProgress();
+      double[] deliveredProgress = {Double.NaN};
+      OctaneEmailReportStep.DeliveryResult deliveryResult =
+          OctaneEmailReportStep.executeRequest(
+              emailRequest,
+              getContext(),
+              snapshot -> {
+                if (!hasRenderableReportData(snapshot)) {
+                  log(
+                      "Deferring scheduled Octane progress email because the rendered snapshot "
+                          + "contains no report data.");
+                  return false;
+                }
+                double currentProgress = snapshot.getExecutionProgress();
+                Double previousProgress = lastExecutionProgress;
+                if (!shouldSendProgressEmail(
+                    previousProgress, currentProgress, intervalTimeoutEnabled)) {
+                  log(
+                      "Skipping scheduled Octane progress email because execution progress "
+                          + "remains at "
+                          + formatProgress(currentProgress)
+                          + " and "
+                          + INTERVAL_TIMEOUT_ENV
+                          + " is enabled.");
+                  return false;
+                }
+                deliveredProgress[0] = currentProgress;
+                return true;
+              });
+      if (deliveryResult == OctaneEmailReportStep.DeliveryResult.SENT
+          && !Double.isNaN(deliveredProgress[0])) {
+        lastExecutionProgress = deliveredProgress[0];
+      }
     }
 
     private String formatProgress(double progress) {
       return String.format(Locale.ROOT, "%.2f%%", progress);
     }
 
-    private void refreshStaleReport() throws Exception {
+    private OctaneGateReportAction refreshReportForDelivery() throws Exception {
       Run<?, ?> run = getContext().get(Run.class);
       OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
       if (action == null) {
-        return;
+        return null;
       }
       TaskListener listener = getContext().get(TaskListener.class);
       Duration threshold = stalenessThreshold(getContext().get(EnvVars.class));
-      OctaneGateReportAction.RefreshResult result = action.refreshIfStale(threshold, Instant.now());
+      OctaneGateReportAction.RefreshResult result =
+          action.refreshForEmail(threshold, Instant.now());
       long ageSeconds = Math.max(0L, result.age().toSeconds());
       switch (result.status()) {
         case FRESH ->
@@ -205,7 +229,7 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
                         + ageSeconds
                         + "s; threshold "
                         + threshold.toSeconds()
-                        + "s). Sending scheduled email from the current snapshot.");
+                        + "s). Preparing scheduled email artifacts from the current snapshot.");
         case REFRESHED ->
             listener
                 .getLogger()
@@ -225,6 +249,7 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
                 .getLogger()
                 .println("Octane gate is already complete; using its final report snapshot.");
       }
+      return action;
     }
 
     private void auditSchedule(OctaneProgressEmailScheduler.Occurrence occurrence)

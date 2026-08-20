@@ -293,9 +293,11 @@ the same report screenshot, HTML body, recipient, theme, and SMTP implementation
 
 `PROGRESS_EMAIL_INTERVAL_TIMEOUT` controls delivery when execution has not advanced since the
 previous scheduled email. Values `true` and `1` suppress unchanged follow-up emails; values `false`
-and `0` continue sending on every cron tick. The first scheduled email is always sent. The
-per-wrapper execution-progress high-water mark is retained by the Pipeline step and is not shared
-between builds.
+and `0` continue sending on every cron tick. The first scheduled email is deferred until a completed
+poll provides renderable report sections and the HTML/WebP capture succeeds. The capture completes
+before the progress decision and SMTP handoff; empty or failed attempts do not advance the
+per-wrapper execution-progress high-water mark and are retried on the next cron occurrence. The
+high-water mark is not shared between builds.
 
 Before rendering, `PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES` (default `1`) is compared with the
 latest report timestamp. When a running report is older than that threshold, email delivery starts

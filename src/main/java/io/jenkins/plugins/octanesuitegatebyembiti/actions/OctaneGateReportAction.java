@@ -406,6 +406,15 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   public RefreshResult refreshIfStale(Duration threshold, Instant now) throws Exception {
+    return refreshReport(threshold, now, false);
+  }
+
+  public RefreshResult refreshForEmail(Duration threshold, Instant now) throws Exception {
+    return refreshReport(threshold, now, true);
+  }
+
+  private RefreshResult refreshReport(
+      Duration threshold, Instant now, boolean requireReportSections) throws Exception {
     Duration effectiveThreshold = nonNegative(threshold);
     Instant effectiveNow = now == null ? Instant.now() : now;
     OctaneGateReportSnapshot current = getSnapshot();
@@ -416,7 +425,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     if (!current.isBuilding()) {
       return new RefreshResult(RefreshStatus.NOT_BUILDING, age);
     }
-    if (age.compareTo(effectiveThreshold) <= 0) {
+    if ((!requireReportSections || current.hasReportSections())
+        && age.compareTo(effectiveThreshold) <= 0) {
       return new RefreshResult(RefreshStatus.FRESH, age);
     }
 
@@ -426,8 +436,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
     if (callback == null) {
       throw new AbortException(
-          "Stale Octane progress data could not be refreshed because the active gate poller "
-              + "is unavailable.");
+          "Octane progress data could not be refreshed because the active gate poller is "
+              + "unavailable.");
     }
     boolean started = callback.refreshAndWait();
     return new RefreshResult(started ? RefreshStatus.REFRESHED : RefreshStatus.JOINED, age);

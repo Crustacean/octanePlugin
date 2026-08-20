@@ -10,10 +10,17 @@ import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -108,9 +115,11 @@ public class OctaneEmailReportStepTest {
     AtomicReference<String> sentAttachment = new AtomicReference<>();
     AtomicBoolean sentImportant = new AtomicBoolean();
     AtomicReference<OctaneGateReportSnapshot> screenshotSnapshot = new AtomicReference<>();
+    List<String> deliveryEvents = new CopyOnWriteArrayList<>();
 
     OctaneEmailReportStep.setServicesForTesting(
         (snapshot, workspace, envVars, launcher, listener, browserPath, viewportWidth, theme) -> {
+          deliveryEvents.add("artifacts-rendered");
           screenshotSnapshot.set(snapshot);
           WorkflowJob currentJob =
               jenkins.jenkins.getItemByFullName("interval-email-success", WorkflowJob.class);
@@ -129,6 +138,7 @@ public class OctaneEmailReportStepTest {
               htmlFile, screenshotFile, "interval-email-test/report.png");
         },
         (context, recipients, from, replyTo, subject, body, attachmentsPattern, important) -> {
+          deliveryEvents.add("smtp");
           sentRecipients.set(recipients);
           sentSubject.set(subject);
           sentBody.set(body);
@@ -176,6 +186,8 @@ public class OctaneEmailReportStepTest {
     assertTrue(sentImportant.get());
     assertNotNull(screenshotSnapshot.get());
     assertTrue(screenshotSnapshot.get().isBuilding());
+    assertTrue(screenshotSnapshot.get().hasReportSections());
+    assertEquals(List.of("artifacts-rendered", "smtp"), deliveryEvents);
     assertFalse(sentBody.get().contains("A newer action snapshot must not leak"));
     jenkins.assertLogContains("Jenkins Mailer completed the SMTP handoff", run);
   }
@@ -185,8 +197,33 @@ public class OctaneEmailReportStepTest {
     @Override
     public void onStarted(WorkflowRun run, TaskListener listener) {
       if ("interval-email-success".equals(run.getParent().getName())) {
-        run.addAction(new OctaneGateReportAction());
+        OctaneGateReportAction action =
+            OctaneGateReportAction.attachTo(run, new GateRequest("octane-prod", "4501"));
+        List<RunRecord> records =
+            List.of(
+                new RunRecord("1", "Checkout", "passed", "Ada Tester"),
+                new RunRecord("2", "Refund", "failed", "Ada Tester"));
+        action.onPoll(
+            new GateResult(
+                "4501",
+                "regressions.executionRate >= 0",
+                false,
+                false,
+                GateMetrics.fromRuns(records, classifier()),
+                records,
+                Map.of("4501", records),
+                Map.of(),
+                Instant.parse("2026-07-20T12:00:00Z")),
+            classifier());
       }
+    }
+
+    private static StatusClassifier classifier() {
+      return new StatusClassifier(
+          StatusClassifier.DEFAULT_PASSED_STATUSES,
+          StatusClassifier.DEFAULT_FAILED_STATUSES,
+          StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+          StatusClassifier.DEFAULT_RUNNING_STATUSES);
     }
   }
 }

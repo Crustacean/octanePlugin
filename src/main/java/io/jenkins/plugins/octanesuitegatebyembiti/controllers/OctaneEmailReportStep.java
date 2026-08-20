@@ -79,8 +79,21 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
     emailSender = new JenkinsMailerOctaneReportSender();
   }
 
-  static void executeRequest(EmailRequest request, StepContext context) throws Exception {
-    new Execution(request, context).run();
+  static DeliveryResult executeRequest(
+      EmailRequest request, StepContext context, DeliveryDecision deliveryDecision)
+      throws Exception {
+    return new Execution(request, context).deliver(deliveryDecision);
+  }
+
+  @FunctionalInterface
+  interface DeliveryDecision {
+    boolean shouldSend(OctaneGateReportSnapshot snapshot);
+  }
+
+  enum DeliveryResult {
+    SENT,
+    SKIPPED,
+    FAILED
   }
 
   static String composeRecipients(String to, String cc, String bcc) {
@@ -173,29 +186,36 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
 
     @Override
     protected Void run() throws Exception {
+      deliver(null);
+      return null;
+    }
+
+    private DeliveryResult deliver(DeliveryDecision deliveryDecision) throws Exception {
       OctaneEmailFailureMode failureMode = OctaneEmailFailureMode.from(request.onFailure);
       Run<?, ?> run = getContext().get(Run.class);
       TaskListener listener = getContext().get(TaskListener.class);
       try {
-        sendReport(run, listener);
+        return sendReport(run, listener, deliveryDecision);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw e;
       } catch (Exception e) {
         handleFailure(run, listener, failureMode, e);
+        return DeliveryResult.FAILED;
       }
-      return null;
     }
 
-    private void sendReport(Run<?, ?> run, TaskListener listener) throws Exception {
+    private DeliveryResult sendReport(
+        Run<?, ?> run, TaskListener listener, DeliveryDecision deliveryDecision) throws Exception {
       FilePath workspace = getContext().get(FilePath.class);
       try (OctaneEmailDeliveryCoordinator.Lease ignored =
           OctaneEmailDeliveryCoordinator.acquire(run, workspace)) {
-        sendReportLocked(run, listener, workspace);
+        return sendReportLocked(run, listener, workspace, deliveryDecision);
       }
     }
 
-    private void sendReportLocked(Run<?, ?> run, TaskListener listener, FilePath workspace)
+    private DeliveryResult sendReportLocked(
+        Run<?, ?> run, TaskListener listener, FilePath workspace, DeliveryDecision deliveryDecision)
         throws Exception {
       Launcher launcher = getContext().get(Launcher.class);
       EnvVars envVars = envVars();
@@ -221,6 +241,9 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
               request.browserPath,
               request.viewportWidth,
               request.theme);
+      if (deliveryDecision != null && !deliveryDecision.shouldSend(reportSnapshot)) {
+        return DeliveryResult.SKIPPED;
+      }
       if (request.archiveScreenshot) {
         listener.getLogger().println("Archiving Octane report-zone screenshot.");
         archiveScreenshot(run, workspace, envVars, launcher, listener, screenshot);
@@ -256,6 +279,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
               "Jenkins Mailer completed the SMTP handoff for "
                   + visibleRecipients(recipients)
                   + ". Inbox placement is controlled by the receiving mail service.");
+      return DeliveryResult.SENT;
     }
 
     private EnvVars envVars() throws InterruptedException {

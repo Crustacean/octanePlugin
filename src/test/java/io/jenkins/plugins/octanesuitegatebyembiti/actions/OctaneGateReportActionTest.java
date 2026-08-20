@@ -79,6 +79,34 @@ public class OctaneGateReportActionTest {
   }
 
   @Test
+  public void freshWaitingSnapshotForcesPollBeforeIntervalEmailRendering() throws Exception {
+    FreeStyleProject project = jenkins.createFreeStyleProject();
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
+    Instant now = Instant.parse("2026-07-20T12:00:00Z");
+    AtomicInteger refreshes = new AtomicInteger();
+    action.setRefreshCallback(
+        () -> {
+          refreshes.incrementAndGet();
+          action.onPoll(result(now), classifier());
+          return true;
+        });
+
+    assertFalse(action.getSnapshot().hasReportSections());
+    OctaneGateReportAction.RefreshResult refreshed =
+        action.refreshForEmail(Duration.ofMinutes(1L), now);
+
+    assertEquals(OctaneGateReportAction.RefreshStatus.REFRESHED, refreshed.status());
+    assertEquals(1, refreshes.get());
+    assertTrue(action.getSnapshot().hasReportSections());
+    assertEquals(
+        OctaneGateReportAction.RefreshStatus.FRESH,
+        action.refreshForEmail(Duration.ofMinutes(1L), now).status());
+    assertEquals(1, refreshes.get());
+  }
+
+  @Test
   public void completedReportNeverStartsOutOfBandRefresh() throws Exception {
     FreeStyleProject project = jenkins.createFreeStyleProject();
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);

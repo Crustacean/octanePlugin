@@ -8,6 +8,8 @@ import static org.junit.Assert.fail;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.model.Result;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneProgressEmailScheduler;
 import java.time.Duration;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -67,6 +69,16 @@ public class OctaneCronProgressEmailStepTest {
     assertFalse(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 40.0, true));
     assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 41.0, true));
     assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 40.0, false));
+  }
+
+  @Test
+  public void waitingSnapshotCannotTriggerFirstIntervalEmail() {
+    OctaneGateReportSnapshot waiting =
+        OctaneGateReportSnapshot.waiting(
+            new GateRequest("octane-prod", "4501"), 30, "2026-07-20T12:00:00Z");
+
+    assertFalse(OctaneCronProgressEmailStep.hasRenderableReportData(null));
+    assertFalse(OctaneCronProgressEmailStep.hasRenderableReportData(waiting));
   }
 
   @Test
