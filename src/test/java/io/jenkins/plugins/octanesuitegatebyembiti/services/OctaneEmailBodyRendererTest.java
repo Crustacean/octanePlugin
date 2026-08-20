@@ -183,6 +183,14 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(html.contains("Business Payments Secure Checkout"));
     assertTrue(html.contains("FS_TRIBE_DOMAIN"));
     assertTrue(html.contains("color:#009900;font-weight:700;\">SUCCESS"));
+    assertFalse(html.contains("Set criteria:"));
+    assertTrue(
+        html.contains(
+            "To get a green light for release, the build must pass 1 non-negotiable QA checks:"));
+    assertTrue(
+        html.contains(
+            "<li>Regression tests completed must be exactly 100% OR Regression test pass rate "
+                + "must be at least 95</li>"));
     assertTrue(html.contains(">view the report output</a>"));
     assertTrue(html.contains("Project Details"));
     assertTrue(html.contains("Test case execution"));
@@ -219,6 +227,9 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(statusTable.contains(">Total (8)</th>"));
     assertFalse(statusTable.contains("Total Defects"));
     assertTrue(html.contains("Criteria evaluation"));
+    String criteriaTable = emailTable(html, "criteria-evaluation");
+    assertTrue(criteriaTable.contains("regressions.executionRate == 100%"));
+    assertTrue(criteriaTable.contains("regressions.passRate &gt;= 95%"));
     assertTrue(html.contains("Defect Logging Compliance"));
     assertTrue(html.contains("data-octane-email-section=\"criteria-reconciliation\""));
     assertTrue(html.contains("data-octane-email-table=\"defect-reconciliation\""));
@@ -522,7 +533,8 @@ public class OctaneEmailBodyRendererTest {
         enabled.contains(
             "<strong>Major:</strong> Critical, Very High, High, Unspecified ; "
                 + "<strong>Minor:</strong> Low, Medium"));
-    assertTrue(enabled.indexOf("Set criteria:") < enabled.indexOf("Defect groups:"));
+    assertTrue(
+        enabled.indexOf("To get a green light for release") < enabled.indexOf("Defect groups:"));
     assertTrue(enabled.indexOf("Defect groups:") < enabled.indexOf("view the report output"));
     assertFalse(disabled.contains("Defect groups:"));
     assertFalse(disabled.contains("margin:8px 0 0;\">Defect groups"));

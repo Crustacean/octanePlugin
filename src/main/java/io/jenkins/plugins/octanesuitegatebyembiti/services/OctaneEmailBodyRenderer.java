@@ -39,6 +39,8 @@ public class OctaneEmailBodyRenderer {
   private static final String TABLE_VALUE_STYLE =
       "font-family:Arial,sans-serif;font-size:15px;font-weight:400;line-height:1.4;";
   private static final String TABLE_CELL_PADDING = "padding:4px 8px;";
+  private static final String CRITERIA_TOKEN = "{{CRITERIA}}";
+  private static final String SET_CRITERIA_TOKEN = "Set criteria: " + CRITERIA_TOKEN;
   private static final String EXECUTION_DETAILS_TOKEN = "{{EXECUTION_DETAILS}}";
   private static final String REPORT_SCREENSHOT_TOKEN = "{{REPORT_SCREENSHOT}}";
   private static final String[][] DEFECT_SEVERITIES = {
@@ -55,7 +57,7 @@ public class OctaneEmailBodyRenderer {
 
       The automated job for {{PROJECT_NAME}} tests has run and is {{GATE_RESULT}}.
 
-      Set criteria: {{CRITERIA}}
+      {{CRITERIA}}
 
       Click here to {{REPORT_LINK}}.
 
@@ -162,9 +164,7 @@ public class OctaneEmailBodyRenderer {
     String normalizedReportUrl = Util.trimToEmpty(reportUrl);
     Verdict verdict = emailVerdict(snapshot == null ? null : snapshot.getState(), theme);
     String criteriaHtml =
-        "<code style=\"font-family:Consolas,monospace;white-space:normal;word-break:break-word;\">"
-            + escape(snapshot == null ? "Not available" : snapshot.getCriteria())
-            + "</code>"
+        CriteriaEmailTranslator.renderHtml(snapshot == null ? "" : snapshot.getCriteria())
             + renderDefectGroupsParagraph(snapshot, printDefectGroups);
     String rendered = escape(template).replace("\r\n", "\n").replace('\r', '\n');
     rendered = rendered.replace("{{PROJECT_NAME}}", escape(defaultText(projectName, "Octane")));
@@ -185,7 +185,8 @@ public class OctaneEmailBodyRenderer {
                 + ";font-weight:700;\">"
                 + verdict.label
                 + "</strong>");
-    rendered = rendered.replace("{{CRITERIA}}", criteriaHtml);
+    rendered = rendered.replace(SET_CRITERIA_TOKEN, criteriaHtml);
+    rendered = rendered.replace(CRITERIA_TOKEN, criteriaHtml);
     rendered =
         rendered.replace(
             "{{REPORT_LINK}}",
