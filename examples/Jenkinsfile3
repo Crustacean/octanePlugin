@@ -18,6 +18,8 @@ def pipelineConfigurationDefaults() {
     'OCTANE_CRITICAL_SUITE_RUN_ID': '',
     'OCTANE_DEFINED_SCOPE': '',
     'OCTANE_CRITICAL_SCOPE_NAME': 'critical',
+    'OCTANE_CRITICAL_GRAPHS_TITLE': '',
+    'OCTANE_REGRESSION_GRAPHS_TITLE': '',
     'OCTANE_PROJECT_NAME': 'Octane Project',
     'OCTANE_DOMAIN_NAME': 'Octane Domain',
     'AUTOMATED_TESTING_TARGET': '100',
@@ -54,8 +56,10 @@ def pipelineConfigurationDefaults() {
     'OCTANE_EMAIL_VIEWPORT_WIDTH': '1400',
     'OCTANE_PROGRESS_EMAIL_ON_FAILURE': 'WARN',
     'OCTANE_PROGRESS_EMAIL_ARCHIVE_SCREENSHOT': 'false',
+    'OCTANE_INTERVAL_EMAIL_IS_IMPORTANT': 'false',
     'OCTANE_FINAL_EMAIL_ON_FAILURE': 'UNSTABLE',
-    'OCTANE_FINAL_EMAIL_ARCHIVE_SCREENSHOT': 'true'
+    'OCTANE_FINAL_EMAIL_ARCHIVE_SCREENSHOT': 'true',
+    'OCTANE_FINAL_EMAIL_IS_IMPORTANT': 'false'
   ]
 }
 
@@ -75,6 +79,17 @@ def resolvePipelineSourcePath(String path, environment) {
 
 def bootstrappedConfigurationJson(environment) {
   return environment.getProperty('OCTANE_BOOTSTRAP_CONFIGURATION_JSON')?.toString()?.trim()
+}
+
+def emailImportanceValue(String key, Object configuredValue) {
+  String value = configuredValue?.toString()?.trim()?.toLowerCase()
+  if (!value || value in ['false', '0', 'null', 'undefined']) {
+    return false
+  }
+  if (value in ['true', '1']) {
+    return true
+  }
+  throw new IllegalArgumentException("${key} must be true, false, 1, or 0.")
 }
 
 pipeline {
@@ -139,6 +154,14 @@ pipeline {
               error "Octane configuration value ${key} must be a scalar."
             }
             env.setProperty(key, selectedValue == null ? '' : selectedValue.toString())
+          }
+          ['OCTANE_INTERVAL_EMAIL_IS_IMPORTANT', 'OCTANE_FINAL_EMAIL_IS_IMPORTANT'].each {
+            String key ->
+              try {
+                env.setProperty(key, emailImportanceValue(key, env.getProperty(key)).toString())
+              } catch (IllegalArgumentException exception) {
+                error exception.message
+              }
           }
 
           List<String> requiredKeys = [
@@ -339,7 +362,8 @@ QA Automation Team''',
               theme: env.OCTANE_EMAIL_THEME,
               browserPath: env.BROWSERPATH,
               viewportWidth: emailViewportWidth,
-              archiveScreenshot: progressArchiveScreenshot) {
+              archiveScreenshot: progressArchiveScreenshot,
+              important: env.OCTANE_INTERVAL_EMAIL_IS_IMPORTANT.toBoolean()) {
             catchError(
                 buildResult: 'FAILURE',
                 catchInterruptions: false,
@@ -442,7 +466,8 @@ QA Automation Team''',
             theme: env.OCTANE_EMAIL_THEME,
             browserPath: env.BROWSERPATH,
             viewportWidth: env.OCTANE_EMAIL_VIEWPORT_WIDTH.toInteger(),
-            archiveScreenshot: env.OCTANE_FINAL_EMAIL_ARCHIVE_SCREENSHOT.toBoolean())
+            archiveScreenshot: env.OCTANE_FINAL_EMAIL_ARCHIVE_SCREENSHOT.toBoolean(),
+            important: env.OCTANE_FINAL_EMAIL_IS_IMPORTANT.toBoolean())
       }
     }
 

@@ -22,6 +22,7 @@ abstract class AbstractOctaneEmailStep extends Step {
   private int viewportWidth = OctaneEmailReportStep.DEFAULT_VIEWPORT_WIDTH;
   private boolean archiveScreenshot;
   private boolean printDefectGroups;
+  private boolean important;
 
   AbstractOctaneEmailStep(String to, OctaneEmailFailureMode onFailure, boolean archiveScreenshot) {
     this.to = Util.trimToEmpty(to);
@@ -159,6 +160,15 @@ abstract class AbstractOctaneEmailStep extends Step {
     this.printDefectGroups = printDefectGroups;
   }
 
+  public boolean isImportant() {
+    return important;
+  }
+
+  @DataBoundSetter
+  public void setImportant(boolean important) {
+    this.important = important;
+  }
+
   final OctaneEmailReportStep.EmailRequest toRequest() {
     return new OctaneEmailReportStep.EmailRequest(
         to,
@@ -175,6 +185,7 @@ abstract class AbstractOctaneEmailStep extends Step {
         theme,
         viewportWidth,
         archiveScreenshot,
-        printDefectGroups);
+        printDefectGroups,
+        important);
   }
 }

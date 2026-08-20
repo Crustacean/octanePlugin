@@ -123,6 +123,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
     private final int viewportWidth;
     private final boolean archiveScreenshot;
     private final boolean printDefectGroups;
+    private final boolean important;
 
     EmailRequest(
         String to,
@@ -139,7 +140,8 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
         String theme,
         int viewportWidth,
         boolean archiveScreenshot,
-        boolean printDefectGroups) {
+        boolean printDefectGroups,
+        boolean important) {
       this.to = to;
       this.cc = cc;
       this.bcc = bcc;
@@ -155,6 +157,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       this.viewportWidth = viewportWidth;
       this.archiveScreenshot = archiveScreenshot;
       this.printDefectGroups = printDefectGroups;
+      this.important = important;
     }
   }
 
@@ -245,7 +248,8 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
           request.replyTo,
           subject,
           body,
-          screenshot.getAttachmentPattern());
+          screenshot.getAttachmentPattern(),
+          request.important);
       listener
           .getLogger()
           .println(

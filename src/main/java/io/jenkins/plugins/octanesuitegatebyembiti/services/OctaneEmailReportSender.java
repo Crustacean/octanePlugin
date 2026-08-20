@@ -10,6 +10,7 @@ public interface OctaneEmailReportSender {
       String replyTo,
       String subject,
       String body,
-      String attachmentsPattern)
+      String attachmentsPattern,
+      boolean important)
       throws Exception;
 }

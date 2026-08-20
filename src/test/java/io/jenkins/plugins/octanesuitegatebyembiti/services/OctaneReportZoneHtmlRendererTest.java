@@ -193,6 +193,27 @@ public class OctaneReportZoneHtmlRendererTest {
   }
 
   @Test
+  public void rendersCustomMainGraphTitlesAndPreservesDefaultFallbacks() {
+    OctaneGateReportSnapshot baseSnapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result(), classifier, 30);
+    OctaneGateReportSnapshot customSnapshot =
+        baseSnapshot.withGraphTitles("RELEASE REGRESSION", "RELEASE BLOCKERS");
+
+    String customHtml = new OctaneReportZoneHtmlRenderer().render(customSnapshot);
+    String defaultHtml = new OctaneReportZoneHtmlRenderer().render(baseSnapshot);
+
+    assertTrue(customHtml.contains("RELEASE REGRESSION Status Distribution"));
+    assertTrue(customHtml.contains("RELEASE REGRESSION Suiterun Distribution"));
+    assertTrue(customHtml.contains("RELEASE BLOCKERS Status Distribution"));
+    assertTrue(customHtml.contains("RELEASE BLOCKERS Suiterun Distribution"));
+    assertFalse(customHtml.contains("REGRESSION Tests Status Distribution"));
+    assertFalse(customHtml.contains("CRITICAL Tests Status Distribution"));
+    assertTrue(defaultHtml.contains("REGRESSION Tests Status Distribution"));
+    assertTrue(defaultHtml.contains("Testing progress per Tester Suite Runs_CRITICAL"));
+  }
+
+  @Test
   public void rendersThinDistributionSlicesWithTabularLegendAndNoCallouts() {
     OctaneGateReportSnapshot snapshot = thinSliceSnapshot();
 

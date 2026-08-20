@@ -1,10 +1,14 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.AbortException;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 class JenkinsMailerOctaneReportSenderTest {
@@ -64,5 +68,29 @@ class JenkinsMailerOctaneReportSenderTest {
     assertThrows(
         AbortException.class,
         () -> JenkinsMailerOctaneReportSender.safeAttachmentPath("reports/*.png"));
+  }
+
+  @Test
+  void attachesAllProviderPriorityHeadersToOutboundMimeMessage() throws Exception {
+    MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+
+    JenkinsMailerOctaneReportSender.applyPriorityHeaders(message, true);
+    message.saveChanges();
+
+    assertEquals("1", message.getHeader("X-Priority", null));
+    assertEquals("Urgent", message.getHeader("Priority", null));
+    assertEquals("High", message.getHeader("Importance", null));
+  }
+
+  @Test
+  void leavesPriorityHeadersAbsentForStandardMessages() throws Exception {
+    MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+
+    JenkinsMailerOctaneReportSender.applyPriorityHeaders(message, false);
+    message.saveChanges();
+
+    assertNull(message.getHeader("X-Priority"));
+    assertNull(message.getHeader("Priority"));
+    assertNull(message.getHeader("Importance"));
   }
 }

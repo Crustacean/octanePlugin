@@ -445,9 +445,13 @@ public class OctaneSuiteGateStep extends Step {
       if (environmentConfigured) {
         return;
       }
-      request.setAutomatedTestingTarget(
-          OctaneSuiteGateStep.automatedTestingTarget(context.get(EnvVars.class)));
-      request.setDefinedScope(OctaneSuiteGateStep.definedScope(context.get(EnvVars.class)));
+      EnvVars environment = context.get(EnvVars.class);
+      request.setAutomatedTestingTarget(OctaneSuiteGateStep.automatedTestingTarget(environment));
+      request.setDefinedScope(OctaneSuiteGateStep.definedScope(environment));
+      request.setCriticalGraphsTitle(
+          environmentValue(environment, GateRequest.CRITICAL_GRAPHS_TITLE_ENV));
+      request.setRegressionGraphsTitle(
+          environmentValue(environment, GateRequest.REGRESSION_GRAPHS_TITLE_ENV));
       environmentConfigured = true;
     }
 

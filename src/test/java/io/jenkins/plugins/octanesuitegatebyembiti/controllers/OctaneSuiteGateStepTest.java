@@ -155,6 +155,23 @@ public class OctaneSuiteGateStepTest {
     assertEquals("", OctaneSuiteGateStep.definedScope(null));
   }
 
+  @Test
+  public void graphTitlesAreTrimmedUppercasedAndTreatNullMarkersAsBlank() {
+    GateRequest request = new GateRequest("server", "1");
+
+    request.setRegressionGraphsTitle("  release regression  ");
+    request.setCriticalGraphsTitle("Release blockers");
+
+    assertEquals("RELEASE REGRESSION", request.getRegressionGraphsTitle());
+    assertEquals("RELEASE BLOCKERS", request.getCriticalGraphsTitle());
+
+    request.setRegressionGraphsTitle("undefined");
+    request.setCriticalGraphsTitle("NULL");
+
+    assertEquals("", request.getRegressionGraphsTitle());
+    assertEquals("", request.getCriticalGraphsTitle());
+  }
+
   private void assertInvalidAutomationTarget(String value) throws Exception {
     try {
       OctaneSuiteGateStep.automatedTestingTarget(

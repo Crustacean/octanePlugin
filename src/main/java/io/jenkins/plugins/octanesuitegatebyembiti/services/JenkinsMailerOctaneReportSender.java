@@ -40,7 +40,8 @@ public class JenkinsMailerOctaneReportSender implements OctaneEmailReportSender 
       String replyTo,
       String subject,
       String body,
-      String attachmentsPattern)
+      String attachmentsPattern,
+      boolean important)
       throws Exception {
     Mailer.DescriptorImpl descriptor = Mailer.descriptor();
     TaskListener listener = context.get(TaskListener.class);
@@ -69,6 +70,7 @@ public class JenkinsMailerOctaneReportSender implements OctaneEmailReportSender 
     message.setSubject(safeSubject(subject), StandardCharsets.UTF_8.name());
     message.setSentDate(new Date());
     message.setContent(relatedContent(body, workspace, safeAttachmentPath(attachmentsPattern)));
+    applyPriorityHeaders(message, important);
     message.saveChanges();
     Transport.send(message);
   }
@@ -276,6 +278,20 @@ public class JenkinsMailerOctaneReportSender implements OctaneEmailReportSender 
     if (recipients.bcc().length > 0) {
       message.setRecipients(Message.RecipientType.BCC, recipients.bcc());
     }
+  }
+
+  /**
+   * Uses the three compatibility headers expected by Outlook/mobile, modern webmail, and legacy
+   * Unix/Linux mail clients respectively.
+   */
+  static void applyPriorityHeaders(MimeMessage message, boolean important)
+      throws MessagingException {
+    if (!important) {
+      return;
+    }
+    message.addHeader("X-Priority", "1");
+    message.addHeader("Priority", "Urgent");
+    message.addHeader("Importance", "High");
   }
 
   private MimeMultipart relatedContent(String html, FilePath workspace, String attachmentPath)

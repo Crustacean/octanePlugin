@@ -54,6 +54,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private volatile int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
   private volatile int automatedTestingTarget = GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET;
   private volatile List<OctaneDefinedScope> definedScope = List.of();
+  private volatile String criticalGraphsTitle = "";
+  private volatile String regressionGraphsTitle = "";
   private volatile String startedAt = Instant.now().toString();
   private volatile boolean manualExitRequested;
   private volatile long manualExitRequestedAtMillis;
@@ -602,6 +604,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     baseExecutionFigure = request.getBaseExecutionFigure();
     automatedTestingTarget = request.getAutomatedTestingTarget();
     definedScope = List.copyOf(request.getDefinedScope());
+    criticalGraphsTitle = request.getCriticalGraphsTitle();
+    regressionGraphsTitle = request.getRegressionGraphsTitle();
     startedAt = Instant.now().toString();
     manualExitRequested = false;
     manualExitRequestedAtMillis = 0L;
@@ -710,6 +714,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   private OctaneGateReportSnapshot withPreviousCycleMetrics(OctaneGateReportSnapshot current) {
     return current
+        .withGraphTitles(regressionGraphsTitle, criticalGraphsTitle)
         .withDefinedScope(definedScope == null ? List.of() : definedScope)
         .withTesterThresholds(basePassrateFigure, baseExecutionFigure)
         .withTestMetrics(

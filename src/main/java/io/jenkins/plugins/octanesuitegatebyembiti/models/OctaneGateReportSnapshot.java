@@ -561,6 +561,36 @@ public class OctaneGateReportSnapshot implements Serializable {
         baseExecutionFigure);
   }
 
+  public OctaneGateReportSnapshot withGraphTitles(
+      String regressionGraphsTitle, String criticalGraphsTitle) {
+    List<OctaneGateReportSection> titledSections =
+        sections.stream()
+            .map(section -> section.withGraphTitles(regressionGraphsTitle, criticalGraphsTitle))
+            .toList();
+    return new OctaneGateReportSnapshot(
+        state,
+        message,
+        criteria,
+        suiteRunId,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        updatedAt,
+        getSuiteAttributions(),
+        titledSections,
+        riskHeatMap,
+        testMetrics,
+        getDefectTrend(),
+        getTestManagement(),
+        getDefectMetrics(),
+        getCriteriaEvaluation(),
+        testerPerformances,
+        getDefinedScope(),
+        basePassrateFigure,
+        baseExecutionFigure);
+  }
+
   public OctaneGateReportState getState() {
     return state;
   }

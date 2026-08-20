@@ -15,6 +15,8 @@ import java.util.Set;
 
 public class OctaneGateReportSection implements Serializable {
   private static final long serialVersionUID = 1L;
+  public static final String STATUS_DISTRIBUTION_TITLE_APPEND = " Status Distribution";
+  public static final String SUITE_RUN_DISTRIBUTION_TITLE_APPEND = " Suiterun Distribution";
 
   private final String name;
   private final String source;
@@ -24,6 +26,7 @@ public class OctaneGateReportSection implements Serializable {
   private final List<OctaneGatePieSlice> pieSlices;
   private final List<OctaneGateSuiteRunChart> suiteRuns;
   private final OctaneAutomationUsage automationUsage;
+  private final String customGraphsTitle;
 
   private OctaneGateReportSection(
       String name,
@@ -32,7 +35,8 @@ public class OctaneGateReportSection implements Serializable {
       GateMetrics metrics,
       List<OctaneGateStatusCount> totals,
       List<OctaneGateSuiteRunChart> suiteRuns,
-      OctaneAutomationUsage automationUsage) {
+      OctaneAutomationUsage automationUsage,
+      String customGraphsTitle) {
     this.name = name;
     this.source = source;
     this.suiteRunIds = List.copyOf(suiteRunIds);
@@ -42,6 +46,7 @@ public class OctaneGateReportSection implements Serializable {
     this.suiteRuns = List.copyOf(suiteRuns);
     this.automationUsage =
         automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
+    this.customGraphsTitle = Util.trimToEmpty(customGraphsTitle);
   }
 
   public static OctaneGateReportSection regressions(
@@ -103,7 +108,8 @@ public class OctaneGateReportSection implements Serializable {
         metrics,
         reportRuns.isEmpty() ? totalsFromMetrics(metrics) : totalsFromRuns(reportRuns, classifier),
         scaledSuiteRunCharts,
-        OctaneAutomationUsage.fromRuns(reportRuns));
+        OctaneAutomationUsage.fromRuns(reportRuns),
+        "");
   }
 
   public String getName() {
@@ -215,6 +221,9 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   public String getStatusDistributionTitle() {
+    if (!Util.trimToEmpty(customGraphsTitle).isEmpty()) {
+      return customGraphsTitle + STATUS_DISTRIBUTION_TITLE_APPEND;
+    }
     if ("regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source)) {
       return "REGRESSION Tests Status Distribution";
     }
@@ -225,6 +234,9 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   public String getSuiteRunChartTitle() {
+    if (!Util.trimToEmpty(customGraphsTitle).isEmpty()) {
+      return customGraphsTitle + SUITE_RUN_DISTRIBUTION_TITLE_APPEND;
+    }
     if ("regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source)) {
       return "Testing progress per Tester Suite Runs_REGRESSIONS";
     }
@@ -232,6 +244,18 @@ public class OctaneGateReportSection implements Serializable {
       return "Testing progress per Tester Suite Runs_CRITICAL";
     }
     return name + " by suite run";
+  }
+
+  public OctaneGateReportSection withGraphTitles(
+      String regressionGraphsTitle, String criticalGraphsTitle) {
+    String title = "";
+    if ("regressions".equalsIgnoreCase(source) || "global".equalsIgnoreCase(source)) {
+      title = regressionGraphsTitle;
+    } else if ("critical".equalsIgnoreCase(source)) {
+      title = criticalGraphsTitle;
+    }
+    return new OctaneGateReportSection(
+        name, source, suiteRunIds, metrics, totals, suiteRuns, automationUsage, title);
   }
 
   private static List<OctaneGateStatusCount> totalsFromMetrics(GateMetrics metrics) {

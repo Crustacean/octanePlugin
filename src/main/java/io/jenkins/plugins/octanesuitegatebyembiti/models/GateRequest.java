@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 public class GateRequest implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -21,6 +22,8 @@ public class GateRequest implements Serializable {
   public static final String GLOBAL_AUTOMATED_TESTING_TARGET_ENV =
       "global_automated_testing_target";
   public static final String DEFINED_SCOPE_ENV = "OCTANE_DEFINED_SCOPE";
+  public static final String CRITICAL_GRAPHS_TITLE_ENV = "OCTANE_CRITICAL_GRAPHS_TITLE";
+  public static final String REGRESSION_GRAPHS_TITLE_ENV = "OCTANE_REGRESSION_GRAPHS_TITLE";
   public static final String DEFAULT_CRITERIA = "100% execution AND 100% pass";
   public static final int MAX_POLL_INTERVAL_SECONDS = 3600;
   public static final int MAX_TIMEOUT_MINUTES = 10_080;
@@ -41,6 +44,8 @@ public class GateRequest implements Serializable {
   private int baseExecutionFigure = DEFAULT_BASE_EXECUTION_FIGURE;
   private int automatedTestingTarget = DEFAULT_AUTOMATED_TESTING_TARGET;
   private List<OctaneDefinedScope> definedScope = new ArrayList<>();
+  private String criticalGraphsTitle = "";
+  private String regressionGraphsTitle = "";
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -170,6 +175,22 @@ public class GateRequest implements Serializable {
     this.definedScope = new ArrayList<>(OctaneDefinedScope.parse(definedScope));
   }
 
+  public String getCriticalGraphsTitle() {
+    return criticalGraphsTitle;
+  }
+
+  public void setCriticalGraphsTitle(String criticalGraphsTitle) {
+    this.criticalGraphsTitle = normalizeGraphTitle(criticalGraphsTitle);
+  }
+
+  public String getRegressionGraphsTitle() {
+    return regressionGraphsTitle;
+  }
+
+  public void setRegressionGraphsTitle(String regressionGraphsTitle) {
+    this.regressionGraphsTitle = normalizeGraphTitle(regressionGraphsTitle);
+  }
+
   public boolean isMarkUnstable() {
     return markUnstable;
   }
@@ -249,5 +270,15 @@ public class GateRequest implements Serializable {
 
   private int percentageThreshold(int value) {
     return Math.min(100, Math.max(0, value));
+  }
+
+  private String normalizeGraphTitle(String value) {
+    String normalized = Util.trimToEmpty(value);
+    if (normalized.isEmpty()
+        || "null".equalsIgnoreCase(normalized)
+        || "undefined".equalsIgnoreCase(normalized)) {
+      return "";
+    }
+    return normalized.toUpperCase(Locale.ENGLISH);
   }
 }

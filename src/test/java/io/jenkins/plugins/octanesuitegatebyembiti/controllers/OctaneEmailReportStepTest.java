@@ -14,6 +14,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -105,6 +106,7 @@ public class OctaneEmailReportStepTest {
     AtomicReference<String> sentSubject = new AtomicReference<>();
     AtomicReference<String> sentBody = new AtomicReference<>();
     AtomicReference<String> sentAttachment = new AtomicReference<>();
+    AtomicBoolean sentImportant = new AtomicBoolean();
     AtomicReference<OctaneGateReportSnapshot> screenshotSnapshot = new AtomicReference<>();
 
     OctaneEmailReportStep.setServicesForTesting(
@@ -126,11 +128,12 @@ public class OctaneEmailReportStepTest {
           return new OctaneReportScreenshot(
               htmlFile, screenshotFile, "interval-email-test/report.png");
         },
-        (context, recipients, from, replyTo, subject, body, attachmentsPattern) -> {
+        (context, recipients, from, replyTo, subject, body, attachmentsPattern, important) -> {
           sentRecipients.set(recipients);
           sentSubject.set(subject);
           sentBody.set(body);
           sentAttachment.set(attachmentsPattern);
+          sentImportant.set(important);
         });
 
     WorkflowJob job = jenkins.createProject(WorkflowJob.class, "interval-email-success");
@@ -151,6 +154,7 @@ public class OctaneEmailReportStepTest {
                       + '{{EXECUTION_DETAILS}} {{REPORT_SCREENSHOT}}',
                   onFailure: 'FAILURE',
                   theme: 'DARK',
+                  important: true,
                   archiveScreenshot: false)
             }
             """,
@@ -169,6 +173,7 @@ public class OctaneEmailReportStepTest {
     assertTrue(sentBody.get().contains("src=\"cid:report.png\""));
     assertFalse(sentBody.get().contains("{{UPDATED_AT_TEXT}}"));
     assertEquals("interval-email-test/report.png", sentAttachment.get());
+    assertTrue(sentImportant.get());
     assertNotNull(screenshotSnapshot.get());
     assertTrue(screenshotSnapshot.get().isBuilding());
     assertFalse(sentBody.get().contains("A newer action snapshot must not leak"));

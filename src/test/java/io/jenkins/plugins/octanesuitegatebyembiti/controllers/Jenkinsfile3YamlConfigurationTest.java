@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -234,8 +235,43 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(jenkinsfile.contains("suiteRunId: suiteRunSource"));
     assertTrue(jenkinsfile.contains("criteria: env.OCTANE_CRITERIA"));
     assertTrue(jenkinsfile.contains("pollIntervalSeconds: pollIntervalSeconds"));
+    assertTrue(yamlKeys.contains("OCTANE_CRITICAL_GRAPHS_TITLE"));
+    assertTrue(yamlKeys.contains("OCTANE_REGRESSION_GRAPHS_TITLE"));
+    assertTrue(yamlKeys.contains("OCTANE_INTERVAL_EMAIL_IS_IMPORTANT"));
+    assertTrue(yamlKeys.contains("OCTANE_FINAL_EMAIL_IS_IMPORTANT"));
+    assertTrue(
+        jenkinsfile.contains("important: env.OCTANE_INTERVAL_EMAIL_IS_IMPORTANT.toBoolean()"));
+    assertTrue(jenkinsfile.contains("important: env.OCTANE_FINAL_EMAIL_IS_IMPORTANT.toBoolean()"));
     assertFalse(yaml.toLowerCase().contains("client_secret:"));
     assertFalse(yaml.toLowerCase().contains("password:"));
+  }
+
+  @Test
+  void emailImportanceFlagsAcceptSupportedBooleanVariantsAndRejectInvalidValues()
+      throws IOException, CompilationFailedException {
+    groovy.lang.Script script =
+        new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
+
+    for (Object enabled : new Object[] {true, 1, "TRUE", "True", " true "}) {
+      assertEquals(
+          true,
+          script.invokeMethod(
+              "emailImportanceValue",
+              new Object[] {"OCTANE_INTERVAL_EMAIL_IS_IMPORTANT", enabled}));
+    }
+    for (Object disabled :
+        new Object[] {false, 0, "FALSE", "False", "undefined", "null", null, ""}) {
+      assertEquals(
+          false,
+          script.invokeMethod(
+              "emailImportanceValue", new Object[] {"OCTANE_FINAL_EMAIL_IS_IMPORTANT", disabled}));
+    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            script.invokeMethod(
+                "emailImportanceValue",
+                new Object[] {"OCTANE_FINAL_EMAIL_IS_IMPORTANT", "urgent"}));
   }
 
   private static Map<?, ?> findBySelector(
