@@ -299,6 +299,12 @@ before the progress decision and SMTP handoff; empty or failed attempts do not a
 per-wrapper execution-progress high-water mark and are retried on the next cron occurrence. The
 high-water mark is not shared between builds.
 
+Each cron tick is also compared with the absolute gate closure deadline: `startedAt +
+timeoutMinutes + timeoutMinutesExtended`. When 60 seconds or less remain, the interval message is
+suppressed before screenshot generation and progress-delta evaluation so the imminent final email
+is the only notification. With no extended timeout, 100% execution is treated as immediate closure;
+with an extension configured, 100% execution continues to use the combined timeout deadline.
+
 Before rendering, `PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES` (default `1`) is compared with the
 latest report timestamp. When a running report is older than that threshold, email delivery starts
 an immediate gate poll or waits for the gate's active poll, then renders the refreshed snapshot.

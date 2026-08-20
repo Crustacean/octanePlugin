@@ -33,6 +33,7 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
   static final String STALENESS_THRESHOLD_ENV = "PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES";
   static final String INTERVAL_TIMEOUT_ENV = "PROGRESS_EMAIL_INTERVAL_TIMEOUT";
   static final Duration DEFAULT_STALENESS_THRESHOLD = Duration.ofMinutes(1L);
+  static final long FINAL_EMAIL_YIELD_SECONDS = 60L;
 
   private final String cron;
 
@@ -93,6 +94,45 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
 
   static boolean hasRenderableReportData(OctaneGateReportSnapshot snapshot) {
     return snapshot != null && snapshot.hasReportSections();
+  }
+
+  static long activeTimeRemainingSeconds(
+      OctaneGateReportSnapshot snapshot, Instant cronEvaluationTime) {
+    if (snapshot == null) {
+      return Long.MAX_VALUE;
+    }
+    if (!snapshot.isBuilding() || snapshot.isFinalizing()) {
+      return 0L;
+    }
+    if (snapshot.getTimeoutExtendedSeconds() <= 0 && snapshot.getExecutionProgress() >= 100.0) {
+      return 0L;
+    }
+
+    try {
+      Instant evaluationTime = cronEvaluationTime == null ? Instant.now() : cronEvaluationTime;
+      long totalExecutionSeconds =
+          (long) snapshot.getTimeoutSeconds() + snapshot.getTimeoutExtendedSeconds();
+      Instant forcedClosureAt =
+          Instant.parse(snapshot.getStartedAt()).plusSeconds(totalExecutionSeconds);
+      if (!forcedClosureAt.isAfter(evaluationTime)) {
+        return 0L;
+      }
+      Duration remaining = Duration.between(evaluationTime, forcedClosureAt);
+      return remaining.getSeconds() + (remaining.getNano() == 0 ? 0L : 1L);
+    } catch (RuntimeException ignored) {
+      return Long.MAX_VALUE;
+    }
+  }
+
+  static boolean shouldYieldToFinalEmail(
+      OctaneGateReportSnapshot snapshot, Instant cronEvaluationTime) {
+    return activeTimeRemainingSeconds(snapshot, cronEvaluationTime) <= FINAL_EMAIL_YIELD_SECONDS;
+  }
+
+  static String closureImminentMessage(long remainingSeconds) {
+    return "Interval email suppressed. Run closure is imminent (time remaining: "
+        + remainingSeconds
+        + "s). Yielding to Final Email.";
   }
 
   private static final class Execution extends StepExecution
@@ -162,9 +202,21 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
       if (completed) {
         return;
       }
+      Run<?, ?> run = getContext().get(Run.class);
+      OctaneGateReportAction currentAction = run.getAction(OctaneGateReportAction.class);
+      if (suppressForTimeoutCollision(
+          currentAction == null ? null : currentAction.getSnapshot(),
+          collisionEvaluationTime(occurrence))) {
+        return;
+      }
       auditSchedule(occurrence);
-      OctaneGateReportAction action = refreshReportForDelivery();
-      if (action == null || !hasRenderableReportData(action.awaitReconciledSnapshot())) {
+      OctaneGateReportAction deliveryAction = refreshReportForDelivery(currentAction);
+      OctaneGateReportSnapshot deliverySnapshot =
+          deliveryAction == null ? null : deliveryAction.awaitReconciledSnapshot();
+      if (suppressForTimeoutCollision(deliverySnapshot, Instant.now())) {
+        return;
+      }
+      if (!hasRenderableReportData(deliverySnapshot)) {
         log(
             "Deferring scheduled Octane progress email until a completed poll produces "
                 + "renderable report data.");
@@ -177,6 +229,9 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
               emailRequest,
               getContext(),
               snapshot -> {
+                if (suppressForTimeoutCollision(snapshot, Instant.now())) {
+                  return false;
+                }
                 if (!hasRenderableReportData(snapshot)) {
                   log(
                       "Deferring scheduled Octane progress email because the rendered snapshot "
@@ -209,9 +264,24 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
       return String.format(Locale.ROOT, "%.2f%%", progress);
     }
 
-    private OctaneGateReportAction refreshReportForDelivery() throws Exception {
-      Run<?, ?> run = getContext().get(Run.class);
-      OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
+    private Instant collisionEvaluationTime(OctaneProgressEmailScheduler.Occurrence occurrence) {
+      Instant now = Instant.now();
+      Instant scheduledAt = occurrence.scheduledAt();
+      return scheduledAt != null && scheduledAt.isAfter(now) ? scheduledAt : now;
+    }
+
+    private boolean suppressForTimeoutCollision(
+        OctaneGateReportSnapshot snapshot, Instant evaluationTime) {
+      long remainingSeconds = activeTimeRemainingSeconds(snapshot, evaluationTime);
+      if (remainingSeconds > FINAL_EMAIL_YIELD_SECONDS) {
+        return false;
+      }
+      log(closureImminentMessage(remainingSeconds));
+      return true;
+    }
+
+    private OctaneGateReportAction refreshReportForDelivery(OctaneGateReportAction action)
+        throws Exception {
       if (action == null) {
         return null;
       }
