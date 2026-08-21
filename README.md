@@ -39,6 +39,67 @@ octaneSuiteGate(
 )
 ```
 
+## Custom Criteria Formulas
+
+Criteria expressions support the comparison operators `==`, `!=`, `<`, `<=`, `>`, and `>=`;
+logical `AND` and `OR`; arithmetic `+`, `-`, `*`, and `/`; percentage literals; and nested
+parentheses. Variable names and logical operators are case-insensitive. The plugin validates the
+complete expression and every variable before authenticating to ALM Octane. Invalid characters,
+unbalanced parentheses, malformed expressions, and unknown variables stop the gate with a
+`CRITERIA ERROR` instead of failing later in the polling loop.
+
+The aggregate variables across all active regression and scoped targets are:
+
+- `tests_executed`: integer count of Passed + Failed + Blocked tests.
+- `tests_run`: alias of `tests_executed`.
+- `tests_resolved`: integer count of Passed + Failed + Blocked + Skipped tests.
+- `total_tests`: deduplicated integer count of all targeted tests.
+- `execution_percentage`: alias of `total.executionRate`.
+- `completion_percentage`: alias of `total.completionRate`.
+
+Use the `total` namespace for all deduplicated targeted tests, `regressions` for the regression
+bucket, or a configured scope name such as `critical`. Every metric namespace provides:
+
+- `<namespace>.total`: total test count.
+- `<namespace>.executed`: Passed + Failed + Blocked count.
+- `<namespace>.resolved`: Passed + Failed + Blocked + Skipped count.
+- `<namespace>.passed`: passed count.
+- `<namespace>.failed`: combined failed and blocked count.
+- `<namespace>.skipped`: skipped count.
+- `<namespace>.running`: planned or running count.
+- `<namespace>.executionRate`: executed / total * 100.
+- `<namespace>.completionRate`: resolved / total * 100.
+- `<namespace>.passRate`: passed / executed * 100.
+- `<namespace>.failRate`: failed / executed * 100.
+
+Defect variables are calculated from the defect ledger associated with the active gate targets:
+
+- `defects.open`: open defects as a percentage of total defects raised.
+- `defects.openCount`: raw open defect count.
+- `defects.<group>` and `defects.<group>Count`: percentage and raw count for each configured
+  `defectGroups` name.
+- `defects.critical`, `defects.veryHigh`, `defects.high`, `defects.medium`, `defects.low`, and
+  `defects.unspecified`: open percentage for each individual severity.
+- Append `Count` to an individual severity, such as `defects.veryHighCount`, for its raw count.
+
+Examples:
+
+```text
+(regressions.executionRate == 100 AND regressions.passRate >= 95)
+AND (critical.executionRate == 100 AND critical.passRate == 100)
+
+(tests_executed / total_tests * 100) >= 95
+AND tests_resolved == total_tests
+
+(defects.majorCount + defects.minorCount) <= 10
+AND defects.unspecified == 0%
+```
+
+The console prints the configured expression once at startup, confirms `CRITERIA VERIFIED`, and
+prints `Active applied criteria: ...` only when continuous discovery changes the expression that
+is actually applicable. The applied expression is also the criteria stored in the report and
+shown in report emails.
+
 ### Defect criteria
 
 `defectGroups` gives a case-insensitive name to one or more open ALM Octane defect

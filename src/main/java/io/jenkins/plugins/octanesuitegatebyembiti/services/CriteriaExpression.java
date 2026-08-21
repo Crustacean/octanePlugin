@@ -171,6 +171,17 @@ public class CriteriaExpression implements Serializable {
         .anyMatch(reference -> reference.startsWith(prefix));
   }
 
+  void validateMetricReferences(MetricsContext context) {
+    for (String metricReference : metricReferences) {
+      try {
+        context.value(metricReference);
+      } catch (CriteriaException exception) {
+        throw new CriteriaException(
+            "CRITERIA ERROR: Unknown variable used - '" + metricReference + "'.");
+      }
+    }
+  }
+
   private static Set<String> metricReferences(List<Token> tokens) {
     Set<String> references = new LinkedHashSet<>();
     for (Token token : tokens) {

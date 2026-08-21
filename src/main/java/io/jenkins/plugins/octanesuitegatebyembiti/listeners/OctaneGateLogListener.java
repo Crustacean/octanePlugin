@@ -5,12 +5,9 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
-import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
-import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectSeveritySummary;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -34,6 +31,22 @@ public class OctaneGateLogListener {
                 + ", workspace "
                 + workspaceId
                 + ".");
+  }
+
+  public void logConfiguredCriteria(TaskListener listener, String criteria) {
+    listener.getLogger().println("Configured criteria: " + Util.forLog(criteria));
+  }
+
+  public void logCriteriaVerified(TaskListener listener) {
+    listener.getLogger().println("CRITERIA VERIFIED");
+  }
+
+  public void logCriteriaError(TaskListener listener, String message) {
+    listener.getLogger().println(Util.forLog(message));
+  }
+
+  public void logActiveAppliedCriteria(TaskListener listener, String criteria) {
+    listener.getLogger().println("Active applied criteria: " + Util.forLog(criteria));
   }
 
   public void logWaiting(TaskListener listener, GateRequest request, List<String> suiteRunIds) {
@@ -63,7 +76,6 @@ public class OctaneGateLogListener {
       }
     }
 
-    listener.getLogger().println("Criteria: " + Util.forLog(request.getCriteria()));
     for (OctaneGateScope scope : request.getScopes()) {
       if (scope.isQueryScope()) {
         listener
@@ -75,55 +87,6 @@ public class OctaneGateLogListener {
                 Util.forLog(scope.getQuery()));
       }
     }
-  }
-
-  public void logAvailableCriteriaVariables(TaskListener listener, GateRequest request) {
-    PrintStream logger = listener.getLogger();
-    logger.println("Available Variables for Custom Criteria Formulas:");
-    logger.println("- tests_executed (Integer: Passed + Failed + Blocked across all targets)");
-    logger.println("- tests_run (Integer: alias of tests_executed)");
-    logger.println(
-        "- tests_resolved (Integer: Passed + Failed + Blocked + Skipped across all targets)");
-    logger.println("- total_tests (Integer: deduplicated total tests across all targets)");
-    logger.println("- execution_percentage (Float: alias of total.executionRate)");
-    logger.println("- completion_percentage (Float: alias of total.completionRate)");
-    logMetricNamespace(logger, "total", "all targeted tests");
-    logMetricNamespace(logger, "regressions", "regression tests");
-    for (OctaneGateScope scope : request.getScopes()) {
-      logMetricNamespace(
-          logger,
-          Util.forLog(scope.getName()),
-          displayScopeName(Util.forLog(scope.getName())) + " scope tests");
-    }
-    logger.println("- defects.open (Float: open defects as a percentage of total defects raised)");
-    logger.println("- defects.openCount (Integer: open defect count)");
-    for (OctaneDefectGroup group : request.getDefectGroups()) {
-      logDefectVariable(logger, Util.forLog(group.getName()), "configured defect group");
-    }
-    for (String defectType : OctaneDefectSeveritySummary.getOpenTypes()) {
-      logDefectVariable(logger, defectType, "individual defect severity");
-    }
-    logger.println("Arithmetic operators: +, -, *, /, and nested parentheses.");
-  }
-
-  private void logMetricNamespace(PrintStream logger, String namespace, String description) {
-    logger.printf("- %s.total (Integer: total %s)%n", namespace, description);
-    logger.printf("- %s.executed (Integer: Passed + Failed + Blocked)%n", namespace);
-    logger.printf("- %s.resolved (Integer: Passed + Failed + Blocked + Skipped)%n", namespace);
-    logger.printf("- %s.passed (Integer: passed tests)%n", namespace);
-    logger.printf("- %s.failed (Integer: failed and blocked tests)%n", namespace);
-    logger.printf("- %s.skipped (Integer: skipped tests)%n", namespace);
-    logger.printf("- %s.running (Integer: planned or running tests)%n", namespace);
-    logger.printf("- %s.executionRate (Float: executed / total * 100)%n", namespace);
-    logger.printf("- %s.completionRate (Float: resolved / total * 100)%n", namespace);
-    logger.printf("- %s.passRate (Float: passed / executed * 100)%n", namespace);
-    logger.printf("- %s.failRate (Float: failed / executed * 100)%n", namespace);
-  }
-
-  private void logDefectVariable(PrintStream logger, String name, String description) {
-    logger.printf(
-        "- defects.%s (Float: %s percentage of total defects raised)%n", name, description);
-    logger.printf("- defects.%sCount (Integer: %s count)%n", name, description);
   }
 
   public void logNoDynamicSuiteRuns(

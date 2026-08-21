@@ -119,12 +119,23 @@ public class OctaneGateRunner {
       this.listener = listener;
       this.reportPublisher = reportPublisher;
       this.state = state == null ? new PollingState(clock.instant()) : state;
+      if (!this.state.isWaitingPublished()) {
+        logListener.logConfiguredCriteria(listener, request.getCriteria());
+      }
+      try {
+        criteria = CriteriaValidator.validate(request);
+      } catch (CriteriaException exception) {
+        logListener.logCriteriaError(listener, exception.getMessage());
+        throw new AbortException(exception.getMessage());
+      }
+      if (!this.state.isWaitingPublished()) {
+        logListener.logCriteriaVerified(listener);
+      }
       OctaneServer server = resolveServer(request.getServerId());
       sharedSpaceId = requiredWorkspaceValue("Shared space ID", request.getSharedSpaceId());
       workspaceId = requiredWorkspaceValue("Workspace ID", request.getWorkspaceId());
       StandardUsernamePasswordCredentials credentials =
           resolveCredentials(server.getCredentialsId());
-      criteria = CriteriaExpression.parse(request.getCriteria());
       classifier = request.createStatusClassifier();
       primaryDeadline =
           this.state.getStartedAt().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
@@ -143,7 +154,6 @@ public class OctaneGateRunner {
       regressionSelectionEnabled = regressionSelectionEnabled(request);
       if (!this.state.isWaitingPublished()) {
         logListener.logLookupContext(listener, sharedSpaceId, workspaceId);
-        logListener.logAvailableCriteriaVariables(listener, request);
       }
       client =
           new OctaneClient(
@@ -197,6 +207,7 @@ public class OctaneGateRunner {
               classifier,
               listener,
               state.getDefectLedger());
+      logAppliedCriteriaIfChanged(result);
       logListener.logPollResult(listener, result);
       publishPollResult(reportPublisher, result, classifier, state.isExtendedTimeActive());
 
@@ -355,9 +366,16 @@ public class OctaneGateRunner {
               classifier,
               listener,
               state.getDefectLedger());
+      logAppliedCriteriaIfChanged(finalResult);
       logListener.logPollResult(listener, finalResult);
       logListener.logFinalReconciliationCompleted(listener, finalResult.getPolledAt());
       return finalResult;
+    }
+
+    private void logAppliedCriteriaIfChanged(GateResult result) {
+      if (state.shouldLogAppliedCriteria(result.getCriteria())) {
+        logListener.logActiveAppliedCriteria(listener, result.getCriteria());
+      }
     }
 
     private void preflightSuitePools() throws IOException, InterruptedException {
@@ -551,6 +569,7 @@ public class OctaneGateRunner {
     private boolean extendedTimeActive;
     private boolean manualExitFinalizingLogged;
     private boolean waitingPublished;
+    private String lastLoggedCriteria;
 
     public PollingState(Instant startedAt) {
       this(startedAt, false);
@@ -591,6 +610,15 @@ public class OctaneGateRunner {
 
     private void setWaitingPublished(boolean waitingPublished) {
       this.waitingPublished = waitingPublished;
+    }
+
+    synchronized boolean shouldLogAppliedCriteria(String activeCriteria) {
+      String current = Util.trimToEmpty(activeCriteria);
+      if (Objects.equals(lastLoggedCriteria, current)) {
+        return false;
+      }
+      lastLoggedCriteria = current;
+      return true;
     }
   }
 

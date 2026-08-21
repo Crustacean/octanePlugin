@@ -38,6 +38,17 @@ import org.junit.Test;
 
 public class OctaneGateRunnerTest {
   @Test
+  public void appliedCriteriaTrackerReportsOnlyTheInitialValueAndChanges() {
+    OctaneGateRunner.PollingState state =
+        new OctaneGateRunner.PollingState(Instant.parse("2026-05-16T14:00:00Z"));
+
+    assertTrue(state.shouldLogAppliedCriteria("regressions.executionRate == 100"));
+    assertFalse(state.shouldLogAppliedCriteria("regressions.executionRate == 100"));
+    assertTrue(state.shouldLogAppliedCriteria("critical.executionRate == 100"));
+    assertFalse(state.shouldLogAppliedCriteria("critical.executionRate == 100"));
+  }
+
+  @Test
   public void criticalSuiteRunsOwnOverlappingRegressionIdsForCriteria() {
     GateRequest request = new GateRequest("octane-prod", "450297,450300,450303,450303");
     OctaneGateScope critical = new OctaneGateScope("critical");
