@@ -506,6 +506,75 @@ public class CriteriaExpressionTest {
   }
 
   @Test
+  public void evaluatesNestedArithmeticAgainstAggregateExecutionMetrics() {
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, High");
+    DefectCriteriaMetrics defects =
+        new DefectCriteriaMetrics(
+            OctaneDefectSeveritySummary.fromDefects(
+                List.of(
+                    new DefectRecord(
+                        "1", "Critical", "Critical", "", "opened", "run", "test", "", ""),
+                    new DefectRecord("2", "Closed", "Low", "", "closed", "run", "test", "", ""))),
+            List.of(major));
+    GateMetrics regressions = new GateMetrics(4, 0, 1, 0, 0, 3);
+    GateMetrics total = new GateMetrics(10, 0, 1, 1, 1, 7);
+    MetricsContext context = new MetricsContext(regressions, Map.of(), defects, total);
+
+    CriteriaEvaluation evaluation =
+        CriteriaExpression.parse(
+                "total.executionRate > 15 "
+                    + "AND ((defects.majorCount / tests_executed) * 100) > 40")
+            .evaluateDetailed(context);
+
+    assertTrue(evaluation.isPassed());
+    assertEquals(2, evaluation.getComparisons().size());
+    assertEquals("20%", evaluation.getComparisons().get(0).getActualLabel());
+    assertEquals("50", evaluation.getComparisons().get(1).getActualLabel());
+  }
+
+  @Test
+  public void exposesStrictExecutionAndSkippedInclusiveCompletionAliases() {
+    GateMetrics regressions = new GateMetrics(2, 0, 1, 0, 0, 1);
+    GateMetrics total = new GateMetrics(5, 0, 1, 1, 1, 2);
+    MetricsContext context = new MetricsContext(regressions, Map.of(), null, total);
+
+    assertTrue(
+        CriteriaExpression.parse(
+                "tests_executed == 2 AND tests_run == 2 AND total_tests == 5 "
+                    + "AND tests_resolved == 3 AND execution_percentage == 40 "
+                    + "AND completion_percentage == 60 AND total.completionRate == 60")
+            .evaluate(context));
+  }
+
+  @Test
+  public void arithmeticHonorsPrecedenceAndSafelyDefaultsDivisionByZeroToZero() {
+    GateMetrics noExecution = new GateMetrics(5, 0, 0, 0, 0, 5);
+    MetricsContext context =
+        new MetricsContext(
+            noExecution,
+            Map.of(),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.empty(), List.of()),
+            noExecution);
+
+    assertTrue(
+        CriteriaExpression.parse(
+                "defects.openCount / tests_executed == 0 "
+                    + "AND (tests_executed + 3 * 2 - 4) / 2 == 1")
+            .evaluate(context));
+  }
+
+  @Test
+  public void arithmeticCanCompareTwoCalculatedExpressions() {
+    GateMetrics total = new GateMetrics(8, 0, 2, 2, 1, 3);
+    MetricsContext context = new MetricsContext(total, Map.of(), null, total);
+
+    assertTrue(
+        CriteriaExpression.parse("tests_executed + 1 == total_tests - tests_resolved + 2")
+            .evaluate(context));
+  }
+
+  @Test
   public void evaluatesGroupedAndIndividualDefectCriteriaCaseInsensitively() {
     OctaneDefectGroup major = new OctaneDefectGroup("major");
     major.setTypes("Critical, Very High, High, Unspecified");

@@ -9,6 +9,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateScopeResult;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -121,6 +122,33 @@ public class OctaneGateLogListenerTest {
     assertTrue(
         log.contains("No active Regressions suite runs were found for release 'Kanban Release'"));
     assertFalse(log.contains("sprint ''"));
+  }
+
+  @Test
+  public void logsAvailableFormulaVariablesWithCountsRatesAndConfiguredScopes() {
+    OctaneGateLogListener logListener = new OctaneGateLogListener();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    TaskListener listener = new CapturingTaskListener(output);
+    GateRequest request = new GateRequest("octane-prod", "450312");
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId("450306");
+    request.setScopes(List.of(critical));
+    OctaneDefectGroup major = new OctaneDefectGroup("major");
+    major.setTypes("Critical, High");
+    request.setDefectGroups(List.of(major));
+
+    logListener.logAvailableCriteriaVariables(listener, request);
+
+    String log = output.toString(StandardCharsets.UTF_8);
+    assertTrue(log.contains("Available Variables for Custom Criteria Formulas:"));
+    assertTrue(log.contains("tests_executed (Integer: Passed + Failed + Blocked"));
+    assertTrue(log.contains("tests_resolved (Integer: Passed + Failed + Blocked + Skipped"));
+    assertTrue(log.contains("total.executionRate (Float: executed / total * 100)"));
+    assertTrue(log.contains("total.completionRate (Float: resolved / total * 100)"));
+    assertTrue(log.contains("critical.executionRate"));
+    assertTrue(log.contains("defects.major (Float: configured defect group percentage"));
+    assertTrue(log.contains("defects.majorCount (Integer: configured defect group count)"));
+    assertTrue(log.contains("Arithmetic operators: +, -, *, /, and nested parentheses."));
   }
 
   private GateResult resultWithCriticalScope() {

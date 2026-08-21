@@ -792,12 +792,29 @@ The criteria parser supports:
 - `AND`, `OR`
 - parentheses
 - `==`, `!=`, `>`, `>=`, `<`, `<=`
+- arithmetic with standard precedence: `+`, `-`, `*`, `/`, and nested arithmetic parentheses
 - regression metrics, such as `regressions.passRate >= 95`
+- deduplicated aggregate metrics, such as `total.executionRate > 15`
 - scoped metrics, such as `critical.passRate == 100`
 - grouped open-defect rates, such as `defects.major < 10%`
 - individual open-defect rates, such as `defects.Unspecified == 0%`
 - raw open-defect counts using `Count`, such as `defects.majorCount < 3`
 - shorthand thresholds, such as `100% execution` and `95% pass`
+
+Aggregate formula aliases are `tests_executed`/`tests_run` for strict execution,
+`tests_resolved` for skipped-inclusive completion, `total_tests`, `execution_percentage`, and
+`completion_percentage`. `total.*` is calculated from the child runs in every active target and
+deduplicated by child-run ID. Division by zero evaluates to `0`, which keeps early polling formulas
+finite. For example, a defect-density gate can use:
+
+```text
+total.executionRate > 15 AND ((defects.majorCount / tests_executed) * 100) > 5
+```
+
+The `Count` suffix is required when arithmetic needs a raw defect count; `defects.major` retains
+its backward-compatible defect-composition percentage meaning. At session initialization Jenkins
+prints the available aggregate, regression, scope, defect group, and severity keys to the build
+log.
 
 Default criteria:
 

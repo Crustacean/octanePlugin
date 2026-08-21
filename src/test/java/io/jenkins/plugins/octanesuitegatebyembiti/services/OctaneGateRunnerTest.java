@@ -435,6 +435,52 @@ public class OctaneGateRunnerTest {
     assertEquals(100.0, result.getDefectMetrics().value("major"), 0.000001);
   }
 
+  @Test
+  public void totalFormulaMetricsDeduplicateRunsAcrossRegressionAndCriticalTargets()
+      throws Exception {
+    GateRequest request = new GateRequest("octane-prod", "1001");
+    request.setCriteria(
+        "total.total == 4 AND tests_executed == 2 AND tests_resolved == 3 "
+            + "AND total.executionRate == 50 AND total.completionRate == 75");
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId("2001");
+    request.setScopes(List.of(critical));
+    RunRecord overlappingPlanned = new RunRecord("run-2", "overlap", "planned");
+    Map<String, List<RunRecord>> regressionRuns =
+        Map.of("1001", List.of(new RunRecord("run-1", "passed", "passed"), overlappingPlanned));
+    Map<String, Map<String, List<RunRecord>>> scopeRuns =
+        Map.of(
+            "critical",
+            Map.of(
+                "2001",
+                List.of(
+                    overlappingPlanned,
+                    new RunRecord("run-3", "failed", "failed"),
+                    new RunRecord("run-4", "skipped", "skipped"))));
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+
+    GateResult result =
+        runner.poll(
+            new NoDefectOctaneClient(),
+            request,
+            regressionRuns,
+            scopeRuns,
+            true,
+            false,
+            "1001",
+            "2001",
+            CriteriaExpression.parse(request.getCriteria()),
+            request.createStatusClassifier(),
+            taskListener(new ByteArrayOutputStream()),
+            new OctaneDefectLedger());
+
+    assertTrue(result.isPassed());
+    assertEquals(5, result.getCriteriaEvaluation().getComparisons().size());
+  }
+
   private GateResult previousPassedResult(GateRequest request) {
     List<RunRecord> runs = List.of(new RunRecord("1", "one", "passed"));
     return new GateResult(

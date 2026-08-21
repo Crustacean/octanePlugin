@@ -148,7 +148,7 @@ public class CriteriaExpression implements Serializable {
 
   private static void collectNamespaces(Node node, Set<String> values) {
     if (node instanceof ComparisonNode comparisonNode) {
-      values.add(comparisonNode.namespace());
+      values.addAll(comparisonNode.namespaces());
       return;
     }
     if (node instanceof GroupNode groupNode) {
@@ -246,6 +246,11 @@ public class CriteriaExpression implements Serializable {
         index++;
         return;
       }
+      if (character == '+' || character == '-' || character == '*' || character == '/') {
+        addToken(arithmeticTokenType(character), String.valueOf(character), 0.0);
+        index++;
+        return;
+      }
       if (isOperatorStart(character)) {
         scanOperator(character);
         return;
@@ -259,6 +264,16 @@ public class CriteriaExpression implements Serializable {
         return;
       }
       throw new CriteriaException("Unexpected character in criteria: " + character);
+    }
+
+    private TokenType arithmeticTokenType(char character) {
+      return switch (character) {
+        case '+' -> TokenType.PLUS;
+        case '-' -> TokenType.MINUS;
+        case '*' -> TokenType.STAR;
+        case '/' -> TokenType.SLASH;
+        default -> throw new CriteriaException("Unsupported arithmetic operator: " + character);
+      };
     }
 
     private void scanOperator(char character) {
@@ -519,19 +534,261 @@ public class CriteriaExpression implements Serializable {
     }
   }
 
+  private interface NumericExpression extends Serializable {
+    double evaluate(MetricsContext context);
+
+    RenderedNumber render();
+
+    Set<String> namespaces();
+
+    boolean isPercentage(MetricsContext context);
+
+    boolean hasExplicitPercentage();
+  }
+
+  private static final class RenderedNumber {
+    private final String text;
+    private final int precedence;
+
+    private RenderedNumber(String text, int precedence) {
+      this.text = text;
+      this.precedence = precedence;
+    }
+  }
+
+  private static final class NumberNode implements NumericExpression {
+    private static final long serialVersionUID = 1L;
+
+    private final double value;
+    private final String label;
+
+    private NumberNode(double value, String label) {
+      this.value = value;
+      this.label = label;
+    }
+
+    @Override
+    public double evaluate(MetricsContext context) {
+      return value;
+    }
+
+    @Override
+    public RenderedNumber render() {
+      return new RenderedNumber(label, 4);
+    }
+
+    @Override
+    public Set<String> namespaces() {
+      return Set.of();
+    }
+
+    @Override
+    public boolean isPercentage(MetricsContext context) {
+      return false;
+    }
+
+    @Override
+    public boolean hasExplicitPercentage() {
+      return label.endsWith("%");
+    }
+  }
+
+  private static final class MetricNode implements NumericExpression {
+    private static final long serialVersionUID = 1L;
+
+    private final String reference;
+
+    private MetricNode(String reference) {
+      this.reference = reference;
+    }
+
+    @Override
+    public double evaluate(MetricsContext context) {
+      return context.value(reference);
+    }
+
+    @Override
+    public RenderedNumber render() {
+      return new RenderedNumber(reference, 4);
+    }
+
+    @Override
+    public Set<String> namespaces() {
+      return Set.of(metricNamespace(reference));
+    }
+
+    @Override
+    public boolean isPercentage(MetricsContext context) {
+      return context.isPercentageMetric(reference);
+    }
+
+    @Override
+    public boolean hasExplicitPercentage() {
+      return false;
+    }
+  }
+
+  private static final class GroupedNumberNode implements NumericExpression {
+    private static final long serialVersionUID = 1L;
+
+    private final NumericExpression child;
+
+    private GroupedNumberNode(NumericExpression child) {
+      this.child = child;
+    }
+
+    @Override
+    public double evaluate(MetricsContext context) {
+      return child.evaluate(context);
+    }
+
+    @Override
+    public RenderedNumber render() {
+      return new RenderedNumber("(" + child.render().text + ")", 4);
+    }
+
+    @Override
+    public Set<String> namespaces() {
+      return child.namespaces();
+    }
+
+    @Override
+    public boolean isPercentage(MetricsContext context) {
+      return child.isPercentage(context);
+    }
+
+    @Override
+    public boolean hasExplicitPercentage() {
+      return child.hasExplicitPercentage();
+    }
+  }
+
+  private static final class UnaryNumberNode implements NumericExpression {
+    private static final long serialVersionUID = 1L;
+
+    private final TokenType operator;
+    private final NumericExpression child;
+
+    private UnaryNumberNode(TokenType operator, NumericExpression child) {
+      this.operator = operator;
+      this.child = child;
+    }
+
+    @Override
+    public double evaluate(MetricsContext context) {
+      double value = child.evaluate(context);
+      return finite(operator == TokenType.MINUS ? -value : value);
+    }
+
+    @Override
+    public RenderedNumber render() {
+      RenderedNumber rendered = child.render();
+      String childText = rendered.precedence < 3 ? "(" + rendered.text + ")" : rendered.text;
+      return new RenderedNumber((operator == TokenType.MINUS ? "-" : "+") + childText, 3);
+    }
+
+    @Override
+    public Set<String> namespaces() {
+      return child.namespaces();
+    }
+
+    @Override
+    public boolean isPercentage(MetricsContext context) {
+      return child.isPercentage(context);
+    }
+
+    @Override
+    public boolean hasExplicitPercentage() {
+      return child.hasExplicitPercentage();
+    }
+  }
+
+  private static final class BinaryNumberNode implements NumericExpression {
+    private static final long serialVersionUID = 1L;
+
+    private final TokenType operator;
+    private final NumericExpression left;
+    private final NumericExpression right;
+
+    private BinaryNumberNode(TokenType operator, NumericExpression left, NumericExpression right) {
+      this.operator = operator;
+      this.left = left;
+      this.right = right;
+    }
+
+    @Override
+    public double evaluate(MetricsContext context) {
+      double leftValue = left.evaluate(context);
+      double rightValue = right.evaluate(context);
+      if (operator == TokenType.SLASH && Math.abs(rightValue) < 0.000001) {
+        return 0.0;
+      }
+      return finite(
+          switch (operator) {
+            case PLUS -> leftValue + rightValue;
+            case MINUS -> leftValue - rightValue;
+            case STAR -> leftValue * rightValue;
+            case SLASH -> leftValue / rightValue;
+            default -> throw new CriteriaException("Unsupported arithmetic operator: " + operator);
+          });
+    }
+
+    @Override
+    public RenderedNumber render() {
+      int precedence = operator == TokenType.STAR || operator == TokenType.SLASH ? 2 : 1;
+      RenderedNumber leftRendered = left.render();
+      RenderedNumber rightRendered = right.render();
+      String leftText =
+          leftRendered.precedence < precedence ? "(" + leftRendered.text + ")" : leftRendered.text;
+      boolean rightNeedsParentheses =
+          rightRendered.precedence < precedence
+              || ((operator == TokenType.MINUS || operator == TokenType.SLASH)
+                  && rightRendered.precedence == precedence);
+      String rightText =
+          rightNeedsParentheses ? "(" + rightRendered.text + ")" : rightRendered.text;
+      return new RenderedNumber(leftText + " " + symbol(operator) + " " + rightText, precedence);
+    }
+
+    @Override
+    public Set<String> namespaces() {
+      Set<String> values = new LinkedHashSet<>(left.namespaces());
+      values.addAll(right.namespaces());
+      return Set.copyOf(values);
+    }
+
+    @Override
+    public boolean isPercentage(MetricsContext context) {
+      return false;
+    }
+
+    @Override
+    public boolean hasExplicitPercentage() {
+      return false;
+    }
+
+    private String symbol(TokenType type) {
+      return switch (type) {
+        case PLUS -> "+";
+        case MINUS -> "-";
+        case STAR -> "*";
+        case SLASH -> "/";
+        default -> throw new CriteriaException("Unsupported arithmetic operator: " + type);
+      };
+    }
+  }
+
   private static class ComparisonNode implements Node {
     private static final long serialVersionUID = 1L;
 
-    private final String metricName;
+    private final NumericExpression actualExpression;
     private final String operator;
-    private final double expectedValue;
-    private final String expectedLabel;
+    private final NumericExpression expectedExpression;
 
-    ComparisonNode(String metricName, String operator, double expectedValue, String expectedLabel) {
-      this.metricName = metricName;
+    ComparisonNode(
+        NumericExpression actualExpression, String operator, NumericExpression expectedExpression) {
+      this.actualExpression = actualExpression;
       this.operator = operator;
-      this.expectedValue = expectedValue;
-      this.expectedLabel = expectedLabel;
+      this.expectedExpression = expectedExpression;
     }
 
     @Override
@@ -539,58 +796,56 @@ public class CriteriaExpression implements Serializable {
         MetricsContext context,
         List<CriteriaComparisonEvaluation> comparisonEvaluations,
         Set<String> disabledMetricNamespaces) {
-      if (disabledMetricNamespaces.contains(namespace())) {
+      if (isDisabled(disabledMetricNamespaces)) {
         return NodeEvaluation.SKIPPED;
       }
-      double actualValue = context.value(metricName);
-      boolean passed = compare(actualValue);
+      double actualValue = actualExpression.evaluate(context);
+      double expectedValue = expectedExpression.evaluate(context);
+      boolean passed = compare(actualValue, expectedValue);
+      boolean percentage =
+          actualExpression.isPercentage(context) || expectedExpression.hasExplicitPercentage();
       comparisonEvaluations.add(
           new CriteriaComparisonEvaluation(
-              metricName,
+              actualExpression.render().text,
               operator,
               expectedValue,
               actualValue,
-              context.isPercentageMetric(metricName),
+              percentage,
               passed));
       return NodeEvaluation.applicable(passed);
     }
 
     @Override
     public RenderedExpression render(MetricsContext context, Set<String> disabledMetricNamespaces) {
-      if (disabledMetricNamespaces.contains(namespace())) {
+      if (isDisabled(disabledMetricNamespaces)) {
         return null;
       }
-      String appliedLabel = expectedLabel;
-      if (appliedLabel == null) {
-        CriteriaComparisonEvaluation comparison =
-            new CriteriaComparisonEvaluation(
-                metricName,
-                operator,
-                expectedValue,
-                0.0,
-                context.isPercentageMetric(metricName),
-                true);
-        return new RenderedExpression(comparison.getCriterionLabel(), 3);
-      }
-      return new RenderedExpression(metricName + " " + operator + " " + appliedLabel, 3);
+      return new RenderedExpression(
+          actualExpression.render().text + " " + operator + " " + expectedExpression.render().text,
+          3);
     }
 
     @Override
     public Node prune(Set<String> disabledMetricNamespaces) {
-      return disabledMetricNamespaces.contains(namespace()) ? null : this;
+      return isDisabled(disabledMetricNamespaces) ? null : this;
     }
 
-    private String namespace() {
-      String normalized = Util.trimToEmpty(metricName).toLowerCase(Locale.ROOT);
-      int dot = normalized.indexOf('.');
-      if (dot < 0) {
-        return "regressions";
+    private Set<String> namespaces() {
+      Set<String> values = new LinkedHashSet<>(actualExpression.namespaces());
+      values.addAll(expectedExpression.namespaces());
+      return Set.copyOf(values);
+    }
+
+    private boolean isDisabled(Set<String> disabledMetricNamespaces) {
+      for (String namespace : namespaces()) {
+        if (disabledMetricNamespaces.contains(namespace)) {
+          return true;
+        }
       }
-      String namespace = normalized.substring(0, dot);
-      return "regression".equals(namespace) ? "regressions" : namespace;
+      return false;
     }
 
-    private boolean compare(double actualValue) {
+    private boolean compare(double actualValue, double expectedValue) {
       switch (operator) {
         case "==":
           return nearlyEqual(actualValue, expectedValue);
@@ -612,6 +867,32 @@ public class CriteriaExpression implements Serializable {
     private boolean nearlyEqual(double actualValue, double expectedValue) {
       return Math.abs(actualValue - expectedValue) < 0.000001;
     }
+  }
+
+  private static double finite(double value) {
+    if (!Double.isFinite(value)) {
+      throw new CriteriaException("Criteria arithmetic produced a non-finite result.");
+    }
+    return value;
+  }
+
+  private static String metricNamespace(String metricReference) {
+    String normalized = Util.trimToEmpty(metricReference).toLowerCase(Locale.ROOT);
+    int dot = normalized.indexOf('.');
+    if (dot >= 0) {
+      String namespace = normalized.substring(0, dot);
+      return "regression".equals(namespace) ? "regressions" : namespace;
+    }
+    String alias = normalized.replace("_", "").replace("-", "");
+    if ("testsexecuted".equals(alias)
+        || "testsrun".equals(alias)
+        || "testsresolved".equals(alias)
+        || "totaltests".equals(alias)
+        || "executionpercentage".equals(alias)
+        || "completionpercentage".equals(alias)) {
+      return "total";
+    }
+    return "regressions";
   }
 
   private static class Parser {
@@ -642,13 +923,9 @@ public class CriteriaExpression implements Serializable {
     }
 
     private Node parseFactor() {
-      if (peek().type == TokenType.LEFT_PAREN) {
+      if (peek().type == TokenType.LEFT_PAREN && startsLogicalGroup()) {
         advance();
-        nestingDepth++;
-        if (nestingDepth > MAX_NESTING_DEPTH) {
-          throw new CriteriaException(
-              "Criteria expression exceeds the " + MAX_NESTING_DEPTH + " level nesting limit.");
-        }
+        enterNesting();
         try {
           Node node = parseExpression();
           expect(TokenType.RIGHT_PAREN);
@@ -661,18 +938,106 @@ public class CriteriaExpression implements Serializable {
     }
 
     private Node parseComparison() {
-      Token first = advance();
-      if (first.type == TokenType.NUMBER) {
-        Token metric = expect(TokenType.IDENTIFIER);
-        return new ComparisonNode(metric.text, ">=", first.number, first.text);
-      }
-      if (first.type != TokenType.IDENTIFIER) {
-        throw new CriteriaException("Expected metric or threshold near: " + first.text);
+      if (isShorthandComparison()) {
+        Token threshold = advance();
+        Token metric = advance();
+        return new ComparisonNode(
+            new MetricNode(metric.text), ">=", new NumberNode(threshold.number, threshold.text));
       }
 
+      NumericExpression actualExpression = parseAdditiveExpression();
       Token operator = expect(TokenType.OPERATOR);
-      Token number = expect(TokenType.NUMBER);
-      return new ComparisonNode(first.text, operator.text, number.number, number.text);
+      NumericExpression expectedExpression = parseAdditiveExpression();
+      return new ComparisonNode(actualExpression, operator.text, expectedExpression);
+    }
+
+    private NumericExpression parseAdditiveExpression() {
+      NumericExpression expression = parseMultiplicativeExpression();
+      while (peek().type == TokenType.PLUS || peek().type == TokenType.MINUS) {
+        TokenType operator = advance().type;
+        expression = new BinaryNumberNode(operator, expression, parseMultiplicativeExpression());
+      }
+      return expression;
+    }
+
+    private NumericExpression parseMultiplicativeExpression() {
+      NumericExpression expression = parseUnaryExpression();
+      while (peek().type == TokenType.STAR || peek().type == TokenType.SLASH) {
+        TokenType operator = advance().type;
+        expression = new BinaryNumberNode(operator, expression, parseUnaryExpression());
+      }
+      return expression;
+    }
+
+    private NumericExpression parseUnaryExpression() {
+      if (peek().type == TokenType.PLUS || peek().type == TokenType.MINUS) {
+        return new UnaryNumberNode(advance().type, parseUnaryExpression());
+      }
+      return parseNumericPrimary();
+    }
+
+    private NumericExpression parseNumericPrimary() {
+      Token token = advance();
+      if (token.type == TokenType.NUMBER) {
+        return new NumberNode(token.number, token.text);
+      }
+      if (token.type == TokenType.IDENTIFIER) {
+        return new MetricNode(token.text);
+      }
+      if (token.type == TokenType.LEFT_PAREN) {
+        enterNesting();
+        try {
+          NumericExpression expression = parseAdditiveExpression();
+          expect(TokenType.RIGHT_PAREN);
+          return new GroupedNumberNode(expression);
+        } finally {
+          nestingDepth--;
+        }
+      }
+      throw new CriteriaException("Expected a metric, number, or '(' near: " + token.text);
+    }
+
+    private boolean isShorthandComparison() {
+      if (peek().type != TokenType.NUMBER || peek(1).type != TokenType.IDENTIFIER) {
+        return false;
+      }
+      TokenType following = peek(2).type;
+      return following == TokenType.AND
+          || following == TokenType.OR
+          || following == TokenType.RIGHT_PAREN
+          || following == TokenType.END;
+    }
+
+    private boolean startsLogicalGroup() {
+      int depth = 0;
+      for (int index = position; index < tokens.size(); index++) {
+        TokenType type = tokens.get(index).type;
+        if (type == TokenType.LEFT_PAREN) {
+          depth++;
+        } else if (type == TokenType.RIGHT_PAREN) {
+          depth--;
+          if (depth == 0) {
+            TokenType following = peekAt(index + 1).type;
+            return following != TokenType.OPERATOR && !isArithmeticOperator(following);
+          }
+        }
+      }
+      throw new CriteriaException("Unclosed parenthesis in criteria expression.");
+    }
+
+    private boolean isArithmeticOperator(TokenType type) {
+      return type == TokenType.PLUS
+          || type == TokenType.MINUS
+          || type == TokenType.STAR
+          || type == TokenType.SLASH;
+    }
+
+    private void enterNesting() {
+      nestingDepth++;
+      if (nestingDepth > MAX_NESTING_DEPTH) {
+        throw new CriteriaException(
+            "Criteria expression exceeds the " + MAX_NESTING_DEPTH + " level nesting limit.");
+      }
     }
 
     private Token expect(TokenType expectedType) {
@@ -692,6 +1057,14 @@ public class CriteriaExpression implements Serializable {
 
     private Token peek() {
       return tokens.get(position);
+    }
+
+    private Token peek(int offset) {
+      return peekAt(position + offset);
+    }
+
+    private Token peekAt(int index) {
+      return tokens.get(Math.min(index, tokens.size() - 1));
     }
   }
 
@@ -715,6 +1088,10 @@ public class CriteriaExpression implements Serializable {
     OR,
     LEFT_PAREN,
     RIGHT_PAREN,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
     END
   }
 }

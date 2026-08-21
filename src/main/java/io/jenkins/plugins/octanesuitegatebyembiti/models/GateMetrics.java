@@ -15,11 +15,13 @@ public class GateMetrics implements Serializable {
       Map.ofEntries(
           Map.entry("total", metrics -> metrics.total),
           Map.entry("executed", metrics -> metrics.getExecuted()),
+          Map.entry("resolved", metrics -> metrics.getResolved()),
           Map.entry("passed", metrics -> metrics.passed),
           Map.entry("failed", metrics -> metrics.failed),
           Map.entry("skipped", metrics -> metrics.skipped),
           Map.entry("running", metrics -> metrics.running),
           Map.entry("executionrate", metrics -> metrics.getExecutionRate()),
+          Map.entry("completionrate", metrics -> metrics.getCompletionRate()),
           Map.entry("passrate", metrics -> metrics.getPassRate()),
           Map.entry("failrate", metrics -> metrics.getFailRate()));
 
@@ -125,6 +127,7 @@ public class GateMetrics implements Serializable {
   public static boolean isPercentageMetric(String metricName) {
     String normalized = normalizeMetricName(metricName);
     return "executionrate".equals(normalized)
+        || "completionrate".equals(normalized)
         || "passrate".equals(normalized)
         || "failrate".equals(normalized);
   }
@@ -170,6 +173,24 @@ public class GateMetrics implements Serializable {
     normalized = normalized.toLowerCase();
     if ("execution".equals(normalized) || "executions".equals(normalized)) {
       return "executionrate";
+    }
+    if ("completion".equals(normalized) || "completions".equals(normalized)) {
+      return "completionrate";
+    }
+    if ("testsexecuted".equals(normalized) || "testsrun".equals(normalized)) {
+      return "executed";
+    }
+    if ("testsresolved".equals(normalized)) {
+      return "resolved";
+    }
+    if ("totaltests".equals(normalized)) {
+      return "total";
+    }
+    if ("executionpercentage".equals(normalized)) {
+      return "executionrate";
+    }
+    if ("completionpercentage".equals(normalized)) {
+      return "completionrate";
     }
     if ("pass".equals(normalized) || "passes".equals(normalized)) {
       return "passrate";

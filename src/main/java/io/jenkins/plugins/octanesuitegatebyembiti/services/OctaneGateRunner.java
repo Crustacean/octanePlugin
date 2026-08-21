@@ -143,6 +143,7 @@ public class OctaneGateRunner {
       regressionSelectionEnabled = regressionSelectionEnabled(request);
       if (!this.state.isWaitingPublished()) {
         logListener.logLookupContext(listener, sharedSpaceId, workspaceId);
+        logListener.logAvailableCriteriaVariables(listener, request);
       }
       client =
           new OctaneClient(
@@ -820,6 +821,14 @@ public class OctaneGateRunner {
       scopedResults.put(scope.getName(), scopeResult);
     }
 
+    List<RunRecord> totalRuns = new ArrayList<>(childRuns);
+    for (GateScopeResult scopeResult : scopedResults.values()) {
+      if (scopeResult.isActive()) {
+        totalRuns.addAll(scopeResult.getRuns());
+      }
+    }
+    GateMetrics totalMetrics = GateMetrics.fromRuns(dedupeRuns(totalRuns), classifier);
+
     boolean defectCriteriaRequired = criteria.usesMetricNamespace("defects");
     DefectPollResult defectPollResult =
         pollDefects(
@@ -835,7 +844,7 @@ public class OctaneGateRunner {
     DefectCriteriaMetrics defectMetrics =
         new DefectCriteriaMetrics(defectPollResult.severitySummary, request.getDefectGroups());
     MetricsContext metricsContext =
-        new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics);
+        new MetricsContext(regressionMetrics, scopedMetrics, defectMetrics, totalMetrics);
     String effectiveCriteria =
         inactiveMetricNamespaces.isEmpty()
             ? request.getCriteria()
@@ -1079,11 +1088,17 @@ public class OctaneGateRunner {
   }
 
   private List<RunRecord> flattenAndDedupeRuns(Map<String, List<RunRecord>> suiteRuns) {
-    Map<String, RunRecord> recordsById = new LinkedHashMap<>();
+    List<RunRecord> runs = new ArrayList<>();
     for (List<RunRecord> records : suiteRuns.values()) {
-      for (RunRecord record : records) {
-        recordsById.putIfAbsent(record.getId(), record);
-      }
+      runs.addAll(records);
+    }
+    return dedupeRuns(runs);
+  }
+
+  private List<RunRecord> dedupeRuns(List<RunRecord> runs) {
+    Map<String, RunRecord> recordsById = new LinkedHashMap<>();
+    for (RunRecord record : runs) {
+      recordsById.putIfAbsent(record.getId(), record);
     }
     return new ArrayList<>(recordsById.values());
   }
