@@ -104,7 +104,7 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
     if (!snapshot.isBuilding() || snapshot.isFinalizing()) {
       return 0L;
     }
-    if (snapshot.getTimeoutExtendedSeconds() <= 0 && snapshot.getExecutionProgress() >= 100.0) {
+    if (snapshot.getTimeoutExtendedSeconds() <= 0 && snapshot.getCompletionProgress() >= 100.0) {
       return 0L;
     }
 

@@ -157,8 +157,10 @@ public class OctaneCronProgressEmailStepTest {
   public void completedExecutionWithoutExtensionYieldsImmediately() {
     Instant startedAt = Instant.parse("2026-07-20T09:52:00Z");
     OctaneGateReportSnapshot snapshot =
-        snapshot(OctaneGateReportState.POLLING, startedAt, 7_200, 0);
+        snapshot(OctaneGateReportState.POLLING, startedAt, 7_200, 0, "skipped");
 
+    assertEquals(0.0, snapshot.getExecutionProgress(), 0.0);
+    assertEquals(100.0, snapshot.getCompletionProgress(), 0.0);
     assertEquals(
         0L,
         OctaneCronProgressEmailStep.activeTimeRemainingSeconds(
@@ -215,7 +217,16 @@ public class OctaneCronProgressEmailStepTest {
       Instant startedAt,
       int primaryTimeoutSeconds,
       int extendedTimeoutSeconds) {
-    List<RunRecord> runs = List.of(new RunRecord("1", "Checkout", "passed", "Ada Tester"));
+    return snapshot(state, startedAt, primaryTimeoutSeconds, extendedTimeoutSeconds, "passed");
+  }
+
+  private OctaneGateReportSnapshot snapshot(
+      OctaneGateReportState state,
+      Instant startedAt,
+      int primaryTimeoutSeconds,
+      int extendedTimeoutSeconds,
+      String status) {
+    List<RunRecord> runs = List.of(new RunRecord("1", "Checkout", status, "Ada Tester"));
     GateResult result =
         new GateResult(
             "4501",

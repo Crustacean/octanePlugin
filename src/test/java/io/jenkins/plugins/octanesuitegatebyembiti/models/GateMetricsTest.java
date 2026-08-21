@@ -8,13 +8,26 @@ class GateMetricsTest {
   @Test
   void centralizesExecutedCountAndRateCalculations() {
     assertEquals(4, GateMetrics.executedCount(2, 1, 1));
+    assertEquals(5, GateMetrics.resolvedCount(2, 1, 1, 1));
     assertEquals(80.0, GateMetrics.executionRate(4, 5));
+    assertEquals(100.0, GateMetrics.completionRate(5, 5));
     assertEquals(50.0, GateMetrics.passRate(2, 4));
   }
 
   @Test
   void ratesDefaultToZeroWithoutADenominator() {
     assertEquals(0.0, GateMetrics.executionRate(4, 0));
+    assertEquals(0.0, GateMetrics.completionRate(5, 0));
     assertEquals(0.0, GateMetrics.passRate(2, 0));
+  }
+
+  @Test
+  void skippedTestsCompleteTheSuiteWithoutIncreasingExecutionRate() {
+    GateMetrics metrics = new GateMetrics(5, 4, 2, 2, 1, 0);
+
+    assertEquals(4, metrics.getExecuted());
+    assertEquals(5, metrics.getResolved());
+    assertEquals(80.0, metrics.getExecutionRate());
+    assertEquals(100.0, metrics.getCompletionRate());
   }
 }

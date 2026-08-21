@@ -4417,8 +4417,8 @@
 
             <section class="octane-chart-card octane-timer-card" draggable="true"
                 data-card-key="progress-execution"
-                data-octane-progress="execution"
-                data-progress-value="${snapshot.executionProgress}"
+                data-octane-progress="completion"
+                data-progress-value="${snapshot.completionProgress}"
                 data-active-view="timer">
               <div class="octane-card-actions">
                 <button class="octane-view-toggle" type="button"
@@ -4470,7 +4470,7 @@
                   <div class="octane-flip-face-header">
                     <div>
                       <h2 class="octane-card-title">Execution Progress</h2>
-                      <div class="octane-muted">All Testcase execution</div>
+                      <div class="octane-muted">All Testcase completion</div>
                     </div>
                   </div>
                   <div class="octane-flip-face-body">
@@ -4497,10 +4497,10 @@
                             transform="rotate(-90 120 120)" />
                         <text class="octane-timer-value" data-execution-progress-value="true"
                             data-progress-value-text="true" x="120" y="118">
-                          ${snapshot.executionProgressText}
+                          ${snapshot.completionProgressText}
                         </text>
                         <text class="octane-timer-unit" x="120" y="132.4">
-                          execution
+                          completion
                         </text>
                       </svg>
                     </div>
@@ -5702,6 +5702,11 @@
           COLOR_TOKEN_FALLBACKS[COLOR_BAD] = "#FF3B30";
           COLOR_TOKEN_FALLBACKS[COLOR_NEUTRAL] = "#007AFF";
           var PROGRESS_COLOR_PHASES = {
+            completion: [
+              {limit: 20, token: COLOR_BAD},
+              {limit: 79, token: COLOR_WARN},
+              {limit: 100, token: COLOR_GOOD}
+            ],
             execution: [
               {limit: 20, token: COLOR_BAD},
               {limit: 79, token: COLOR_WARN},
@@ -7013,11 +7018,11 @@
             scheduleDefectTrendAnimation();
           }
           function currentReportPayload() {
-            var executionProgressCard =
-                dashboard.querySelector('[data-octane-progress="execution"]');
-            var executionProgress =
-                executionProgressCard
-                    ? parseFloat(executionProgressCard.getAttribute("data-progress-value") || "0")
+            var completionProgressCard =
+                dashboard.querySelector('[data-octane-progress="completion"]');
+            var completionProgress =
+                completionProgressCard
+                    ? parseFloat(completionProgressCard.getAttribute("data-progress-value") || "0")
                     : 0;
             var timeoutCard = dashboard.querySelector('[data-octane-timer="timeout"]');
             var timeoutSeconds = timeoutCard
@@ -7034,7 +7039,7 @@
                   dashboard.getAttribute("data-manual-exit-requested") === "true",
               manualExitRequestedAtMillis: Number(
                   dashboard.getAttribute("data-manual-exit-requested-at-millis") || 0),
-              executionProgress: isNaN(executionProgress) ? 0 : executionProgress,
+              completionProgress: isNaN(completionProgress) ? 0 : completionProgress,
               sampleTimeMillis: currentWallTime(),
               startedAt: timeoutCard ? timeoutCard.getAttribute("data-started-at") || "" : "",
               stateLabel: stateLabel ? stateLabel.textContent : "",
@@ -7103,10 +7108,10 @@
             return sampleTime - startedAt
                 >= (timeoutSeconds + Math.max(0, timeoutExtendedSeconds)) * 1000;
           }
-          function executionProgressReached(payload) {
-            var executionProgress = Number(
-                payload && payload.executionProgress ? payload.executionProgress : 0);
-            return isFinite(executionProgress) && executionProgress >= 100;
+          function completionProgressReached(payload) {
+            var completionProgress = Number(
+                payload && payload.completionProgress ? payload.completionProgress : 0);
+            return isFinite(completionProgress) && completionProgress >= 100;
           }
           function completionReached(payload) {
             var timedOut =
@@ -7118,7 +7123,7 @@
             if (extendedSeconds > 0) {
               return timedOut || manualExitRequested(payload) || totalTimeoutReached(payload);
             }
-            return timedOut || primaryTimeoutReached(payload) || executionProgressReached(payload);
+            return timedOut || primaryTimeoutReached(payload) || completionProgressReached(payload);
           }
           function autoFlipKey(cardKey, targetView) {
             return cardKey + ":" + targetView;
@@ -8069,7 +8074,7 @@
               var progressValue =
                   progressKind === "pass-rate"
                       ? payload.passRateProgress || 0
-                      : payload.executionProgress || 0;
+                      : payload.completionProgress || 0;
               progressCards[index].setAttribute("data-progress-value", String(progressValue));
               if (progressKind === "pass-rate") {
                 var passRateLabel = progressCards[index].querySelector("[data-pass-rate-label]");
@@ -8225,7 +8230,7 @@
               progress = 0;
             }
             progress = clamp(progress, 0, 100);
-            var progressKind = card.getAttribute("data-octane-progress") || "execution";
+            var progressKind = card.getAttribute("data-octane-progress") || "completion";
             var progressCircle =
                 card.querySelector("[data-progress-circle]")
                 || card.querySelector("[data-execution-progress-circle]");

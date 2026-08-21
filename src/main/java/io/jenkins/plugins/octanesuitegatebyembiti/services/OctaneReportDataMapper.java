@@ -80,8 +80,10 @@ public final class OctaneReportDataMapper {
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("total", snapshot.getProjectTestTotal());
     summary.put("executed", snapshot.getExecutedTestCount());
+    summary.put("resolved", snapshot.getResolvedTestCount());
     summary.put("passed", snapshot.getPassedTestCount());
     summary.put("executionProgress", snapshot.getExecutionProgress());
+    summary.put("completionProgress", snapshot.getCompletionProgress());
     summary.put("passRate", snapshot.getPassRateProgress());
     summary.put("openDefects", snapshot.getOpenDefectCount());
     return summary;
@@ -112,11 +114,13 @@ public final class OctaneReportDataMapper {
     Map<String, Object> value = new LinkedHashMap<>();
     value.put("total", metrics.getTotal());
     value.put("executed", metrics.getExecuted());
+    value.put("resolved", metrics.getResolved());
     value.put("passed", metrics.getPassed());
     value.put("failed", metrics.getFailed());
     value.put("skipped", metrics.getSkipped());
     value.put("running", metrics.getRunning());
     value.put("executionRate", metrics.getExecutionRate());
+    value.put("completionRate", metrics.getCompletionRate());
     value.put("passRate", metrics.getPassRate());
     return value;
   }

@@ -929,6 +929,19 @@ public class OctaneGateReportSnapshot implements Serializable {
     return GateMetrics.executionRate(counts.executed, counts.total);
   }
 
+  public double getCompletionProgress() {
+    ProjectProgressCounts counts = projectProgressCounts();
+    return GateMetrics.completionRate(counts.resolved, counts.total);
+  }
+
+  public String getCompletionProgressText() {
+    return Util.formatPercentage(getCompletionProgress(), 0);
+  }
+
+  public String getCompletionProgressTwoDecimalText() {
+    return Util.formatPercentage(getCompletionProgress(), 2);
+  }
+
   public String getExecutionProgressText() {
     return Util.formatPercentage(getExecutionProgress(), 0);
   }
@@ -971,6 +984,10 @@ public class OctaneGateReportSnapshot implements Serializable {
 
   public int getExecutedTestCount() {
     return projectProgressCounts().executed;
+  }
+
+  public int getResolvedTestCount() {
+    return projectProgressCounts().resolved;
   }
 
   public int getPassedTestCount() {
@@ -1048,6 +1065,7 @@ public class OctaneGateReportSnapshot implements Serializable {
   private static class ProjectProgressCounts {
     private int total;
     private int executed;
+    private int resolved;
     private int passed;
     private final Map<OctaneGateStatusBucket, Integer> statusCounts =
         OctaneGateSuiteRunChart.emptyCounts();
@@ -1055,6 +1073,7 @@ public class OctaneGateReportSnapshot implements Serializable {
     private void add(GateMetrics metrics) {
       total += metrics.getTotal();
       executed += metrics.getExecuted();
+      resolved += metrics.getResolved();
       passed += metrics.getPassed();
       addStatusCount(OctaneGateStatusBucket.PASSED, metrics.getPassed());
       addStatusCount(OctaneGateStatusBucket.FAILED, metrics.getFailed());
@@ -1067,6 +1086,9 @@ public class OctaneGateReportSnapshot implements Serializable {
       for (OctaneGateStatusCount status : suiteRun.getStatuses()) {
         if (status.getBucket().isExecuted()) {
           executed += status.getCount();
+        }
+        if (status.getBucket().isResolved()) {
+          resolved += status.getCount();
         }
         if (status.getBucket() == OctaneGateStatusBucket.PASSED) {
           passed += status.getCount();

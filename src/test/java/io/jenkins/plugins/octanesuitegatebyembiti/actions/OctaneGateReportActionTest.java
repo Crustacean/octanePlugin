@@ -281,7 +281,7 @@ public class OctaneGateReportActionTest {
     assertFalse(text.contains("Target Achievement"));
     assertTrue(text.contains("Session Time Spent"));
     assertTrue(text.contains("Execution Progress"));
-    assertTrue(text.contains("All Testcase execution"));
+    assertTrue(text.contains("All Testcase completion"));
     assertTrue(text.contains("All Testcase Status"));
     assertTrue(text.contains("Testcases"));
     assertTrue(text.contains("Execution Pass Rate"));
@@ -981,7 +981,7 @@ public class OctaneGateReportActionTest {
     assertFalse(xml.contains("Report finished."));
     assertTrue(xml.contains("id=\"octane-report-zone\""));
     assertFalse(xml.contains("#631919"));
-    assertTrue(xml.contains("data-octane-progress=\"execution\""));
+    assertTrue(xml.contains("data-octane-progress=\"completion\""));
     assertTrue(
         xml.contains("data-progress-value=\"100.0\"")
             || xml.contains("data-progress-value=\"100\""));
@@ -1171,12 +1171,12 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("card.querySelector(\".octane-view-toggle\")"));
     assertTrue(xml.contains("payload.stateLabel === \"Timed out\""));
     assertTrue(xml.contains("timeoutSeconds * 1000"));
-    assertTrue(xml.contains("function executionProgressReached"));
-    assertTrue(xml.contains("isFinite(executionProgress) && executionProgress >= 100"));
+    assertTrue(xml.contains("function completionProgressReached"));
+    assertTrue(xml.contains("isFinite(completionProgress) && completionProgress >= 100"));
     assertTrue(
         xml.contains(
             "return timedOut || primaryTimeoutReached(payload)"
-                + " || executionProgressReached(payload)"));
+                + " || completionProgressReached(payload)"));
     assertTrue(
         xml.contains(
             "return timedOut || manualExitRequested(payload)"
@@ -1296,6 +1296,9 @@ public class OctaneGateReportActionTest {
     assertEquals(0L, payload.getLong("manualExitRequestedAtMillis"));
     assertEquals(2, payload.getInt("executedTestCount"));
     assertEquals("100%", payload.getString("executionProgressText"));
+    assertEquals(2, payload.getInt("resolvedTestCount"));
+    assertEquals(100.0, payload.getDouble("completionProgress"), 0.001);
+    assertEquals("100%", payload.getString("completionProgressText"));
     assertEquals(50.0, payload.getDouble("passRateProgress"), 0.001);
     assertEquals("50%", payload.getString("passRateProgressText"));
     assertEquals("All Testcase Pass Rate (1 / 2)", payload.getString("passRateLabel"));

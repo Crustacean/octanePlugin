@@ -39,6 +39,10 @@ public enum OctaneGateStatusBucket {
     return this == PASSED || this == FAILED || this == BLOCKED;
   }
 
+  boolean isResolved() {
+    return this != RUNNING;
+  }
+
   static OctaneGateStatusBucket fromOutcome(StatusClassifier.Outcome outcome) {
     if (outcome == StatusClassifier.Outcome.PASSED) {
       return PASSED;

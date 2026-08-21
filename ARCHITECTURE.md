@@ -302,8 +302,8 @@ high-water mark is not shared between builds.
 Each cron tick is also compared with the absolute gate closure deadline: `startedAt +
 timeoutMinutes + timeoutMinutesExtended`. When 60 seconds or less remain, the interval message is
 suppressed before screenshot generation and progress-delta evaluation so the imminent final email
-is the only notification. With no extended timeout, 100% execution is treated as immediate closure;
-with an extension configured, 100% execution continues to use the combined timeout deadline.
+is the only notification. With no extended timeout, 100% completion is treated as immediate
+closure; with an extension configured, completion continues to use the combined timeout deadline.
 
 Before rendering, `PROGRESS_EMAIL_STALENESS_THRESHOLD_MINUTES` (default `1`) is compared with the
 latest report timestamp. When a running report is older than that threshold, email delivery starts
@@ -454,11 +454,11 @@ faces visible.
 With `timeoutMinutesExtended: 0`, the completion boundary is reached when any of
 the following is true:
 
-- execution progress is `100%` or greater.
+- completion progress is `100%` or greater.
 - the primary `timeoutMinutes` window is exhausted.
 - the persisted report state is `Timed out`.
 
-With `timeoutMinutesExtended` greater than zero, execution reaching `100%` does
+With `timeoutMinutesExtended` greater than zero, completion reaching `100%` does
 not flip the cards or end the waiting period. The completion boundary is reached
 only when:
 
@@ -664,19 +664,31 @@ The plugin converts Octane run records into `GateMetrics`:
 
 - `total`
 - `executed`
+- `resolved`
 - `passed`
 - `failed`
 - `skipped`
 - `running`
 - `executionRate`
+- `completionRate`
 - `passRate`
 - `failRate`
 
 `executionRate` is:
 
 ```text
-executed / total * 100
+(passed + failed + blocked) / total * 100
 ```
+
+`completionRate` is:
+
+```text
+(passed + failed + blocked + skipped) / total * 100
+```
+
+The Execution Progress ring and physical-completion checks use `completionRate`. Quality criteria,
+pass-rate denominators, tester execution metrics, and defect-density calculations continue to use
+the stricter `executionRate`, so skipped tests can complete a suite without being counted as run.
 
 `passRate` is:
 

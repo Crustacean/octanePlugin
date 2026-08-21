@@ -73,6 +73,10 @@ public class GateMetrics implements Serializable {
     return executedCount(passed, failed, 0);
   }
 
+  public int getResolved() {
+    return resolvedCount(passed, failed, 0, skipped);
+  }
+
   public int getPassed() {
     return passed;
   }
@@ -91,6 +95,10 @@ public class GateMetrics implements Serializable {
 
   public double getExecutionRate() {
     return executionRate(getExecuted(), total);
+  }
+
+  public double getCompletionRate() {
+    return completionRate(getResolved(), total);
   }
 
   public double getPassRate() {
@@ -125,11 +133,13 @@ public class GateMetrics implements Serializable {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("total", total);
     values.put("executed", getExecuted());
+    values.put("resolved", getResolved());
     values.put("passed", passed);
     values.put("failed", failed);
     values.put("skipped", skipped);
     values.put("running", running);
     values.put("executionRate", getExecutionRate());
+    values.put("completionRate", getCompletionRate());
     values.put("passRate", getPassRate());
     values.put("failRate", getFailRate());
     return values;
@@ -139,8 +149,16 @@ public class GateMetrics implements Serializable {
     return Math.max(0, passed) + Math.max(0, failed) + Math.max(0, blocked);
   }
 
+  public static int resolvedCount(int passed, int failed, int blocked, int skipped) {
+    return executedCount(passed, failed, blocked) + Math.max(0, skipped);
+  }
+
   public static double executionRate(int executed, int total) {
     return Util.percentage(executed, total);
+  }
+
+  public static double completionRate(int resolved, int total) {
+    return Util.percentage(resolved, total);
   }
 
   public static double passRate(int passed, int executed) {

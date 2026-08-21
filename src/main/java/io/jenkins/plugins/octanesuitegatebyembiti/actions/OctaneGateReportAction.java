@@ -246,6 +246,9 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     payload.put("executionProgress", safeSnapshot.getExecutionProgress());
     payload.put("executionProgressText", safeSnapshot.getExecutionProgressText());
     payload.put("executedTestCount", safeSnapshot.getExecutedTestCount());
+    payload.put("completionProgress", safeSnapshot.getCompletionProgress());
+    payload.put("completionProgressText", safeSnapshot.getCompletionProgressText());
+    payload.put("resolvedTestCount", safeSnapshot.getResolvedTestCount());
     payload.put(
         "executionStatusDistributionHtml", safeSnapshot.getExecutionStatusDistributionHtml());
     payload.put("passRateProgress", safeSnapshot.getPassRateProgress());

@@ -45,6 +45,9 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(83.333, snapshot.getExecutionProgress(), 0.001);
     assertEquals("83%", snapshot.getExecutionProgressText());
     assertEquals("83.33%", snapshot.getExecutionProgressTwoDecimalText());
+    assertEquals(83.333, snapshot.getCompletionProgress(), 0.001);
+    assertEquals("83%", snapshot.getCompletionProgressText());
+    assertEquals("83.33%", snapshot.getCompletionProgressTwoDecimalText());
     assertEquals(5, snapshot.getPassRateTotal());
     assertEquals(3, snapshot.getPassRatePassed());
     assertEquals(60.0, snapshot.getPassRateProgress(), 0.001);
@@ -86,6 +89,8 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(6, snapshot.getProjectTestTotal());
     assertEquals(4, snapshot.getExecutedTestCount());
     assertEquals(66.667, snapshot.getExecutionProgress(), 0.001);
+    assertEquals(5, snapshot.getResolvedTestCount());
+    assertEquals(83.333, snapshot.getCompletionProgress(), 0.001);
     assertEquals(4, snapshot.getPassRateTotal());
     assertEquals(2, snapshot.getPassRatePassed());
     assertEquals(50.0, snapshot.getPassRateProgress(), 0.001);
@@ -529,6 +534,8 @@ public class OctaneGateReportSnapshotTest {
     assertTrue(regressions.isEmpty());
     assertEquals(0.0, snapshot.getExecutionProgress(), 0.001);
     assertEquals("0%", snapshot.getExecutionProgressText());
+    assertEquals(0.0, snapshot.getCompletionProgress(), 0.001);
+    assertEquals("0%", snapshot.getCompletionProgressText());
     assertEquals(0, snapshot.getPassRateTotal());
     assertEquals(0, snapshot.getPassRatePassed());
     assertEquals(0.0, snapshot.getPassRateProgress(), 0.001);
