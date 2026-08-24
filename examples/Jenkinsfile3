@@ -59,7 +59,8 @@ def pipelineConfigurationDefaults() {
     'OCTANE_INTERVAL_EMAIL_IS_IMPORTANT': 'false',
     'OCTANE_FINAL_EMAIL_ON_FAILURE': 'UNSTABLE',
     'OCTANE_FINAL_EMAIL_ARCHIVE_SCREENSHOT': 'true',
-    'OCTANE_FINAL_EMAIL_IS_IMPORTANT': 'false'
+    'OCTANE_FINAL_EMAIL_IS_IMPORTANT': 'false',
+    'AUTOMATION_SUITE_CREDENTIAL_ID': ''
   ]
 }
 
@@ -79,6 +80,105 @@ def resolvePipelineSourcePath(String path, environment) {
 
 def bootstrappedConfigurationJson(environment) {
   return environment.getProperty('OCTANE_BOOTSTRAP_CONFIGURATION_JSON')?.toString()?.trim()
+}
+
+def normalizeAutomationSuiteCredentialId(Object configuredValue) {
+  String value = configuredValue?.toString()?.trim()
+  return !value || value.toLowerCase() in ['null', 'undefined'] ? '' : value
+}
+
+def writeAutomationSuiteEnvironmentFile(String credentialKind) {
+  withEnv(["AUTOMATION_SUITE_CREDENTIAL_KIND=${credentialKind}"]) {
+    sh(
+        label: 'Generate secure automation suite environment',
+        script: '''#!/bin/sh
+          set +x
+          set -eu
+          umask 077
+
+          env_file=$AUTOMATION_SUITE_ENV_FILE
+          temporary_file="${env_file}.tmp.$$"
+          trap 'rm -f -- "$temporary_file"' EXIT HUP INT TERM
+
+          dotenv_escape() {
+            value_to_escape=$1
+            line_break_count=$(printf '%s' "$value_to_escape" | wc -l)
+            carriage_return=$(printf '\r')
+            if [ "$line_break_count" -ne 0 ]; then
+              echo 'Automation suite credentials must not contain line breaks.' >&2
+              exit 64
+            fi
+            case "$value_to_escape" in
+              *"$carriage_return"*)
+                echo 'Automation suite credentials must not contain line breaks.' >&2
+                exit 64
+                ;;
+            esac
+            printf '%s' "$value_to_escape" | sed 's/\\/\\\\/g; s/"/\\"/g'
+          }
+
+          case "$AUTOMATION_SUITE_CREDENTIAL_KIND" in
+            username-password)
+              escaped_username=$(
+                dotenv_escape "$AUTOMATION_SUITE_USERNAME"
+              ) || exit $?
+              escaped_password=$(
+                dotenv_escape "$AUTOMATION_SUITE_PASSWORD"
+              ) || exit $?
+              {
+                printf 'AUTOMATION_SUITE_USERNAME="%s"\n' \
+                  "$escaped_username"
+                printf 'AUTOMATION_SUITE_PASSWORD="%s"\n' \
+                  "$escaped_password"
+              } > "$temporary_file"
+              ;;
+            secret-text)
+              escaped_secret=$(
+                dotenv_escape "$AUTOMATION_SUITE_SECRET"
+              ) || exit $?
+              printf 'AUTOMATION_SUITE_SECRET="%s"\n' \
+                "$escaped_secret" \
+                > "$temporary_file"
+              ;;
+            *)
+              echo 'Unsupported automation suite credential binding.' >&2
+              exit 64
+              ;;
+          esac
+
+          chmod 600 "$temporary_file"
+          mv -f -- "$temporary_file" "$env_file"
+          chmod 600 "$env_file"
+          trap - EXIT HUP INT TERM
+        '''.stripIndent())
+  }
+}
+
+def bindAutomationSuiteCredential(String credentialId) {
+  boolean usernamePasswordBindingEntered = false
+  try {
+    withCredentials([usernamePassword(
+        credentialsId: credentialId,
+        usernameVariable: 'AUTOMATION_SUITE_USERNAME',
+        passwordVariable: 'AUTOMATION_SUITE_PASSWORD'
+    )]) {
+      usernamePasswordBindingEntered = true
+      writeAutomationSuiteEnvironmentFile('username-password')
+    }
+    return 'username/password'
+  } catch (Exception bindingError) {
+    if (usernamePasswordBindingEntered) {
+      throw bindingError
+    }
+  }
+
+  withCredentials([string(
+      credentialsId: credentialId,
+      variable: 'AUTOMATION_SUITE_SECRET'
+  )]) {
+    writeAutomationSuiteEnvironmentFile('secret-text')
+  }
+  return 'secret text'
 }
 
 def emailImportanceValue(String key, Object configuredValue) {
@@ -155,6 +255,12 @@ pipeline {
             }
             env.setProperty(key, selectedValue == null ? '' : selectedValue.toString())
           }
+          env.AUTOMATION_SUITE_CREDENTIAL_ID =
+              normalizeAutomationSuiteCredentialId(
+                  env.AUTOMATION_SUITE_CREDENTIAL_ID)
+          String automationTestSourceDirectory =
+              env.getProperty('OCTANE_TEST_SOURCE_DIR')?.toString()?.trim() ?: pwd()
+          env.AUTOMATION_SUITE_ENV_FILE = "${automationTestSourceDirectory}/.env"
           ['OCTANE_INTERVAL_EMAIL_IS_IMPORTANT', 'OCTANE_FINAL_EMAIL_IS_IMPORTANT'].each {
             String key ->
               try {
@@ -267,6 +373,26 @@ pipeline {
     stage('Build') {
       steps {
         echo 'Build or deploy your testable artifact here.'
+      }
+    }
+
+    stage('Prepare Suite Credentials') {
+      steps {
+        script {
+          sh(
+              label: 'Remove stale automation suite environment',
+              script: '''#!/bin/sh
+                set +x
+                rm -f -- "$AUTOMATION_SUITE_ENV_FILE"
+              '''.stripIndent())
+          if (env.AUTOMATION_SUITE_CREDENTIAL_ID) {
+            String credentialKind =
+                bindAutomationSuiteCredential(env.AUTOMATION_SUITE_CREDENTIAL_ID)
+            echo "Generated secure ${credentialKind} .env file at ${env.AUTOMATION_SUITE_ENV_FILE}"
+          } else {
+            echo 'No automation suite credential configured; skipping secure .env generation.'
+          }
+        }
       }
     }
 
@@ -478,6 +604,25 @@ QA Automation Team''',
       steps {
         echo 'Continue with the next stage once the Octane gate passes.'
       }
+    }
+  }
+
+  post {
+    always {
+      echo 'Executing secret cleanup...'
+      sh(
+          label: 'Remove automation suite environment',
+          script: '''#!/bin/sh
+            set +x
+            if [ -n "${AUTOMATION_SUITE_ENV_FILE:-}" ]; then
+              env_file=$AUTOMATION_SUITE_ENV_FILE
+            elif [ -n "${OCTANE_TEST_SOURCE_DIR:-}" ]; then
+              env_file=$OCTANE_TEST_SOURCE_DIR/.env
+            else
+              env_file=$WORKSPACE/.env
+            fi
+            rm -f -- "$env_file"
+          '''.stripIndent())
     }
   }
 }

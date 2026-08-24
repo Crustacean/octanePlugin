@@ -67,6 +67,16 @@ class Jenkinsfile3YamlConfigurationTest {
         jenkinsfile.contains("resolvePipelineSourcePath(env.OCTANE_SPACES_MAPPING_FILE, env)"));
     assertTrue(jenkinsfile.contains("selectedValue instanceof Map"));
     assertTrue(jenkinsfile.contains("selectedValue instanceof Collection"));
+    assertTrue(jenkinsfile.contains("stage('Prepare Suite Credentials')"));
+    assertTrue(jenkinsfile.contains("normalizeAutomationSuiteCredentialId"));
+    assertTrue(jenkinsfile.contains("withCredentials([usernamePassword("));
+    assertTrue(jenkinsfile.contains("withCredentials([string("));
+    assertTrue(jenkinsfile.contains("AUTOMATION_SUITE_USERNAME"));
+    assertTrue(jenkinsfile.contains("AUTOMATION_SUITE_PASSWORD"));
+    assertTrue(jenkinsfile.contains("AUTOMATION_SUITE_SECRET"));
+    assertTrue(jenkinsfile.contains("set +x"));
+    assertTrue(jenkinsfile.contains("chmod 600 \"$env_file\""));
+    assertTrue(jenkinsfile.contains("Executing secret cleanup..."));
     String declarativeEnvironment =
         jenkinsfile.substring(
             jenkinsfile.indexOf("  environment {"), jenkinsfile.indexOf("  stages {"));
@@ -272,6 +282,24 @@ class Jenkinsfile3YamlConfigurationTest {
             script.invokeMethod(
                 "emailImportanceValue",
                 new Object[] {"OCTANE_FINAL_EMAIL_IS_IMPORTANT", "urgent"}));
+  }
+
+  @Test
+  void optionalAutomationCredentialTreatsBlankNullAndUndefinedAsDisabled()
+      throws IOException, CompilationFailedException {
+    groovy.lang.Script script =
+        new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
+
+    for (Object disabled : new Object[] {null, "", "  ", "null", "NULL", "undefined"}) {
+      assertEquals(
+          "",
+          script.invokeMethod(
+              "normalizeAutomationSuiteCredentialId", new Object[] {disabled}));
+    }
+    assertEquals(
+        "automation-login",
+        script.invokeMethod(
+            "normalizeAutomationSuiteCredentialId", new Object[] {" automation-login "}));
   }
 
   private static Map<?, ?> findBySelector(
