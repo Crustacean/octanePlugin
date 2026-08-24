@@ -264,6 +264,106 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void rendersEscapedProjectSummaryBulletsImmediatelyBeforeCriteria() {
+    String html =
+        renderCustomizedEmail(
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            "*NoSpaceText\n** Child <value>\n***Third level\n**** Fourth level\n*****Fifth level",
+            true,
+            false,
+            "",
+            0);
+
+    assertTrue(html.contains("data-octane-email-section=\"project-summary\""));
+    assertTrue(html.contains("<li>NoSpaceText"));
+    assertTrue(html.contains("list-style-type:disc;padding-left:15px"));
+    assertTrue(html.contains("list-style-type:circle;padding-left:15px"));
+    assertTrue(html.contains("list-style-type:square;padding-left:15px"));
+    assertTrue(html.contains("<li>Child &lt;value&gt;"));
+    assertTrue(html.contains("<li>Third level"));
+    assertTrue(html.contains("<li>Fourth level"));
+    assertTrue(html.contains("<li>Fifth level</li>"));
+    assertEquals(2, occurrences(html, "list-style-type:disc;padding-left:15px"));
+    assertEquals(2, occurrences(html, "list-style-type:circle;padding-left:15px"));
+    assertTrue(
+        html.indexOf("data-octane-email-section=\"project-summary\"")
+            < html.indexOf("To get a green light for release"));
+
+    String singleBullet =
+        renderCustomizedEmail(
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            "*NoSpaceText",
+            true,
+            false,
+            "",
+            0);
+    assertTrue(singleBullet.contains("<li>NoSpaceText</li>"));
+  }
+
+  @Test
+  public void omitsProjectSummaryWhenEmptyOrDisabled() {
+    OctaneGateReportSnapshot snapshot = snapshot(OctaneGateReportState.PASSED, "Gate passed.");
+
+    assertFalse(
+        renderCustomizedEmail(snapshot, "*Hidden", false, false, "", 0)
+            .contains("data-octane-email-section=\"project-summary\""));
+    assertFalse(
+        renderCustomizedEmail(snapshot, "  ", true, false, "", 0)
+            .contains("data-octane-email-section=\"project-summary\""));
+  }
+
+  @Test
+  public void filtersSortsAndLimitsDefectsBelowExecutionScreenshot() {
+    String html =
+        renderCustomizedEmail(
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            "",
+            false,
+            true,
+            "major, Closed",
+            3);
+    String table = emailTable(html, "defects");
+
+    assertTrue(table.contains(">ID</th>"));
+    assertTrue(table.contains(">Name</th>"));
+    assertTrue(table.contains(">Severity</th>"));
+    assertTrue(table.contains(">Status</th>"));
+    assertTrue(table.contains(">1</td>"));
+    assertTrue(table.contains(">2</td>"));
+    assertTrue(table.contains(">3</td>"));
+    assertFalse(table.contains(">4</td>"));
+    assertTrue(table.contains(">Major</td>"));
+    assertTrue(table.indexOf(">1</td>") < table.indexOf(">2</td>"));
+    assertTrue(html.indexOf("src=\"cid:octane-report-zone.png\"") < html.indexOf(table));
+
+    String closedOnly =
+        emailTable(
+            renderCustomizedEmail(
+                snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+                "",
+                false,
+                true,
+                "Closed",
+                0),
+            "defects");
+    assertTrue(closedOnly.contains(">7</td>"));
+    assertTrue(closedOnly.contains(">8</td>"));
+    assertFalse(closedOnly.contains(">1</td>"));
+  }
+
+  @Test
+  public void omitsDefectTableWhenDisabledOrNoDefectsMatch() {
+    OctaneGateReportSnapshot snapshot = snapshot(OctaneGateReportState.PASSED, "Gate passed.");
+
+    assertFalse(
+        renderCustomizedEmail(snapshot, "", false, false, "", 0)
+            .contains("data-octane-email-table=\"defects\""));
+    String noMatches = renderCustomizedEmail(snapshot, "", false, true, "does-not-match", 0);
+    assertFalse(noMatches.contains("data-octane-email-table=\"defects\""));
+    assertFalse(noMatches.contains(">Defects</caption>"));
+  }
+
+  @Test
   public void rendersDefinedScopeImmediatelyAboveExecutionGraphAndOmitsEmptyScope() {
     OctaneGateReportSnapshot populated =
         snapshot(OctaneGateReportState.PASSED, "Gate passed.")
@@ -597,6 +697,29 @@ public class OctaneEmailBodyRendererTest {
         theme.name());
   }
 
+  private String renderCustomizedEmail(
+      OctaneGateReportSnapshot snapshot,
+      String projectSummary,
+      boolean includeProjectSummary,
+      boolean printDefects,
+      String defectFilter,
+      int defectLimit) {
+    return renderer.render(
+        "{{CRITERIA}}\n{{EXECUTION_DETAILS}}\n{{REPORT_SCREENSHOT}}",
+        "Business Payments Secure Checkout",
+        "FS_TRIBE_DOMAIN",
+        snapshot,
+        REPORT_URL,
+        "octane-report-zone.png",
+        OctaneReportTheme.LIGHT.name(),
+        false,
+        projectSummary,
+        includeProjectSummary,
+        printDefects,
+        defectFilter,
+        defectLimit);
+  }
+
   private void assertPassRateCell(
       String html, String backgroundColor, String fontColor, boolean expectsBgcolor) {
     String row = passRateRow(html);
@@ -679,17 +802,17 @@ public class OctaneEmailBodyRendererTest {
                     "regressions.passRate", ">=", 95, 92.5, true, false)));
     OctaneDefectGroup major = defectGroup("major", "Critical, Very High, High, Unspecified");
     OctaneDefectGroup minor = defectGroup("minor", minorTypes);
-    OctaneDefectSeveritySummary defectSummary =
-        OctaneDefectSeveritySummary.fromDefects(
-            List.of(
-                defect("d1", "Critical", "opened"),
-                defect("d2", "Very High", "opened"),
-                defect("d3", "High", "opened"),
-                defect("d4", "Medium", "opened"),
-                defect("d5", "Low", "opened"),
-                defect("d6", "", "opened"),
-                defect("d7", "High", "closed"),
-                defect("d8", "Low", "closed")));
+    List<DefectRecord> defects =
+        List.of(
+            defect("1", "Critical", "opened"),
+            defect("2", "Very High", "opened"),
+            defect("3", "High", "opened"),
+            defect("4", "Medium", "opened"),
+            defect("5", "Low", "opened"),
+            defect("6", "", "opened"),
+            defect("7", "High", "closed"),
+            defect("8", "Low", "closed"));
+    OctaneDefectSeveritySummary defectSummary = OctaneDefectSeveritySummary.fromDefects(defects);
     GateResult result =
         new GateResult(
             "1",
@@ -702,6 +825,7 @@ public class OctaneEmailBodyRendererTest {
             Map.of(),
             OctaneRiskHeatMap.disabled(),
             new DefectCriteriaMetrics(defectSummary, List.of(major, minor)),
+            defects,
             evaluation,
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(state, message, result, classifier, 30);

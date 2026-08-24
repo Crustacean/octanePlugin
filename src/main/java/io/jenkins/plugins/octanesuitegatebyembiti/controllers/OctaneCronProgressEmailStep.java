@@ -49,7 +49,7 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
 
   @Override
   public StepExecution start(StepContext context) {
-    return new Execution(cron, toRequest(), context);
+    return new Execution(cron, toRequest(true), context);
   }
 
   static Duration stalenessThreshold(EnvVars envVars) throws AbortException {

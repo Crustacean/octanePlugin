@@ -56,6 +56,18 @@ public class OctaneEmailReportStepTest {
   }
 
   @Test
+  public void projectSummaryPolicyDistinguishesFinalAndIntervalEmails() {
+    OctaneEmailReportStep finalStep = new OctaneEmailReportStep("qa@example.com");
+    OctaneCronProgressEmailStep intervalStep =
+        new OctaneCronProgressEmailStep("* * * * *", "qa@example.com");
+
+    assertTrue(finalStep.toRequest().shouldIncludeProjectSummary());
+    assertFalse(intervalStep.toRequest(true).shouldIncludeProjectSummary());
+    intervalStep.setPrintProjectSummaryOnIntervalEmails(true);
+    assertTrue(intervalStep.toRequest(true).shouldIncludeProjectSummary());
+  }
+
+  @Test
   public void missingReportActionCanWarnAndContinue() throws Exception {
     WorkflowJob job = jenkins.createProject(WorkflowJob.class);
     job.setDefinition(

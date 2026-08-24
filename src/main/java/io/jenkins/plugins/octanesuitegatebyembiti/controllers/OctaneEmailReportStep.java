@@ -136,6 +136,12 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
     private final int viewportWidth;
     private final boolean archiveScreenshot;
     private final boolean printDefectGroups;
+    private final String projectSummary;
+    private final boolean printProjectSummaryOnIntervalEmails;
+    private final boolean printDefectsOnEmailBody;
+    private final String printDefectsOnEmailBodyFilter;
+    private final int printDefectsOnEmailBodyLimit;
+    private final boolean intervalEmail;
     private final boolean important;
 
     EmailRequest(
@@ -154,6 +160,12 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
         int viewportWidth,
         boolean archiveScreenshot,
         boolean printDefectGroups,
+        String projectSummary,
+        boolean printProjectSummaryOnIntervalEmails,
+        boolean printDefectsOnEmailBody,
+        String printDefectsOnEmailBodyFilter,
+        int printDefectsOnEmailBodyLimit,
+        boolean intervalEmail,
         boolean important) {
       this.to = to;
       this.cc = cc;
@@ -170,7 +182,17 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       this.viewportWidth = viewportWidth;
       this.archiveScreenshot = archiveScreenshot;
       this.printDefectGroups = printDefectGroups;
+      this.projectSummary = projectSummary;
+      this.printProjectSummaryOnIntervalEmails = printProjectSummaryOnIntervalEmails;
+      this.printDefectsOnEmailBody = printDefectsOnEmailBody;
+      this.printDefectsOnEmailBodyFilter = printDefectsOnEmailBodyFilter;
+      this.printDefectsOnEmailBodyLimit = printDefectsOnEmailBodyLimit;
+      this.intervalEmail = intervalEmail;
       this.important = important;
+    }
+
+    boolean shouldIncludeProjectSummary() {
+      return !intervalEmail || printProjectSummaryOnIntervalEmails;
     }
   }
 
@@ -262,7 +284,12 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
                   action.getReportUrl(),
                   screenshot.getScreenshotFile().getName(),
                   request.theme,
-                  request.printDefectGroups);
+                  request.printDefectGroups,
+                  request.projectSummary,
+                  request.shouldIncludeProjectSummary(),
+                  request.printDefectsOnEmailBody,
+                  request.printDefectsOnEmailBodyFilter,
+                  request.printDefectsOnEmailBodyLimit);
       listener.getLogger().println("Sending Octane report email through Jenkins Mailer.");
       emailSender.send(
           getContext(),

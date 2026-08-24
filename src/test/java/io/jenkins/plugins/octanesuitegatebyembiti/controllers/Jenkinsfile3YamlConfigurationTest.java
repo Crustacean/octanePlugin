@@ -122,11 +122,36 @@ class Jenkinsfile3YamlConfigurationTest {
   }
 
   @Test
+  void configurationBooleanParserAcceptsYamlBooleanForms()
+      throws IOException, CompilationFailedException {
+    groovy.lang.Script script =
+        new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
+
+    assertTrue(configurationBoolean(script, true));
+    assertTrue(configurationBoolean(script, "True"));
+    assertTrue(configurationBoolean(script, 1));
+    assertFalse(configurationBoolean(script, false));
+    assertFalse(configurationBoolean(script, "False"));
+    assertFalse(configurationBoolean(script, 0));
+    assertFalse(configurationBoolean(script, "undefined"));
+    assertFalse(configurationBoolean(script, null));
+    assertFalse(configurationBoolean(script, ""));
+    assertThrows(
+        IllegalArgumentException.class, () -> configurationBoolean(script, "occasionally"));
+  }
+
+  @Test
   void jenkinsfileRemainsValidGroovyAfterConfigurationRefactor()
       throws IOException, CompilationFailedException {
     String jenkinsfile = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
 
     new groovy.lang.GroovyShell().parse(jenkinsfile);
+  }
+
+  private boolean configurationBoolean(groovy.lang.Script script, Object value) {
+    return (boolean)
+        script.invokeMethod(
+            "configurationBooleanValue", new Object[] {"PRINT_DEFECTS_ON_EMAIL_BODY", value});
   }
 
   @Test
@@ -292,9 +317,7 @@ class Jenkinsfile3YamlConfigurationTest {
 
     for (Object disabled : new Object[] {null, "", "  ", "null", "NULL", "undefined"}) {
       assertEquals(
-          "",
-          script.invokeMethod(
-              "normalizeAutomationSuiteCredentialId", new Object[] {disabled}));
+          "", script.invokeMethod("normalizeAutomationSuiteCredentialId", new Object[] {disabled}));
     }
     assertEquals(
         "automation-login",

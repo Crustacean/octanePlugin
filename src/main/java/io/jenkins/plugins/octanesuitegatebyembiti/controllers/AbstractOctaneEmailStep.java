@@ -22,6 +22,11 @@ abstract class AbstractOctaneEmailStep extends Step {
   private int viewportWidth = OctaneEmailReportStep.DEFAULT_VIEWPORT_WIDTH;
   private boolean archiveScreenshot;
   private boolean printDefectGroups;
+  private String projectSummary = "";
+  private boolean printProjectSummaryOnIntervalEmails;
+  private boolean printDefectsOnEmailBody;
+  private String printDefectsOnEmailBodyFilter = "";
+  private int printDefectsOnEmailBodyLimit;
   private boolean important;
 
   AbstractOctaneEmailStep(String to, OctaneEmailFailureMode onFailure, boolean archiveScreenshot) {
@@ -160,6 +165,51 @@ abstract class AbstractOctaneEmailStep extends Step {
     this.printDefectGroups = printDefectGroups;
   }
 
+  public String getProjectSummary() {
+    return projectSummary;
+  }
+
+  @DataBoundSetter
+  public void setProjectSummary(String projectSummary) {
+    this.projectSummary = Util.trimToEmpty(projectSummary);
+  }
+
+  public boolean isPrintProjectSummaryOnIntervalEmails() {
+    return printProjectSummaryOnIntervalEmails;
+  }
+
+  @DataBoundSetter
+  public void setPrintProjectSummaryOnIntervalEmails(boolean printProjectSummaryOnIntervalEmails) {
+    this.printProjectSummaryOnIntervalEmails = printProjectSummaryOnIntervalEmails;
+  }
+
+  public boolean isPrintDefectsOnEmailBody() {
+    return printDefectsOnEmailBody;
+  }
+
+  @DataBoundSetter
+  public void setPrintDefectsOnEmailBody(boolean printDefectsOnEmailBody) {
+    this.printDefectsOnEmailBody = printDefectsOnEmailBody;
+  }
+
+  public String getPrintDefectsOnEmailBodyFilter() {
+    return printDefectsOnEmailBodyFilter;
+  }
+
+  @DataBoundSetter
+  public void setPrintDefectsOnEmailBodyFilter(String printDefectsOnEmailBodyFilter) {
+    this.printDefectsOnEmailBodyFilter = Util.trimToEmpty(printDefectsOnEmailBodyFilter);
+  }
+
+  public int getPrintDefectsOnEmailBodyLimit() {
+    return printDefectsOnEmailBodyLimit;
+  }
+
+  @DataBoundSetter
+  public void setPrintDefectsOnEmailBodyLimit(int printDefectsOnEmailBodyLimit) {
+    this.printDefectsOnEmailBodyLimit = Math.max(0, printDefectsOnEmailBodyLimit);
+  }
+
   public boolean isImportant() {
     return important;
   }
@@ -170,6 +220,10 @@ abstract class AbstractOctaneEmailStep extends Step {
   }
 
   final OctaneEmailReportStep.EmailRequest toRequest() {
+    return toRequest(false);
+  }
+
+  final OctaneEmailReportStep.EmailRequest toRequest(boolean intervalEmail) {
     return new OctaneEmailReportStep.EmailRequest(
         to,
         cc,
@@ -186,6 +240,12 @@ abstract class AbstractOctaneEmailStep extends Step {
         viewportWidth,
         archiveScreenshot,
         printDefectGroups,
+        projectSummary,
+        printProjectSummaryOnIntervalEmails,
+        printDefectsOnEmailBody,
+        printDefectsOnEmailBodyFilter,
+        printDefectsOnEmailBodyLimit,
+        intervalEmail,
         important);
   }
 }

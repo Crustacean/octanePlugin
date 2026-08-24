@@ -24,6 +24,21 @@
   <f:entry title="Print defect groups" field="printDefectGroups">
     <f:checkbox default="false" />
   </f:entry>
+  <f:entry title="Project summary" field="projectSummary">
+    <f:textarea />
+  </f:entry>
+  <f:entry title="Print project summary on interval emails" field="printProjectSummaryOnIntervalEmails">
+    <f:checkbox default="false" />
+  </f:entry>
+  <f:entry title="Print defects in email body" field="printDefectsOnEmailBody">
+    <f:checkbox default="false" />
+  </f:entry>
+  <f:entry title="Defect email filter" field="printDefectsOnEmailBodyFilter">
+    <f:textbox placeholder="major, Closed" />
+  </f:entry>
+  <f:entry title="Defect email row limit" field="printDefectsOnEmailBodyLimit">
+    <f:number min="0" default="0" />
+  </f:entry>
   <f:entry title="From" field="from">
     <f:textbox placeholder="authenticated-smtp-account@example.com" />
   </f:entry>

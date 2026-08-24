@@ -11,15 +11,19 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneExecutionStatusDi
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestManagementAnalytics;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class OctaneEmailBodyRenderer {
   private static final String PASS_COLOR = "#009900";
@@ -43,6 +47,7 @@ public class OctaneEmailBodyRenderer {
   private static final String SET_CRITERIA_TOKEN = "Set criteria: " + CRITERIA_TOKEN;
   private static final String EXECUTION_DETAILS_TOKEN = "{{EXECUTION_DETAILS}}";
   private static final String REPORT_SCREENSHOT_TOKEN = "{{REPORT_SCREENSHOT}}";
+  private static final Pattern PROJECT_SUMMARY_BULLET = Pattern.compile("^(\\*{1,5})\\s*(.*)$");
   private static final String[][] DEFECT_SEVERITIES = {
     {"critical", "Critical"},
     {"veryHigh", "Very High"},
@@ -160,11 +165,42 @@ public class OctaneEmailBodyRenderer {
       String screenshotContentId,
       String theme,
       boolean printDefectGroups) {
+    return render(
+        configuredBody,
+        projectName,
+        domainName,
+        snapshot,
+        reportUrl,
+        screenshotContentId,
+        theme,
+        printDefectGroups,
+        "",
+        false,
+        false,
+        "",
+        0);
+  }
+
+  public String render(
+      String configuredBody,
+      String projectName,
+      String domainName,
+      OctaneGateReportSnapshot snapshot,
+      String reportUrl,
+      String screenshotContentId,
+      String theme,
+      boolean printDefectGroups,
+      String projectSummary,
+      boolean includeProjectSummary,
+      boolean printDefectsOnEmailBody,
+      String defectFilter,
+      int defectLimit) {
     String template = reportTemplate(configuredBody);
     String normalizedReportUrl = Util.trimToEmpty(reportUrl);
     Verdict verdict = emailVerdict(snapshot == null ? null : snapshot.getState(), theme);
     String criteriaHtml =
-        CriteriaEmailTranslator.renderHtml(snapshot == null ? "" : snapshot.getCriteria())
+        renderProjectSummary(projectSummary, includeProjectSummary)
+            + CriteriaEmailTranslator.renderHtml(snapshot == null ? "" : snapshot.getCriteria())
             + renderDefectGroupsParagraph(snapshot, printDefectGroups);
     String rendered = escape(template).replace("\r\n", "\n").replace('\r', '\n');
     rendered = rendered.replace("{{PROJECT_NAME}}", escape(defaultText(projectName, "Octane")));
@@ -195,7 +231,15 @@ public class OctaneEmailBodyRenderer {
                 : reportLink(normalizedReportUrl, "view the report output"));
     rendered =
         renderExecutionReport(
-            rendered, projectName, domainName, snapshot, screenshotContentId, theme);
+            rendered,
+            projectName,
+            domainName,
+            snapshot,
+            screenshotContentId,
+            theme,
+            printDefectsOnEmailBody,
+            defectFilter,
+            defectLimit);
     rendered = rendered.replace("\n", "<br>");
 
     return "<div style=\"color:#202124;font-family:Arial,sans-serif;font-size:15px;"
@@ -221,21 +265,95 @@ public class OctaneEmailBodyRenderer {
       String domainName,
       OctaneGateReportSnapshot snapshot,
       String screenshotContentId,
-      String theme) {
+      String theme,
+      boolean printDefectsOnEmailBody,
+      String defectFilter,
+      int defectLimit) {
     String details = renderExecutionDetails(projectName, domainName, snapshot, theme);
     String definedScope = renderDefinedScope(snapshot);
     String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
+    String defects =
+        renderDefectsTable(snapshot, printDefectsOnEmailBody, defectFilter, defectLimit);
     int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
     int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
     if (detailsStart >= 0 && screenshotStart > detailsStart) {
-      String contents = details + definedScope + screenshot;
+      String contents = details + definedScope + screenshot + defects;
       return template.substring(0, detailsStart)
           + wrapExecutionReport(contents)
           + template.substring(screenshotStart + REPORT_SCREENSHOT_TOKEN.length());
     }
     return template
         .replace(EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details + definedScope))
-        .replace(REPORT_SCREENSHOT_TOKEN, screenshot);
+        .replace(REPORT_SCREENSHOT_TOKEN, screenshot + defects);
+  }
+
+  private String renderProjectSummary(String summary, boolean includeProjectSummary) {
+    String normalized = Util.trimToEmpty(summary);
+    if (!includeProjectSummary || normalized.isEmpty()) {
+      return "";
+    }
+    return "<table data-octane-email-section=\"project-summary\" role=\"presentation\" "
+        + "cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;"
+        + "margin:0 0 16px;width:100%;\"><tr><td style=\""
+        + SECTION_TITLE_STYLE
+        + "\">Project Summary</td></tr><tr><td>"
+        + renderProjectSummaryContents(normalized)
+        + "</td></tr></table>";
+  }
+
+  private String renderProjectSummaryContents(String summary) {
+    StringBuilder html = new StringBuilder();
+    int listLevel = 0;
+    for (String line : summary.split("\\R")) {
+      String normalizedLine = line.trim();
+      if (normalizedLine.isEmpty()) {
+        continue;
+      }
+      Matcher bullet = PROJECT_SUMMARY_BULLET.matcher(normalizedLine);
+      if (!bullet.matches()) {
+        listLevel = closeSummaryList(html, listLevel);
+        html.append("<p style=\"margin:0 0 8px;\">").append(escape(normalizedLine)).append("</p>");
+        continue;
+      }
+
+      int requestedLevel = bullet.group(1).length();
+      int level = listLevel == 0 ? 1 : Math.min(requestedLevel, listLevel + 1);
+      if (level > listLevel) {
+        while (listLevel < level) {
+          listLevel++;
+          html.append(summaryListStart(listLevel));
+        }
+      } else {
+        html.append("</li>");
+        while (listLevel > level) {
+          html.append("</ul></li>");
+          listLevel--;
+        }
+      }
+      html.append("<li>").append(escape(bullet.group(2)));
+    }
+    closeSummaryList(html, listLevel);
+    return html.toString();
+  }
+
+  private int closeSummaryList(StringBuilder html, int listLevel) {
+    if (listLevel <= 0) {
+      return 0;
+    }
+    html.append("</li>");
+    while (listLevel > 1) {
+      html.append("</ul></li>");
+      listLevel--;
+    }
+    html.append("</ul>");
+    return 0;
+  }
+
+  private String summaryListStart(int level) {
+    String[] markers = {"disc", "circle", "square"};
+    return "<ul style=\"list-style-type:"
+        + markers[(level - 1) % markers.length]
+        + ";padding-left:15px;\">";
   }
 
   private String wrapExecutionReport(String contents) {
@@ -904,6 +1022,103 @@ public class OctaneEmailBodyRenderer {
             " gate execution report charts\" style=\"border:0;display:block;height:auto;"
                 + "margin:0;max-width:100%;padding:0;width:100%;\"></td></tr></table>");
     return html.toString();
+  }
+
+  private String renderDefectsTable(
+      OctaneGateReportSnapshot snapshot, boolean enabled, String filter, int limit) {
+    if (!enabled || snapshot == null) {
+      return "";
+    }
+    List<OctaneTestManagementAnalytics.DefectDetail> defects =
+        filteredDefects(snapshot, filter, limit);
+    if (defects.isEmpty()) {
+      return "";
+    }
+
+    StringBuilder html = new StringBuilder();
+    appendSpacer(html, 28);
+    html.append(
+        "<table data-octane-email-table=\"defects\" cellpadding=\"0\" cellspacing=\"0\" "
+            + "style=\"border-collapse:collapse;table-layout:fixed;width:100%;\">"
+            + "<caption style=\""
+            + SECTION_TITLE_STYLE
+            + "\">Defects</caption><colgroup><col style=\"width:12%;\">"
+            + "<col style=\"width:43%;\"><col style=\"width:25%;\">"
+            + "<col style=\"width:20%;\"></colgroup><thead><tr>");
+    appendHeader(html, "ID", "left");
+    appendHeader(html, "Name", "left");
+    appendHeader(html, "Severity", "left");
+    appendHeader(html, "Status", "left");
+    html.append("</tr></thead><tbody>");
+    for (OctaneTestManagementAnalytics.DefectDetail defect : defects) {
+      html.append("<tr>");
+      appendDefectTextCell(html, defect.getId());
+      appendDefectTextCell(html, defect.getDescription());
+      appendDefectTextCell(html, defect.getSeverityLabel());
+      appendDefectTextCell(html, defect.getStatus());
+      html.append("</tr>");
+    }
+    html.append("</tbody></table>");
+    return html.toString();
+  }
+
+  private List<OctaneTestManagementAnalytics.DefectDetail> filteredDefects(
+      OctaneGateReportSnapshot snapshot, String filter, int limit) {
+    List<String> keywords =
+        List.of(Util.trimToEmpty(filter).split(",")).stream()
+            .map(String::trim)
+            .filter(value -> !value.isEmpty())
+            .map(value -> value.toLowerCase(Locale.ROOT))
+            .toList();
+    List<OctaneTestManagementAnalytics.DefectDetail> defects = new ArrayList<>();
+    for (OctaneTestManagementAnalytics.FailureCategory category :
+        snapshot.getTestManagement().getFailureCategories()) {
+      for (OctaneTestManagementAnalytics.DefectDetail defect : category.getDefects()) {
+        if (keywords.isEmpty() || matchesDefectFilter(defect, keywords)) {
+          defects.add(defect);
+        }
+      }
+    }
+    defects.sort(
+        Comparator.comparingLong(
+                (OctaneTestManagementAnalytics.DefectDetail defect) -> defectId(defect.getId()))
+            .thenComparing(
+                OctaneTestManagementAnalytics.DefectDetail::getId, String.CASE_INSENSITIVE_ORDER));
+    return limit > 0 && defects.size() > limit
+        ? List.copyOf(defects.subList(0, limit))
+        : List.copyOf(defects);
+  }
+
+  private boolean matchesDefectFilter(
+      OctaneTestManagementAnalytics.DefectDetail defect, List<String> keywords) {
+    String searchable =
+        String.join(
+                " ",
+                defect.getId(),
+                defect.getDescription(),
+                defect.getSeverity(),
+                defect.getSeverityLabel(),
+                defect.getStatus())
+            .toLowerCase(Locale.ROOT);
+    return keywords.stream().anyMatch(searchable::contains);
+  }
+
+  private long defectId(String value) {
+    try {
+      return Long.parseLong(Util.trimToEmpty(value));
+    } catch (NumberFormatException ignored) {
+      return Long.MAX_VALUE;
+    }
+  }
+
+  private void appendDefectTextCell(StringBuilder html, String value) {
+    html.append("<td style=\"border:1px solid #d0d7de;")
+        .append(TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append(
+            "overflow-wrap:anywhere;text-align:left;vertical-align:top;word-break:break-word;\">")
+        .append(escape(value))
+        .append("</td>");
   }
 
   private void appendSpacer(StringBuilder html, int height) {

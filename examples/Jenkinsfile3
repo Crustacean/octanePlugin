@@ -52,6 +52,11 @@ def pipelineConfigurationDefaults() {
     'OCTANE_EMAIL_FROM': 'elkyem@gmail.com',
     'OCTANE_EMAIL_REPLY_TO': 'elkyem@gmail.com',
     'OCTANE_EMAIL_PRINT_DEFECT_GROUPS': 'true',
+    'PROJECT_SUMMARY': '',
+    'PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS': 'false',
+    'PRINT_DEFECTS_ON_EMAIL_BODY': 'false',
+    'PRINT_DEFECTS_ON_EMAIL_BODY_FILTER': '',
+    'PRINT_DEFECTS_ON_EMAIL_BODY_LIMIT': '100',
     'OCTANE_EMAIL_THEME': 'DARK',
     'OCTANE_EMAIL_VIEWPORT_WIDTH': '1400',
     'OCTANE_PROGRESS_EMAIL_ON_FAILURE': 'WARN',
@@ -181,7 +186,7 @@ def bindAutomationSuiteCredential(String credentialId) {
   return 'secret text'
 }
 
-def emailImportanceValue(String key, Object configuredValue) {
+def configurationBooleanValue(String key, Object configuredValue) {
   String value = configuredValue?.toString()?.trim()?.toLowerCase()
   if (!value || value in ['false', '0', 'null', 'undefined']) {
     return false
@@ -190,6 +195,10 @@ def emailImportanceValue(String key, Object configuredValue) {
     return true
   }
   throw new IllegalArgumentException("${key} must be true, false, 1, or 0.")
+}
+
+def emailImportanceValue(String key, Object configuredValue) {
+  return configurationBooleanValue(key, configuredValue)
 }
 
 pipeline {
@@ -261,10 +270,17 @@ pipeline {
           String automationTestSourceDirectory =
               env.getProperty('OCTANE_TEST_SOURCE_DIR')?.toString()?.trim() ?: pwd()
           env.AUTOMATION_SUITE_ENV_FILE = "${automationTestSourceDirectory}/.env"
-          ['OCTANE_INTERVAL_EMAIL_IS_IMPORTANT', 'OCTANE_FINAL_EMAIL_IS_IMPORTANT'].each {
+          [
+            'OCTANE_INTERVAL_EMAIL_IS_IMPORTANT',
+            'OCTANE_FINAL_EMAIL_IS_IMPORTANT',
+            'PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS',
+            'PRINT_DEFECTS_ON_EMAIL_BODY'
+          ].each {
             String key ->
               try {
-                env.setProperty(key, emailImportanceValue(key, env.getProperty(key)).toString())
+                env.setProperty(
+                    key,
+                    configurationBooleanValue(key, env.getProperty(key)).toString())
               } catch (IllegalArgumentException exception) {
                 error exception.message
               }
@@ -432,11 +448,11 @@ pipeline {
             }
           }
           def booleanValue = { String key ->
-            String value = env.getProperty(key)?.toString()?.trim()?.toLowerCase()
-            if (!(value in ['true', 'false'])) {
-              error "${key} must be true or false."
+            try {
+              return configurationBooleanValue(key, env.getProperty(key))
+            } catch (IllegalArgumentException exception) {
+              error exception.message
             }
-            return value == 'true'
           }
 
           int timeoutMinutes = wholeNumber('OCTANE_TIMEOUT_MINUTES', 1)
@@ -447,9 +463,13 @@ pipeline {
           int baseExecutionFigure = wholeNumber('OCTANE_BASE_EXECUTION_FIGURE', 0)
           int riskHeatMapMaxDefects = wholeNumber('OCTANE_RISK_HEAT_MAP_MAX_DEFECTS', 1)
           int emailViewportWidth = wholeNumber('OCTANE_EMAIL_VIEWPORT_WIDTH', 320)
+          int emailDefectLimit = wholeNumber('PRINT_DEFECTS_ON_EMAIL_BODY_LIMIT', 0, true)
           boolean markUnstable = booleanValue('OCTANE_MARK_UNSTABLE')
           boolean riskHeatMap = booleanValue('OCTANE_RISK_HEAT_MAP')
           boolean printDefectGroups = booleanValue('OCTANE_EMAIL_PRINT_DEFECT_GROUPS')
+          boolean printProjectSummaryOnIntervalEmails =
+              booleanValue('PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS')
+          boolean printDefectsOnEmailBody = booleanValue('PRINT_DEFECTS_ON_EMAIL_BODY')
           boolean progressArchiveScreenshot =
               booleanValue('OCTANE_PROGRESS_EMAIL_ARCHIVE_SCREENSHOT')
           booleanValue('OCTANE_FINAL_EMAIL_ARCHIVE_SCREENSHOT')
@@ -485,6 +505,11 @@ Thanks.
 QA Automation Team''',
               onFailure: env.OCTANE_PROGRESS_EMAIL_ON_FAILURE,
               printDefectGroups: printDefectGroups,
+              projectSummary: env.PROJECT_SUMMARY,
+              printProjectSummaryOnIntervalEmails: printProjectSummaryOnIntervalEmails,
+              printDefectsOnEmailBody: printDefectsOnEmailBody,
+              printDefectsOnEmailBodyFilter: env.PRINT_DEFECTS_ON_EMAIL_BODY_FILTER,
+              printDefectsOnEmailBodyLimit: emailDefectLimit,
               theme: env.OCTANE_EMAIL_THEME,
               browserPath: env.BROWSERPATH,
               viewportWidth: emailViewportWidth,
@@ -589,6 +614,12 @@ Thanks.
 QA Automation Team''',
             onFailure: env.OCTANE_FINAL_EMAIL_ON_FAILURE,
             printDefectGroups: env.OCTANE_EMAIL_PRINT_DEFECT_GROUPS.toBoolean(),
+            projectSummary: env.PROJECT_SUMMARY,
+            printProjectSummaryOnIntervalEmails:
+                env.PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS.toBoolean(),
+            printDefectsOnEmailBody: env.PRINT_DEFECTS_ON_EMAIL_BODY.toBoolean(),
+            printDefectsOnEmailBodyFilter: env.PRINT_DEFECTS_ON_EMAIL_BODY_FILTER,
+            printDefectsOnEmailBodyLimit: env.PRINT_DEFECTS_ON_EMAIL_BODY_LIMIT.toInteger(),
             theme: env.OCTANE_EMAIL_THEME,
             browserPath: env.BROWSERPATH,
             viewportWidth: env.OCTANE_EMAIL_VIEWPORT_WIDTH.toInteger(),
