@@ -235,12 +235,14 @@ public class OctaneReportZoneHtmlRendererTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void rendersInProgressAsAnActiveDashboardStatusWithZeroSkippedTests() {
+  public void rendersOctaneSixteenNotCompletedAsAnActiveStatusWithZeroSkippedTests() {
     List<RunRecord> runs = new ArrayList<>();
     for (int index = 0; index < 4; index++) {
       runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed", "Ada Tester"));
     }
-    runs.add(new RunRecord("active-1", "Active", "list_node.run_status.in_progress", "Ada Tester"));
+    runs.add(
+        new RunRecord(
+            "active-1", "Active", "list_node.run_native_status.not_completed", "Ada Tester"));
     GateMetrics metrics = GateMetrics.fromRuns(runs, classifier);
     GateResult result =
         new GateResult(
@@ -270,6 +272,8 @@ public class OctaneReportZoneHtmlRendererTest {
     assertEquals(4, metrics.getPassed());
     assertEquals(1, metrics.getRunning());
     assertEquals(0, metrics.getSkipped());
+    assertEquals(80.0, metrics.getCompletionRate(), 0.000001);
+    assertFalse(metrics.isTerminal());
     assertEquals(1, bars.get(0).get("inProgress"));
     assertEquals("In Progress", inProgress.get("label"));
     assertEquals(1, inProgress.get("count"));

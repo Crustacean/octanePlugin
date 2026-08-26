@@ -12,14 +12,14 @@ public class StatusClassifier implements Serializable {
   public static final String DEFAULT_FAILED_STATUSES =
       "failed,blocked,error,list_node.run_native_status.failed";
   public static final String DEFAULT_NEUTRAL_STATUSES =
-      "skipped,not_completed,list_node.run_native_status.skipped";
+      "skipped,list_node.run_native_status.skipped";
   public static final String DEFAULT_RUNNING_STATUSES =
       "planned,in_progress,queued,running,list_node.run_native_status.planned,"
           + "list_node.run_native_status.in_progress,list_node.run_status.planned,"
           + "list_node.run_status.in_progress";
 
   private static final Set<String> MANDATORY_ACTIVE_STATUS_NAMES =
-      Set.of("in_progress", "queued", "running");
+      Set.of("in_progress", "not_completed", "queued", "running");
   private static final Set<String> DEFAULT_PASSED_STATUS_SET =
       Set.copyOf(Util.splitCsv(DEFAULT_PASSED_STATUSES));
   private static final Set<String> DEFAULT_FAILED_STATUS_SET =
@@ -102,9 +102,7 @@ public class StatusClassifier implements Serializable {
     if (normalized.contains("fail") || normalized.contains("error")) {
       return Outcome.FAILED;
     }
-    return normalized.contains("skip") || normalized.contains("not_completed")
-        ? Outcome.NEUTRAL
-        : Outcome.RUNNING;
+    return normalized.contains("skip") ? Outcome.NEUTRAL : Outcome.RUNNING;
   }
 
   private static boolean matches(Set<String> candidates, String normalizedStatus) {

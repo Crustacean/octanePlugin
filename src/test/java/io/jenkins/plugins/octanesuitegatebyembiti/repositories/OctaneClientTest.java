@@ -158,6 +158,51 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void preservesOctaneSixteenManualRunNotCompletedAsActiveAcrossTheApiBoundary()
+      throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          String query = exchange.getRequestURI().getRawQuery();
+          if (query.contains("limit=1")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\",\"runs_in_suite\":["
+                    + "{\"id\":\"101\"},{\"id\":\"102\"},{\"id\":\"103\"},"
+                    + "{\"id\":\"104\"},{\"id\":\"105\"}]}]}");
+            return;
+          }
+          json(
+              exchange,
+              200,
+              "{\"data\":["
+                  + "{\"id\":\"101\",\"native_status\":{\"logical_name\":\"passed\"}},"
+                  + "{\"id\":\"102\",\"native_status\":{\"logical_name\":\"passed\"}},"
+                  + "{\"id\":\"103\",\"native_status\":{\"logical_name\":\"passed\"}},"
+                  + "{\"id\":\"104\",\"native_status\":{\"logical_name\":\"passed\"}},"
+                  + "{\"id\":\"105\",\"native_status\":{\"logical_name\":"
+                  + "\"list_node.run_native_status.not_completed\"},"
+                  + "\"status\":{\"logical_name\":\"list_node.run_status.skipped\"}}]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
+
+      assertEquals("list_node.run_native_status.not_completed", records.get(4).getStatus());
+      GateMetrics metrics = GateMetrics.fromRuns(records, defaultClassifier());
+      assertEquals(4, metrics.getExecuted());
+      assertEquals(0, metrics.getSkipped());
+      assertEquals(1, metrics.getRunning());
+      assertEquals(80.0, metrics.getCompletionRate(), 0.000001);
+      assertFalse(metrics.isTerminal());
+    }
+  }
+
+  @Test
   public void keepsDefaultRunByAsSingleUiAndEmailOwnerForAutomatedChildren() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(

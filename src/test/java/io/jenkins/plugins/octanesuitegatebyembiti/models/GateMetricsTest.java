@@ -55,6 +55,25 @@ class GateMetricsTest {
   }
 
   @Test
+  void octaneSixteenManualRunNotCompletedTokenRemainsInProgress() {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < 4; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed"));
+    }
+    runs.add(new RunRecord("active-1", "Active", "list_node.run_native_status.not_completed"));
+
+    GateMetrics metrics = GateMetrics.fromRuns(runs, defaultClassifier());
+
+    assertEquals(4, metrics.getExecuted());
+    assertEquals(4, metrics.getResolved());
+    assertEquals(0, metrics.getSkipped());
+    assertEquals(1, metrics.getRunning());
+    assertEquals(80.0, metrics.getExecutionRate());
+    assertEquals(80.0, metrics.getCompletionRate());
+    assertFalse(metrics.isTerminal());
+  }
+
+  @Test
   void singleActiveTestGuardsNinetyNinePercentCompletion() {
     List<RunRecord> runs = new ArrayList<>();
     for (int index = 0; index < 99; index++) {

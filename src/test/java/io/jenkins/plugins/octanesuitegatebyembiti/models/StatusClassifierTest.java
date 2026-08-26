@@ -25,6 +25,10 @@ class StatusClassifierTest {
     assertEquals(StatusClassifier.Outcome.RUNNING, classifier.classify("Planned"));
     assertEquals(StatusClassifier.Outcome.RUNNING, classifier.classify("Queued"));
     assertEquals(StatusClassifier.Outcome.RUNNING, classifier.classify("Running"));
+    assertEquals(StatusClassifier.Outcome.RUNNING, classifier.classify("Not Completed"));
+    assertEquals(
+        StatusClassifier.Outcome.RUNNING,
+        classifier.classify("list_node.run_native_status.not_completed"));
     assertEquals(
         StatusClassifier.Outcome.PASSED, classifier.classify("list_node.run_status.passed"));
     assertEquals(
@@ -43,10 +47,11 @@ class StatusClassifierTest {
         new StatusClassifier(
             StatusClassifier.DEFAULT_PASSED_STATUSES,
             StatusClassifier.DEFAULT_FAILED_STATUSES,
-            "skipped,in_progress,queued,running",
+            "skipped,in_progress,not_completed,queued,running",
             StatusClassifier.DEFAULT_RUNNING_STATUSES);
 
     assertEquals(StatusClassifier.Outcome.RUNNING, conflictingClassifier.classify("In Progress"));
+    assertEquals(StatusClassifier.Outcome.RUNNING, conflictingClassifier.classify("Not Completed"));
     assertEquals(StatusClassifier.Outcome.RUNNING, conflictingClassifier.classify("Queued"));
     assertEquals(StatusClassifier.Outcome.RUNNING, conflictingClassifier.classify("Running"));
   }
