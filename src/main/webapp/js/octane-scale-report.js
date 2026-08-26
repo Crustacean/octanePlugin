@@ -366,7 +366,11 @@
         return statuses[index];
       }
     }
-    return {count: 0, label: key, tooltipColor: ""};
+    return {
+      count: 0,
+      label: key === "running" ? "In Progress" : key,
+      tooltipColor: ""
+    };
   }
 
   function stampBarData(group, bar, cardKey) {
@@ -380,6 +384,9 @@
       group.setAttribute("data-status-" + key + "-color", status.tooltipColor || "");
       group.setAttribute("data-status-" + key + "-label", status.label || key);
     });
+    var inProgress = statusByKey(bar, "running");
+    group.setAttribute("data-status-in-progress-count", String(inProgress.count || 0));
+    group.setAttribute("data-status-in-progress-label", inProgress.label || "In Progress");
     group.setAttribute("data-bar-name", bar.name || "");
     group.setAttribute("data-bar-total", String(bar.total || 0));
     group.setAttribute(
@@ -798,6 +805,7 @@
     OVERFLOW_WIDTH_PX: OVERFLOW_WIDTH_PX,
     computeDonutSlices: computeDonutSlices,
     computeVisibleBarCount: computeVisibleBarCount,
+    stampBarData: stampBarData,
     mount: mount
   };
 });

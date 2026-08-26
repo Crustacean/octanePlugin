@@ -119,6 +119,7 @@ public final class OctaneReportDataMapper {
     value.put("failed", metrics.getFailed());
     value.put("skipped", metrics.getSkipped());
     value.put("running", metrics.getRunning());
+    value.put("inProgress", metrics.getRunning());
     value.put("executionRate", metrics.getExecutionRate());
     value.put("completionRate", metrics.getCompletionRate());
     value.put("passRate", metrics.getPassRate());
@@ -137,6 +138,7 @@ public final class OctaneReportDataMapper {
     value.put("automationEmoji", bar.getAutomationEmoji());
     value.put("dominantStatusColor", bar.getDominantStatusColor());
     value.put("dominantStatusLabel", bar.getDominantStatusLabel());
+    value.put("inProgress", bar.getInProgressCount());
     value.put("statuses", bar.getStatuses().stream().map(this::statusData).toList());
     return value;
   }

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
@@ -148,6 +149,24 @@ public class OctaneDefectTrendTest {
   }
 
   @Test
+  public void excludesInProgressRunsFromTheDensityExecutionDenominator() {
+    List<RunRecord> runs = new java.util.ArrayList<>();
+    for (int index = 0; index < 8; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed"));
+    }
+    runs.add(new RunRecord("failed-1", "Failed", "failed"));
+    runs.add(new RunRecord("active-1", "Active", "In Progress"));
+    GateMetrics metrics = GateMetrics.fromRuns(runs, defaultClassifier());
+
+    OctaneDefectTrend trend =
+        OctaneDefectTrend.start(STARTED_AT, 60_000L).append(15_000L, 1, 0, metrics.getExecuted());
+
+    OctaneDefectTrend.DensityBucket bucket = trend.getDensityBuckets().get(0);
+    assertEquals(9, bucket.getExecutedTests());
+    assertEquals(1.0 / 9.0, bucket.getDensity(), 0.000001);
+  }
+
+  @Test
   public void capsLongRunDensityBucketsAtFifteenMinutes() {
     OctaneDefectTrend trend =
         OctaneDefectTrend.start(STARTED_AT, 9_000_000L)
@@ -176,5 +195,13 @@ public class OctaneDefectTrendTest {
         0,
         1,
         OctaneDefectSeveritySummary.fromDefects(defects));
+  }
+
+  private StatusClassifier defaultClassifier() {
+    return new StatusClassifier(
+        StatusClassifier.DEFAULT_PASSED_STATUSES,
+        StatusClassifier.DEFAULT_FAILED_STATUSES,
+        StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+        StatusClassifier.DEFAULT_RUNNING_STATUSES);
   }
 }

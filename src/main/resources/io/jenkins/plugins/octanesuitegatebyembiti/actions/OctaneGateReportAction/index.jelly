@@ -5344,6 +5344,9 @@
                                 data-status-skipped-color="${suiteRun.skippedTooltipColor}"
                                 data-status-running-count="${suiteRun.runningCount}"
                                 data-status-running-color="${suiteRun.runningTooltipColor}"
+                                data-status-running-label="In Progress"
+                                data-status-in-progress-count="${suiteRun.inProgressCount}"
+                                data-status-in-progress-label="In Progress"
                                 aria-label="${suiteRun.title}">
                               <div class="octane-vertical-bar-wrap">
                                 <div class="octane-vertical-bar" style="${suiteRun.barHeightStyle}">
@@ -8309,7 +8312,7 @@
               statusMetricForColumn(column, "failed", "Failed"),
               statusMetricForColumn(column, "blocked", "Blocked"),
               statusMetricForColumn(column, "skipped", "Skipped"),
-              statusMetricForColumn(column, "running", "Running")
+              statusMetricForColumn(column, "running", "In Progress")
             ];
             var total = Number(column.getAttribute("data-bar-total") || 0);
             if (!Number.isFinite(total) || total <= 0) {
@@ -8387,7 +8390,9 @@
             return {
               color: color,
               count: Number.isFinite(count) ? count : 0,
-              label: label
+              label: column
+                  ? column.getAttribute("data-status-" + key + "-label") || label
+                  : label
             };
           }
           function dominantStatusForColumn(column) {
@@ -8399,7 +8404,7 @@
               statusMetricForColumn(column, "blocked", "Blocked"),
               statusMetricForColumn(column, "passed", "Passed"),
               statusMetricForColumn(column, "skipped", "Skipped"),
-              statusMetricForColumn(column, "running", "Running")
+              statusMetricForColumn(column, "running", "In Progress")
             ];
             var dominant = metrics[0];
             for (var index = 1; index < metrics.length; index += 1) {

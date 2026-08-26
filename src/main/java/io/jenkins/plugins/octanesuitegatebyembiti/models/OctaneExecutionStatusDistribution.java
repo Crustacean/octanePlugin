@@ -89,9 +89,6 @@ public class OctaneExecutionStatusDistribution implements Serializable {
   }
 
   private static String displayLabel(OctaneGateStatusBucket bucket) {
-    if (bucket == OctaneGateStatusBucket.RUNNING) {
-      return "Planned";
-    }
     return bucket.getLabel();
   }
 

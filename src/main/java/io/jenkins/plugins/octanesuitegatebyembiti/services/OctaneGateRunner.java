@@ -264,18 +264,13 @@ public class OctaneGateRunner {
 
     private PollOutcome finishWithoutExtendedTimeout(GateResult result)
         throws IOException, InterruptedException, GateFailedException {
-      if (extendedTimeoutConfigured) {
-        return null;
-      }
-      if (!result.isPassed() && !result.isTerminal()) {
+      if (!isReadyToFinalizeWithoutExtendedTimeout(result, extendedTimeoutConfigured)) {
         return null;
       }
 
       GateResult finalResult =
           reconcileFinalResult(
-              result.isPassed()
-                  ? "Gate criteria satisfied. Reconciling final ALM Octane data."
-                  : "Execution reached a terminal state. Reconciling final ALM Octane data.");
+              "Execution reached a terminal state. Reconciling final ALM Octane data.");
       if (finalResult.isPassed()) {
         return PollOutcome.complete(passGate(listener, reportPublisher, finalResult, classifier));
       }
@@ -559,6 +554,11 @@ public class OctaneGateRunner {
     public void close() throws IOException {
       client.close();
     }
+  }
+
+  static boolean isReadyToFinalizeWithoutExtendedTimeout(
+      GateResult result, boolean extendedTimeoutConfigured) {
+    return !extendedTimeoutConfigured && result != null && result.isTerminal();
   }
 
   public static final class PollingState implements Serializable {

@@ -185,6 +185,10 @@ public class OctaneGateSuiteRunChart implements Serializable {
     return getStatusCount(OctaneGateStatusBucket.RUNNING);
   }
 
+  public int getInProgressCount() {
+    return getRunningCount();
+  }
+
   public String getRunningTooltipColor() {
     return OctaneGateStatusBucket.RUNNING.getTooltipColor();
   }

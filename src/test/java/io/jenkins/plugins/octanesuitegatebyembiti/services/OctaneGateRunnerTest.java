@@ -324,6 +324,130 @@ public class OctaneGateRunnerTest {
   }
 
   @Test
+  public void passingCriteriaRemainInPollingWhileAnyRunIsInProgress() throws Exception {
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setCriteria("regressions.passRate >= 90");
+    request.setTimeoutMinutes(5);
+    request.setTimeoutMinutesExtended(0);
+    List<RunRecord> runs = new java.util.ArrayList<>();
+    for (int index = 0; index < 9; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed"));
+    }
+    runs.add(new RunRecord("active-1", "In progress", "list_node.run_status.in_progress"));
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+
+    GateResult result =
+        runner.poll(
+            new NoDefectOctaneClient(),
+            request,
+            Map.of("4501", runs),
+            Map.of(),
+            true,
+            false,
+            "1001",
+            "2001",
+            CriteriaExpression.parse(request.getCriteria()),
+            request.createStatusClassifier(),
+            taskListener(new ByteArrayOutputStream()),
+            new OctaneDefectLedger());
+
+    assertTrue(result.isPassed());
+    assertFalse(result.isTerminal());
+    assertEquals(90.0, result.getMetrics().getCompletionRate(), 0.000001);
+    assertEquals(1, result.getMetrics().getRunning());
+    assertFalse(OctaneGateRunner.isReadyToFinalizeWithoutExtendedTimeout(result, false));
+    assertFalse(OctaneGateRunner.isReadyToFinalizeWithoutExtendedTimeout(result, true));
+  }
+
+  @Test
+  public void terminalResultCanFinalizeWithoutExtendedTimeout() {
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    GateResult result = previousPassedResult(request);
+
+    assertTrue(OctaneGateRunner.isReadyToFinalizeWithoutExtendedTimeout(result, false));
+    assertFalse(OctaneGateRunner.isReadyToFinalizeWithoutExtendedTimeout(result, true));
+  }
+
+  @Test
+  public void threePollLifecycleFinalizesOnlyAfterTheLastActiveRunCompletes() throws Exception {
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setCriteria("regressions.completionRate == 100");
+    request.setTimeoutMinutes(5);
+    request.setTimeoutMinutesExtended(0);
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-08-26T08:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+    List<List<RunRecord>> pollRuns = List.of(statusRuns(5, 5), statusRuns(9, 1), statusRuns(10, 0));
+    AtomicInteger intervalUpdates = new AtomicInteger();
+    AtomicInteger finalReports = new AtomicInteger();
+
+    for (List<RunRecord> runs : pollRuns) {
+      GateResult result =
+          runner.poll(
+              new NoDefectOctaneClient(),
+              request,
+              Map.of("4501", runs),
+              Map.of(),
+              true,
+              false,
+              "1001",
+              "2001",
+              CriteriaExpression.parse(request.getCriteria()),
+              request.createStatusClassifier(),
+              taskListener(new ByteArrayOutputStream()),
+              new OctaneDefectLedger());
+      if (OctaneGateRunner.isReadyToFinalizeWithoutExtendedTimeout(result, false)) {
+        finalReports.incrementAndGet();
+      } else {
+        intervalUpdates.incrementAndGet();
+      }
+    }
+
+    assertEquals(2, intervalUpdates.get());
+    assertEquals(1, finalReports.get());
+  }
+
+  @Test
+  public void configuredNeutralPlannedRunCanFinalizeWithoutWaitingForTimeout() throws Exception {
+    GateRequest request = new GateRequest("octane-prod", "4501");
+    request.setCriteria("regressions.completionRate == 100");
+    request.setNeutralStatuses("skipped,planned");
+    request.setTimeoutMinutes(5);
+    request.setTimeoutMinutesExtended(0);
+    List<RunRecord> runs =
+        List.of(new RunRecord("planned-1", "Descoped", "list_node.run_native_status.planned"));
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-08-26T08:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+
+    GateResult result =
+        runner.poll(
+            new NoDefectOctaneClient(),
+            request,
+            Map.of("4501", runs),
+            Map.of(),
+            true,
+            false,
+            "1001",
+            "2001",
+            CriteriaExpression.parse(request.getCriteria()),
+            request.createStatusClassifier(),
+            taskListener(new ByteArrayOutputStream()),
+            new OctaneDefectLedger());
+
+    assertEquals(1, result.getMetrics().getSkipped());
+    assertEquals(0, result.getMetrics().getRunning());
+    assertTrue(result.isTerminal());
+    assertTrue(result.isPassed());
+    assertTrue(OctaneGateRunner.isReadyToFinalizeWithoutExtendedTimeout(result, false));
+  }
+
+  @Test
   public void refreshPassedResultPublishesFreshMetricsBeforeFinal() throws Exception {
     OctaneGateRunner runner =
         new OctaneGateRunner(
@@ -922,6 +1046,18 @@ public class OctaneGateRunnerTest {
         String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
       return List.of();
     }
+  }
+
+  private static List<RunRecord> statusRuns(int passed, int inProgress) {
+    List<RunRecord> runs = new java.util.ArrayList<>();
+    for (int index = 0; index < passed; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed"));
+    }
+    for (int index = 0; index < inProgress; index++) {
+      runs.add(
+          new RunRecord("active-" + index, "Active " + index, "list_node.run_status.in_progress"));
+    }
+    return List.copyOf(runs);
   }
 
   private static class RepopulationDefectClient extends FakeOctaneClient {

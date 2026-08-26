@@ -248,7 +248,8 @@ public class OctaneRiskHeatMapBuilder {
     if (outcome == StatusClassifier.Outcome.RUNNING) {
       return 20;
     }
-    if (outcome == StatusClassifier.Outcome.NEUTRAL) {
+    if (outcome == StatusClassifier.Outcome.NEUTRAL
+        || outcome == StatusClassifier.Outcome.STOPPED) {
       return 12;
     }
     return 0;

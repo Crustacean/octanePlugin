@@ -5,7 +5,7 @@ public enum OctaneGateStatusBucket {
   FAILED("Failed", "failed", "var(--octane-status-failed)", "#FF453A"),
   BLOCKED("Blocked", "blocked", "var(--octane-status-blocked)", "#FF9F0A"),
   SKIPPED("Skipped", "skipped", "var(--octane-status-skipped)", "#BF5AF2"),
-  RUNNING("Running", "running", "var(--octane-status-no-run)", "#8E8E93");
+  RUNNING("In Progress", "running", "var(--octane-status-no-run)", "#8E8E93");
 
   private final String label;
   private final String dataKey;
@@ -53,7 +53,8 @@ public enum OctaneGateStatusBucket {
     if (outcome == StatusClassifier.Outcome.BLOCKED) {
       return BLOCKED;
     }
-    if (outcome == StatusClassifier.Outcome.NEUTRAL) {
+    if (outcome == StatusClassifier.Outcome.NEUTRAL
+        || outcome == StatusClassifier.Outcome.STOPPED) {
       return SKIPPED;
     }
     return RUNNING;

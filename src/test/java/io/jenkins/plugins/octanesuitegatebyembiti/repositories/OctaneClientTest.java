@@ -119,6 +119,45 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void preservesInProgressNativeStatusAcrossTheApiBoundary() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          String query = exchange.getRequestURI().getRawQuery();
+          if (query.contains("limit=1")) {
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\"55\",\"runs_in_suite\":[{\"id\":\"101\"},{\"id\":\"102\"}]}]}");
+            return;
+          }
+          json(
+              exchange,
+              200,
+              "{\"data\":["
+                  + "{\"id\":\"101\","
+                  + "\"native_status\":{\"logical_name\":\"list_node.run_status.in_progress\"},"
+                  + "\"status\":{\"logical_name\":\"list_node.run_status.skipped\"}},"
+                  + "{\"id\":\"102\","
+                  + "\"status\":{\"logical_name\":\"list_node.run_status.in_progress\"}}]} ");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
+
+      assertEquals("list_node.run_status.in_progress", records.get(0).getStatus());
+      assertEquals("list_node.run_status.in_progress", records.get(1).getStatus());
+      GateMetrics metrics = GateMetrics.fromRuns(records, defaultClassifier());
+      assertEquals(2, metrics.getRunning());
+      assertEquals(0, metrics.getSkipped());
+      assertEquals(0.0, metrics.getCompletionRate(), 0.000001);
+    }
+  }
+
+  @Test
   public void keepsDefaultRunByAsSingleUiAndEmailOwnerForAutomatedChildren() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(
@@ -1653,12 +1692,7 @@ public class OctaneClientTest {
 
   private void assertSingleOwnerAcrossReportSurfaces(
       List<RunRecord> records, String expectedOwner) {
-    StatusClassifier classifier =
-        new StatusClassifier(
-            StatusClassifier.DEFAULT_PASSED_STATUSES,
-            StatusClassifier.DEFAULT_FAILED_STATUSES,
-            StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
-            StatusClassifier.DEFAULT_RUNNING_STATUSES);
+    StatusClassifier classifier = defaultClassifier();
     GateResult result =
         new GateResult(
             "55",
@@ -1686,6 +1720,14 @@ public class OctaneClientTest {
     if (!expectedOwner.startsWith("Unassigned")) {
       assertFalse(emailReportZone.contains("Unassigned"));
     }
+  }
+
+  private StatusClassifier defaultClassifier() {
+    return new StatusClassifier(
+        StatusClassifier.DEFAULT_PASSED_STATUSES,
+        StatusClassifier.DEFAULT_FAILED_STATUSES,
+        StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+        StatusClassifier.DEFAULT_RUNNING_STATUSES);
   }
 
   private List<String> idsFromQuery(HttpExchange exchange) {

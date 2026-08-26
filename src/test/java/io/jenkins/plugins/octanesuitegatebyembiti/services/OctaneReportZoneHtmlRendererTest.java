@@ -234,6 +234,53 @@ public class OctaneReportZoneHtmlRendererTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  public void rendersInProgressAsAnActiveDashboardStatusWithZeroSkippedTests() {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < 4; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed", "Ada Tester"));
+    }
+    runs.add(new RunRecord("active-1", "Active", "list_node.run_status.in_progress", "Ada Tester"));
+    GateMetrics metrics = GateMetrics.fromRuns(runs, classifier);
+    GateResult result =
+        new GateResult(
+            "active-suite",
+            "regressions.completionRate == 100",
+            false,
+            false,
+            metrics,
+            runs,
+            Map.of("active-suite", runs),
+            Map.of(),
+            Instant.parse("2026-08-26T08:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+
+    String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+    OctaneReportDataMapper.ReportData data = new OctaneReportDataMapper().map(snapshot);
+    List<Map<String, Object>> bars = (List<Map<String, Object>>) data.sections().get(0).get("bars");
+    List<Map<String, Object>> statuses = (List<Map<String, Object>>) bars.get(0).get("statuses");
+    Map<String, Object> inProgress =
+        statuses.stream()
+            .filter(status -> "running".equals(status.get("key")))
+            .findFirst()
+            .orElseThrow();
+
+    assertEquals(4, metrics.getPassed());
+    assertEquals(1, metrics.getRunning());
+    assertEquals(0, metrics.getSkipped());
+    assertEquals(1, bars.get(0).get("inProgress"));
+    assertEquals("In Progress", inProgress.get("label"));
+    assertEquals(1, inProgress.get("count"));
+    assertTrue(html.contains("data-status-skipped-count=\"0\""));
+    assertTrue(html.contains("data-status-running-count=\"1\""));
+    assertTrue(html.contains("data-status-in-progress-count=\"1\""));
+    assertTrue(html.contains("data-status-in-progress-label=\"In Progress\""));
+    assertTrue(html.contains(">In Progress</span>"));
+  }
+
+  @Test
   public void omitsDonutAutomationLegendUntilTheSectionHasExecutedTests() {
     RunRecord planned = new RunRecord("planned", "Planned", "planned", "Ada Tester");
     GateResult result =

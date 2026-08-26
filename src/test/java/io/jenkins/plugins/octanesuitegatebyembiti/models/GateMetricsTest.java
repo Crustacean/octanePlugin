@@ -1,7 +1,11 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class GateMetricsTest {
@@ -29,5 +33,65 @@ class GateMetricsTest {
     assertEquals(5, metrics.getResolved());
     assertEquals(80.0, metrics.getExecutionRate());
     assertEquals(100.0, metrics.getCompletionRate());
+  }
+
+  @Test
+  void inProgressTestKeepsCompletionBelowOneHundredPercent() {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < 9; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed"));
+    }
+    runs.add(new RunRecord("active-1", "Active", "list_node.run_status.in_progress"));
+
+    GateMetrics metrics = GateMetrics.fromRuns(runs, defaultClassifier());
+
+    assertEquals(9, metrics.getExecuted());
+    assertEquals(9, metrics.getResolved());
+    assertEquals(0, metrics.getSkipped());
+    assertEquals(1, metrics.getRunning());
+    assertEquals(90.0, metrics.getExecutionRate());
+    assertEquals(90.0, metrics.getCompletionRate());
+    assertFalse(metrics.isTerminal());
+  }
+
+  @Test
+  void singleActiveTestGuardsNinetyNinePercentCompletion() {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < 99; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed"));
+    }
+    runs.add(new RunRecord("active-1", "Active", "In Progress"));
+
+    GateMetrics metrics = GateMetrics.fromRuns(runs, defaultClassifier());
+
+    assertEquals(99.0, metrics.getCompletionRate());
+    assertEquals(1, metrics.getRunning());
+    assertEquals(0, metrics.getSkipped());
+    assertFalse(metrics.isTerminal());
+  }
+
+  @Test
+  void activeTestsDoNotPolluteFailureOrExecutionRates() {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < 8; index++) {
+      runs.add(new RunRecord("passed-" + index, "Passed " + index, "passed"));
+    }
+    runs.add(new RunRecord("failed-1", "Failed", "failed"));
+    runs.add(new RunRecord("active-1", "Active", "list_node.run_status.in_progress"));
+
+    GateMetrics metrics = GateMetrics.fromRuns(runs, defaultClassifier());
+
+    assertEquals(9, metrics.getExecuted());
+    assertEquals(90.0, metrics.getExecutionRate());
+    assertEquals(100.0 / 9.0, metrics.getFailRate(), 0.000001);
+    assertEquals(1, metrics.getRunning());
+  }
+
+  private StatusClassifier defaultClassifier() {
+    return new StatusClassifier(
+        StatusClassifier.DEFAULT_PASSED_STATUSES,
+        StatusClassifier.DEFAULT_FAILED_STATUSES,
+        StatusClassifier.DEFAULT_NEUTRAL_STATUSES,
+        StatusClassifier.DEFAULT_RUNNING_STATUSES);
   }
 }

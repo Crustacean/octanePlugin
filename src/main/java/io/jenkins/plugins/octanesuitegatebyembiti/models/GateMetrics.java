@@ -53,7 +53,8 @@ public class GateMetrics implements Serializable {
       } else if (outcome == StatusClassifier.Outcome.FAILED
           || outcome == StatusClassifier.Outcome.BLOCKED) {
         failed++;
-      } else if (outcome == StatusClassifier.Outcome.NEUTRAL) {
+      } else if (outcome == StatusClassifier.Outcome.NEUTRAL
+          || outcome == StatusClassifier.Outcome.STOPPED) {
         skipped++;
       } else {
         running++;

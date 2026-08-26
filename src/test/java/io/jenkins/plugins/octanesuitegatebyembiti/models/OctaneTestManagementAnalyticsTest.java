@@ -101,6 +101,21 @@ public class OctaneTestManagementAnalyticsTest {
   }
 
   @Test
+  public void classifiesQueuedRunsAsInProgressRatherThanPlannedOrSkipped() {
+    OctaneTestManagementAnalytics analytics =
+        analyticsAt(
+            "2026-07-23T08:01:00Z",
+            List.of(run("1", "list_node.run_status.queued", "Tester Alpha", "test-1")),
+            List.of(),
+            CriteriaEvaluation.unavailable());
+
+    OctaneTestManagementAnalytics.TimelinePoint point = analytics.getPoints().get(0);
+    assertEquals(1, point.getInProgress());
+    assertEquals(0, point.getPlanned());
+    assertEquals(0, point.getSkipped());
+  }
+
+  @Test
   public void attributesDashboardTesterMetricsToSuiteOwnerInsteadOfChildRunner() {
     RunRecord childRun =
         new RunRecord(
@@ -520,7 +535,7 @@ public class OctaneTestManagementAnalyticsTest {
     return List.of(
         run("1", "passed", "Tester Alpha", "test-1"),
         run("2", "failed", "Tester Beta", "test-2"),
-        run("3", "in_progress", "Tester Alpha", "test-3"),
+        run("3", "list_node.run_status.in_progress", "Tester Alpha", "test-3"),
         run("4", "skipped", "Tester Gamma", "test-4"),
         run("5", "blocked", "Tester Beta", "test-5"),
         run("6", "planned", "Tester Alpha", "test-2"));

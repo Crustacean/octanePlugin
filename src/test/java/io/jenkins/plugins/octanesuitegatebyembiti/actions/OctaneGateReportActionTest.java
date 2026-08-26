@@ -1201,7 +1201,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("statusMetricForColumn(column, \"blocked\", \"Blocked\")"));
     assertTrue(xml.contains("statusMetricForColumn(column, \"passed\", \"Passed\")"));
     assertTrue(xml.contains("statusMetricForColumn(column, \"skipped\", \"Skipped\")"));
-    assertTrue(xml.contains("statusMetricForColumn(column, \"running\", \"Running\")"));
+    assertTrue(xml.contains("statusMetricForColumn(column, \"running\", \"In Progress\")"));
     assertTrue(xml.contains("metrics[index].count > dominant.count"));
     assertTrue(xml.contains("data-status-\" + key + \"-count"));
     assertTrue(xml.contains("data-status-\" + key + \"-color"));

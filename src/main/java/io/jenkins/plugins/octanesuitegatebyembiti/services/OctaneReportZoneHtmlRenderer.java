@@ -969,6 +969,10 @@ public class OctaneReportZoneHtmlRenderer {
     html.append(suiteRun.getRunningCount());
     html.append("\" data-status-running-color=\"");
     html.append(escapeAttribute(suiteRun.getRunningTooltipColor()));
+    html.append("\" data-status-running-label=\"In Progress");
+    html.append("\" data-status-in-progress-count=\"");
+    html.append(suiteRun.getInProgressCount());
+    html.append("\" data-status-in-progress-label=\"In Progress");
     html.append("\">\n");
     html.append("<div class=\"octane-vertical-bar-wrap\">\n");
     html.append("<div class=\"octane-vertical-bar\" style=\"");

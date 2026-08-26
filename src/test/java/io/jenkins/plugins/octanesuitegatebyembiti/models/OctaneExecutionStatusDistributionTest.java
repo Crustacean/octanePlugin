@@ -25,7 +25,7 @@ public class OctaneExecutionStatusDistributionTest {
     assertEquals(5, distribution.getStatusCount());
     assertFalse(distribution.isEmpty());
     assertEquals(
-        List.of("Planned", "Passed", "Failed", "Blocked", "Skipped"),
+        List.of("In Progress", "Passed", "Failed", "Blocked", "Skipped"),
         labels(distribution.getSegments()));
     assertEquals(
         List.of(

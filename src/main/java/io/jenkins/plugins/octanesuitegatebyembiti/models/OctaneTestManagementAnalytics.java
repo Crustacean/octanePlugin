@@ -1009,9 +1009,10 @@ public final class OctaneTestManagementAnalytics implements Serializable {
           failed++;
         } else if (outcome == StatusClassifier.Outcome.BLOCKED) {
           blocked++;
-        } else if (outcome == StatusClassifier.Outcome.NEUTRAL) {
+        } else if (outcome == StatusClassifier.Outcome.NEUTRAL
+            || outcome == StatusClassifier.Outcome.STOPPED) {
           skipped++;
-        } else if (isInProgress(run.getStatus())) {
+        } else if (classifier.isActivelyRunning(run.getStatus())) {
           inProgress++;
         } else {
           planned++;
@@ -1069,13 +1070,6 @@ public final class OctaneTestManagementAnalytics implements Serializable {
       values.put("passed", passed);
       values.put("executed", getExecuted());
       return values;
-    }
-
-    private static boolean isInProgress(String status) {
-      String normalized = Util.normalizeStatus(status);
-      return normalized.contains("in_progress")
-          || normalized.endsWith(".running")
-          || "running".equals(normalized);
     }
   }
 

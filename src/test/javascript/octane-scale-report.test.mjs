@@ -63,7 +63,7 @@ test("builds bounded donut slices without external label geometry", () => {
         {count: 4, label: "Failed", percentageLabel: "4.00%"},
         {count: 3, label: "Blocked", percentageLabel: "3.00%"},
         {count: 2, label: "Skipped", percentageLabel: "2.00%"},
-        {count: 1, label: "Running", percentageLabel: "1.00%"}
+        {count: 1, label: "In Progress", percentageLabel: "1.00%"}
       ],
       100);
 
@@ -98,6 +98,36 @@ test("binds per-bar automation usage for the delegated hover tooltip", () => {
   assert.match(jelly, /data-automation-percentage="\$\{suiteRun\.automationPercentage\}"/);
   assert.match(jelly, /automationValue\.textContent/);
   assert.match(jelly, /octane-bar-popup-automation/);
+});
+
+test("stamps active dashboard counts as In Progress without incrementing Skipped", () => {
+  const attributes = new Map();
+  const group = {
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+    }
+  };
+
+  renderer.stampBarData(
+      group,
+      {
+        id: "suite-1",
+        name: "Ada Tester",
+        total: 5,
+        statuses: [
+          {key: "passed", label: "Passed", count: 4, tooltipColor: "#30D158"},
+          {key: "skipped", label: "Skipped", count: 0, tooltipColor: "#BF5AF2"},
+          {key: "running", label: "In Progress", count: 1, tooltipColor: "#8E8E93"}
+        ]
+      },
+      "bars-regressions");
+
+  assert.equal(attributes.get("data-status-skipped-count"), "0");
+  assert.equal(attributes.get("data-status-running-count"), "1");
+  assert.equal(attributes.get("data-status-running-label"), "In Progress");
+  assert.equal(attributes.get("data-status-in-progress-count"), "1");
+  assert.equal(attributes.get("data-status-in-progress-label"), "In Progress");
+  assert.match(jelly, /statusMetricForColumn\(column, "running", "In Progress"\)/);
 });
 
 test("uses enlarged donut geometry without fixed live or email caps", () => {
