@@ -49,9 +49,11 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(jenkinsfile.contains("readJSON(text: transportedConfigurationJson)"));
     assertTrue(jenkinsfile.contains("validated variables.yaml from the dir2 bootstrap"));
     assertTrue(
+        jenkinsfile.contains("(automated) QE OCTANE GATE REPORT Job #${env.BUILD_NUMBER} \""));
+    assertTrue(
         jenkinsfile.contains(
-            "(automated) QE OCTANE GATE REPORT Job#${env.BUILD_NUMBER} | {{EAT_DATE}} | "
-                + "${env.OCTANE_PROJECT_NAME}"));
+            "+ \"Time {{TOTAL_TIME}} | {{EAT_DATE}} | ${env.OCTANE_PROJECT_NAME}\""));
+    assertTrue(jenkinsfile.contains("tests has run for {{TOTAL_TIME}} and is {{GATE_RESULT}}."));
     assertFalse(jenkinsfile.contains("return yamlConfiguration[key]"));
     assertFalse(jenkinsfile.contains("return jobParameters[key]"));
     assertFalse(jenkinsfile.contains("return environment[key]"));

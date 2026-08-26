@@ -60,7 +60,7 @@ public class OctaneEmailBodyRenderer {
       """
       Hello Team,
 
-      The automated job for {{PROJECT_NAME}} tests has run and is {{GATE_RESULT}}.
+      The automated job for {{PROJECT_NAME}} tests has run for {{TOTAL_TIME}} and is {{GATE_RESULT}}.
 
       {{CRITERIA}}
 
@@ -206,6 +206,10 @@ public class OctaneEmailBodyRenderer {
     rendered = rendered.replace("{{PROJECT_NAME}}", escape(defaultText(projectName, "Octane")));
     rendered =
         rendered.replace("{{DOMAIN_NAME}}", escape(defaultText(domainName, "Not specified")));
+    rendered =
+        rendered.replace(
+            "{{TOTAL_TIME}}",
+            escape(snapshot == null ? "time unavailable" : snapshot.getTestingTimeSpentText()));
     rendered =
         rendered.replace(
             "{{UPDATED_AT_TEXT}}",
@@ -1066,7 +1070,7 @@ public class OctaneEmailBodyRenderer {
       OctaneGateReportSnapshot snapshot, String filter, int limit) {
     List<String> keywords =
         List.of(Util.trimToEmpty(filter).split(",")).stream()
-            .map(String::trim)
+            .map(value -> value.trim())
             .filter(value -> !value.isEmpty())
             .map(value -> value.toLowerCase(Locale.ROOT))
             .toList();
@@ -1082,8 +1086,7 @@ public class OctaneEmailBodyRenderer {
     defects.sort(
         Comparator.comparingLong(
                 (OctaneTestManagementAnalytics.DefectDetail defect) -> defectId(defect.getId()))
-            .thenComparing(
-                OctaneTestManagementAnalytics.DefectDetail::getId, String.CASE_INSENSITIVE_ORDER));
+            .thenComparing(defect -> defect.getId(), String.CASE_INSENSITIVE_ORDER));
     return limit > 0 && defects.size() > limit
         ? List.copyOf(defects.subList(0, limit))
         : List.copyOf(defects);

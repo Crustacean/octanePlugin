@@ -893,6 +893,10 @@ public class OctaneGateReportSnapshot implements Serializable {
     return getTestingTimeSpentMinutes() == 1 ? "minute" : "minutes";
   }
 
+  public String getTestingTimeSpentText() {
+    return getTestingTimeSpentMinutes() + " " + getTestingTimeSpentUnit();
+  }
+
   public long getTestingElapsedMillis() {
     try {
       Instant started = Instant.parse(startedAt);

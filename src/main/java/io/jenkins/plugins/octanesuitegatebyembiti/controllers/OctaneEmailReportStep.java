@@ -272,12 +272,16 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
         listener.getLogger().println("Octane report-zone screenshot archived successfully.");
       }
 
-      String remainingTime = remainingTime(reportSnapshot, Instant.now());
-      String subject = replaceRuntimeTokens(effectiveSubject(run, request.subject), remainingTime);
+      Instant renderedAt = Instant.now();
+      String remainingTime = remainingTime(reportSnapshot, renderedAt);
+      String totalTime = reportSnapshot.getTestingTimeSpentText();
+      String subject =
+          replaceRuntimeTokens(
+              effectiveSubject(run, request.subject), remainingTime, totalTime, renderedAt);
       String body =
           new OctaneEmailBodyRenderer()
               .render(
-                  replaceRuntimeTokens(request.body, remainingTime),
+                  replaceRuntimeTokens(request.body, remainingTime, totalTime, renderedAt),
                   effectiveProjectName(run, request.projectName),
                   request.domainName,
                   reportSnapshot,
@@ -335,7 +339,11 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       if (!trimmed.isEmpty()) {
         return trimmed;
       }
-      return "Octane Gate Report - " + run.getParent().getFullName() + " #" + run.getNumber();
+      return "Octane Gate Report - "
+          + run.getParent().getFullName()
+          + " Job #"
+          + run.getNumber()
+          + " Time {{TOTAL_TIME}}";
     }
 
     private String effectiveProjectName(Run<?, ?> run, String configuredProjectName) {
@@ -345,12 +353,6 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
 
     private String visibleRecipients(String recipients) {
       return recipients.replaceAll("bcc:[^,]+", "bcc:***");
-    }
-
-    private String replaceRuntimeTokens(String value, String remainingTime) {
-      return Util.trimToEmpty(value)
-          .replace("{{REMAINING_TIME}}", remainingTime)
-          .replace("{{EAT_DATE}}", formatEastAfricaDate(Instant.now()));
     }
 
     private String remainingTime(
@@ -422,6 +424,14 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       }
       return message;
     }
+  }
+
+  static String replaceRuntimeTokens(
+      String value, String remainingTime, String totalTime, Instant renderedAt) {
+    return Util.trimToEmpty(value)
+        .replace("{{REMAINING_TIME}}", Util.trimToEmpty(remainingTime))
+        .replace("{{TOTAL_TIME}}", Util.trimToEmpty(totalTime))
+        .replace("{{EAT_DATE}}", formatEastAfricaDate(renderedAt));
   }
 
   static String formatEastAfricaDate(Instant instant) {

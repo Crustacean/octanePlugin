@@ -595,10 +595,12 @@ QA Automation Team''',
             domainName: env.OCTANE_DOMAIN_NAME,
             from: env.OCTANE_EMAIL_FROM,
             replyTo: env.OCTANE_EMAIL_REPLY_TO,
-            subject: "(automated) QE OCTANE GATE REPORT Job#${env.BUILD_NUMBER} | {{EAT_DATE}} | ${env.OCTANE_PROJECT_NAME}",
+            subject:
+                "(automated) QE OCTANE GATE REPORT Job #${env.BUILD_NUMBER} "
+                    + "Time {{TOTAL_TIME}} | {{EAT_DATE}} | ${env.OCTANE_PROJECT_NAME}",
             body: '''Hello Team,
 
-The automated job for {{PROJECT_NAME}} tests has run and is {{GATE_RESULT}}.
+The automated job for {{PROJECT_NAME}} tests has run for {{TOTAL_TIME}} and is {{GATE_RESULT}}.
 
 Set criteria: {{CRITERIA}}
 

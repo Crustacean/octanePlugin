@@ -22,6 +22,24 @@ public class OctaneGateReportSnapshotTest {
           StatusClassifier.DEFAULT_RUNNING_STATUSES);
 
   @Test
+  public void formatsExistingTerminalTimerDurationForNotifications() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED,
+            "Passed",
+            result(),
+            classifier,
+            30,
+            300,
+            0,
+            "2026-05-14T23:58:00Z");
+
+    assertEquals(120_000L, snapshot.getTestingElapsedMillis());
+    assertEquals(2L, snapshot.getTestingTimeSpentMinutes());
+    assertEquals("2 minutes", snapshot.getTestingTimeSpentText());
+  }
+
+  @Test
   public void aggregatesRegressionPieTotalsAndSuiteRunBars() {
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(
