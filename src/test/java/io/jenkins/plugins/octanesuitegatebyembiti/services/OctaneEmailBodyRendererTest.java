@@ -181,7 +181,7 @@ public class OctaneEmailBodyRendererTest {
             "octane-report-zone.png");
 
     assertTrue(html.contains("Business Payments Secure Checkout"));
-    assertTrue(html.contains("tests has run for 0 minutes and is"));
+    assertTrue(html.contains("tests has run for 0 seconds and is"));
     assertFalse(html.contains("{{TOTAL_TIME}}"));
     assertTrue(html.contains("FS_TRIBE_DOMAIN"));
     assertTrue(html.contains("color:#009900;font-weight:700;\">SUCCESS"));
@@ -300,6 +300,43 @@ public class OctaneEmailBodyRendererTest {
             "",
             0);
     assertTrue(singleBullet.contains("<li>NoSpaceText</li>"));
+  }
+
+  @Test
+  public void rendersInlineMarkdownAfterTemplateVariableInterpolation() {
+    String template =
+        "**bold word**\n_italic word_\n_**bold italic word**_\n**{{PROJECT_NAME}}**\n"
+            + "**first phrase** and **second phrase**";
+
+    String html =
+        renderer.render(
+            template,
+            "Global Pay",
+            "Domain",
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            REPORT_URL,
+            "octane-report-zone.png");
+
+    assertTrue(html.contains("<strong>bold word</strong>"));
+    assertTrue(html.contains("<em>italic word</em>"));
+    assertTrue(html.contains("<strong><em>bold italic word</em></strong>"));
+    assertTrue(html.contains("<strong>Global Pay</strong>"));
+    assertTrue(html.contains("<strong>first phrase</strong> and <strong>second phrase</strong>"));
+  }
+
+  @Test
+  public void rendersSummaryIndentationBeforeInlineMarkdown() {
+    String html =
+        renderCustomizedEmail(
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
+            "*make money **or building dormitory**",
+            true,
+            false,
+            "",
+            0);
+
+    assertTrue(html.contains("<li>make money <strong>or building dormitory</strong></li>"));
+    assertFalse(html.contains("<strong>*make money"));
   }
 
   @Test

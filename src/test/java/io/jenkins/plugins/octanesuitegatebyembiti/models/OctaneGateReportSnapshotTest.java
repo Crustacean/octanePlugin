@@ -40,6 +40,44 @@ public class OctaneGateReportSnapshotTest {
   }
 
   @Test
+  public void preservesSubMinutePrecisionForNotifications() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED,
+            "Passed",
+            result(),
+            classifier,
+            30,
+            300,
+            0,
+            "2026-05-14T23:59:20Z");
+
+    assertEquals(40_000L, snapshot.getTestingElapsedMillis());
+    assertEquals(40L, snapshot.getTestingTimeSpentSeconds());
+    assertEquals(0L, snapshot.getTestingTimeSpentMinutes());
+    assertEquals("40 seconds", snapshot.getTestingTimeSpentText());
+  }
+
+  @Test
+  public void formatsMinutesAndRemainingSecondsForNotifications() {
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED,
+            "Passed",
+            result(),
+            classifier,
+            30,
+            300,
+            0,
+            "2026-05-14T23:58:30Z");
+
+    assertEquals(90_000L, snapshot.getTestingElapsedMillis());
+    assertEquals(90L, snapshot.getTestingTimeSpentSeconds());
+    assertEquals(1L, snapshot.getTestingTimeSpentMinutes());
+    assertEquals("1 minute, 30 seconds", snapshot.getTestingTimeSpentText());
+  }
+
+  @Test
   public void aggregatesRegressionPieTotalsAndSuiteRunBars() {
     OctaneGateReportSnapshot snapshot =
         OctaneGateReportSnapshot.fromResult(

@@ -48,6 +48,9 @@ public class OctaneEmailBodyRenderer {
   private static final String EXECUTION_DETAILS_TOKEN = "{{EXECUTION_DETAILS}}";
   private static final String REPORT_SCREENSHOT_TOKEN = "{{REPORT_SCREENSHOT}}";
   private static final Pattern PROJECT_SUMMARY_BULLET = Pattern.compile("^(\\*{1,5})\\s*(.*)$");
+  private static final Pattern BOLD_ITALIC_MARKDOWN = Pattern.compile("_\\*\\*(.*?)\\*\\*_");
+  private static final Pattern BOLD_MARKDOWN = Pattern.compile("\\*\\*(.*?)\\*\\*");
+  private static final Pattern ITALIC_MARKDOWN = Pattern.compile("_(.*?)_");
   private static final String[][] DEFECT_SEVERITIES = {
     {"critical", "Critical"},
     {"veryHigh", "Very High"},
@@ -217,6 +220,7 @@ public class OctaneEmailBodyRenderer {
                 snapshot == null
                     ? "Unknown"
                     : defaultText(snapshot.getUpdatedAtText(), "Unknown")));
+    rendered = renderInlineMarkdownPreservingComponentTokens(rendered);
     rendered =
         rendered.replace(
             "{{GATE_RESULT}}",
@@ -316,7 +320,9 @@ public class OctaneEmailBodyRenderer {
       Matcher bullet = PROJECT_SUMMARY_BULLET.matcher(normalizedLine);
       if (!bullet.matches()) {
         listLevel = closeSummaryList(html, listLevel);
-        html.append("<p style=\"margin:0 0 8px;\">").append(escape(normalizedLine)).append("</p>");
+        html.append("<p style=\"margin:0 0 8px;\">")
+            .append(renderInlineMarkdown(escape(normalizedLine)))
+            .append("</p>");
         continue;
       }
 
@@ -334,7 +340,7 @@ public class OctaneEmailBodyRenderer {
           listLevel--;
         }
       }
-      html.append("<li>").append(escape(bullet.group(2)));
+      html.append("<li>").append(renderInlineMarkdown(escape(bullet.group(2))));
     }
     closeSummaryList(html, listLevel);
     return html.toString();
@@ -358,6 +364,39 @@ public class OctaneEmailBodyRenderer {
     return "<ul style=\"list-style-type:"
         + markers[(level - 1) % markers.length]
         + ";padding-left:15px;\">";
+  }
+
+  private String renderInlineMarkdownPreservingComponentTokens(String value) {
+    String[] tokens = {
+      CRITERIA_TOKEN,
+      "{{GATE_RESULT}}",
+      "{{REPORT_LINK}}",
+      EXECUTION_DETAILS_TOKEN,
+      REPORT_SCREENSHOT_TOKEN
+    };
+    String[] placeholders = {
+      "OCTANEMAILCOMPONENTTOKEN0",
+      "OCTANEMAILCOMPONENTTOKEN1",
+      "OCTANEMAILCOMPONENTTOKEN2",
+      "OCTANEMAILCOMPONENTTOKEN3",
+      "OCTANEMAILCOMPONENTTOKEN4"
+    };
+    String protectedValue = value;
+    for (int index = 0; index < tokens.length; index++) {
+      protectedValue = protectedValue.replace(tokens[index], placeholders[index]);
+    }
+    String rendered = renderInlineMarkdown(protectedValue);
+    for (int index = 0; index < tokens.length; index++) {
+      rendered = rendered.replace(placeholders[index], tokens[index]);
+    }
+    return rendered;
+  }
+
+  private String renderInlineMarkdown(String value) {
+    String rendered =
+        BOLD_ITALIC_MARKDOWN.matcher(value).replaceAll("<strong><em>$1</em></strong>");
+    rendered = BOLD_MARKDOWN.matcher(rendered).replaceAll("<strong>$1</strong>");
+    return ITALIC_MARKDOWN.matcher(rendered).replaceAll("<em>$1</em>");
   }
 
   private String wrapExecutionReport(String contents) {

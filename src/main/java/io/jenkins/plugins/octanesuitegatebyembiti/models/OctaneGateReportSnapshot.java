@@ -883,10 +883,14 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public long getTestingTimeSpentMinutes() {
+    return getTestingTimeSpentSeconds() / 60L;
+  }
+
+  public long getTestingTimeSpentSeconds() {
     if (isBuilding()) {
       return 0;
     }
-    return Math.round(getTestingElapsedMillis() / 60000.0);
+    return getTestingElapsedMillis() / 1000L;
   }
 
   public String getTestingTimeSpentUnit() {
@@ -894,7 +898,17 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public String getTestingTimeSpentText() {
-    return getTestingTimeSpentMinutes() + " " + getTestingTimeSpentUnit();
+    long totalSeconds = getTestingTimeSpentSeconds();
+    long minutes = totalSeconds / 60L;
+    long seconds = totalSeconds % 60L;
+    if (minutes == 0L) {
+      return seconds + (seconds == 1L ? " second" : " seconds");
+    }
+    String minuteText = minutes + (minutes == 1L ? " minute" : " minutes");
+    if (seconds == 0L) {
+      return minuteText;
+    }
+    return minuteText + ", " + seconds + (seconds == 1L ? " second" : " seconds");
   }
 
   public long getTestingElapsedMillis() {
