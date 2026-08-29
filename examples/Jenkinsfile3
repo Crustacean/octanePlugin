@@ -87,6 +87,93 @@ def bootstrappedConfigurationJson(environment) {
   return environment.getProperty('OCTANE_BOOTSTRAP_CONFIGURATION_JSON')?.toString()?.trim()
 }
 
+def resolveOctaneConnection(
+    Map mapping, Object sharedSpaceValue, Object workspaceValue, String mappingPath) {
+  if (!(mapping.shared_spaces instanceof Collection)) {
+    throw new IllegalArgumentException(
+        "Octane spaces mapping file must contain a shared_spaces array: ${mappingPath}")
+  }
+
+  String sharedSpaceSelector = sharedSpaceValue?.toString()?.trim()
+  String workspaceSelector = workspaceValue?.toString()?.trim()
+  boolean sharedSpaceSelectorIsId = sharedSpaceSelector ==~ /[0-9]{1,18}/
+  boolean workspaceSelectorIsId = workspaceSelector ==~ /[0-9]{1,18}/
+  String normalizedSharedSpaceName = sharedSpaceSelector?.toLowerCase(java.util.Locale.ROOT)
+  String normalizedWorkspaceName = workspaceSelector?.toLowerCase(java.util.Locale.ROOT)
+  def selectedSharedSpace =
+      mapping.shared_spaces.find { space ->
+        if (!(space instanceof Map)) {
+          return false
+        }
+        return sharedSpaceSelectorIsId
+            ? space.sharedSpaceId?.toString()?.trim() == sharedSpaceSelector
+            : space.sharedSpaceName?.toString()?.trim()?.toLowerCase(java.util.Locale.ROOT) ==
+                normalizedSharedSpaceName
+      }
+  if (!(selectedSharedSpace instanceof Map)) {
+    throw new IllegalArgumentException(
+        "OCTANE_SHARED_SPACE_NAME '${sharedSpaceSelector}' did not match a name or ID in "
+            + mappingPath)
+  }
+  if (!(selectedSharedSpace.workspaces instanceof Collection)) {
+    throw new IllegalArgumentException(
+        "Shared space '${sharedSpaceSelector}' has no workspaces array in ${mappingPath}")
+  }
+
+  def selectedWorkspace =
+      selectedSharedSpace.workspaces.find { workspace ->
+        if (!(workspace instanceof Map)) {
+          return false
+        }
+        return workspaceSelectorIsId
+            ? workspace.workspaceId?.toString()?.trim() == workspaceSelector
+            : workspace.workspaceName?.toString()?.trim()?.toLowerCase(java.util.Locale.ROOT) ==
+                normalizedWorkspaceName
+      }
+  if (!(selectedWorkspace instanceof Map)) {
+    throw new IllegalArgumentException(
+        "OCTANE_WORKSPACE_NAME '${workspaceSelector}' did not match a name or ID under "
+            + "shared space '${sharedSpaceSelector}' in ${mappingPath}")
+  }
+
+  String sharedSpaceId = selectedSharedSpace.sharedSpaceId?.toString()?.trim()
+  String workspaceId = selectedWorkspace.workspaceId?.toString()?.trim()
+  String sharedSpaceName = selectedSharedSpace.sharedSpaceName?.toString()?.trim()
+  String workspaceName = selectedWorkspace.workspaceName?.toString()?.trim()
+  if (!(sharedSpaceId ==~ /[0-9]{1,18}/) ||
+      !(workspaceId ==~ /[0-9]{1,18}/) ||
+      !sharedSpaceName ||
+      !workspaceName) {
+    throw new IllegalArgumentException(
+        "Shared space '${sharedSpaceSelector}' and workspace '${workspaceSelector}' must "
+            + "define names and numeric IDs in ${mappingPath}.")
+  }
+
+  String baseUrl =
+      selectedSharedSpace.specific_url?.toString()?.trim() ?:
+          mapping.shared_url?.toString()?.trim()
+  if (!baseUrl) {
+    throw new IllegalArgumentException(
+        "Base URL missing for space: ${sharedSpaceName} in octane_spaces_mapping.json")
+  }
+  String derivedIdentifier =
+      sharedSpaceName.toLowerCase(java.util.Locale.ROOT).replaceAll(/\s+/, '_')
+  String credentialsId =
+      selectedSharedSpace.apiCredentialId?.toString()?.trim() ?: derivedIdentifier
+  String serverId = selectedSharedSpace.serverId?.toString()?.trim() ?: derivedIdentifier
+
+  return [
+    baseUrl: baseUrl,
+    credentialsId: credentialsId,
+    insecureTransport: baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith('http://'),
+    serverId: serverId,
+    sharedSpaceId: sharedSpaceId,
+    sharedSpaceName: sharedSpaceName,
+    workspaceId: workspaceId,
+    workspaceName: workspaceName
+  ]
+}
+
 def normalizeAutomationSuiteCredentialId(Object configuredValue) {
   String value = configuredValue?.toString()?.trim()
   return !value || value.toLowerCase() in ['null', 'undefined'] ? '' : value
@@ -307,77 +394,35 @@ pipeline {
             error "Octane spaces mapping file was not found in the workspace: ${spacesMappingFile}"
           }
           def loadedSpacesMapping = readJSON(file: spacesMappingFile)
-          if (!(loadedSpacesMapping instanceof Map) ||
-              !(loadedSpacesMapping.shared_spaces instanceof Collection)) {
-            error(
-                "Octane spaces mapping file must contain a shared_spaces array: "
-                    + spacesMappingFile)
+          if (!(loadedSpacesMapping instanceof Map)) {
+            error "Octane spaces mapping file must contain a JSON object: ${spacesMappingFile}"
           }
-
-          String sharedSpaceSelector = env.OCTANE_SHARED_SPACE_NAME.trim()
-          String workspaceSelector = env.OCTANE_WORKSPACE_NAME.trim()
-          boolean sharedSpaceSelectorIsId = sharedSpaceSelector ==~ /[0-9]{1,18}/
-          boolean workspaceSelectorIsId = workspaceSelector ==~ /[0-9]{1,18}/
-          String normalizedSharedSpaceName = sharedSpaceSelector.toLowerCase()
-          String normalizedWorkspaceName = workspaceSelector.toLowerCase()
-          def selectedSharedSpace =
-              loadedSpacesMapping.shared_spaces.find { space ->
-                if (!(space instanceof Map)) {
-                  return false
-                }
-                return sharedSpaceSelectorIsId
-                    ? space.sharedSpaceId?.toString()?.trim() == sharedSpaceSelector
-                    : space.sharedSpaceName?.toString()?.trim()?.toLowerCase() ==
-                        normalizedSharedSpaceName
-              }
-          if (!(selectedSharedSpace instanceof Map)) {
-            error(
-                "OCTANE_SHARED_SPACE_NAME '${sharedSpaceSelector}' did not match a name or ID in "
-                    + spacesMappingFile)
+          Map octaneConnection
+          try {
+            octaneConnection =
+                resolveOctaneConnection(
+                    loadedSpacesMapping as Map,
+                    env.OCTANE_SHARED_SPACE_NAME,
+                    env.OCTANE_WORKSPACE_NAME,
+                    spacesMappingFile)
+          } catch (IllegalArgumentException exception) {
+            error exception.message
           }
-          if (!(selectedSharedSpace.workspaces instanceof Collection)) {
-            error(
-                "Shared space '${sharedSpaceSelector}' has no workspaces array in "
-                    + spacesMappingFile)
-          }
-          def selectedWorkspace =
-              selectedSharedSpace.workspaces.find { workspace ->
-                if (!(workspace instanceof Map)) {
-                  return false
-                }
-                return workspaceSelectorIsId
-                    ? workspace.workspaceId?.toString()?.trim() == workspaceSelector
-                    : workspace.workspaceName?.toString()?.trim()?.toLowerCase() ==
-                        normalizedWorkspaceName
-              }
-          if (!(selectedWorkspace instanceof Map)) {
-            error(
-                "OCTANE_WORKSPACE_NAME '${workspaceSelector}' did not match a name or ID under "
-                    + "shared space '${sharedSpaceSelector}' in ${spacesMappingFile}")
-          }
-
-          String mappedSharedSpaceId = selectedSharedSpace.sharedSpaceId?.toString()?.trim()
-          String mappedWorkspaceId = selectedWorkspace.workspaceId?.toString()?.trim()
-          String resolvedSharedSpaceName =
-              selectedSharedSpace.sharedSpaceName?.toString()?.trim()
-          String resolvedWorkspaceName = selectedWorkspace.workspaceName?.toString()?.trim()
-          if (!(mappedSharedSpaceId ==~ /[0-9]{1,18}/) ||
-              !(mappedWorkspaceId ==~ /[0-9]{1,18}/) ||
-              !resolvedSharedSpaceName ||
-              !resolvedWorkspaceName) {
-            error(
-                "Shared space '${sharedSpaceSelector}' and workspace '${workspaceSelector}' must "
-                    + "define names and numeric IDs in ${spacesMappingFile}.")
-          }
-          env.OCTANE_SERVER_ID = resolvedSharedSpaceName
-          env.OCTANE_SHARED_SPACE_ID = mappedSharedSpaceId
-          env.OCTANE_WORKSPACE_ID = mappedWorkspaceId
+          env.OCTANE_SERVER_ID = octaneConnection.serverId
+          env.OCTANE_BASE_URL = octaneConnection.baseUrl
+          env.OCTANE_API_CREDENTIAL_ID = octaneConnection.credentialsId
+          env.OCTANE_SHARED_SPACE_ID = octaneConnection.sharedSpaceId
+          env.OCTANE_WORKSPACE_ID = octaneConnection.workspaceId
 
           echo "Loaded Octane configuration from ${configurationSource}."
+          if (octaneConnection.insecureTransport) {
+            echo 'Applied URL is insecure. Move to HTTPS for better security.'
+          }
           echo(
-              "Resolved shared space '${sharedSpaceSelector}' to '${resolvedSharedSpaceName}' "
-                  + "(${env.OCTANE_SHARED_SPACE_ID}) and workspace '${workspaceSelector}' to "
-                  + "'${resolvedWorkspaceName}' (${env.OCTANE_WORKSPACE_ID}) from "
+              "Resolved shared space '${env.OCTANE_SHARED_SPACE_NAME}' to "
+                  + "'${octaneConnection.sharedSpaceName}' (${env.OCTANE_SHARED_SPACE_ID}) and "
+                  + "workspace '${env.OCTANE_WORKSPACE_NAME}' to "
+                  + "'${octaneConnection.workspaceName}' (${env.OCTANE_WORKSPACE_ID}) from "
                   + "${spacesMappingFile}; using Octane server '${env.OCTANE_SERVER_ID}'.")
           echo(
               'Configuration priority: YAML values, Jenkins Job UI parameters, '
@@ -534,6 +579,8 @@ QA Automation Team''',
               Map gateResult =
                   octaneSuiteGate(
                       serverId: env.OCTANE_SERVER_ID,
+                      baseUrl: env.OCTANE_BASE_URL,
+                      credentialsId: env.OCTANE_API_CREDENTIAL_ID,
                       sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                       workspaceId: env.OCTANE_WORKSPACE_ID,
                       suiteRunId: suiteRunSource,

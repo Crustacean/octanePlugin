@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -37,8 +38,12 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(jenkinsfile.contains("fileExists(paramsFile)"));
     assertTrue(jenkinsfile.contains("readYaml(file: paramsFile)"));
     assertTrue(jenkinsfile.contains("readJSON(file: spacesMappingFile)"));
-    assertTrue(jenkinsfile.contains("space.sharedSpaceName?.toString()?.trim()?.toLowerCase()"));
-    assertTrue(jenkinsfile.contains("workspace.workspaceName?.toString()?.trim()?.toLowerCase()"));
+    assertTrue(
+        jenkinsfile.contains(
+            "space.sharedSpaceName?.toString()?.trim()?.toLowerCase(java.util.Locale.ROOT)"));
+    assertTrue(
+        jenkinsfile.contains(
+            "workspace.workspaceName?.toString()?.trim()?.toLowerCase(java.util.Locale.ROOT)"));
     assertTrue(jenkinsfile.contains("jobParameters.containsKey(key)"));
     assertTrue(jenkinsfile.contains("yamlConfiguration.containsKey(key)"));
     assertTrue(jenkinsfile.contains("return yamlConfiguration.get(key)"));
@@ -255,14 +260,37 @@ class Jenkinsfile3YamlConfigurationTest {
     assertEquals(sharedSpace, sharedSpaceById);
     assertEquals(workspace, workspaceById);
 
+    assertEquals("https://octane.example.com", mapping.get("shared_url"));
     assertTrue(jenkinsfile.contains("serverId: env.OCTANE_SERVER_ID"));
+    assertTrue(jenkinsfile.contains("baseUrl: env.OCTANE_BASE_URL"));
+    assertTrue(jenkinsfile.contains("credentialsId: env.OCTANE_API_CREDENTIAL_ID"));
+    assertTrue(jenkinsfile.contains("resolveOctaneConnection("));
     assertTrue(jenkinsfile.contains("sharedSpaceSelectorIsId"));
     assertTrue(jenkinsfile.contains("space.sharedSpaceId?.toString()?.trim()"));
     assertTrue(jenkinsfile.contains("workspaceSelectorIsId"));
     assertTrue(jenkinsfile.contains("workspace.workspaceId?.toString()?.trim()"));
-    assertTrue(jenkinsfile.contains("env.OCTANE_SERVER_ID = resolvedSharedSpaceName"));
-    assertTrue(jenkinsfile.contains("env.OCTANE_SHARED_SPACE_ID = mappedSharedSpaceId"));
-    assertTrue(jenkinsfile.contains("env.OCTANE_WORKSPACE_ID = mappedWorkspaceId"));
+    assertTrue(jenkinsfile.contains("env.OCTANE_SERVER_ID = octaneConnection.serverId"));
+    assertTrue(jenkinsfile.contains("env.OCTANE_BASE_URL = octaneConnection.baseUrl"));
+    assertTrue(
+        jenkinsfile.contains("env.OCTANE_API_CREDENTIAL_ID = octaneConnection.credentialsId"));
+    assertTrue(jenkinsfile.contains("env.OCTANE_SHARED_SPACE_ID = octaneConnection.sharedSpaceId"));
+    assertTrue(jenkinsfile.contains("env.OCTANE_WORKSPACE_ID = octaneConnection.workspaceId"));
+    assertTrue(
+        jenkinsfile.contains("echo 'Applied URL is insecure. Move to HTTPS for better security.'"));
+    String loadConfigurationStage =
+        jenkinsfile.substring(
+            jenkinsfile.indexOf("stage('Load Configuration')"),
+            jenkinsfile.indexOf("stage('Build')"));
+    assertTrue(
+        loadConfigurationStage.contains(
+            "'${octaneConnection.sharedSpaceName}' (${env.OCTANE_SHARED_SPACE_ID})"));
+    assertTrue(
+        loadConfigurationStage.contains(
+            "'${octaneConnection.workspaceName}' (${env.OCTANE_WORKSPACE_ID})"));
+    assertFalse(loadConfigurationStage.contains("${sharedSpaceSelector}"));
+    assertFalse(loadConfigurationStage.contains("${workspaceSelector}"));
+    assertFalse(loadConfigurationStage.contains("${resolvedSharedSpaceName}"));
+    assertFalse(loadConfigurationStage.contains("${resolvedWorkspaceName}"));
     assertTrue(
         jenkinsfile.contains(
             "OCTANE_SHARED_SPACE_NAME '${sharedSpaceSelector}' did not match a name or ID"));
@@ -281,6 +309,130 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(jenkinsfile.contains("important: env.OCTANE_FINAL_EMAIL_IS_IMPORTANT.toBoolean()"));
     assertFalse(yaml.toLowerCase().contains("client_secret:"));
     assertFalse(yaml.toLowerCase().contains("password:"));
+  }
+
+  @Test
+  void comprehensiveConnectionResolutionPrefersSpaceOverridesAndDerivesServerId()
+      throws IOException, CompilationFailedException {
+    groovy.lang.Script script =
+        new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
+    Map<String, Object> workspace = Map.of("workspaceId", "4001", "workspaceName", "Global Pay");
+    Map<String, Object> sharedSpace =
+        Map.of(
+            "sharedSpaceId",
+            "9016",
+            "sharedSpaceName",
+            "Default Shared Space",
+            "specific_url",
+            "https://octane-canary.example.test",
+            "apiCredentialId",
+            "octane-canary-key",
+            "workspaces",
+            List.of(workspace));
+    Map<String, Object> mapping =
+        Map.of(
+            "shared_url",
+            "https://octane-primary.example.test",
+            "shared_spaces",
+            List.of(sharedSpace));
+
+    Map<?, ?> connection =
+        resolvedConnection(
+            script, mapping, " default shared space ", "4001", "octane_spaces_mapping.json");
+
+    assertEquals("https://octane-canary.example.test", connection.get("baseUrl"));
+    assertEquals("octane-canary-key", connection.get("credentialsId"));
+    assertEquals(false, connection.get("insecureTransport"));
+    assertEquals("default_shared_space", connection.get("serverId"));
+    assertEquals("9016", connection.get("sharedSpaceId"));
+    assertEquals("4001", connection.get("workspaceId"));
+  }
+
+  @Test
+  void connectionResolutionFallsBackToRootUrlAndDerivedCredentialId()
+      throws IOException, CompilationFailedException {
+    groovy.lang.Script script =
+        new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
+    Map<String, Object> mapping =
+        Map.of(
+            "shared_url",
+            "https://octane-primary.example.test",
+            "shared_spaces",
+            List.of(
+                Map.of(
+                    "sharedSpaceId",
+                    "1001",
+                    "sharedSpaceName",
+                    "Default Shared Space",
+                    "workspaces",
+                    List.of(Map.of("workspaceId", "5002", "workspaceName", "Mail Service")))));
+
+    Map<?, ?> connection =
+        resolvedConnection(script, mapping, "1001", "Mail Service", "octane_spaces_mapping.json");
+
+    assertEquals("https://octane-primary.example.test", connection.get("baseUrl"));
+    assertEquals("default_shared_space", connection.get("credentialsId"));
+    assertEquals(false, connection.get("insecureTransport"));
+    assertEquals("default_shared_space", connection.get("serverId"));
+  }
+
+  @Test
+  void connectionResolutionAllowsHttpAndMarksItInsecure()
+      throws IOException, CompilationFailedException {
+    groovy.lang.Script script =
+        new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
+    Map<String, Object> mapping =
+        Map.of(
+            "shared_url",
+            "http://octane.internal.example.test",
+            "shared_spaces",
+            List.of(
+                Map.of(
+                    "sharedSpaceId",
+                    "1001",
+                    "sharedSpaceName",
+                    "Default Shared Space",
+                    "workspaces",
+                    List.of(Map.of("workspaceId", "5002", "workspaceName", "Mail Service")))));
+
+    Map<?, ?> connection =
+        resolvedConnection(script, mapping, "Default Shared Space", "Mail Service", "mapping.json");
+
+    assertEquals("http://octane.internal.example.test", connection.get("baseUrl"));
+    assertEquals(true, connection.get("insecureTransport"));
+  }
+
+  @Test
+  void connectionResolutionReportsMissingBaseUrlBeforeClientConstruction()
+      throws IOException, CompilationFailedException {
+    groovy.lang.Script script =
+        new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
+    Map<String, Object> mapping =
+        Map.of(
+            "shared_spaces",
+            List.of(
+                Map.of(
+                    "sharedSpaceId",
+                    "1001",
+                    "sharedSpaceName",
+                    "Default Shared Space",
+                    "workspaces",
+                    List.of(Map.of("workspaceId", "5002", "workspaceName", "Mail Service")))));
+
+    IllegalArgumentException failure =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                resolvedConnection(
+                    script,
+                    mapping,
+                    "Default Shared Space",
+                    "Mail Service",
+                    "octane_spaces_mapping.json"));
+
+    assertEquals(
+        "Base URL missing for space: Default Shared Space in octane_spaces_mapping.json",
+        failure.getMessage());
   }
 
   @Test
@@ -359,6 +511,19 @@ class Jenkinsfile3YamlConfigurationTest {
       Map<String, String> environment) {
     return script.invokeMethod(
         "selectConfigurationValue", new Object[] {key, parameters, yaml, environment});
+  }
+
+  private static Map<?, ?> resolvedConnection(
+      groovy.lang.Script script,
+      Map<String, Object> mapping,
+      String sharedSpace,
+      String workspace,
+      String mappingPath) {
+    Object result =
+        script.invokeMethod(
+            "resolveOctaneConnection", new Object[] {mapping, sharedSpace, workspace, mappingPath});
+    assertTrue(result instanceof Map, "resolveOctaneConnection must return a map");
+    return (Map<?, ?>) result;
   }
 
   private static Object resolvedPath(

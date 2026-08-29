@@ -7,6 +7,7 @@ import hudson.AbortException;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServer;
+import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
@@ -48,6 +49,7 @@ import jenkins.model.Jenkins;
 
 public class OctaneGateRunner {
   private static final Pattern OCTANE_NUMERIC_ID = Pattern.compile("[0-9]{1,18}");
+  private static final String GLOBAL_API_CREDENTIALS_ID = "octane-api-client";
   private static final int MAX_SCOPES = 100;
   private static final int MAX_DEFECT_GROUPS = 100;
   private final Clock clock;
@@ -131,11 +133,8 @@ public class OctaneGateRunner {
       if (!this.state.isWaitingPublished()) {
         logListener.logCriteriaVerified(listener);
       }
-      OctaneServer server = resolveServer(request.getServerId());
       sharedSpaceId = requiredWorkspaceValue("Shared space ID", request.getSharedSpaceId());
       workspaceId = requiredWorkspaceValue("Workspace ID", request.getWorkspaceId());
-      StandardUsernamePasswordCredentials credentials =
-          resolveCredentials(server.getCredentialsId());
       classifier = request.createStatusClassifier();
       primaryDeadline =
           this.state.getStartedAt().plus(Duration.ofMinutes(request.getTimeoutMinutes()));
@@ -155,11 +154,7 @@ public class OctaneGateRunner {
       if (!this.state.isWaitingPublished()) {
         logListener.logLookupContext(listener, sharedSpaceId, workspaceId);
       }
-      client =
-          new OctaneClient(
-              server.getBaseUrl(),
-              credentials.getUsername(),
-              credentials.getPassword().getPlainText());
+      client = createClient(request);
       boolean sessionReady = false;
       try {
         client.authenticate();
@@ -1353,22 +1348,81 @@ public class OctaneGateRunner {
     return server;
   }
 
+  OctaneClient createClient(GateRequest request) throws AbortException {
+    ResolvedConnection connection = resolveConnection(request);
+    StandardUsernamePasswordCredentials credentials = connection.credentials();
+    return new OctaneClient(
+        connection.baseUrl(), credentials.getUsername(), credentials.getPassword().getPlainText());
+  }
+
+  private ResolvedConnection resolveConnection(GateRequest request) throws AbortException {
+    if (request.hasDynamicConnection()) {
+      String spaceName = Util.trimToEmpty(request.getServerId());
+      String baseUrl = Util.trimToEmpty(request.getBaseUrl());
+      if (baseUrl.isEmpty()) {
+        throw new AbortException(
+            "Base URL missing for space: "
+                + (spaceName.isEmpty() ? "<unknown>" : spaceName)
+                + " in octane_spaces_mapping.json");
+      }
+      try {
+        baseUrl = OctaneServerUrl.normalize(baseUrl);
+      } catch (IllegalArgumentException e) {
+        throw new AbortException(
+            "Base URL for space '"
+                + (spaceName.isEmpty() ? "<unknown>" : spaceName)
+                + "' is invalid: "
+                + e.getMessage());
+      }
+      return new ResolvedConnection(baseUrl, resolveDynamicCredentials(request.getCredentialsId()));
+    }
+
+    OctaneServer server = resolveServer(request.getServerId());
+    return new ResolvedConnection(
+        server.getBaseUrl(), resolveCredentials(server.getCredentialsId()));
+  }
+
+  private StandardUsernamePasswordCredentials resolveDynamicCredentials(String credentialsId)
+      throws AbortException {
+    LinkedHashSet<String> candidates = new LinkedHashSet<>();
+    candidates.add(GLOBAL_API_CREDENTIALS_ID);
+    String selectedCredentialsId = Util.trimToEmpty(credentialsId);
+    if (!selectedCredentialsId.isEmpty()) {
+      candidates.add(selectedCredentialsId);
+    }
+    for (String candidate : candidates) {
+      StandardUsernamePasswordCredentials credentials = findCredentials(candidate);
+      if (credentials != null) {
+        return credentials;
+      }
+    }
+    throw new AbortException(
+        "ALM Octane API key credentials were not found. Tried Jenkins credential IDs: "
+            + String.join(", ", candidates));
+  }
+
   private StandardUsernamePasswordCredentials resolveCredentials(String credentialsId)
       throws AbortException {
     if (Util.isBlank(credentialsId)) {
       throw new AbortException("ALM Octane credentials are required.");
     }
 
-    StandardUsernamePasswordCredentials credentials =
-        CredentialsMatchers.firstOrNull(
-            CredentialsProvider.lookupCredentialsInItemGroup(
-                StandardUsernamePasswordCredentials.class, Jenkins.get(), ACL.SYSTEM2, List.of()),
-            CredentialsMatchers.withId(credentialsId));
+    StandardUsernamePasswordCredentials credentials = findCredentials(credentialsId);
     if (credentials == null) {
       throw new AbortException("ALM Octane credentials were not found: " + credentialsId);
     }
     return credentials;
   }
+
+  private StandardUsernamePasswordCredentials findCredentials(String credentialsId) {
+    return CredentialsMatchers.firstOrNull(
+        CredentialsProvider.lookupCredentialsInItemGroup(
+            StandardUsernamePasswordCredentials.class, Jenkins.get(), ACL.SYSTEM2, List.of()),
+        CredentialsMatchers.withId(credentialsId));
+  }
+
+  private record ResolvedConnection(
+      String baseUrl, StandardUsernamePasswordCredentials credentials) {}
 
   private String requiredWorkspaceValue(String label, String value) throws AbortException {
     String chosen = Util.trimToEmpty(value);

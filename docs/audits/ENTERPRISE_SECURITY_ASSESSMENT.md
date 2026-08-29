@@ -11,7 +11,8 @@ tests, PMD, SpotBugs, the official OSV scanner 2.3.8, and repository CI security
 
 Trust boundaries:
 
-1. Jenkins administrators configure an Octane server URL and Jenkins Credentials entry.
+1. Jenkins administrators control the Octane space mapping or global server entry and Jenkins
+   Credentials.
 2. Job authors select the administrator-owned server and supply suite, release, sprint, query, and
    criteria values.
 3. Octane JSON is untrusted remote input and must remain bounded and escaped.
@@ -37,8 +38,11 @@ Trust boundaries:
   found.
 - Global configuration writes require `Jenkins.ADMINISTER`. Build report reads and state changes use
   Jenkins item permissions, POST handlers, and crumb protection.
-- The configured Octane server list is the egress allowlist. An administrator can intentionally
-  configure an internal/on-premise endpoint, but a job author cannot substitute an arbitrary host.
+- The centrally controlled Octane mapping and Jenkinsfile, plus the legacy configured server list,
+  are the egress trust boundaries. Job-specific variables select a mapped shared space and do not
+  contain a URL. Anyone allowed to alter the central Jenkinsfile could alter the injected endpoint,
+  so that repository requires protected branches and restricted write access. Per-request origin and
+  base-path checks and disabled redirects constrain requests after the trusted endpoint is selected.
 
 ## Automated Security Evidence
 
@@ -61,6 +65,8 @@ packaged in this plugin HPI. The plugin baseline is Jenkins 2.568.1, which provi
 
 - Corporate network policy should still restrict controller and agent egress independently of the
   application allowlist.
+- Protect the central mapping/Jenkinsfile repository with reviewed changes; dynamic endpoint
+  injection deliberately replaces the Jenkins System server allowlist for that Pipeline path.
 - A representative staging tenant must validate Octane authorization, throttling, SMTP delivery,
   browser execution, and controller sizing.
 - Dependency exceptions must not be renewed without a fresh reachability review and a controller

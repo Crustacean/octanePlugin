@@ -9,7 +9,8 @@ plugin is installed into Jenkins.
 flowchart LR
   Job["Jenkins Pipeline\nor Freestyle job"]
   Plugin["Octane Suite Gate\nby Embiti"]
-  Config["Jenkins System config\nbase URL + credentials"]
+  Config["Central space mapping or\nJenkins System config"]
+  Credentials["Jenkins credentials\nclient_id / client_secret"]
   Octane["ALM Octane REST API\nshared space + workspace"]
   Runs["Suite runs\nchild test runs\ndefects"]
   Metrics["Metrics, criteria,\nand risk view"]
@@ -22,6 +23,7 @@ flowchart LR
 
   Job --> Plugin
   Config --> Plugin
+  Credentials --> Plugin
   Plugin --> Octane
   Octane --> Runs
   Runs --> Metrics
@@ -45,7 +47,7 @@ the build according to the configured gate behavior.
 flowchart LR
   subgraph Jenkins["Jenkins controller / agent"]
     Install["Installed HPI plugin"]
-    Config["Manage Jenkins > System\nOctane server config"]
+    Config["Central space mapping or\nManage Jenkins > System"]
     Credentials["Jenkins credentials\nclient_id / client_secret"]
     Job["Pipeline or Freestyle job"]
     GateStep["octaneSuiteGate / ALM Octane Suite Gate"]
@@ -160,7 +162,22 @@ The Java sources are organized under the base package into focused folders:
 
 ## Configuration Model
 
-Administrators configure Octane servers in:
+The centrally managed Pipeline resolves its connection from
+`octane_spaces_mapping.json`. The root `shared_url` is the default endpoint, and a selected shared
+space may override it with `specific_url`. The same shared-space record may provide `serverId` and
+`apiCredentialId`; otherwise both IDs are derived from the canonical shared-space name by lowercasing
+it and replacing whitespace with underscores. Only credential IDs belong in the mapping. The Octane
+client ID and secret remain Jenkins username/password credentials. Both HTTP and HTTPS endpoints are
+accepted for private deployments; an effective HTTP URL emits a console security recommendation but
+does not block the gate.
+
+At runtime, dynamic connections try the shared `octane-api-client` Jenkins credential first and then
+the selected shared-space credential. This lets one controller use a common API client while still
+supporting per-space credentials. If neither credential exists, the gate fails before polling with
+an actionable list of the attempted IDs.
+
+Legacy Pipeline and Freestyle jobs that do not pass a dynamic `baseUrl` continue to resolve servers
+from:
 
 ```text
 Manage Jenkins > System > Octane Suite Gate by Embiti
@@ -181,8 +198,9 @@ The server form exposes one validation action:
 
 - **Test Base URL**: performs a basic HTTP reachability check against `baseUrl`.
 
-The shared space and workspace are supplied by each Pipeline/Freestyle job because
-suite runs are workspace-scoped in ALM Octane.
+The shared space and workspace are supplied by each Pipeline/Freestyle job because suite runs are
+workspace-scoped in ALM Octane. Dynamic Pipelines receive their canonical numeric IDs from the same
+mapping record used for the endpoint, so the mapping file is read only once per configuration load.
 
 ## Workspace Selection Flow
 
@@ -318,9 +336,11 @@ occurrence immediately when it registers, then repeats the audit immediately bef
 
 1. Jenkins reaches the `octaneSuiteGate` Pipeline step or Freestyle build step.
 2. The step creates a `GateRequest`.
-3. `OctaneGateRunner` resolves the configured `OctaneServer` by `serverId`.
+3. `OctaneGateRunner` consumes the mapped `baseUrl` directly when present; legacy requests resolve
+   the configured `OctaneServer` by `serverId`.
 4. The request supplies `sharedSpaceId` and `workspaceId` from the job.
-5. The runner resolves Jenkins credentials by `credentialsId`.
+5. Dynamic requests try `octane-api-client` and then the mapped/derived `credentialsId`; legacy
+   requests use the configured server credential.
 6. The runner opens a polling session, creates `OctaneClient`, and signs in to Octane.
 7. The step attaches an `Octane Gate Report` action to the current build.
 8. If the gate is wrapped by `octaneCronProgressEmail`, the wrapper registers one weakly referenced
@@ -966,10 +986,13 @@ such as `enabled`, `available`, `riskScore`, `fetchedDefectCount`,
 The plugin never logs the Octane client secret. Credentials are resolved through
 Jenkins Credentials APIs and used only to authenticate against Octane.
 
-Every `OctaneClient` request is checked against the administrator-configured server origin and base
-path immediately before building the HTTP request. Scheme, host, and effective port must match,
-embedded credentials/fragments are forbidden, and HTTP redirects are disabled. This preserves
-private/on-premise Octane support while preventing a Pipeline job from changing the egress target.
+Every `OctaneClient` request is checked against its trusted, centrally mapped or
+administrator-configured server origin and base path immediately before building the HTTP request.
+Scheme, host, and effective port must match, embedded credentials/fragments are forbidden, and HTTP
+redirects are disabled. The centrally controlled mapping and Jenkinsfile are therefore part of the
+egress trust boundary; job-specific variable files select a mapped space but cannot introduce a URL.
+The central repository must use protected branches and restricted write access because changing its
+Pipeline code can change the dynamically injected endpoint.
 
 User-controlled log values pass through a bounded single-line formatter. Custom scope/defect queries
 are length-bounded and reject control characters; release/sprint selections and suite/workspace IDs

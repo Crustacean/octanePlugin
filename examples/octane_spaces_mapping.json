@@ -1,8 +1,10 @@
 {
+    "shared_url": "https://octane.example.com",
     "shared_spaces": [
         {
             "sharedSpaceId": "1001",
             "sharedSpaceName": "Default Shared Space",
+            "specific_url": "",
             "workspaces": [
                 {
                     "workspaceId": "5002",
@@ -409,6 +411,7 @@
         {
             "sharedSpaceId": "10027",
             "sharedSpaceName": "FINANCIAL SERVICES TRIBE",
+            "specific_url": "",
             "workspaces": [
                 {
                     "workspaceId": "8001",
@@ -527,6 +530,7 @@
         {
             "sharedSpaceId": "9016",
             "sharedSpaceName": "FS_TRIBE_DOMAIN",
+            "specific_url": "",
             "workspaces": [
                 {
                     "workspaceId": "2044",
@@ -733,6 +737,7 @@
         {
             "sharedSpaceId": "9008",
             "sharedSpaceName": "MPESA_REFRESH",
+            "specific_url": "",
             "workspaces": [
                 {
                     "workspaceId": "1002",
@@ -755,6 +760,7 @@
         {
             "sharedSpaceId": "9006",
             "sharedSpaceName": "NEW_NDC",
+            "specific_url": "",
             "workspaces": [
                 {
                     "workspaceId": "1002",
@@ -769,6 +775,7 @@
         {
             "sharedSpaceId": "8002",
             "sharedSpaceName": "SAF_BCP",
+            "specific_url": "",
             "workspaces": [
                 {
                     "workspaceId": "2001",

@@ -297,18 +297,21 @@ The YAML identifies the target space with `OCTANE_SHARED_SPACE_NAME` and `OCTANE
 Each selector accepts either its numeric ID or a human-readable name; name matching ignores
 surrounding whitespace and letter case.
 [`examples/octane_spaces_mapping.json`](examples/octane_spaces_mapping.json) resolves both selectors
-to the canonical names and numeric IDs required by the existing Octane API calls. The canonical
-shared-space name also selects the globally configured Jenkins Octane connection as
-`OCTANE_SERVER_ID`. Set `OCTANE_SPACES_MAPPING_FILE` as a Jenkins parameter or YAML value to select
-another workspace-tree mapping. Keep client IDs and secrets in Jenkins Credentials rather than in
-either configuration file. `OCTANE_REGRESSION_SUITE_RUN_ID` provides the regression suite-run source,
-while `OCTANE_DEFINED_SCOPE` supplies the optional defined-scope selections consumed by the report
-analytics.
+to canonical names and numeric IDs, the Octane endpoint, a server ID, and a Jenkins credential ID.
+The root `shared_url` is used unless the selected shared space defines `specific_url`. Missing server
+and credential IDs are derived from the canonical shared-space name by lowercasing it and replacing
+spaces with underscores. Set `OCTANE_SPACES_MAPPING_FILE` as a Jenkins parameter or YAML value to
+select another centrally controlled mapping. Keep client IDs and secrets in Jenkins Credentials,
+never in either configuration file. `OCTANE_REGRESSION_SUITE_RUN_ID` provides the regression
+suite-run source, while `OCTANE_DEFINED_SCOPE` supplies the optional defined-scope selections
+consumed by the report analytics.
 
 ## Configuration
 
-The plugin resolves the ALM Octane connection from Jenkins global configuration and then lets
-each Pipeline select a configured server by `serverId`.
+`examples/Jenkinsfile3` resolves the ALM Octane connection from the centrally controlled mapping and
+passes it directly to the gate. This removes the Jenkins System server-entry requirement for that
+Pipeline. Older Pipeline and Freestyle configurations remain supported through Jenkins global
+configuration when no dynamic base URL is supplied.
 
 ### 1. Create Octane API credentials in Jenkins
 
@@ -317,9 +320,18 @@ each Pipeline select a configured server by `serverId`.
 3. Set:
    - **Username** to the Octane `client_id`
    - **Password** to the Octane `client_secret`
-4. Save it with a stable ID such as `octane-api-prod`.
+4. Save it as `octane-api-client` for the shared credential, or use the selected shared-space name
+   lowercased with spaces replaced by underscores, such as `default_shared_space`.
 
-### 2. Configure the Octane server
+### 2. Configure the central mapping
+
+Set the root `shared_url` in `octane_spaces_mapping.json`. For rolling or canary deployments, set a
+shared space's `specific_url`; a blank value inherits the root URL. The centrally controlled mapping
+must not contain API secrets. Internal HTTP endpoints remain supported for VPN-hosted Octane
+deployments. When the effective mapped URL starts with `http://`, the Pipeline continues and prints
+`Applied URL is insecure. Move to HTTPS for better security.`; HTTPS is recommended for production.
+
+The following Jenkins System configuration remains available for legacy jobs:
 
 1. Go to **Manage Jenkins > System**.
 2. Find **Octane Suite Gate by Embiti**.
@@ -336,7 +348,7 @@ The base URL should be the host root used by Octane authentication and API reque
 - `https://your-octane-host/authentication/sign_in`
 - `https://your-octane-host/api/...`
 
-### 3. Reference the server from a Jenkinsfile
+### 3. Reference the connection from a Jenkinsfile
 
 Once the server is configured, the pipeline supplies the Octane workspace and suite run ID:
 

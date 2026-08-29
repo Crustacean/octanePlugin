@@ -32,6 +32,8 @@ public class GateRequest implements Serializable {
 
   private final String serverId;
   private final String suiteRunId;
+  private String baseUrl = "";
+  private String credentialsId = "";
   private String sharedSpaceId = "";
   private String workspaceId = "";
   private String criteria = DEFAULT_CRITERIA;
@@ -66,6 +68,26 @@ public class GateRequest implements Serializable {
 
   public String getSuiteRunId() {
     return suiteRunId;
+  }
+
+  public String getBaseUrl() {
+    return Util.trimToEmpty(baseUrl);
+  }
+
+  public void setBaseUrl(String baseUrl) {
+    this.baseUrl = Util.trimToEmpty(baseUrl);
+  }
+
+  public String getCredentialsId() {
+    return Util.trimToEmpty(credentialsId);
+  }
+
+  public void setCredentialsId(String credentialsId) {
+    this.credentialsId = Util.trimToEmpty(credentialsId);
+  }
+
+  public boolean hasDynamicConnection() {
+    return !getBaseUrl().isEmpty() || !getCredentialsId().isEmpty();
   }
 
   public List<String> getSuiteRunIds() {

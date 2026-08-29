@@ -21,9 +21,12 @@ Credentials API under `ACL.SYSTEM2`; plaintext exists only transiently while con
 authentication request.
 
 Private and loopback Octane hosts remain supported because on-premises corporate Octane is a valid
-deployment model. The SSRF boundary is instead enforced by requiring an administrator-owned server
-configuration, validating the final URI, prohibiting embedded credentials/query/fragment data, and
-refusing redirects. Pipeline callers select only a configured server ID and cannot supply a URL.
+deployment model. The SSRF boundary is enforced by requiring either a protected, centrally
+controlled space mapping/Jenkinsfile or an administrator-owned legacy server configuration,
+validating the final URI, prohibiting embedded credentials/query/fragment data, and refusing
+redirects. Job-specific variable files select a mapped space but cannot supply a URL. Write access
+to the central Pipeline repository is privileged because it can change the dynamically injected
+endpoint.
 
 ## Security Findings
 

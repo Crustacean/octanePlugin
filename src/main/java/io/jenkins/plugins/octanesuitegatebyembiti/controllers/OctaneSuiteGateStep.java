@@ -50,6 +50,8 @@ import org.kohsuke.stapler.QueryParameter;
 public class OctaneSuiteGateStep extends Step {
   private final String serverId;
   private final String suiteRunId;
+  private String baseUrl = "";
+  private String credentialsId = "";
   private String sharedSpaceId = "";
   private String workspaceId = "";
   private String criteria = GateRequest.DEFAULT_CRITERIA;
@@ -81,6 +83,24 @@ public class OctaneSuiteGateStep extends Step {
 
   public String getSuiteRunId() {
     return suiteRunId;
+  }
+
+  public String getBaseUrl() {
+    return baseUrl;
+  }
+
+  @DataBoundSetter
+  public void setBaseUrl(String baseUrl) {
+    this.baseUrl = Util.trimToEmpty(baseUrl);
+  }
+
+  public String getCredentialsId() {
+    return credentialsId;
+  }
+
+  @DataBoundSetter
+  public void setCredentialsId(String credentialsId) {
+    this.credentialsId = Util.trimToEmpty(credentialsId);
   }
 
   public String getSharedSpaceId() {
@@ -256,6 +276,8 @@ public class OctaneSuiteGateStep extends Step {
 
   GateRequest toRequest() {
     GateRequest request = new GateRequest(serverId, suiteRunId);
+    request.setBaseUrl(baseUrl);
+    request.setCredentialsId(credentialsId);
     request.setSharedSpaceId(sharedSpaceId);
     request.setWorkspaceId(workspaceId);
     request.setCriteria(criteria);

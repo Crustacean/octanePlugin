@@ -29,6 +29,19 @@ public class OctaneSuiteGateStepTest {
   }
 
   @Test
+  public void bindsDynamicConnectionIntoGateRequest() {
+    OctaneSuiteGateStep step = new OctaneSuiteGateStep("default_shared_space", "1196");
+    step.setBaseUrl(" https://octane.example.test ");
+    step.setCredentialsId(" default_shared_space ");
+
+    GateRequest request = step.toRequest();
+
+    assertEquals("https://octane.example.test", request.getBaseUrl());
+    assertEquals("default_shared_space", request.getCredentialsId());
+    assertTrue(request.hasDynamicConnection());
+  }
+
+  @Test
   public void freestyleBuilderDelegatesDefectGroups() {
     OctaneDefectGroup minor = new OctaneDefectGroup("minor");
     minor.setTypes("Low, Medium");
