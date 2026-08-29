@@ -198,10 +198,10 @@ octaneEmailReport(
   domainName: 'FS_TRIBE_DOMAIN',
   from: 'jenkins-notifications@example.com',
   replyTo: 'qa-team@example.com',
-  subject: "Octane Gate Report - ${env.JOB_NAME} Job #${env.BUILD_NUMBER} Time {{TOTAL_TIME}}",
+  subject: "Octane Gate Report - ${env.JOB_NAME} Job #${env.BUILD_NUMBER} Time {{DURATION}}",
   body: '''Hello Team,
 
-The automated job for {{PROJECT_NAME}} tests has run for {{TOTAL_TIME}} and is {{GATE_RESULT}}.
+The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
 
 Set criteria: {{CRITERIA}}
 

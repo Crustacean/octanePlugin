@@ -155,7 +155,7 @@ public class OctaneEmailBodyRendererTest {
         """
         Hello Team,
 
-        The automated job for {{PROJECT_NAME}} tests has run for {{TOTAL_TIME}} and is {{GATE_RESULT}}.
+        The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
 
         Set criteria: {{CRITERIA}}
 
@@ -182,7 +182,7 @@ public class OctaneEmailBodyRendererTest {
 
     assertTrue(html.contains("Business Payments Secure Checkout"));
     assertTrue(html.contains("tests has run for 0 seconds and is"));
-    assertFalse(html.contains("{{TOTAL_TIME}}"));
+    assertFalse(html.contains("{{DURATION}}"));
     assertTrue(html.contains("FS_TRIBE_DOMAIN"));
     assertTrue(html.contains("color:#009900;font-weight:700;\">SUCCESS"));
     assertFalse(html.contains("Set criteria:"));

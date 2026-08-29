@@ -343,7 +343,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
           + run.getParent().getFullName()
           + " Job #"
           + run.getNumber()
-          + " Time {{TOTAL_TIME}}";
+          + " Time {{DURATION}}";
     }
 
     private String effectiveProjectName(Run<?, ?> run, String configuredProjectName) {
@@ -430,7 +430,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       String value, String remainingTime, String totalTime, Instant renderedAt) {
     return Util.trimToEmpty(value)
         .replace("{{REMAINING_TIME}}", Util.trimToEmpty(remainingTime))
-        .replace("{{TOTAL_TIME}}", Util.trimToEmpty(totalTime))
+        .replace("{{DURATION}}", Util.trimToEmpty(totalTime))
         .replace("{{EAT_DATE}}", formatEastAfricaDate(renderedAt));
   }
 

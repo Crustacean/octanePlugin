@@ -57,8 +57,8 @@ class Jenkinsfile3YamlConfigurationTest {
         jenkinsfile.contains("(automated) QE OCTANE GATE REPORT Job #${env.BUILD_NUMBER} \""));
     assertTrue(
         jenkinsfile.contains(
-            "+ \"Time {{TOTAL_TIME}} | {{EAT_DATE}} | ${env.OCTANE_PROJECT_NAME}\""));
-    assertTrue(jenkinsfile.contains("tests has run for {{TOTAL_TIME}} and is {{GATE_RESULT}}."));
+            "+ \"Time {{DURATION}} | {{EAT_DATE}} | ${env.OCTANE_PROJECT_NAME}\""));
+    assertTrue(jenkinsfile.contains("tests has run for {{DURATION}} and is {{GATE_RESULT}}."));
     assertFalse(jenkinsfile.contains("return yamlConfiguration[key]"));
     assertFalse(jenkinsfile.contains("return jobParameters[key]"));
     assertFalse(jenkinsfile.contains("return environment[key]"));

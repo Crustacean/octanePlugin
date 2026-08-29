@@ -63,7 +63,7 @@ public class OctaneEmailBodyRenderer {
       """
       Hello Team,
 
-      The automated job for {{PROJECT_NAME}} tests has run for {{TOTAL_TIME}} and is {{GATE_RESULT}}.
+      The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
 
       {{CRITERIA}}
 
@@ -211,7 +211,7 @@ public class OctaneEmailBodyRenderer {
         rendered.replace("{{DOMAIN_NAME}}", escape(defaultText(domainName, "Not specified")));
     rendered =
         rendered.replace(
-            "{{TOTAL_TIME}}",
+            "{{DURATION}}",
             escape(snapshot == null ? "time unavailable" : snapshot.getTestingTimeSpentText()));
     rendered =
         rendered.replace(

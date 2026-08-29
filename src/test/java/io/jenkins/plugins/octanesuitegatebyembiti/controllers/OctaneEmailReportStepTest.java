@@ -56,11 +56,11 @@ public class OctaneEmailReportStepTest {
   }
 
   @Test
-  public void rendersTotalTimeInFinalEmailSubjectTokens() {
+  public void rendersDurationInFinalEmailSubjectTokens() {
     assertEquals(
         "Job #42 Time 2 minutes | 01.07.2026",
         OctaneEmailReportStep.replaceRuntimeTokens(
-            "Job #42 Time {{TOTAL_TIME}} | {{EAT_DATE}}",
+            "Job #42 Time {{DURATION}} | {{EAT_DATE}}",
             "",
             "2 minutes",
             Instant.parse("2026-06-30T21:30:00Z")));
