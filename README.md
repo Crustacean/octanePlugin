@@ -15,9 +15,11 @@ flow, Octane API calls, metrics model, and criteria evaluation behavior.
 
 ```groovy
 octaneSuiteGate(
-  serverId: 'octane-prod',
-  sharedSpaceId: '1001',
-  workspaceId: '2002',
+  serverId: env.OCTANE_SERVER_ID,
+  baseUrl: env.OCTANE_BASE_URL,
+  credentialsId: env.OCTANE_API_CREDENTIAL_ID,
+  sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
+  workspaceId: env.OCTANE_WORKSPACE_ID,
   suiteRunId: '1196,1200,1204',
   defectGroups: [
     octaneDefectGroup(
@@ -274,9 +276,9 @@ query fragments applied to the regression suite runs' child runs:
 octaneGateScope(name: 'legacyArea', query: 'test={((product_areas={id=1004}))}')
 ```
 
-Configure Octane servers from **Manage Jenkins > System**. Store Octane API keys as
-Jenkins username/password credentials, with the username as `client_id` and the password as
-`client_secret`.
+Store Octane API keys as Jenkins username/password credentials, with the username as `client_id`
+and the password as `client_secret`. Resolve the endpoint, credential ID, shared-space ID, and
+workspace ID from the centrally controlled mapping before calling `octaneSuiteGate`.
 
 ### External Jenkinsfile3 configuration
 
@@ -309,9 +311,14 @@ consumed by the report analytics.
 ## Configuration
 
 `examples/Jenkinsfile3` resolves the ALM Octane connection from the centrally controlled mapping and
-passes it directly to the gate. This removes the Jenkins System server-entry requirement for that
-Pipeline. Older Pipeline and Freestyle configurations remain supported through Jenkins global
-configuration when no dynamic base URL is supplied.
+passes it directly to the gate. Pipeline calls must provide the resolved `baseUrl` and
+`credentialsId`; there is no Jenkins global server fallback. Freestyle jobs resolve the same values
+from their workspace mapping file in the `ALM Octane Suite Gate` build step.
+
+Upgrade existing jobs before installing this version: jobs that only provide a historical
+`serverId` will now stop with a missing mapped base URL instead of consulting a Jenkins System server
+entry. Pipeline jobs must load and pass the dynamic fields, while Freestyle jobs must configure the
+mapping file and space/workspace selectors in their build step.
 
 ### 1. Create Octane API credentials in Jenkins
 
@@ -331,32 +338,23 @@ must not contain API secrets. Internal HTTP endpoints remain supported for VPN-h
 deployments. When the effective mapped URL starts with `http://`, the Pipeline continues and prints
 `Applied URL is insecure. Move to HTTPS for better security.`; HTTPS is recommended for production.
 
-The following Jenkins System configuration remains available for legacy jobs:
-
-1. Go to **Manage Jenkins > System**.
-2. Find **Octane Suite Gate by Embiti**.
-3. Add a server entry with:
-   - **Server ID**: a logical name used from pipelines, for example `octane-prod`
-   - **Base URL**: the Octane server root, for example `https://octane.example.com`
-   - **API key credentials**: the Jenkins credential created in the previous step
-4. Click **Test Base URL** to verify Jenkins can reach the URL. The result shows
-   **OK** for HTTP 2xx/3xx responses and **Not OK** for HTTP 4xx/5xx responses
-   or connection errors.
-
 The base URL should be the host root used by Octane authentication and API requests, such as:
 
 - `https://your-octane-host/authentication/sign_in`
 - `https://your-octane-host/api/...`
 
-### 3. Reference the connection from a Jenkinsfile
+### 3. Pass the resolved connection from a Jenkinsfile
 
-Once the server is configured, the pipeline supplies the Octane workspace and suite run ID:
+After loading the selected mapping record, the Pipeline supplies its resolved connection and suite
+run selector:
 
 ```groovy
 octaneSuiteGate(
-  serverId: 'octane-prod',
-  sharedSpaceId: '1001',
-  workspaceId: '2002',
+  serverId: env.OCTANE_SERVER_ID,
+  baseUrl: env.OCTANE_BASE_URL,
+  credentialsId: env.OCTANE_API_CREDENTIAL_ID,
+  sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
+  workspaceId: env.OCTANE_WORKSPACE_ID,
   suiteRunId: params.OCTANE_REGRESSION_SUITE_RUN_ID,
   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   timeoutMinutesExtended: 0
@@ -371,8 +369,12 @@ It may also be omitted when a nonempty `critical` suite-run scope is configured.
 regression criteria and report sections are skipped while critical and defect criteria continue to
 be evaluated. If a suite run appears in both `suiteRunId` and the `critical` scope, the critical
 scope owns it and it is removed from the regression bucket.
-`sharedSpaceId` and `workspaceId` are required because suite runs are workspace-scoped
-in ALM Octane.
+`baseUrl`, `credentialsId`, `sharedSpaceId`, and `workspaceId` are required because the runtime does
+not consult Jenkins global server configuration. Suite runs remain workspace-scoped in ALM Octane.
+
+For Freestyle jobs, add **ALM Octane Suite Gate** and configure the workspace-relative mapping file,
+shared-space name or ID, and workspace name or ID. The build step resolves the same connection fields
+before polling; it does not accept or fall back to a global server entry.
 
 ## Sample Jenkinsfiles
 

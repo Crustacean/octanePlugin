@@ -9,13 +9,11 @@ import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import hudson.AbortException;
-import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Before;
@@ -35,7 +33,6 @@ public class OctaneDynamicConnectionTest {
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
     server.start();
     baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
-    OctaneSuiteGateConfiguration.get().setServers(List.of());
   }
 
   @After
@@ -46,7 +43,7 @@ public class OctaneDynamicConnectionTest {
   }
 
   @Test
-  public void dynamicConnectionBypassesEmptySystemConfigurationAndAuthenticates() throws Exception {
+  public void dynamicConnectionAuthenticatesWithoutGlobalServerConfiguration() throws Exception {
     addCredentials("default_shared_space", "mapped-client", "mapped-secret");
     AtomicReference<String> authenticationBody = new AtomicReference<>();
     AtomicReference<String> contentType = new AtomicReference<>();
@@ -72,8 +69,9 @@ public class OctaneDynamicConnectionTest {
   }
 
   @Test
-  public void dynamicConnectionFallsBackToGlobalApiCredential() throws Exception {
-    addCredentials("octane-api-client", "global-client", "global-secret");
+  public void dynamicConnectionUsesSharedApiCredentialWhenMappedCredentialIsMissing()
+      throws Exception {
+    addCredentials("octane-api-client", "shared-client", "shared-secret");
     AtomicReference<String> authenticationBody = new AtomicReference<>();
     server.createContext(
         "/authentication/sign_in",
@@ -90,12 +88,12 @@ public class OctaneDynamicConnectionTest {
       client.authenticate();
     }
 
-    assertTrue(authenticationBody.get().contains("\"client_id\":\"global-client\""));
+    assertTrue(authenticationBody.get().contains("\"client_id\":\"shared-client\""));
   }
 
   @Test
-  public void dynamicConnectionPrefersGlobalApiCredentialWhenBothArePresent() throws Exception {
-    addCredentials("octane-api-client", "global-client", "global-secret");
+  public void dynamicConnectionPrefersSharedApiCredentialWhenBothArePresent() throws Exception {
+    addCredentials("octane-api-client", "shared-client", "shared-secret");
     addCredentials("default_shared_space", "space-client", "space-secret");
     AtomicReference<String> authenticationBody = new AtomicReference<>();
     server.createContext(
@@ -113,7 +111,7 @@ public class OctaneDynamicConnectionTest {
       client.authenticate();
     }
 
-    assertTrue(authenticationBody.get().contains("\"client_id\":\"global-client\""));
+    assertTrue(authenticationBody.get().contains("\"client_id\":\"shared-client\""));
   }
 
   @Test

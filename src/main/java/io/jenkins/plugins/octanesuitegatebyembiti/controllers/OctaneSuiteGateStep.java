@@ -8,9 +8,8 @@ import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
-import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
+import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
@@ -682,14 +681,25 @@ public class OctaneSuiteGateStep extends Step {
       return Set.of(EnvVars.class, Run.class, TaskListener.class);
     }
 
-    public ListBoxModel doFillServerIdItems() {
-      OctaneSuiteGateConfiguration configuration = OctaneSuiteGateConfiguration.get();
-      return configuration == null ? new ListBoxModel() : configuration.doFillServerIdItems();
-    }
-
     public FormValidation doCheckServerId(@QueryParameter String value) {
       if (Util.isBlank(value)) {
         return FormValidation.error("Server ID is required.");
+      }
+      return FormValidation.ok();
+    }
+
+    public FormValidation doCheckBaseUrl(@QueryParameter String value) {
+      try {
+        OctaneServerUrl.normalize(value);
+        return FormValidation.ok();
+      } catch (IllegalArgumentException e) {
+        return FormValidation.error(e.getMessage());
+      }
+    }
+
+    public FormValidation doCheckCredentialsId(@QueryParameter String value) {
+      if (Util.isBlank(value)) {
+        return FormValidation.error("API credential ID is required.");
       }
       return FormValidation.ok();
     }

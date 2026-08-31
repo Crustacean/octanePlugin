@@ -29,6 +29,23 @@ class Jenkinsfile3YamlConfigurationTest {
   private static final Pattern YAML_KEY = Pattern.compile("(?m)^([A-Z][A-Z0-9_]*):");
 
   @Test
+  void everyExampleJenkinsfileUsesOnlyDynamicOctaneConnections() throws IOException {
+    for (Path path :
+        List.of(
+            Path.of("examples/Jenkinsfile"),
+            Path.of("examples/Jenkinsfile2"),
+            Path.of("examples/Jenkinsfile3"))) {
+      String jenkinsfile = Files.readString(path, StandardCharsets.UTF_8);
+
+      assertTrue(jenkinsfile.contains("baseUrl: env.OCTANE_BASE_URL"), path::toString);
+      assertTrue(
+          jenkinsfile.contains("credentialsId: env.OCTANE_API_CREDENTIAL_ID"), path::toString);
+      assertTrue(jenkinsfile.contains("OctaneConnection("), path::toString);
+      assertFalse(jenkinsfile.contains("serverId: 'octane-prod'"), path::toString);
+    }
+  }
+
+  @Test
   void yamlTemplateAndPipelineLoaderStaySynchronized() throws IOException {
     String jenkinsfile = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
     String yaml = Files.readString(YAML_TEMPLATE, StandardCharsets.UTF_8);

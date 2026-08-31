@@ -1,16 +1,16 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-  <f:entry title="Octane server" field="serverId">
-    <f:select />
+  <f:entry title="Octane spaces mapping file" field="spacesMappingFile">
+    <f:textbox placeholder="octane_spaces_mapping.json" />
+  </f:entry>
+  <f:entry title="Shared space name or ID" field="sharedSpaceName">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Workspace name or ID" field="workspaceName">
+    <f:textbox />
   </f:entry>
   <f:entry title="Regression suite run ID(s), Release, or Release and Sprint (optional)" field="suiteRunId">
     <f:textbox placeholder="1196,1200" />
-  </f:entry>
-  <f:entry title="Shared space ID" field="sharedSpaceId">
-    <f:textbox />
-  </f:entry>
-  <f:entry title="Workspace ID" field="workspaceId">
-    <f:textbox />
   </f:entry>
   <f:entry title="Criteria" field="criteria">
     <f:textarea />

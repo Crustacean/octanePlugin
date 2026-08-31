@@ -11,10 +11,9 @@ tests, PMD, SpotBugs, the official OSV scanner 2.3.8, and repository CI security
 
 Trust boundaries:
 
-1. Jenkins administrators control the Octane space mapping or global server entry and Jenkins
-   Credentials.
-2. Job authors select the administrator-owned server and supply suite, release, sprint, query, and
-   criteria values.
+1. Jenkins administrators control the Octane space mapping and Jenkins Credentials.
+2. Job authors select a mapped shared space and workspace, then supply suite, release, sprint,
+   query, and criteria values.
 3. Octane JSON is untrusted remote input and must remain bounded and escaped.
 4. Report endpoints are build-scoped and subject to Jenkins item permissions and crumb rules.
 
@@ -36,13 +35,13 @@ Trust boundaries:
 - Pipeline-facing objects are data-bound configuration only. No Groovy evaluation, Script Security
   approval bypass, shell interpolation, arbitrary class loading, or security-manager override was
   found.
-- Global configuration writes require `Jenkins.ADMINISTER`. Build report reads and state changes use
-  Jenkins item permissions, POST handlers, and crumb protection.
-- The centrally controlled Octane mapping and Jenkinsfile, plus the legacy configured server list,
-  are the egress trust boundaries. Job-specific variables select a mapped shared space and do not
-  contain a URL. Anyone allowed to alter the central Jenkinsfile could alter the injected endpoint,
-  so that repository requires protected branches and restricted write access. Per-request origin and
-  base-path checks and disabled redirects constrain requests after the trusted endpoint is selected.
+- Build report reads and state changes use Jenkins item permissions, POST handlers, and crumb
+  protection.
+- The centrally controlled Octane mapping and Jenkinsfile are the egress trust boundaries.
+  Job-specific variables select a mapped shared space and do not contain a URL. Freestyle jobs read
+  the mapping from their workspace, so configure SCM permissions to restrict who can modify that
+  file. Anyone allowed to alter either trusted source could alter the injected endpoint. Per-request
+  origin and base-path checks and disabled redirects constrain requests after selection.
 
 ## Automated Security Evidence
 

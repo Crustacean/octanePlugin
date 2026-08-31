@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
+import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
@@ -11,15 +12,14 @@ import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
-import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.GateFailedException;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneGateRunner;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneSpaceMappingResolver;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,18 +33,46 @@ import org.kohsuke.stapler.QueryParameter;
 
 public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
   private final OctaneSuiteGateStep delegate;
+  private String spacesMappingFile = OctaneSpaceMappingResolver.DEFAULT_MAPPING_FILE;
+  private String sharedSpaceName = "";
+  private String workspaceName = "";
 
   @DataBoundConstructor
-  public OctaneSuiteGateBuilder(String serverId, String suiteRunId) {
-    delegate = new OctaneSuiteGateStep(serverId, suiteRunId);
-  }
-
-  public String getServerId() {
-    return delegate.getServerId();
+  public OctaneSuiteGateBuilder(String suiteRunId) {
+    delegate = new OctaneSuiteGateStep("", suiteRunId);
   }
 
   public String getSuiteRunId() {
     return delegate.getSuiteRunId();
+  }
+
+  public String getSpacesMappingFile() {
+    return spacesMappingFile;
+  }
+
+  @DataBoundSetter
+  public void setSpacesMappingFile(String spacesMappingFile) {
+    String value = Util.trimToEmpty(spacesMappingFile);
+    this.spacesMappingFile =
+        value.isEmpty() ? OctaneSpaceMappingResolver.DEFAULT_MAPPING_FILE : value;
+  }
+
+  public String getSharedSpaceName() {
+    return sharedSpaceName;
+  }
+
+  @DataBoundSetter
+  public void setSharedSpaceName(String sharedSpaceName) {
+    this.sharedSpaceName = Util.trimToEmpty(sharedSpaceName);
+  }
+
+  public String getWorkspaceName() {
+    return workspaceName;
+  }
+
+  @DataBoundSetter
+  public void setWorkspaceName(String workspaceName) {
+    this.workspaceName = Util.trimToEmpty(workspaceName);
   }
 
   public String getSharedSpaceId() {
@@ -217,9 +245,7 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
       Launcher launcher,
       TaskListener listener)
       throws InterruptedException, IOException {
-    GateRequest request = delegate.toRequest();
-    request.setAutomatedTestingTarget(OctaneSuiteGateStep.automatedTestingTarget(environment));
-    request.setDefinedScope(OctaneSuiteGateStep.definedScope(environment));
+    GateRequest request = createRequest(workspace, environment, listener);
     OctaneGateReportAction reportAction = OctaneGateReportAction.attachTo(run, request);
     new OctaneGateLogListener().logReportLink(listener, reportAction.getReportUrl());
     try {
@@ -240,6 +266,43 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
     }
   }
 
+  GateRequest createRequest(FilePath workspace, EnvVars environment, TaskListener listener)
+      throws IOException, InterruptedException {
+    GateRequest request = delegate.toRequest();
+    OctaneSpaceMappingResolver.ResolvedConnection connection =
+        new OctaneSpaceMappingResolver()
+            .resolve(workspace, spacesMappingFile, sharedSpaceName, workspaceName);
+    request.setServerId(connection.serverId());
+    request.setBaseUrl(connection.baseUrl());
+    request.setCredentialsId(connection.credentialsId());
+    request.setSharedSpaceId(connection.sharedSpaceId());
+    request.setWorkspaceId(connection.workspaceId());
+    request.setAutomatedTestingTarget(OctaneSuiteGateStep.automatedTestingTarget(environment));
+    request.setDefinedScope(OctaneSuiteGateStep.definedScope(environment));
+    if (connection.insecureTransport()) {
+      listener.getLogger().println("Applied URL is insecure. Move to HTTPS for better security.");
+    }
+    listener
+        .getLogger()
+        .println(
+            "Resolved shared space '"
+                + Util.forLog(sharedSpaceName)
+                + "' to '"
+                + Util.forLog(connection.sharedSpaceName())
+                + "' ("
+                + connection.sharedSpaceId()
+                + ") and workspace '"
+                + Util.forLog(workspaceName)
+                + "' to '"
+                + Util.forLog(connection.workspaceName())
+                + "' ("
+                + connection.workspaceId()
+                + ") from "
+                + Util.forLog(spacesMappingFile)
+                + ".");
+    return request;
+  }
+
   @Extension
   @Symbol("octaneSuiteGateBuilder")
   public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
@@ -254,13 +317,21 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
       return "ALM Octane Suite Gate";
     }
 
-    public ListBoxModel doFillServerIdItems() {
-      OctaneSuiteGateConfiguration configuration = OctaneSuiteGateConfiguration.get();
-      return configuration == null ? new ListBoxModel() : configuration.doFillServerIdItems();
+    public FormValidation doCheckSpacesMappingFile(@QueryParameter String value) {
+      try {
+        OctaneSpaceMappingResolver.normalizeMappingFile(value);
+        return FormValidation.ok();
+      } catch (AbortException e) {
+        return FormValidation.error(e.getMessage());
+      }
     }
 
-    public FormValidation doCheckServerId(@QueryParameter String value) {
-      return new OctaneSuiteGateStep.DescriptorImpl().doCheckServerId(value);
+    public FormValidation doCheckSharedSpaceName(@QueryParameter String value) {
+      return checkRequiredMappingSelector("Shared space", value);
+    }
+
+    public FormValidation doCheckWorkspaceName(@QueryParameter String value) {
+      return checkRequiredMappingSelector("Workspace", value);
     }
 
     public FormValidation doCheckSuiteRunId(@QueryParameter String value) {
@@ -301,6 +372,12 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
 
     public FormValidation doCheckRiskHeatMapMaxDefects(@QueryParameter String value) {
       return new OctaneSuiteGateStep.DescriptorImpl().doCheckRiskHeatMapMaxDefects(value);
+    }
+
+    private FormValidation checkRequiredMappingSelector(String label, String value) {
+      return Util.isBlank(value)
+          ? FormValidation.error(label + " name or ID is required.")
+          : FormValidation.ok();
     }
   }
 }

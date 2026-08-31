@@ -5,13 +5,20 @@ import static org.junit.Assert.assertTrue;
 
 import hudson.AbortException;
 import hudson.EnvVars;
+import hudson.FilePath;
+import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneDefectGroup;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class OctaneSuiteGateStepTest {
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
   @Test
   public void bindsDefectGroupsIntoGateRequest() {
     OctaneDefectGroup major = new OctaneDefectGroup("major");
@@ -38,18 +45,62 @@ public class OctaneSuiteGateStepTest {
 
     assertEquals("https://octane.example.test", request.getBaseUrl());
     assertEquals("default_shared_space", request.getCredentialsId());
-    assertTrue(request.hasDynamicConnection());
   }
 
   @Test
   public void freestyleBuilderDelegatesDefectGroups() {
     OctaneDefectGroup minor = new OctaneDefectGroup("minor");
     minor.setTypes("Low, Medium");
-    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("octane-prod", "1196");
+    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("1196");
     builder.setDefectGroups(List.of(minor));
 
     assertEquals(1, builder.getDefectGroups().size());
     assertEquals("minor", builder.getDefectGroups().get(0).getName());
+  }
+
+  @Test
+  public void freestyleBuilderBindsDynamicMappingSelectors() {
+    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("1196");
+    builder.setSpacesMappingFile("config/octane_spaces_mapping.json");
+    builder.setSharedSpaceName("Default Shared Space");
+    builder.setWorkspaceName("Payments");
+
+    assertEquals("config/octane_spaces_mapping.json", builder.getSpacesMappingFile());
+    assertEquals("Default Shared Space", builder.getSharedSpaceName());
+    assertEquals("Payments", builder.getWorkspaceName());
+  }
+
+  @Test
+  public void freestyleBuilderResolvesDynamicConnectionBeforeCreatingRequest() throws Exception {
+    FilePath workspace = new FilePath(temporaryFolder.getRoot());
+    workspace
+        .child("octane_spaces_mapping.json")
+        .write(
+            """
+            {
+              "shared_url": "http://octane.example.test",
+              "shared_spaces": [{
+                "sharedSpaceId": "1001",
+                "sharedSpaceName": "Default Space",
+                "workspaces": [{
+                  "workspaceId": "2002",
+                  "workspaceName": "Payments"
+                }]
+              }]
+            }
+            """,
+            StandardCharsets.UTF_8.name());
+    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("1196");
+    builder.setSharedSpaceName("Default Space");
+    builder.setWorkspaceName("Payments");
+
+    GateRequest request = builder.createRequest(workspace, new EnvVars(), TaskListener.NULL);
+
+    assertEquals("default_space", request.getServerId());
+    assertEquals("http://octane.example.test", request.getBaseUrl());
+    assertEquals("default_space", request.getCredentialsId());
+    assertEquals("1001", request.getSharedSpaceId());
+    assertEquals("2002", request.getWorkspaceId());
   }
 
   @Test
@@ -66,7 +117,7 @@ public class OctaneSuiteGateStepTest {
 
   @Test
   public void freestyleBuilderDelegatesTesterDetailThresholds() {
-    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("octane-prod", "1196");
+    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("1196");
     builder.setBasePassrateFigure(84);
     builder.setBaseExecutionFigure(93);
 

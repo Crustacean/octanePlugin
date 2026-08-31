@@ -30,7 +30,7 @@ public class GateRequest implements Serializable {
   public static final int MAX_RISK_HEAT_MAP_DEFECTS = 10_000;
   public static final int MAX_SUITE_RUN_IDS = 1_000;
 
-  private final String serverId;
+  private String serverId;
   private final String suiteRunId;
   private String baseUrl = "";
   private String credentialsId = "";
@@ -66,6 +66,10 @@ public class GateRequest implements Serializable {
     return serverId;
   }
 
+  public void setServerId(String serverId) {
+    this.serverId = Util.trimToEmpty(serverId);
+  }
+
   public String getSuiteRunId() {
     return suiteRunId;
   }
@@ -84,10 +88,6 @@ public class GateRequest implements Serializable {
 
   public void setCredentialsId(String credentialsId) {
     this.credentialsId = Util.trimToEmpty(credentialsId);
-  }
-
-  public boolean hasDynamicConnection() {
-    return !getBaseUrl().isEmpty() || !getCredentialsId().isEmpty();
   }
 
   public List<String> getSuiteRunIds() {

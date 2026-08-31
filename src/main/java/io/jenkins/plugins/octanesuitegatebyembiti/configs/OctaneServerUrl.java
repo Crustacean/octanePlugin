@@ -4,7 +4,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/** Validates the administrator-owned ALM Octane network boundary. */
+/** Validates the mapped ALM Octane network boundary. */
 public final class OctaneServerUrl {
   private OctaneServerUrl() {}
 
@@ -53,12 +53,11 @@ public final class OctaneServerUrl {
   public static URI requireAllowedRequest(String configuredBaseUrl, URI requestUri) {
     URI baseUri = URI.create(normalize(configuredBaseUrl));
     if (!hasConfiguredOrigin(baseUri, requestUri)) {
-      throw new IllegalArgumentException(
-          "ALM Octane request must use the administrator-configured server origin.");
+      throw new IllegalArgumentException("ALM Octane request must use the mapped server origin.");
     }
     if (!hasConfiguredBasePath(baseUri, requestUri)) {
       throw new IllegalArgumentException(
-          "ALM Octane request must stay under the administrator-configured base path.");
+          "ALM Octane request must stay under the mapped base path.");
     }
     if (hasForbiddenRequestComponents(requestUri)) {
       throw new IllegalArgumentException("ALM Octane request URI contains forbidden components.");

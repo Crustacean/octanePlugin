@@ -6,9 +6,7 @@ import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredenti
 import hudson.AbortException;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
-import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServer;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
-import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneSuiteGateConfiguration;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
@@ -1339,15 +1337,6 @@ public class OctaneGateRunner {
     }
   }
 
-  private OctaneServer resolveServer(String serverId) throws AbortException {
-    OctaneSuiteGateConfiguration configuration = OctaneSuiteGateConfiguration.get();
-    OctaneServer server = configuration == null ? null : configuration.getServer(serverId);
-    if (server == null) {
-      throw new AbortException("No ALM Octane server is configured with ID: " + serverId);
-    }
-    return server;
-  }
-
   OctaneClient createClient(GateRequest request) throws AbortException {
     ResolvedConnection connection = resolveConnection(request);
     StandardUsernamePasswordCredentials credentials = connection.credentials();
@@ -1356,30 +1345,24 @@ public class OctaneGateRunner {
   }
 
   private ResolvedConnection resolveConnection(GateRequest request) throws AbortException {
-    if (request.hasDynamicConnection()) {
-      String spaceName = Util.trimToEmpty(request.getServerId());
-      String baseUrl = Util.trimToEmpty(request.getBaseUrl());
-      if (baseUrl.isEmpty()) {
-        throw new AbortException(
-            "Base URL missing for space: "
-                + (spaceName.isEmpty() ? "<unknown>" : spaceName)
-                + " in octane_spaces_mapping.json");
-      }
-      try {
-        baseUrl = OctaneServerUrl.normalize(baseUrl);
-      } catch (IllegalArgumentException e) {
-        throw new AbortException(
-            "Base URL for space '"
-                + (spaceName.isEmpty() ? "<unknown>" : spaceName)
-                + "' is invalid: "
-                + e.getMessage());
-      }
-      return new ResolvedConnection(baseUrl, resolveDynamicCredentials(request.getCredentialsId()));
+    String spaceName = Util.trimToEmpty(request.getServerId());
+    String baseUrl = Util.trimToEmpty(request.getBaseUrl());
+    if (baseUrl.isEmpty()) {
+      throw new AbortException(
+          "Base URL missing for space: "
+              + (spaceName.isEmpty() ? "<unknown>" : spaceName)
+              + " in octane_spaces_mapping.json");
     }
-
-    OctaneServer server = resolveServer(request.getServerId());
-    return new ResolvedConnection(
-        server.getBaseUrl(), resolveCredentials(server.getCredentialsId()));
+    try {
+      baseUrl = OctaneServerUrl.normalize(baseUrl);
+    } catch (IllegalArgumentException e) {
+      throw new AbortException(
+          "Base URL for space '"
+              + (spaceName.isEmpty() ? "<unknown>" : spaceName)
+              + "' is invalid: "
+              + e.getMessage());
+    }
+    return new ResolvedConnection(baseUrl, resolveDynamicCredentials(request.getCredentialsId()));
   }
 
   private StandardUsernamePasswordCredentials resolveDynamicCredentials(String credentialsId)
@@ -1399,19 +1382,6 @@ public class OctaneGateRunner {
     throw new AbortException(
         "ALM Octane API key credentials were not found. Tried Jenkins credential IDs: "
             + String.join(", ", candidates));
-  }
-
-  private StandardUsernamePasswordCredentials resolveCredentials(String credentialsId)
-      throws AbortException {
-    if (Util.isBlank(credentialsId)) {
-      throw new AbortException("ALM Octane credentials are required.");
-    }
-
-    StandardUsernamePasswordCredentials credentials = findCredentials(credentialsId);
-    if (credentials == null) {
-      throw new AbortException("ALM Octane credentials were not found: " + credentialsId);
-    }
-    return credentials;
   }
 
   private StandardUsernamePasswordCredentials findCredentials(String credentialsId) {

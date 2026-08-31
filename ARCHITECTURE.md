@@ -47,7 +47,7 @@ the build according to the configured gate behavior.
 flowchart LR
   subgraph Jenkins["Jenkins controller / agent"]
     Install["Installed HPI plugin"]
-    Config["Central space mapping or\nManage Jenkins > System"]
+    Config["Centrally controlled\nspace mapping"]
     Credentials["Jenkins credentials\nclient_id / client_secret"]
     Job["Pipeline or Freestyle job"]
     GateStep["octaneSuiteGate / ALM Octane Suite Gate"]
@@ -138,8 +138,6 @@ target/octane-suite-gate-by-embiti.hpi
 After installation, Jenkins discovers the plugin extensions through Jenkins
 annotations:
 
-- `configs.OctaneSuiteGateConfiguration`: global Jenkins configuration section.
-- `configs.OctaneServer`: repeatable Octane server configuration entries.
 - `controllers.OctaneSuiteGateStep`: Pipeline step named `octaneSuiteGate`.
 - `controllers.OctaneEmailReportStep`: Pipeline step named `octaneEmailReport`.
 - `controllers.OctaneCronProgressEmailStep`: block-scoped Pipeline step named
@@ -151,7 +149,7 @@ annotations:
 The Java sources are organized under the base package into focused folders:
 
 - `actions`: per-build Jenkins report actions and chart pages.
-- `configs`: global Jenkins configuration and Octane server definitions.
+- `configs`: Octane endpoint URL validation.
 - `controllers`: Pipeline and Freestyle entry points.
 - `entities`: ALM Octane API record shapes.
 - `listeners`: Jenkins build-log output helpers.
@@ -176,44 +174,22 @@ the selected shared-space credential. This lets one controller use a common API 
 supporting per-space credentials. If neither credential exists, the gate fails before polling with
 an actionable list of the attempted IDs.
 
-Legacy Pipeline and Freestyle jobs that do not pass a dynamic `baseUrl` continue to resolve servers
-from:
-
-```text
-Manage Jenkins > System > Octane Suite Gate by Embiti
-```
-
-Each server entry contains:
-
-- `serverId`: logical name used by jobs, such as `octane-prod`.
-- `baseUrl`: Octane host root, such as `https://octane.example.com`.
-- `credentialsId`: Jenkins username/password credential ID.
-
 The Jenkins credential maps to Octane API key authentication:
 
 - Jenkins username: Octane `client_id`.
 - Jenkins password: Octane `client_secret`.
 
-The server form exposes one validation action:
-
-- **Test Base URL**: performs a basic HTTP reachability check against `baseUrl`.
-
-The shared space and workspace are supplied by each Pipeline/Freestyle job because suite runs are
-workspace-scoped in ALM Octane. Dynamic Pipelines receive their canonical numeric IDs from the same
-mapping record used for the endpoint, so the mapping file is read only once per configuration load.
+Pipeline jobs pass all resolved connection fields to the step. Freestyle jobs select a
+workspace-relative mapping file, shared-space name or ID, and workspace name or ID in the build-step
+form. Both paths receive canonical numeric IDs from the mapping record used for the endpoint. No
+runtime path reads a Jenkins global Octane server list.
 
 ## Workspace Selection Flow
 
-Octane server configuration is intentionally small:
+The resolved connection is intentionally small:
 
 ```text
-serverId + baseUrl + credentialsId
-```
-
-The shared space and workspace are job inputs:
-
-```text
-sharedSpaceId + workspaceId
+serverId + baseUrl + credentialsId + sharedSpaceId + workspaceId
 ```
 
 This avoids ambiguous routing when one Jenkins controller talks to several
@@ -240,9 +216,11 @@ Pipeline jobs call:
 
 ```groovy
 octaneSuiteGate(
-  serverId: 'octane-prod',
-  sharedSpaceId: '1001',
-  workspaceId: '2002',
+  serverId: env.OCTANE_SERVER_ID,
+  baseUrl: env.OCTANE_BASE_URL,
+  credentialsId: env.OCTANE_API_CREDENTIAL_ID,
+  sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
+  workspaceId: env.OCTANE_WORKSPACE_ID,
   suiteRunId: '1196,1200',
   criteria: 'regressions.executionRate == 100 AND regressions.passRate >= 95',
   pollIntervalSeconds: 30,
@@ -267,7 +245,9 @@ ALM Octane Suite Gate
 ```
 
 The Freestyle builder delegates to the same runtime request model used by the
-Pipeline step, so both entry points share the same gate behavior.
+Pipeline step, so both entry points share the same gate behavior. Its form selects the mapping file,
+shared space, and workspace; request creation resolves and validates the dynamic connection before a
+report is attached or any Octane request is sent.
 
 ### Optional Email Step
 
@@ -336,11 +316,10 @@ occurrence immediately when it registers, then repeats the audit immediately bef
 
 1. Jenkins reaches the `octaneSuiteGate` Pipeline step or Freestyle build step.
 2. The step creates a `GateRequest`.
-3. `OctaneGateRunner` consumes the mapped `baseUrl` directly when present; legacy requests resolve
-   the configured `OctaneServer` by `serverId`.
-4. The request supplies `sharedSpaceId` and `workspaceId` from the job.
-5. Dynamic requests try `octane-api-client` and then the mapped/derived `credentialsId`; legacy
-   requests use the configured server credential.
+3. Pipeline configuration or the Freestyle mapping resolver supplies `baseUrl`, `credentialsId`,
+   `sharedSpaceId`, and `workspaceId`; missing connection fields stop the build before polling.
+4. `OctaneGateRunner` validates and consumes that dynamic connection directly.
+5. The runner tries `octane-api-client` and then the mapped/derived `credentialsId`.
 6. The runner opens a polling session, creates `OctaneClient`, and signs in to Octane.
 7. The step attaches an `Octane Gate Report` action to the current build.
 8. If the gate is wrapped by `octaneCronProgressEmail`, the wrapper registers one weakly referenced
@@ -986,8 +965,8 @@ such as `enabled`, `available`, `riskScore`, `fetchedDefectCount`,
 The plugin never logs the Octane client secret. Credentials are resolved through
 Jenkins Credentials APIs and used only to authenticate against Octane.
 
-Every `OctaneClient` request is checked against its trusted, centrally mapped or
-administrator-configured server origin and base path immediately before building the HTTP request.
+Every `OctaneClient` request is checked against its trusted, centrally mapped server origin and base
+path immediately before building the HTTP request.
 Scheme, host, and effective port must match, embedded credentials/fragments are forbidden, and HTTP
 redirects are disabled. The centrally controlled mapping and Jenkinsfile are therefore part of the
 egress trust boundary; job-specific variable files select a mapped space but cannot introduce a URL.
@@ -998,9 +977,6 @@ User-controlled log values pass through a bounded single-line formatter. Custom 
 are length-bounded and reject control characters; release/sprint selections and suite/workspace IDs
 retain typed validation. Dynamic report content remains escaped or inserted with safe DOM text APIs.
 
-Connectivity validation and credential listing require Jenkins administrator
-permission.
-
 HTTP failure messages include request URI, status code, and a bounded response
 body to help diagnose schema, workspace, and suite-run errors. Request bodies
 containing API secrets are not logged.
@@ -1010,14 +986,14 @@ containing API secrets are not logged.
 | Class | Responsibility |
 | --- | --- |
 | `actions.OctaneGateReportAction` | Per-build report metadata, authorized JSON endpoints, ETags, and legacy snapshot reader. |
-| `configs.OctaneSuiteGateConfiguration` | Jenkins global configuration root. |
-| `configs.OctaneServer` | One configured Octane server and its validation endpoints. |
+| `configs.OctaneServerUrl` | Normalizes mapped endpoints and enforces each request's origin and base path. |
 | `controllers.OctaneSuiteGateStep` | Pipeline `octaneSuiteGate` step. |
 | `controllers.OctaneEmailReportStep` | Pipeline `octaneEmailReport` screenshot email step. |
 | `controllers.OctaneCronProgressEmailStep` | Block-scoped Pipeline wrapper for cron progress emails. |
 | `controllers.OctaneSuiteGateBuilder` | Freestyle `ALM Octane Suite Gate` build step. |
 | `models.GateRequest` | Runtime request created from Pipeline/Freestyle inputs. |
 | `services.OctaneGateRunner` | One-poll state machine, metrics, criteria, extended-time handling, and build decision. |
+| `services.OctaneSpaceMappingResolver` | Resolves and validates Freestyle dynamic connection fields from a workspace mapping. |
 | `services.OctaneGateExecutors` | Virtual-thread executor for cancellable poll and HTTP work. |
 | `services.OctaneCronSchedule` | Jenkins `CronTab` validation, next occurrence, and audit description. |
 | `services.OctaneProgressEmailScheduler` | Shared bounded four-thread scheduler with throttling and cleanup. |

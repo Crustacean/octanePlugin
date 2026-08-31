@@ -1,9 +1,50 @@
+def resolveExampleOctaneConnection(Map mapping, Object sharedSpaceValue, Object workspaceValue) {
+  String sharedSpaceSelector = sharedSpaceValue?.toString()?.trim()
+  String workspaceSelector = workspaceValue?.toString()?.trim()
+  boolean sharedSpaceIsId = sharedSpaceSelector ==~ /[0-9]{1,18}/
+  boolean workspaceIsId = workspaceSelector ==~ /[0-9]{1,18}/
+  def sharedSpace =
+      mapping.shared_spaces?.find { candidate ->
+        sharedSpaceIsId
+            ? candidate.sharedSpaceId?.toString()?.trim() == sharedSpaceSelector
+            : candidate.sharedSpaceName?.toString()?.trim()?.equalsIgnoreCase(sharedSpaceSelector)
+      }
+  if (!(sharedSpace instanceof Map)) {
+    error "Shared space '${sharedSpaceSelector}' was not found in the Octane mapping."
+  }
+  def workspace =
+      sharedSpace.workspaces?.find { candidate ->
+        workspaceIsId
+            ? candidate.workspaceId?.toString()?.trim() == workspaceSelector
+            : candidate.workspaceName?.toString()?.trim()?.equalsIgnoreCase(workspaceSelector)
+      }
+  if (!(workspace instanceof Map)) {
+    error "Workspace '${workspaceSelector}' was not found in the Octane mapping."
+  }
+  String sharedSpaceName = sharedSpace.sharedSpaceName?.toString()?.trim()
+  String identifier =
+      sharedSpaceName.toLowerCase(java.util.Locale.ROOT).replaceAll(/\s+/, '_')
+  String baseUrl =
+      sharedSpace.specific_url?.toString()?.trim() ?: mapping.shared_url?.toString()?.trim()
+  if (!baseUrl) {
+    error "Base URL missing for space: ${sharedSpaceName} in octane_spaces_mapping.json"
+  }
+  return [
+    serverId: sharedSpace.serverId?.toString()?.trim() ?: identifier,
+    baseUrl: baseUrl,
+    credentialsId: sharedSpace.apiCredentialId?.toString()?.trim() ?: identifier,
+    sharedSpaceId: sharedSpace.sharedSpaceId?.toString()?.trim(),
+    workspaceId: workspace.workspaceId?.toString()?.trim()
+  ]
+}
+
 pipeline {
   agent any
 
   environment {
-    OCTANE_SHARED_SPACE_ID = '9016'
-    OCTANE_WORKSPACE_ID = '4001'
+    OCTANE_SPACES_MAPPING_FILE = 'examples/octane_spaces_mapping.json'
+    OCTANE_SHARED_SPACE_NAME = 'FS_TRIBE_DOMAIN'
+    OCTANE_WORKSPACE_NAME = 'FINTECH'
     OCTANE_REGRESSION_SUITE_RUN_ID = '1196,1200,1204'
     OCTANE_CRITICAL_SUITE_RUN_ID = '1204,1210'
     OCTANE_PROJECT_NAME = 'Business Payments Secure Checkout'
@@ -12,6 +53,29 @@ pipeline {
   }
 
   stages {
+    stage('Resolve Octane Connection') {
+      steps {
+        script {
+          if (!fileExists(env.OCTANE_SPACES_MAPPING_FILE)) {
+            error "Octane spaces mapping file was not found: ${env.OCTANE_SPACES_MAPPING_FILE}"
+          }
+          Map connection =
+              resolveExampleOctaneConnection(
+                  readJSON(file: env.OCTANE_SPACES_MAPPING_FILE) as Map,
+                  env.OCTANE_SHARED_SPACE_NAME,
+                  env.OCTANE_WORKSPACE_NAME)
+          env.OCTANE_SERVER_ID = connection.serverId
+          env.OCTANE_BASE_URL = connection.baseUrl
+          env.OCTANE_API_CREDENTIAL_ID = connection.credentialsId
+          env.OCTANE_SHARED_SPACE_ID = connection.sharedSpaceId
+          env.OCTANE_WORKSPACE_ID = connection.workspaceId
+          if (env.OCTANE_BASE_URL.toLowerCase(java.util.Locale.ROOT).startsWith('http://')) {
+            echo 'Applied URL is insecure. Move to HTTPS for better security.'
+          }
+        }
+      }
+    }
+
     stage('Build') {
       steps {
         echo 'Build or deploy your testable artifact here.'
@@ -57,7 +121,9 @@ pipeline {
 
           Map gateResult =
               octaneSuiteGate(
-                  serverId: 'octane-prod',
+                  serverId: env.OCTANE_SERVER_ID,
+                  baseUrl: env.OCTANE_BASE_URL,
+                  credentialsId: env.OCTANE_API_CREDENTIAL_ID,
                   sharedSpaceId: env.OCTANE_SHARED_SPACE_ID,
                   workspaceId: env.OCTANE_WORKSPACE_ID,
                   suiteRunId: suiteRunSource,
