@@ -67,6 +67,17 @@ public class OctaneEmailReportStepTest {
   }
 
   @Test
+  public void rendersDurationAndRemainingTimeTokens() {
+    assertEquals(
+        "Elapsed 2 minutes; 3 minutes remaining; legacy 3 minutes remaining",
+        OctaneEmailReportStep.replaceRuntimeTokens(
+            "Elapsed {{DURATION}}; {{TIME_REMAINING}} remaining; legacy {{REMAINING_TIME}}",
+            "3 minutes remaining",
+            "2 minutes",
+            Instant.parse("2026-06-30T21:30:00Z")));
+  }
+
+  @Test
   public void projectSummaryPolicyDistinguishesFinalAndIntervalEmails() {
     OctaneEmailReportStep finalStep = new OctaneEmailReportStep("qa@example.com");
     OctaneCronProgressEmailStep intervalStep =
@@ -182,8 +193,8 @@ public class OctaneEmailReportStepTest {
               octaneEmailReport(
                   to: 'qa@example.com',
                   subject: 'Interval {{EAT_DATE}} EAT {{REMAINING_TIME}}',
-                  body: 'State {{GATE_RESULT}} with {{REMAINING_TIME}} '
-                      + 'updated {{UPDATED_AT_TEXT}} '
+                  body: 'State {{GATE_RESULT}} with execution {{EXECUTIONRATE}}, pass {{PASSRATE}}, '
+                      + '{{TIME_REMAINING}} remaining; updated {{LAST_UPDATE}} '
                       + '{{EXECUTION_DETAILS}} {{REPORT_SCREENSHOT}}',
                   onFailure: 'FAILURE',
                   theme: 'DARK',
@@ -202,9 +213,13 @@ public class OctaneEmailReportStepTest {
     assertFalse(sentSubject.get().contains("{{EAT_DATE}}"));
     assertFalse(sentSubject.get().contains("{{REMAINING_TIME}}"));
     assertTrue(sentBody.get().contains("color:#FF9F0A;font-weight:700;\">ONGOING"));
-    assertFalse(sentBody.get().contains("{{REMAINING_TIME}}"));
+    assertTrue(sentBody.get().contains("execution 100.00%, pass 50.00%,"));
+    assertTrue(sentBody.get().contains("remaining; updated"));
+    assertFalse(sentBody.get().contains("{{TIME_REMAINING}}"));
     assertTrue(sentBody.get().contains("src=\"cid:report.png\""));
-    assertFalse(sentBody.get().contains("{{UPDATED_AT_TEXT}}"));
+    assertFalse(sentBody.get().contains("{{LAST_UPDATE}}"));
+    assertFalse(sentBody.get().contains("{{EXECUTIONRATE}}"));
+    assertFalse(sentBody.get().contains("{{PASSRATE}}"));
     assertEquals("interval-email-test/report.png", sentAttachment.get());
     assertTrue(sentImportant.get());
     assertNotNull(screenshotSnapshot.get());

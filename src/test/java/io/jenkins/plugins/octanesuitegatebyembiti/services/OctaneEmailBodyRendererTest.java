@@ -155,7 +155,7 @@ public class OctaneEmailBodyRendererTest {
         """
         Hello Team,
 
-        The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
+        The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}}, has an execution rate of {{EXECUTIONRATE}} and a pass rate of {{PASSRATE}}, and is {{GATE_RESULT}}.
 
         Set criteria: {{CRITERIA}}
 
@@ -181,8 +181,12 @@ public class OctaneEmailBodyRendererTest {
             "octane-report-zone.png");
 
     assertTrue(html.contains("Business Payments Secure Checkout"));
-    assertTrue(html.contains("tests has run for 0 seconds and is"));
+    assertTrue(
+        html.contains(
+            "tests has run for 0 seconds, has an execution rate of 100.00% and a pass rate of 90.00%, and is"));
     assertFalse(html.contains("{{DURATION}}"));
+    assertFalse(html.contains("{{EXECUTIONRATE}}"));
+    assertFalse(html.contains("{{PASSRATE}}"));
     assertTrue(html.contains("FS_TRIBE_DOMAIN"));
     assertTrue(html.contains("color:#009900;font-weight:700;\">SUCCESS"));
     assertFalse(html.contains("Set criteria:"));
@@ -477,12 +481,34 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void templateRateTokensReuseLiveReportTwoDecimalValues() {
+    OctaneGateReportSnapshot snapshot =
+        reconciliationSnapshot(
+            OctaneGateReportState.POLLING,
+            List.of("passed", "passed", "failed", "blocked", "skipped", "planned"),
+            0);
+
+    String html =
+        renderer.render(
+            "Rates: {{EXECUTIONRATE}} execution, {{PASSRATE}} pass.",
+            "Payments",
+            "Finance",
+            snapshot,
+            REPORT_URL,
+            "octane-progress.png");
+
+    assertTrue(html.contains("Rates: 66.67% execution, 50.00% pass."));
+    assertFalse(html.contains("{{EXECUTIONRATE}}"));
+    assertFalse(html.contains("{{PASSRATE}}"));
+  }
+
+  @Test
   public void rendersOngoingIntervalReportInSystemOrangeWithInlineScreenshot() {
     String html =
         renderer.render(
             """
-            The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}.
-            The latest Octane update was {{UPDATED_AT_TEXT}}.
+            The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}, with an execution rate of {{EXECUTIONRATE}}, pass rate of {{PASSRATE}}.
+            The latest Octane update was {{LAST_UPDATE}}.
 
             {{EXECUTION_DETAILS}}
 
@@ -496,8 +522,11 @@ public class OctaneEmailBodyRendererTest {
             OctaneReportTheme.DARK.name());
 
     assertTrue(html.contains("color:#FF9F0A;font-weight:700;\">ONGOING"));
+    assertTrue(html.contains("with an execution rate of 100.00%, pass rate of 90.00%."));
     assertTrue(html.contains("The latest Octane update was 15:00:00."));
-    assertFalse(html.contains("{{UPDATED_AT_TEXT}}"));
+    assertFalse(html.contains("{{LAST_UPDATE}}"));
+    assertFalse(html.contains("{{EXECUTIONRATE}}"));
+    assertFalse(html.contains("{{PASSRATE}}"));
     assertTrue(html.contains("data-octane-email-section=\"execution-report\""));
     assertTrue(html.contains("src=\"cid:octane-progress.png\""));
     assertPassRateCell(html, "#FF9F0A", "#000000", true);

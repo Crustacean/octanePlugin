@@ -428,10 +428,20 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
 
   static String replaceRuntimeTokens(
       String value, String remainingTime, String totalTime, Instant renderedAt) {
+    String timeRemaining = timeRemainingValue(remainingTime);
     return Util.trimToEmpty(value)
         .replace("{{REMAINING_TIME}}", Util.trimToEmpty(remainingTime))
+        .replace("{{TIME_REMAINING}}", timeRemaining)
         .replace("{{DURATION}}", Util.trimToEmpty(totalTime))
         .replace("{{EAT_DATE}}", formatEastAfricaDate(renderedAt));
+  }
+
+  private static String timeRemainingValue(String remainingTime) {
+    String value = Util.trimToEmpty(remainingTime);
+    if (value.endsWith(" remaining")) {
+      return value.substring(0, value.length() - " remaining".length());
+    }
+    return value;
   }
 
   static String formatEastAfricaDate(Instant instant) {

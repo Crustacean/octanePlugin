@@ -63,7 +63,7 @@ public class OctaneEmailBodyRenderer {
       """
       Hello Team,
 
-      The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
+      The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}}, has an execution rate of {{EXECUTIONRATE}} and a pass rate of {{PASSRATE}}, and is {{GATE_RESULT}}.
 
       {{CRITERIA}}
 
@@ -214,8 +214,18 @@ public class OctaneEmailBodyRenderer {
             "{{DURATION}}",
             escape(snapshot == null ? "time unavailable" : snapshot.getTestingTimeSpentText()));
     rendered =
+        rendered.replace("{{EXECUTIONRATE}}", escape(formattedReportExecutionRate(snapshot)));
+    rendered = rendered.replace("{{PASSRATE}}", escape(formattedReportPassRate(snapshot)));
+    rendered =
         rendered.replace(
             "{{UPDATED_AT_TEXT}}",
+            escape(
+                snapshot == null
+                    ? "Unknown"
+                    : defaultText(snapshot.getUpdatedAtText(), "Unknown")));
+    rendered =
+        rendered.replace(
+            "{{LAST_UPDATE}}",
             escape(
                 snapshot == null
                     ? "Unknown"
@@ -937,6 +947,14 @@ public class OctaneEmailBodyRenderer {
     appendDetailRow(
         html, "Automation Usage", automationUsage, automationUsageCellStyle(snapshot, theme));
     html.append("</tbody></table>");
+  }
+
+  private String formattedReportExecutionRate(OctaneGateReportSnapshot snapshot) {
+    return snapshot == null ? "0%" : snapshot.getExecutionProgressTwoDecimalText();
+  }
+
+  private String formattedReportPassRate(OctaneGateReportSnapshot snapshot) {
+    return snapshot == null ? "0%" : snapshot.getPassRateProgressTwoDecimalText();
   }
 
   private String dataTableStart(String caption) {

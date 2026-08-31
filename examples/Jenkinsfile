@@ -198,7 +198,7 @@ pipeline {
                     + 'Time {{DURATION}}',
             body: '''Hello Team,
 
-The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
+The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}}, has an execution rate of {{EXECUTIONRATE}} and a pass rate of {{PASSRATE}}, and is {{GATE_RESULT}}.
 
 Set criteria: {{CRITERIA}}
 

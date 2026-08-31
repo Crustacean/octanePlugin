@@ -203,7 +203,7 @@ octaneEmailReport(
   subject: "Octane Gate Report - ${env.JOB_NAME} Job #${env.BUILD_NUMBER} Time {{DURATION}}",
   body: '''Hello Team,
 
-The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
+The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}}, has an execution rate of {{EXECUTIONRATE}} and a pass rate of {{PASSRATE}}, and is {{GATE_RESULT}}.
 
 Set criteria: {{CRITERIA}}
 
@@ -231,6 +231,7 @@ value and `OK` or `NOT OK` result. An `OR` expression can therefore contain a `N
 the overall verdict is still `PASS`.
 
 The body supports the tokens `{{PROJECT_NAME}}`, `{{DOMAIN_NAME}}`, `{{GATE_RESULT}}`,
+`{{DURATION}}`, `{{EXECUTIONRATE}}`, `{{PASSRATE}}`, `{{TIME_REMAINING}}`, `{{LAST_UPDATE}}`,
 `{{CRITERIA}}`, `{{REPORT_LINK}}`, `{{EXECUTION_DETAILS}}`, and `{{REPORT_SCREENSHOT}}`. The
 generated data tables use stable column proportions and natural row heights, so criteria can grow
 from one row to many without overlapping or distorting the screenshot. If the body contains no

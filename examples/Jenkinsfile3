@@ -534,7 +534,7 @@ pipeline {
                       + '({{REMAINING_TIME}})',
               body: '''Hello Team,
 
-The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}, with {{REMAINING_TIME}}; the latest Octane update was {{UPDATED_AT_TEXT}}.
+The automated job for {{PROJECT_NAME}} tests is {{GATE_RESULT}}, with an execution rate of {{EXECUTIONRATE}}, pass rate of {{PASSRATE}}, and {{TIME_REMAINING}} remaining; the latest Octane update was {{LAST_UPDATE}}.
 
 Set criteria: {{CRITERIA}}
 
@@ -647,7 +647,7 @@ QA Automation Team''',
                     + "Time {{DURATION}} | {{EAT_DATE}} | ${env.OCTANE_PROJECT_NAME}",
             body: '''Hello Team,
 
-The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}} and is {{GATE_RESULT}}.
+The automated job for {{PROJECT_NAME}} tests has run for {{DURATION}}, has an execution rate of {{EXECUTIONRATE}} and a pass rate of {{PASSRATE}}, and is {{GATE_RESULT}}.
 
 Set criteria: {{CRITERIA}}
 

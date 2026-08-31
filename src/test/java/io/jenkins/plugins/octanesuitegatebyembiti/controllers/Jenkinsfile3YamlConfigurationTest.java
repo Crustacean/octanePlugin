@@ -75,7 +75,12 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(
         jenkinsfile.contains(
             "+ \"Time {{DURATION}} | {{EAT_DATE}} | ${env.OCTANE_PROJECT_NAME}\""));
-    assertTrue(jenkinsfile.contains("tests has run for {{DURATION}} and is {{GATE_RESULT}}."));
+    assertTrue(
+        jenkinsfile.contains(
+            "tests has run for {{DURATION}}, has an execution rate of {{EXECUTIONRATE}} and a pass rate of {{PASSRATE}}, and is {{GATE_RESULT}}."));
+    assertTrue(
+        jenkinsfile.contains(
+            "tests is {{GATE_RESULT}}, with an execution rate of {{EXECUTIONRATE}}, pass rate of {{PASSRATE}}, and {{TIME_REMAINING}} remaining; the latest Octane update was {{LAST_UPDATE}}."));
     assertFalse(jenkinsfile.contains("return yamlConfiguration[key]"));
     assertFalse(jenkinsfile.contains("return jobParameters[key]"));
     assertFalse(jenkinsfile.contains("return environment[key]"));
