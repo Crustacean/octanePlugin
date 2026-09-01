@@ -138,6 +138,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
     private final boolean printDefectGroups;
     private final String projectSummary;
     private final boolean printProjectSummaryOnIntervalEmails;
+    private final boolean printTestersOnEmailBody;
     private final boolean printDefectsOnEmailBody;
     private final String printDefectsOnEmailBodyFilter;
     private final int printDefectsOnEmailBodyLimit;
@@ -162,6 +163,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
         boolean printDefectGroups,
         String projectSummary,
         boolean printProjectSummaryOnIntervalEmails,
+        boolean printTestersOnEmailBody,
         boolean printDefectsOnEmailBody,
         String printDefectsOnEmailBodyFilter,
         int printDefectsOnEmailBodyLimit,
@@ -184,6 +186,7 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
       this.printDefectGroups = printDefectGroups;
       this.projectSummary = projectSummary;
       this.printProjectSummaryOnIntervalEmails = printProjectSummaryOnIntervalEmails;
+      this.printTestersOnEmailBody = printTestersOnEmailBody;
       this.printDefectsOnEmailBody = printDefectsOnEmailBody;
       this.printDefectsOnEmailBodyFilter = printDefectsOnEmailBodyFilter;
       this.printDefectsOnEmailBodyLimit = printDefectsOnEmailBodyLimit;
@@ -293,7 +296,8 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
                   request.shouldIncludeProjectSummary(),
                   request.printDefectsOnEmailBody,
                   request.printDefectsOnEmailBodyFilter,
-                  request.printDefectsOnEmailBodyLimit);
+                  request.printDefectsOnEmailBodyLimit,
+                  request.printTestersOnEmailBody);
       listener.getLogger().println("Sending Octane report email through Jenkins Mailer.");
       emailSender.send(
           getContext(),

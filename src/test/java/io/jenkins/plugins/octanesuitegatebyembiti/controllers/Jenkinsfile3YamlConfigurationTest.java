@@ -180,7 +180,7 @@ class Jenkinsfile3YamlConfigurationTest {
   private boolean configurationBoolean(groovy.lang.Script script, Object value) {
     return (boolean)
         script.invokeMethod(
-            "configurationBooleanValue", new Object[] {"PRINT_DEFECTS_ON_EMAIL_BODY", value});
+            "configurationBooleanValue", new Object[] {"PRINT_TESTERS_ON_EMAIL_BODY", value});
   }
 
   @Test
@@ -326,9 +326,14 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(yamlKeys.contains("OCTANE_REGRESSION_GRAPHS_TITLE"));
     assertTrue(yamlKeys.contains("OCTANE_INTERVAL_EMAIL_IS_IMPORTANT"));
     assertTrue(yamlKeys.contains("OCTANE_FINAL_EMAIL_IS_IMPORTANT"));
+    assertTrue(yamlKeys.contains("PRINT_TESTERS_ON_EMAIL_BODY"));
     assertTrue(
         jenkinsfile.contains("important: env.OCTANE_INTERVAL_EMAIL_IS_IMPORTANT.toBoolean()"));
     assertTrue(jenkinsfile.contains("important: env.OCTANE_FINAL_EMAIL_IS_IMPORTANT.toBoolean()"));
+    assertTrue(jenkinsfile.contains("printTestersOnEmailBody: printTestersOnEmailBody"));
+    assertTrue(
+        jenkinsfile.contains(
+            "printTestersOnEmailBody: env.PRINT_TESTERS_ON_EMAIL_BODY.toBoolean()"));
     assertFalse(yaml.toLowerCase().contains("client_secret:"));
     assertFalse(yaml.toLowerCase().contains("password:"));
   }

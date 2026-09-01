@@ -24,6 +24,7 @@ abstract class AbstractOctaneEmailStep extends Step {
   private boolean printDefectGroups;
   private String projectSummary = "";
   private boolean printProjectSummaryOnIntervalEmails;
+  private boolean printTestersOnEmailBody;
   private boolean printDefectsOnEmailBody;
   private String printDefectsOnEmailBodyFilter = "";
   private int printDefectsOnEmailBodyLimit;
@@ -183,6 +184,15 @@ abstract class AbstractOctaneEmailStep extends Step {
     this.printProjectSummaryOnIntervalEmails = printProjectSummaryOnIntervalEmails;
   }
 
+  public boolean isPrintTestersOnEmailBody() {
+    return printTestersOnEmailBody;
+  }
+
+  @DataBoundSetter
+  public void setPrintTestersOnEmailBody(boolean printTestersOnEmailBody) {
+    this.printTestersOnEmailBody = printTestersOnEmailBody;
+  }
+
   public boolean isPrintDefectsOnEmailBody() {
     return printDefectsOnEmailBody;
   }
@@ -242,6 +252,7 @@ abstract class AbstractOctaneEmailStep extends Step {
         printDefectGroups,
         projectSummary,
         printProjectSummaryOnIntervalEmails,
+        printTestersOnEmailBody,
         printDefectsOnEmailBody,
         printDefectsOnEmailBodyFilter,
         printDefectsOnEmailBodyLimit,

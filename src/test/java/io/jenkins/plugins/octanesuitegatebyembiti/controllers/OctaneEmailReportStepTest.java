@@ -198,6 +198,7 @@ public class OctaneEmailReportStepTest {
                       + '{{EXECUTION_DETAILS}} {{REPORT_SCREENSHOT}}',
                   onFailure: 'FAILURE',
                   theme: 'DARK',
+                  printTestersOnEmailBody: true,
                   important: true,
                   archiveScreenshot: false)
             }
@@ -220,6 +221,9 @@ public class OctaneEmailReportStepTest {
     assertFalse(sentBody.get().contains("{{LAST_UPDATE}}"));
     assertFalse(sentBody.get().contains("{{EXECUTIONRATE}}"));
     assertFalse(sentBody.get().contains("{{PASSRATE}}"));
+    assertTrue(sentBody.get().contains("Execution Status per tester"));
+    assertTrue(sentBody.get().contains("data-octane-email-table=\"tester-execution\""));
+    assertTrue(sentBody.get().contains(">Ada Tester</th>"));
     assertEquals("interval-email-test/report.png", sentAttachment.get());
     assertTrue(sentImportant.get());
     assertNotNull(screenshotSnapshot.get());

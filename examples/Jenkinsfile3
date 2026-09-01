@@ -54,6 +54,7 @@ def pipelineConfigurationDefaults() {
     'OCTANE_EMAIL_PRINT_DEFECT_GROUPS': 'true',
     'PROJECT_SUMMARY': '',
     'PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS': 'false',
+    'PRINT_TESTERS_ON_EMAIL_BODY': 'false',
     'PRINT_DEFECTS_ON_EMAIL_BODY': 'false',
     'PRINT_DEFECTS_ON_EMAIL_BODY_FILTER': '',
     'PRINT_DEFECTS_ON_EMAIL_BODY_LIMIT': '100',
@@ -361,6 +362,7 @@ pipeline {
             'OCTANE_INTERVAL_EMAIL_IS_IMPORTANT',
             'OCTANE_FINAL_EMAIL_IS_IMPORTANT',
             'PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS',
+            'PRINT_TESTERS_ON_EMAIL_BODY',
             'PRINT_DEFECTS_ON_EMAIL_BODY'
           ].each {
             String key ->
@@ -514,6 +516,7 @@ pipeline {
           boolean printDefectGroups = booleanValue('OCTANE_EMAIL_PRINT_DEFECT_GROUPS')
           boolean printProjectSummaryOnIntervalEmails =
               booleanValue('PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS')
+          boolean printTestersOnEmailBody = booleanValue('PRINT_TESTERS_ON_EMAIL_BODY')
           boolean printDefectsOnEmailBody = booleanValue('PRINT_DEFECTS_ON_EMAIL_BODY')
           boolean progressArchiveScreenshot =
               booleanValue('OCTANE_PROGRESS_EMAIL_ARCHIVE_SCREENSHOT')
@@ -552,6 +555,7 @@ QA Automation Team''',
               printDefectGroups: printDefectGroups,
               projectSummary: env.PROJECT_SUMMARY,
               printProjectSummaryOnIntervalEmails: printProjectSummaryOnIntervalEmails,
+              printTestersOnEmailBody: printTestersOnEmailBody,
               printDefectsOnEmailBody: printDefectsOnEmailBody,
               printDefectsOnEmailBodyFilter: env.PRINT_DEFECTS_ON_EMAIL_BODY_FILTER,
               printDefectsOnEmailBodyLimit: emailDefectLimit,
@@ -666,6 +670,7 @@ QA Automation Team''',
             projectSummary: env.PROJECT_SUMMARY,
             printProjectSummaryOnIntervalEmails:
                 env.PRINT_PROJECT_SUMMARY_ON_INTERVAL_EMAILS.toBoolean(),
+            printTestersOnEmailBody: env.PRINT_TESTERS_ON_EMAIL_BODY.toBoolean(),
             printDefectsOnEmailBody: env.PRINT_DEFECTS_ON_EMAIL_BODY.toBoolean(),
             printDefectsOnEmailBodyFilter: env.PRINT_DEFECTS_ON_EMAIL_BODY_FILTER,
             printDefectsOnEmailBodyLimit: env.PRINT_DEFECTS_ON_EMAIL_BODY_LIMIT.toInteger(),

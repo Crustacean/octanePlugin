@@ -17,12 +17,19 @@ public class OctaneTesterPerformance implements Serializable {
   private final int total;
   private final int executed;
   private final int passed;
+  private final int failed;
+  private final int blocked;
+  private final int noRun;
 
-  private OctaneTesterPerformance(String email, int total, int executed, int passed) {
+  private OctaneTesterPerformance(
+      String email, int total, int executed, int passed, int failed, int blocked, int noRun) {
     this.email = email;
     this.total = Math.max(0, total);
     this.executed = Math.max(0, executed);
     this.passed = Math.max(0, passed);
+    this.failed = Math.max(0, failed);
+    this.blocked = Math.max(0, blocked);
+    this.noRun = Math.max(0, noRun);
   }
 
   public static List<OctaneTesterPerformance> fromResult(
@@ -62,6 +69,18 @@ public class OctaneTesterPerformance implements Serializable {
 
   public int getPassed() {
     return passed;
+  }
+
+  public int getFailed() {
+    return failed;
+  }
+
+  public int getBlocked() {
+    return blocked;
+  }
+
+  public int getNoRun() {
+    return noRun;
   }
 
   public double getExecutionRate() {
@@ -144,15 +163,25 @@ public class OctaneTesterPerformance implements Serializable {
     private OctaneTesterPerformance toPerformance() {
       int executed = 0;
       int passed = 0;
+      int failed = 0;
+      int blocked = 0;
+      int noRun = 0;
       for (OctaneGateStatusBucket status : statusesByRunId.values()) {
         if (status.isExecuted()) {
           executed++;
         }
         if (status == OctaneGateStatusBucket.PASSED) {
           passed++;
+        } else if (status == OctaneGateStatusBucket.FAILED) {
+          failed++;
+        } else if (status == OctaneGateStatusBucket.BLOCKED) {
+          blocked++;
+        } else if (status == OctaneGateStatusBucket.RUNNING) {
+          noRun++;
         }
       }
-      return new OctaneTesterPerformance(email, statusesByRunId.size(), executed, passed);
+      return new OctaneTesterPerformance(
+          email, statusesByRunId.size(), executed, passed, failed, blocked, noRun);
     }
   }
 }

@@ -153,6 +153,10 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("All Testcase Pass Rate (2 / 4)", snapshot.getPassRateLabel());
     OctaneTesterPerformance tester = snapshot.getTesterPerformances().get(0);
     assertEquals(4, tester.getExecuted());
+    assertEquals(2, tester.getPassed());
+    assertEquals(1, tester.getFailed());
+    assertEquals(1, tester.getBlocked());
+    assertEquals(1, tester.getNoRun());
     assertEquals(50.0, tester.getPassRate(), 0.001);
   }
 
@@ -531,12 +535,19 @@ public class OctaneGateReportSnapshotTest {
             .orElseThrow();
     assertEquals(3, ada.getTotal());
     assertEquals(2, ada.getExecuted());
+    assertEquals(1, ada.getPassed());
+    assertEquals(1, ada.getFailed());
+    assertEquals(0, ada.getBlocked());
+    assertEquals(1, ada.getNoRun());
     assertEquals(66.667, ada.getExecutionRate(), 0.001);
     assertEquals(50.0, ada.getPassRate(), 0.001);
     assertEquals("66.7%", ada.getExecutionRateText());
     assertEquals(2, ben.getTotal());
     assertEquals(2, ben.getExecuted());
     assertEquals(1, ben.getPassed());
+    assertEquals(1, ben.getFailed());
+    assertEquals(0, ben.getBlocked());
+    assertEquals(0, ben.getNoRun());
   }
 
   @Test

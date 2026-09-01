@@ -12,6 +12,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapsho
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestManagementAnalytics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTesterPerformance;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -198,6 +199,38 @@ public class OctaneEmailBodyRenderer {
       boolean printDefectsOnEmailBody,
       String defectFilter,
       int defectLimit) {
+    return render(
+        configuredBody,
+        projectName,
+        domainName,
+        snapshot,
+        reportUrl,
+        screenshotContentId,
+        theme,
+        printDefectGroups,
+        projectSummary,
+        includeProjectSummary,
+        printDefectsOnEmailBody,
+        defectFilter,
+        defectLimit,
+        false);
+  }
+
+  public String render(
+      String configuredBody,
+      String projectName,
+      String domainName,
+      OctaneGateReportSnapshot snapshot,
+      String reportUrl,
+      String screenshotContentId,
+      String theme,
+      boolean printDefectGroups,
+      String projectSummary,
+      boolean includeProjectSummary,
+      boolean printDefectsOnEmailBody,
+      String defectFilter,
+      int defectLimit,
+      boolean printTestersOnEmailBody) {
     String template = reportTemplate(configuredBody);
     String normalizedReportUrl = Util.trimToEmpty(reportUrl);
     Verdict verdict = emailVerdict(snapshot == null ? null : snapshot.getState(), theme);
@@ -257,7 +290,8 @@ public class OctaneEmailBodyRenderer {
             theme,
             printDefectsOnEmailBody,
             defectFilter,
-            defectLimit);
+            defectLimit,
+            printTestersOnEmailBody);
     rendered = rendered.replace("\n", "<br>");
 
     return "<div style=\"color:#202124;font-family:Arial,sans-serif;font-size:15px;"
@@ -286,22 +320,25 @@ public class OctaneEmailBodyRenderer {
       String theme,
       boolean printDefectsOnEmailBody,
       String defectFilter,
-      int defectLimit) {
+      int defectLimit,
+      boolean printTestersOnEmailBody) {
     String details = renderExecutionDetails(projectName, domainName, snapshot, theme);
     String definedScope = renderDefinedScope(snapshot);
+    String testerExecution = renderTesterExecution(snapshot, printTestersOnEmailBody);
     String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
     String defects =
         renderDefectsTable(snapshot, printDefectsOnEmailBody, defectFilter, defectLimit);
     int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
     int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
     if (detailsStart >= 0 && screenshotStart > detailsStart) {
-      String contents = details + definedScope + screenshot + defects;
+      String contents = details + definedScope + testerExecution + screenshot + defects;
       return template.substring(0, detailsStart)
           + wrapExecutionReport(contents)
           + template.substring(screenshotStart + REPORT_SCREENSHOT_TOKEN.length());
     }
     return template
-        .replace(EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details + definedScope))
+        .replace(
+            EXECUTION_DETAILS_TOKEN, wrapExecutionReport(details + definedScope + testerExecution))
         .replace(REPORT_SCREENSHOT_TOKEN, screenshot + defects);
   }
 
@@ -469,6 +506,151 @@ public class OctaneEmailBodyRenderer {
     }
     html.append("</td></tr></table>");
     return html.toString();
+  }
+
+  private String renderTesterExecution(
+      OctaneGateReportSnapshot snapshot, boolean printTestersOnEmailBody) {
+    if (!printTestersOnEmailBody) {
+      return "";
+    }
+    List<OctaneTesterPerformance> testers =
+        snapshot == null ? List.of() : snapshot.getTesterPerformances();
+    int[] totals = testerExecutionTotals(testers);
+    StringBuilder html = new StringBuilder();
+    appendSpacer(html, 28);
+    html.append(
+            "<table data-octane-email-section=\"tester-execution\" role=\"presentation\" "
+                + "cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"border-collapse:collapse;width:100%;\"><tr><td style=\"")
+        .append(SECTION_TITLE_STYLE)
+        .append("\">Execution Status per tester</td></tr><tr><td>");
+    if (testers.size() <= 10) {
+      appendTesterExecutionTable(html, testers, "single", true, totals);
+    } else {
+      int split = (testers.size() + 1) / 2;
+      html.append(
+          "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
+              + "style=\"border-collapse:collapse;width:100%;\"><tr>");
+      html.append("<td style=\"vertical-align:top;width:50%;\">");
+      appendTesterExecutionTable(html, testers.subList(0, split), "left", false, totals);
+      html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
+      html.append("<td style=\"vertical-align:top;width:50%;\">");
+      appendTesterExecutionTable(
+          html, testers.subList(split, testers.size()), "right", false, totals);
+      html.append("</td></tr><tr><td colspan=\"3\" style=\"padding-top:8px;\">");
+      appendTesterExecutionSummaryTable(html, totals);
+      html.append("</td></tr></table>");
+    }
+    html.append("</td></tr></table>");
+    return html.toString();
+  }
+
+  private void appendTesterExecutionTable(
+      StringBuilder html,
+      List<OctaneTesterPerformance> testers,
+      String column,
+      boolean includeSummary,
+      int[] totals) {
+    html.append("<table data-octane-email-table=\"tester-execution\" data-octane-email-column=\"")
+        .append(column)
+        .append(
+            "\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;"
+                + "table-layout:fixed;width:100%;\">");
+    appendTesterExecutionColumns(html);
+    appendTesterExecutionHeader(html);
+    html.append("<tbody>");
+    for (OctaneTesterPerformance tester : testers) {
+      appendTesterExecutionRow(html, tester);
+    }
+    html.append("</tbody>");
+    if (includeSummary) {
+      html.append("<tfoot>");
+      appendTesterExecutionTotalRow(html, totals);
+      html.append("</tfoot>");
+    }
+    html.append("</table>");
+  }
+
+  private void appendTesterExecutionSummaryTable(StringBuilder html, int[] totals) {
+    html.append(
+        "<table data-octane-email-table=\"tester-execution-summary\" cellpadding=\"0\" "
+            + "cellspacing=\"0\" style=\"border-collapse:collapse;table-layout:fixed;"
+            + "width:100%;\">");
+    appendTesterExecutionColumns(html);
+    html.append("<tbody>");
+    appendTesterExecutionTotalRow(html, totals);
+    html.append("</tbody></table>");
+  }
+
+  private void appendTesterExecutionColumns(StringBuilder html) {
+    html.append(
+        "<colgroup><col style=\"width:35%;\"><col style=\"width:13%;\">"
+            + "<col style=\"width:13%;\"><col style=\"width:13%;\">"
+            + "<col style=\"width:13%;\"><col style=\"width:13%;\"></colgroup>");
+  }
+
+  private void appendTesterExecutionHeader(StringBuilder html) {
+    html.append("<thead><tr>");
+    appendHeader(html, "Tester", "left");
+    appendHeader(html, "No Run", "right");
+    appendHeader(html, "Blocked", "right");
+    appendHeader(html, "Failed", "right");
+    appendHeader(html, "Passed", "right");
+    appendHeader(html, "Total", "right");
+    html.append("</tr></thead>");
+  }
+
+  private void appendTesterExecutionRow(StringBuilder html, OctaneTesterPerformance tester) {
+    html.append("<tr data-octane-tester-row=\"true\">");
+    appendTesterExecutionLabelCell(html, tester.getEmail(), false);
+    appendTesterExecutionValueCell(html, tester.getNoRun(), false);
+    appendTesterExecutionValueCell(html, tester.getBlocked(), false);
+    appendTesterExecutionValueCell(html, tester.getFailed(), false);
+    appendTesterExecutionValueCell(html, tester.getPassed(), false);
+    appendTesterExecutionValueCell(html, tester.getTotal(), false);
+    html.append("</tr>");
+  }
+
+  private void appendTesterExecutionTotalRow(StringBuilder html, int[] totals) {
+    html.append("<tr data-octane-tester-total=\"true\">");
+    appendTesterExecutionLabelCell(html, "Total", true);
+    for (int total : totals) {
+      appendTesterExecutionValueCell(html, total, true);
+    }
+    html.append("</tr>");
+  }
+
+  private void appendTesterExecutionLabelCell(
+      StringBuilder html, String label, boolean emphasized) {
+    html.append("<th scope=\"row\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+        .append(emphasized ? TABLE_HEADER_STYLE : TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append(
+            "overflow-wrap:anywhere;text-align:left;vertical-align:middle;"
+                + "white-space:normal;word-break:break-word;\">")
+        .append(escape(label))
+        .append("</th>");
+  }
+
+  private void appendTesterExecutionValueCell(StringBuilder html, int value, boolean emphasized) {
+    html.append("<td style=\"border:1px solid #d0d7de;")
+        .append(emphasized ? TABLE_HEADER_STYLE : TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:right;vertical-align:middle;\">")
+        .append(value)
+        .append("</td>");
+  }
+
+  private int[] testerExecutionTotals(List<OctaneTesterPerformance> testers) {
+    int[] totals = new int[5];
+    for (OctaneTesterPerformance tester : testers) {
+      totals[0] += tester.getNoRun();
+      totals[1] += tester.getBlocked();
+      totals[2] += tester.getFailed();
+      totals[3] += tester.getPassed();
+      totals[4] += tester.getTotal();
+    }
+    return totals;
   }
 
   private int definedScopeSplit(int total) {

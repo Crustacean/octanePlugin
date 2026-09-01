@@ -22,8 +22,11 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.Test;
 
 public class OctaneEmailBodyRendererTest {
@@ -464,6 +467,67 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void omitsTesterExecutionSectionWhenDisabledOrUnspecified() {
+    OctaneGateReportSnapshot snapshot = testerSnapshot(2);
+
+    String disabled = renderTesterExecutionEmail(snapshot, false);
+    String unspecified =
+        renderer.render(
+            "{{EXECUTION_DETAILS}}\n{{REPORT_SCREENSHOT}}",
+            "Project",
+            "Domain",
+            snapshot,
+            REPORT_URL,
+            "octane-report.png",
+            OctaneReportTheme.LIGHT.name());
+
+    assertFalse(disabled.contains("Execution Status per tester"));
+    assertFalse(disabled.contains("data-octane-email-section=\"tester-execution\""));
+    assertFalse(disabled.contains("data-octane-email-table=\"tester-execution\""));
+    assertFalse(unspecified.contains("Execution Status per tester"));
+    assertFalse(unspecified.contains("data-octane-email-section=\"tester-execution\""));
+  }
+
+  @Test
+  public void rendersTesterExecutionSchemaValuesAndOverallTotalsAboveGraph() {
+    Map<String, List<String>> testerStatuses = new LinkedHashMap<>();
+    testerStatuses.put(
+        "Tester Alpha", List.of("planned", "in_progress", "blocked", "failed", "passed", "passed"));
+    testerStatuses.put("Tester Beta", List.of("planned", "passed"));
+
+    String html = renderTesterExecutionEmail(testerSnapshot(testerStatuses), true);
+    String table = testerColumnTable(html, "single");
+    String header = table.substring(table.indexOf("<thead>"), table.indexOf("</thead>"));
+
+    assertTrue(header.indexOf(">Tester</th>") < header.indexOf(">No Run</th>"));
+    assertTrue(header.indexOf(">No Run</th>") < header.indexOf(">Blocked</th>"));
+    assertTrue(header.indexOf(">Blocked</th>") < header.indexOf(">Failed</th>"));
+    assertTrue(header.indexOf(">Failed</th>") < header.indexOf(">Passed</th>"));
+    assertTrue(header.indexOf(">Passed</th>") < header.indexOf(">Total</th>"));
+    assertEquals(List.of(2, 1, 1, 2, 6), numericCells(testerRow(table, "Tester Alpha")));
+    assertEquals(List.of(1, 0, 0, 1, 2), numericCells(testerRow(table, "Tester Beta")));
+    assertEquals(List.of(3, 1, 1, 3, 8), numericCells(testerTotalRow(html)));
+    assertEquals(1, occurrences(html, "data-octane-tester-total=\"true\""));
+    assertTrue(html.indexOf("Execution Status per tester") < html.indexOf("Execution graph"));
+  }
+
+  @Test
+  public void balancesTesterExecutionRowsAcrossEmailColumns() {
+    String nine = renderTesterExecutionEmail(testerSnapshot(9), true);
+    String twentyFive = renderTesterExecutionEmail(testerSnapshot(25), true);
+    String fortyThree = renderTesterExecutionEmail(testerSnapshot(43), true);
+
+    assertEquals(1, occurrences(nine, "data-octane-email-table=\"tester-execution\""));
+    assertEquals(9, occurrences(testerColumnTable(nine, "single"), "data-octane-tester-row"));
+    assertEquals(2, occurrences(twentyFive, "data-octane-email-table=\"tester-execution\""));
+    assertEquals(13, occurrences(testerColumnTable(twentyFive, "left"), "data-octane-tester-row"));
+    assertEquals(12, occurrences(testerColumnTable(twentyFive, "right"), "data-octane-tester-row"));
+    assertEquals(22, occurrences(testerColumnTable(fortyThree, "left"), "data-octane-tester-row"));
+    assertEquals(21, occurrences(testerColumnTable(fortyThree, "right"), "data-octane-tester-row"));
+    assertEquals(1, occurrences(fortyThree, "data-octane-tester-total=\"true\""));
+  }
+
+  @Test
   public void executionTableExcludesSkippedAndNoRunTestsFromPassRate() {
     OctaneGateReportSnapshot snapshot =
         reconciliationSnapshot(
@@ -786,6 +850,94 @@ public class OctaneEmailBodyRendererTest {
         printDefects,
         defectFilter,
         defectLimit);
+  }
+
+  private String renderTesterExecutionEmail(
+      OctaneGateReportSnapshot snapshot, boolean printTestersOnEmailBody) {
+    return renderer.render(
+        "{{EXECUTION_DETAILS}}\n{{REPORT_SCREENSHOT}}",
+        "Project",
+        "Domain",
+        snapshot,
+        REPORT_URL,
+        "octane-report.png",
+        OctaneReportTheme.LIGHT.name(),
+        false,
+        "",
+        false,
+        false,
+        "",
+        0,
+        printTestersOnEmailBody);
+  }
+
+  private OctaneGateReportSnapshot testerSnapshot(int testerCount) {
+    Map<String, List<String>> testerStatuses = new LinkedHashMap<>();
+    for (int index = 1; index <= testerCount; index++) {
+      testerStatuses.put(String.format("Tester %02d", index), List.of("passed"));
+    }
+    return testerSnapshot(testerStatuses);
+  }
+
+  private OctaneGateReportSnapshot testerSnapshot(Map<String, List<String>> testerStatuses) {
+    List<RunRecord> runs = new ArrayList<>();
+    int runIndex = 0;
+    for (Map.Entry<String, List<String>> entry : testerStatuses.entrySet()) {
+      for (String status : entry.getValue()) {
+        runIndex++;
+        runs.add(
+            new RunRecord(
+                "tester-run-" + runIndex, "Tester run " + runIndex, status, entry.getKey()));
+      }
+    }
+    GateResult result =
+        new GateResult(
+            "tester-suite",
+            "regressions.executionRate >= 0",
+            false,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("tester-suite", runs),
+            Map.of(),
+            Instant.parse("2026-06-30T12:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+  }
+
+  private String testerColumnTable(String html, String column) {
+    String marker = "data-octane-email-column=\"" + column + "\"";
+    int markerIndex = html.indexOf(marker);
+    assertTrue("Missing tester email column " + column, markerIndex >= 0);
+    int tableStart = html.lastIndexOf("<table", markerIndex);
+    int tableEnd = html.indexOf("</table>", markerIndex);
+    assertTrue("Missing tester email column close " + column, tableEnd > markerIndex);
+    return html.substring(tableStart, tableEnd + "</table>".length());
+  }
+
+  private String testerRow(String table, String tester) {
+    int testerIndex = table.indexOf(">" + tester + "</th>");
+    assertTrue("Missing tester row for " + tester, testerIndex >= 0);
+    int rowStart = table.lastIndexOf("<tr", testerIndex);
+    int rowEnd = table.indexOf("</tr>", testerIndex);
+    return table.substring(rowStart, rowEnd + "</tr>".length());
+  }
+
+  private String testerTotalRow(String html) {
+    int marker = html.indexOf("data-octane-tester-total=\"true\"");
+    assertTrue("Missing tester total row", marker >= 0);
+    int rowStart = html.lastIndexOf("<tr", marker);
+    int rowEnd = html.indexOf("</tr>", marker);
+    return html.substring(rowStart, rowEnd + "</tr>".length());
+  }
+
+  private List<Integer> numericCells(String row) {
+    List<Integer> values = new ArrayList<>();
+    Matcher matcher = Pattern.compile(">(\\d+)</td>").matcher(row);
+    while (matcher.find()) {
+      values.add(Integer.parseInt(matcher.group(1)));
+    }
+    return values;
   }
 
   private void assertPassRateCell(
