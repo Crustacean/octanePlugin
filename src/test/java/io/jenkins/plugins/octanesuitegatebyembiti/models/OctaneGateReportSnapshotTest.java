@@ -270,6 +270,9 @@ public class OctaneGateReportSnapshotTest {
     assertEquals(2, charts.get(0).getTotal());
     assertEquals(1, snapshot.getTestMetrics().getAutomatedTestCount());
     assertEquals(1, snapshot.getTestMetrics().getManualTestCount());
+    assertEquals(1, snapshot.getTesterPerformances().size());
+    assertEquals(2, snapshot.getTesterPerformances().get(0).getAutomationTestTotal());
+    assertEquals(50, snapshot.getTesterPerformances().get(0).getAutomationPercentage());
   }
 
   @Test

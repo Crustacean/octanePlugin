@@ -20,9 +20,17 @@ public class OctaneTesterPerformance implements Serializable {
   private final int failed;
   private final int blocked;
   private final int noRun;
+  private final OctaneAutomationUsage automationUsage;
 
   private OctaneTesterPerformance(
-      String email, int total, int executed, int passed, int failed, int blocked, int noRun) {
+      String email,
+      int total,
+      int executed,
+      int passed,
+      int failed,
+      int blocked,
+      int noRun,
+      OctaneAutomationUsage automationUsage) {
     this.email = email;
     this.total = Math.max(0, total);
     this.executed = Math.max(0, executed);
@@ -30,24 +38,25 @@ public class OctaneTesterPerformance implements Serializable {
     this.failed = Math.max(0, failed);
     this.blocked = Math.max(0, blocked);
     this.noRun = Math.max(0, noRun);
+    this.automationUsage =
+        automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
   }
 
   public static List<OctaneTesterPerformance> fromResult(
       GateResult result, StatusClassifier classifier) {
     Map<String, TesterAccumulator> testers = new LinkedHashMap<>();
-    addResultRuns(testers, "regressions", result.getSuiteRuns(), result.getRuns(), classifier);
+    addResultRuns(testers, "regressions", result.getSuiteRuns(), result.getRuns());
     for (Map.Entry<String, GateScopeResult> entry : result.getScopedResults().entrySet()) {
       GateScopeResult scope = entry.getValue();
       if (!scope.isActive()) {
         continue;
       }
-      addResultRuns(
-          testers, "scope-" + entry.getKey(), scope.getSuiteRuns(), scope.getRuns(), classifier);
+      addResultRuns(testers, "scope-" + entry.getKey(), scope.getSuiteRuns(), scope.getRuns());
     }
 
     List<OctaneTesterPerformance> performance = new ArrayList<>();
     for (TesterAccumulator tester : testers.values()) {
-      performance.add(tester.toPerformance());
+      performance.add(tester.toPerformance(classifier));
     }
     performance.sort(
         Comparator.comparing(
@@ -83,6 +92,18 @@ public class OctaneTesterPerformance implements Serializable {
     return noRun;
   }
 
+  public int getAutomationTestTotal() {
+    return getAutomationUsage().getTotal();
+  }
+
+  public int getAutomationPercentage() {
+    return getAutomationUsage().getPercentage();
+  }
+
+  public String getAutomationPercentageText() {
+    return getAutomationUsage().getPercentageText();
+  }
+
   public double getExecutionRate() {
     return GateMetrics.executionRate(executed, total);
   }
@@ -116,14 +137,13 @@ public class OctaneTesterPerformance implements Serializable {
       Map<String, TesterAccumulator> testers,
       String source,
       Map<String, List<RunRecord>> suiteRuns,
-      List<RunRecord> fallbackRuns,
-      StatusClassifier classifier) {
+      List<RunRecord> fallbackRuns) {
     if (suiteRuns.isEmpty()) {
-      addRuns(testers, source, "matched-runs", fallbackRuns, classifier);
+      addRuns(testers, source, "matched-runs", fallbackRuns);
       return;
     }
     for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
-      addRuns(testers, source, entry.getKey(), entry.getValue(), classifier);
+      addRuns(testers, source, entry.getKey(), entry.getValue());
     }
   }
 
@@ -131,8 +151,7 @@ public class OctaneTesterPerformance implements Serializable {
       Map<String, TesterAccumulator> testers,
       String source,
       String suiteRunId,
-      List<RunRecord> runs,
-      StatusClassifier classifier) {
+      List<RunRecord> runs) {
     for (int index = 0; index < runs.size(); index++) {
       RunRecord run = runs.get(index);
       String email = Util.isBlank(run.getSuiteOwnerName()) ? "Unassigned" : run.getSuiteOwnerName();
@@ -142,31 +161,31 @@ public class OctaneTesterPerformance implements Serializable {
           Util.isBlank(run.getId())
               ? source + ":" + suiteRunId + ":anonymous-" + index
               : run.getId();
-      OctaneGateStatusBucket status =
-          OctaneGateStatusBucket.fromOutcome(classifier.classify(run.getStatus()));
-      testers.get(testerKey).put(runKey, status);
+      testers.get(testerKey).put(runKey, run);
     }
   }
 
   private static class TesterAccumulator {
     private final String email;
-    private final Map<String, OctaneGateStatusBucket> statusesByRunId = new LinkedHashMap<>();
+    private final Map<String, RunRecord> runsById = new LinkedHashMap<>();
 
     private TesterAccumulator(String email) {
       this.email = email;
     }
 
-    private void put(String runId, OctaneGateStatusBucket status) {
-      statusesByRunId.put(runId, status);
+    private void put(String runId, RunRecord run) {
+      runsById.put(runId, run);
     }
 
-    private OctaneTesterPerformance toPerformance() {
+    private OctaneTesterPerformance toPerformance(StatusClassifier classifier) {
       int executed = 0;
       int passed = 0;
       int failed = 0;
       int blocked = 0;
       int noRun = 0;
-      for (OctaneGateStatusBucket status : statusesByRunId.values()) {
+      for (RunRecord run : runsById.values()) {
+        OctaneGateStatusBucket status =
+            OctaneGateStatusBucket.fromOutcome(classifier.classify(run.getStatus()));
         if (status.isExecuted()) {
           executed++;
         }
@@ -181,7 +200,18 @@ public class OctaneTesterPerformance implements Serializable {
         }
       }
       return new OctaneTesterPerformance(
-          email, statusesByRunId.size(), executed, passed, failed, blocked, noRun);
+          email,
+          runsById.size(),
+          executed,
+          passed,
+          failed,
+          blocked,
+          noRun,
+          OctaneAutomationUsage.fromRuns(List.copyOf(runsById.values())));
     }
+  }
+
+  private OctaneAutomationUsage getAutomationUsage() {
+    return automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
   }
 }

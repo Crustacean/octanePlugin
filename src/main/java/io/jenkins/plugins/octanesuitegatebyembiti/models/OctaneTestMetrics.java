@@ -159,7 +159,21 @@ public class OctaneTestMetrics implements Serializable {
   }
 
   public String getAutomationTone() {
-    return automationTargetTone(this);
+    return automationTargetTone(
+        getAutomationPercentage(), getAutomationTestTotal(), getAutomatedTestingTarget());
+  }
+
+  public static String automationTargetTone(
+      int automationPercentage, int automationTestTotal, int automatedTestingTarget) {
+    if (automationTestTotal <= 0) {
+      return NEUTRAL;
+    }
+    int difference = automationPercentage - percentageTarget(automatedTestingTarget);
+    if (difference >= 0) {
+      return POSITIVE;
+    }
+    int deficit = Math.abs(difference);
+    return deficit <= 10 ? WARNING : NEGATIVE;
   }
 
   public OctaneTestMetrics withAutomatedTestingTarget(int target) {
@@ -283,7 +297,7 @@ public class OctaneTestMetrics implements Serializable {
     if (total == 0) {
       return Trend.neutral("Waiting for run data");
     }
-    String targetTone = automationTargetTone(usage);
+    String targetTone = usage.getAutomationTone();
     if (previousUsage == null || previousUsage.getAutomationTestTotal() == 0) {
       return Trend.of(NO_BASELINE, targetTone);
     }
@@ -292,18 +306,6 @@ public class OctaneTestMetrics implements Serializable {
       return Trend.of("No change from last cycle", targetTone);
     }
     return Trend.of((delta > 0 ? "+" : "") + delta + "% from last cycle", targetTone);
-  }
-
-  private static String automationTargetTone(OctaneTestMetrics usage) {
-    if (usage.getAutomationTestTotal() == 0) {
-      return NEUTRAL;
-    }
-    int difference = usage.getAutomationPercentage() - usage.getAutomatedTestingTarget();
-    if (difference >= 0) {
-      return POSITIVE;
-    }
-    int deficit = Math.abs(difference);
-    return deficit <= 10 ? WARNING : NEGATIVE;
   }
 
   private static List<OctaneTestMetricSegment> automationSegments(OctaneTestMetrics usage) {

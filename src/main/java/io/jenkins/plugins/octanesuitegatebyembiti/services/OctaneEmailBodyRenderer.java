@@ -12,6 +12,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapsho
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportTheme;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestManagementAnalytics;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestMetrics;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTesterPerformance;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.time.Instant;
@@ -324,7 +325,7 @@ public class OctaneEmailBodyRenderer {
       boolean printTestersOnEmailBody) {
     String details = renderExecutionDetails(projectName, domainName, snapshot, theme);
     String definedScope = renderDefinedScope(snapshot);
-    String testerExecution = renderTesterExecution(snapshot, printTestersOnEmailBody);
+    String testerExecution = renderTesterExecution(snapshot, printTestersOnEmailBody, theme);
     String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
     String defects =
         renderDefectsTable(snapshot, printDefectsOnEmailBody, defectFilter, defectLimit);
@@ -509,13 +510,14 @@ public class OctaneEmailBodyRenderer {
   }
 
   private String renderTesterExecution(
-      OctaneGateReportSnapshot snapshot, boolean printTestersOnEmailBody) {
+      OctaneGateReportSnapshot snapshot, boolean printTestersOnEmailBody, String theme) {
     if (!printTestersOnEmailBody) {
       return "";
     }
     List<OctaneTesterPerformance> testers =
         snapshot == null ? List.of() : snapshot.getTesterPerformances();
     int[] totals = testerExecutionTotals(testers);
+    TesterAutomationContext automation = testerAutomationContext(snapshot, theme);
     StringBuilder html = new StringBuilder();
     appendSpacer(html, 28);
     html.append(
@@ -525,20 +527,21 @@ public class OctaneEmailBodyRenderer {
         .append(SECTION_TITLE_STYLE)
         .append("\">Execution Status per tester</td></tr><tr><td>");
     if (testers.size() <= 10) {
-      appendTesterExecutionTable(html, testers, "single", true, totals);
+      appendTesterExecutionTable(html, testers, "single", true, totals, automation);
     } else {
       int split = (testers.size() + 1) / 2;
       html.append(
           "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
               + "style=\"border-collapse:collapse;width:100%;\"><tr>");
       html.append("<td style=\"vertical-align:top;width:50%;\">");
-      appendTesterExecutionTable(html, testers.subList(0, split), "left", false, totals);
+      appendTesterExecutionTable(
+          html, testers.subList(0, split), "left", false, totals, automation);
       html.append("</td><td style=\"font-size:1px;line-height:1px;width:24px;\">&nbsp;</td>");
       html.append("<td style=\"vertical-align:top;width:50%;\">");
       appendTesterExecutionTable(
-          html, testers.subList(split, testers.size()), "right", false, totals);
+          html, testers.subList(split, testers.size()), "right", false, totals, automation);
       html.append("</td></tr><tr><td colspan=\"3\" style=\"padding-top:8px;\">");
-      appendTesterExecutionSummaryTable(html, totals);
+      appendTesterExecutionSummaryTable(html, totals, automation);
       html.append("</td></tr></table>");
     }
     html.append("</td></tr></table>");
@@ -550,7 +553,8 @@ public class OctaneEmailBodyRenderer {
       List<OctaneTesterPerformance> testers,
       String column,
       boolean includeSummary,
-      int[] totals) {
+      int[] totals,
+      TesterAutomationContext automation) {
     html.append("<table data-octane-email-table=\"tester-execution\" data-octane-email-column=\"")
         .append(column)
         .append(
@@ -560,64 +564,111 @@ public class OctaneEmailBodyRenderer {
     appendTesterExecutionHeader(html);
     html.append("<tbody>");
     for (OctaneTesterPerformance tester : testers) {
-      appendTesterExecutionRow(html, tester);
+      appendTesterExecutionRow(html, tester, automation);
     }
     html.append("</tbody>");
     if (includeSummary) {
       html.append("<tfoot>");
-      appendTesterExecutionTotalRow(html, totals);
+      appendTesterExecutionTotalRow(html, totals, automation);
       html.append("</tfoot>");
     }
     html.append("</table>");
   }
 
-  private void appendTesterExecutionSummaryTable(StringBuilder html, int[] totals) {
+  private void appendTesterExecutionSummaryTable(
+      StringBuilder html, int[] totals, TesterAutomationContext automation) {
     html.append(
         "<table data-octane-email-table=\"tester-execution-summary\" cellpadding=\"0\" "
             + "cellspacing=\"0\" style=\"border-collapse:collapse;table-layout:fixed;"
             + "width:100%;\">");
     appendTesterExecutionColumns(html);
     html.append("<tbody>");
-    appendTesterExecutionTotalRow(html, totals);
+    appendTesterExecutionTotalRow(html, totals, automation);
     html.append("</tbody></table>");
   }
 
   private void appendTesterExecutionColumns(StringBuilder html) {
     html.append(
-        "<colgroup><col style=\"width:35%;\"><col style=\"width:13%;\">"
-            + "<col style=\"width:13%;\"><col style=\"width:13%;\">"
-            + "<col style=\"width:13%;\"><col style=\"width:13%;\"></colgroup>");
+        "<colgroup><col style=\"width:28%;\"><col style=\"width:12%;\">"
+            + "<col style=\"width:12%;\"><col style=\"width:12%;\">"
+            + "<col style=\"width:12%;\"><col style=\"width:12%;\">"
+            + "<col style=\"width:12%;\"></colgroup>");
   }
 
   private void appendTesterExecutionHeader(StringBuilder html) {
     html.append("<thead><tr>");
-    appendHeader(html, "Tester", "left");
+    appendHeader(html, "Testers", "left");
     appendHeader(html, "No Run", "right");
     appendHeader(html, "Blocked", "right");
     appendHeader(html, "Failed", "right");
     appendHeader(html, "Passed", "right");
     appendHeader(html, "Total", "right");
+    appendHeader(html, "Automation", "center");
     html.append("</tr></thead>");
   }
 
-  private void appendTesterExecutionRow(StringBuilder html, OctaneTesterPerformance tester) {
+  private void appendTesterExecutionRow(
+      StringBuilder html, OctaneTesterPerformance tester, TesterAutomationContext automation) {
     html.append("<tr data-octane-tester-row=\"true\">");
-    appendTesterExecutionLabelCell(html, tester.getEmail(), false);
+    appendTesterExecutionLabelCell(html, testerUsername(tester.getEmail()), false);
     appendTesterExecutionValueCell(html, tester.getNoRun(), false);
     appendTesterExecutionValueCell(html, tester.getBlocked(), false);
     appendTesterExecutionValueCell(html, tester.getFailed(), false);
     appendTesterExecutionValueCell(html, tester.getPassed(), false);
     appendTesterExecutionValueCell(html, tester.getTotal(), false);
+    appendTesterExecutionAutomationCell(
+        html,
+        tester.getAutomationPercentageText(),
+        automationUsageCellStyle(
+            tester.getAutomationPercentage(),
+            tester.getAutomationTestTotal(),
+            automation.target,
+            automation.theme),
+        false,
+        "data-octane-tester-automation=\"true\"");
     html.append("</tr>");
   }
 
-  private void appendTesterExecutionTotalRow(StringBuilder html, int[] totals) {
+  private void appendTesterExecutionTotalRow(
+      StringBuilder html, int[] totals, TesterAutomationContext automation) {
     html.append("<tr data-octane-tester-total=\"true\">");
     appendTesterExecutionLabelCell(html, "Total", true);
     for (int total : totals) {
       appendTesterExecutionValueCell(html, total, true);
     }
+    appendTesterExecutionAutomationCell(
+        html,
+        automation.totalPercentageText,
+        automation.totalStyle,
+        true,
+        "data-octane-tester-automation-total=\"true\"");
     html.append("</tr>");
+  }
+
+  private void appendTesterExecutionAutomationCell(
+      StringBuilder html,
+      String value,
+      EmailValueCellStyle valueCellStyle,
+      boolean emphasized,
+      String dataAttribute) {
+    html.append("<td ").append(dataAttribute);
+    if (!valueCellStyle.bgcolor.isEmpty()) {
+      html.append(" bgcolor=\"").append(valueCellStyle.bgcolor).append("\"");
+    }
+    html.append(" style=\"border:1px solid #d0d7de;")
+        .append(valueCellStyle.inlineCss)
+        .append(emphasized ? TABLE_HEADER_STYLE : TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:center;vertical-align:middle;\">")
+        .append(escape(value))
+        .append("</td>");
+  }
+
+  private String testerUsername(String email) {
+    String normalized = Util.trimToEmpty(email);
+    int separator = normalized.indexOf('@');
+    String username = separator < 0 ? normalized : normalized.substring(0, separator);
+    return username.toLowerCase(Locale.ROOT);
   }
 
   private void appendTesterExecutionLabelCell(
@@ -651,6 +702,17 @@ public class OctaneEmailBodyRenderer {
       totals[4] += tester.getTotal();
     }
     return totals;
+  }
+
+  private TesterAutomationContext testerAutomationContext(
+      OctaneGateReportSnapshot snapshot, String theme) {
+    OctaneTestMetrics metrics =
+        snapshot == null ? OctaneTestMetrics.empty() : snapshot.getTestMetrics();
+    return new TesterAutomationContext(
+        metrics.getAutomatedTestingTarget(),
+        theme,
+        metrics.getAutomationPercentageText(),
+        automationUsageCellStyle(snapshot, theme));
   }
 
   private int definedScopeSplit(int total) {
@@ -1203,10 +1265,22 @@ public class OctaneEmailBodyRenderer {
 
   private EmailValueCellStyle automationUsageCellStyle(
       OctaneGateReportSnapshot snapshot, String theme) {
-    if (snapshot == null || snapshot.getTestMetrics().getAutomationTestTotal() == 0) {
+    OctaneTestMetrics metrics =
+        snapshot == null ? OctaneTestMetrics.empty() : snapshot.getTestMetrics();
+    return automationUsageCellStyle(
+        metrics.getAutomationPercentage(),
+        metrics.getAutomationTestTotal(),
+        metrics.getAutomatedTestingTarget(),
+        theme);
+  }
+
+  private EmailValueCellStyle automationUsageCellStyle(
+      int automationPercentage, int automationTestTotal, int automatedTestingTarget, String theme) {
+    if (automationTestTotal == 0) {
       return EmailValueCellStyle.fallbackStyle();
     }
-    switch (snapshot.getTestMetrics().getAutomationTone()) {
+    switch (OctaneTestMetrics.automationTargetTone(
+        automationPercentage, automationTestTotal, automatedTestingTarget)) {
       case "positive":
         return EmailValueCellStyle.painted(systemGreen(emailTheme(theme)), "#000000");
       case "warning":
@@ -1560,6 +1634,21 @@ public class OctaneEmailBodyRenderer {
     private static EmailValueCellStyle painted(String backgroundColor, String fontColor) {
       return new EmailValueCellStyle(
           backgroundColor, "background-color:" + backgroundColor + ";color:" + fontColor + ";");
+    }
+  }
+
+  private static class TesterAutomationContext {
+    private final int target;
+    private final String theme;
+    private final String totalPercentageText;
+    private final EmailValueCellStyle totalStyle;
+
+    private TesterAutomationContext(
+        int target, String theme, String totalPercentageText, EmailValueCellStyle totalStyle) {
+      this.target = target;
+      this.theme = Util.trimToEmpty(theme);
+      this.totalPercentageText = Util.trimToEmpty(totalPercentageText);
+      this.totalStyle = totalStyle;
     }
   }
 

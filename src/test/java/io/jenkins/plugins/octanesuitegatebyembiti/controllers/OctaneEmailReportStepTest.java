@@ -223,7 +223,7 @@ public class OctaneEmailReportStepTest {
     assertFalse(sentBody.get().contains("{{PASSRATE}}"));
     assertTrue(sentBody.get().contains("Execution Status per tester"));
     assertTrue(sentBody.get().contains("data-octane-email-table=\"tester-execution\""));
-    assertTrue(sentBody.get().contains(">Ada Tester</th>"));
+    assertTrue(sentBody.get().contains(">ada tester</th>"));
     assertEquals("interval-email-test/report.png", sentAttachment.get());
     assertTrue(sentImportant.get());
     assertNotNull(screenshotSnapshot.get());

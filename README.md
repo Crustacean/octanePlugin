@@ -241,10 +241,13 @@ it.
 
 Set `printTestersOnEmailBody: true` to add an **Execution Status per tester** table immediately
 above the execution graph. The table reports No Run, Blocked, Failed, Passed, and Total counts from
-the same deduplicated tester aggregation used by the live report. More than 10 testers are balanced
-across two email-safe table columns. In `variables.yaml`, use `PRINT_TESTERS_ON_EMAIL_BODY: true`
-or `1`; `false`, `0`, `null`, `undefined`, an empty value, or an omitted key disables the section
-without leaving an empty title or spacer.
+the same deduplicated tester aggregation used by the live report. Tester email addresses are shown
+as lowercase usernames without the domain. The Automation column uses each tester's child-run
+execution actors and applies the configured automation target colors independently; its Total cell
+matches the main Automation Usage summary. More than 10 testers are balanced across two email-safe
+table columns. In `variables.yaml`, use `PRINT_TESTERS_ON_EMAIL_BODY: true` or `1`; `false`, `0`,
+`null`, `undefined`, an empty value, or an omitted key disables the section without leaving an empty
+title or spacer.
 
 To send failure and timeout reports from a separate email stage, wrap the gate stage in
 `catchError(catchInterruptions: false, ...)`, retain `gateResult.passed` in an environment flag,

@@ -499,16 +499,50 @@ public class OctaneEmailBodyRendererTest {
     String table = testerColumnTable(html, "single");
     String header = table.substring(table.indexOf("<thead>"), table.indexOf("</thead>"));
 
-    assertTrue(header.indexOf(">Tester</th>") < header.indexOf(">No Run</th>"));
+    assertTrue(header.indexOf(">Testers</th>") < header.indexOf(">No Run</th>"));
     assertTrue(header.indexOf(">No Run</th>") < header.indexOf(">Blocked</th>"));
     assertTrue(header.indexOf(">Blocked</th>") < header.indexOf(">Failed</th>"));
     assertTrue(header.indexOf(">Failed</th>") < header.indexOf(">Passed</th>"));
     assertTrue(header.indexOf(">Passed</th>") < header.indexOf(">Total</th>"));
-    assertEquals(List.of(2, 1, 1, 2, 6), numericCells(testerRow(table, "Tester Alpha")));
-    assertEquals(List.of(1, 0, 0, 1, 2), numericCells(testerRow(table, "Tester Beta")));
+    assertTrue(header.indexOf(">Total</th>") < header.indexOf(">Automation</th>"));
+    assertEquals(7, occurrences(header, "<th scope=\"col\""));
+    assertEquals(List.of(2, 1, 1, 2, 6), numericCells(testerRow(table, "tester alpha")));
+    assertEquals(List.of(1, 0, 0, 1, 2), numericCells(testerRow(table, "tester beta")));
     assertEquals(List.of(3, 1, 1, 3, 8), numericCells(testerTotalRow(html)));
     assertEquals(1, occurrences(html, "data-octane-tester-total=\"true\""));
     assertTrue(html.indexOf("Execution Status per tester") < html.indexOf("Execution graph"));
+  }
+
+  @Test
+  public void formatsTesterEmailUsernameForTheBreakdownTable() {
+    String html = renderTesterExecutionEmail(testerAutomationSnapshot(80), true);
+    String table = testerColumnTable(html, "single");
+
+    assertTrue(table.contains(">jane.smith</th>"));
+    assertFalse(table.contains("Jane.Smith@Safaricom.co.ke"));
+  }
+
+  @Test
+  public void paintsIndividualAutomationAgainstTargetAndMirrorsAggregateSummary() {
+    String html = renderTesterExecutionEmail(testerAutomationSnapshot(80), true);
+    String table = testerColumnTable(html, "single");
+    String janeAutomation =
+        testerAutomationCell(testerRow(table, "jane.smith"), "data-octane-tester-automation");
+    String totalAutomation =
+        testerAutomationCell(testerTotalRow(html), "data-octane-tester-automation-total");
+    String summaryAutomation = detailRow(html, "Automation Usage");
+
+    assertTrue(janeAutomation.contains(">100%</td>"));
+    assertTrue(janeAutomation.contains("bgcolor=\"#34C759\""));
+    assertTrue(janeAutomation.contains("background-color:#34C759;color:#000000;"));
+    assertTrue(janeAutomation.contains("text-align:center;"));
+
+    assertTrue(totalAutomation.contains(">50%</td>"));
+    assertTrue(totalAutomation.contains("bgcolor=\"#FF3B30\""));
+    assertTrue(totalAutomation.contains("background-color:#FF3B30;color:#000000;"));
+    assertAutomationUsageCell(html, "50%", "#FF3B30", "#000000", true);
+    assertTrue(summaryAutomation.contains("background-color:#FF3B30;color:#000000;"));
+    assertEquals(emailValueCellText(summaryAutomation), emailValueCellText(totalAutomation));
   }
 
   @Test
@@ -905,6 +939,68 @@ public class OctaneEmailBodyRendererTest {
         OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
   }
 
+  private OctaneGateReportSnapshot testerAutomationSnapshot(int target) {
+    List<RunRecord> runs =
+        List.of(
+            new RunRecord(
+                "jane-automated-1",
+                "Jane automated 1",
+                "passed",
+                "Jenkins Agent",
+                "Jane.Smith@Safaricom.co.ke",
+                "jane-test-1",
+                "Jane test 1",
+                "",
+                ""),
+            new RunRecord(
+                "jane-automated-2",
+                "Jane automated 2",
+                "passed",
+                "Jenkins Agent",
+                "Jane.Smith@Safaricom.co.ke",
+                "jane-test-2",
+                "Jane test 2",
+                "",
+                ""),
+            new RunRecord(
+                "alex-manual-1",
+                "Alex manual 1",
+                "passed",
+                "Alex Manual",
+                "Alex.User@Safaricom.co.ke",
+                "alex-test-1",
+                "Alex test 1",
+                "",
+                ""),
+            new RunRecord(
+                "alex-manual-2",
+                "Alex manual 2",
+                "failed",
+                "Alex Manual",
+                "Alex.User@Safaricom.co.ke",
+                "alex-test-2",
+                "Alex test 2",
+                "",
+                ""));
+    GateResult result =
+        new GateResult(
+            "tester-suite",
+            "regressions.executionRate >= 0",
+            false,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("tester-suite", runs),
+            Map.of(),
+            Instant.parse("2026-06-30T12:00:00Z"));
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING, "Polling", result, classifier, 30);
+    return snapshot
+        .withTestMetrics(snapshot.getTestMetrics().withAutomatedTestingTarget(target))
+        .withCalculatedTestMetrics(null);
+  }
+
   private String testerColumnTable(String html, String column) {
     String marker = "data-octane-email-column=\"" + column + "\"";
     int markerIndex = html.indexOf(marker);
@@ -929,6 +1025,21 @@ public class OctaneEmailBodyRendererTest {
     int rowStart = html.lastIndexOf("<tr", marker);
     int rowEnd = html.indexOf("</tr>", marker);
     return html.substring(rowStart, rowEnd + "</tr>".length());
+  }
+
+  private String testerAutomationCell(String row, String attribute) {
+    int marker = row.indexOf(attribute + "=\"true\"");
+    assertTrue("Missing tester automation cell " + attribute, marker >= 0);
+    int cellStart = row.lastIndexOf("<td", marker);
+    int cellEnd = row.indexOf("</td>", marker);
+    assertTrue("Missing tester automation cell bounds " + attribute, cellEnd > marker);
+    return row.substring(cellStart, cellEnd + "</td>".length());
+  }
+
+  private String emailValueCellText(String html) {
+    Matcher matcher = Pattern.compile("<td[^>]*>([^<]*)</td>").matcher(html);
+    assertTrue("Missing email value cell", matcher.find());
+    return matcher.group(1);
   }
 
   private List<Integer> numericCells(String row) {
