@@ -9060,6 +9060,21 @@
             activateOverlayAccessibility(card);
             scheduleFluidBarCharts();
           }
+          function applyDeepLinkedTestFailureFocus() {
+            if (typeof window.URLSearchParams !== "function") {
+              return;
+            }
+            var parameters = new window.URLSearchParams(window.location.search || "");
+            if (parameters.get("octaneFocus") !== "test-management-failures"
+                || parameters.get("octaneFocusMode") !== "individual") {
+              return;
+            }
+            var card = dashboard.querySelector(
+                '[data-card-key="test-management-failures"]');
+            if (card) {
+              expandCard(card);
+            }
+          }
           expandedBackdrop.addEventListener("click", function () {
             collapseExpandedCard();
             collapseFocusedZone();
@@ -9258,6 +9273,7 @@
             var before = event.clientY < rect.top + rect.height / 2;
             draggedZone.insertBefore(dragged, before ? target : target.nextSibling);
           });
+          applyDeepLinkedTestFailureFocus();
         })();
         //]]>
       </script>

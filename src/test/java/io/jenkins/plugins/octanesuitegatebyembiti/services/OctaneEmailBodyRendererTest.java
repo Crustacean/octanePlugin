@@ -362,12 +362,7 @@ public class OctaneEmailBodyRendererTest {
   public void filtersSortsAndLimitsDefectsBelowExecutionScreenshot() {
     String html =
         renderCustomizedEmail(
-            snapshot(OctaneGateReportState.PASSED, "Gate passed."),
-            "",
-            false,
-            true,
-            "major, Closed",
-            3);
+            snapshot(OctaneGateReportState.PASSED, "Gate passed."), "", false, true, "major", 3);
     String table = emailTable(html, "defects");
 
     assertTrue(table.contains(">ID</th>"));
@@ -380,6 +375,7 @@ public class OctaneEmailBodyRendererTest {
     assertFalse(table.contains(">4</td>"));
     assertTrue(table.contains(">Major</td>"));
     assertTrue(table.indexOf(">1</td>") < table.indexOf(">2</td>"));
+    assertTrue(table.contains("data-octane-defect-overflow=\"true\""));
     assertTrue(html.indexOf("src=\"cid:octane-report-zone.png\"") < html.indexOf(table));
 
     String closedOnly =
@@ -395,6 +391,47 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(closedOnly.contains(">7</td>"));
     assertTrue(closedOnly.contains(">8</td>"));
     assertFalse(closedOnly.contains(">1</td>"));
+    assertFalse(closedOnly.contains("data-octane-defect-overflow=\"true\""));
+  }
+
+  @Test
+  public void countsExactFilteredDefectsBeforeApplyingTheDisplayLimit() {
+    OctaneGateReportSnapshot snapshot = defectOverflowSnapshot();
+
+    String overflow = renderCustomizedEmail(snapshot, "", false, true, "major, open", 2);
+    String atThreshold = renderCustomizedEmail(snapshot, "", false, true, "major, open", 3);
+    String table = emailTable(overflow, "defects");
+
+    assertTrue(table.contains("data-octane-error-count=\"3\""));
+    assertTrue(table.contains(">1</td>"));
+    assertTrue(table.contains(">2</td>"));
+    assertFalse(table.contains(">3</td>"));
+    assertFalse(atThreshold.contains("data-octane-defect-overflow=\"true\""));
+  }
+
+  @Test
+  public void countsAllDefectsForAFalsyFilterAndLinksToFocusedFailureAnalysis() {
+    OctaneGateReportSnapshot snapshot = defectOverflowSnapshot();
+
+    String overflow = renderCustomizedEmail(snapshot, "", false, true, null, 5);
+    String atThreshold = renderCustomizedEmail(snapshot, "", false, true, "", 10);
+    String table = emailTable(overflow, "defects");
+
+    assertTrue(table.contains("data-octane-error-count=\"10\""));
+    assertTrue(
+        table.contains(
+            "<td colspan=\"4\" style=\"border:1px solid #d0d7de;"
+                + "font-family:Arial,sans-serif;font-size:15px;font-weight:400;"
+                + "line-height:1.4;padding:4px 8px;text-align:center;\">"));
+    assertTrue(table.contains(">view all defects</a>"));
+    assertTrue(table.indexOf(">5</td>") < table.indexOf(">view all defects</a>"));
+    assertEquals(1, occurrences(table, ">view all defects</a>"));
+    assertTrue(
+        table.contains(
+            "href=\"https://jenkins.example/job/example/1/octaneSuiteGateReport/"
+                + "?octaneFocus=test-management-failures&amp;"
+                + "octaneFocusMode=individual#octane-test-management-zone\""));
+    assertFalse(atThreshold.contains("data-octane-defect-overflow=\"true\""));
   }
 
   @Test
@@ -1165,6 +1202,42 @@ public class OctaneEmailBodyRendererTest {
   private OctaneGateReportSnapshot reconciliationSnapshot(
       OctaneGateReportState state, List<String> statuses, int defectsRaised) {
     return reconciliationSnapshot(state, statuses, defectsRaised, 0);
+  }
+
+  private OctaneGateReportSnapshot defectOverflowSnapshot() {
+    OctaneDefectGroup major = defectGroup("major", "Critical, Very High, High, Unspecified");
+    OctaneDefectGroup minor = defectGroup("minor", "Low, Medium");
+    List<DefectRecord> defects =
+        List.of(
+            defect("1", "Critical", "opened"),
+            defect("2", "Very High", "opened"),
+            defect("3", "High", "opened"),
+            defect("4", "Critical", "closed"),
+            defect("5", "Medium", "opened"),
+            defect("6", "Low", "opened"),
+            defect("7", "Medium", "closed"),
+            defect("8", "Low", "closed"),
+            defect("9", "Unspecified", "closed"),
+            defect("10", "Low", "closed"));
+    CriteriaEvaluation evaluation = CriteriaEvaluation.available(true, List.of());
+    GateResult result =
+        new GateResult(
+            "suite-1",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            new GateMetrics(10, 10, 10, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            new DefectCriteriaMetrics(
+                OctaneDefectSeveritySummary.fromDefects(defects), List.of(major, minor)),
+            defects,
+            evaluation,
+            Instant.parse("2026-06-30T12:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Gate passed.", result, classifier, 30);
   }
 
   private OctaneGateReportSnapshot reconciliationSnapshot(

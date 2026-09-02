@@ -49,6 +49,9 @@ public class OctaneEmailBodyRenderer {
   private static final String SET_CRITERIA_TOKEN = "Set criteria: " + CRITERIA_TOKEN;
   private static final String EXECUTION_DETAILS_TOKEN = "{{EXECUTION_DETAILS}}";
   private static final String REPORT_SCREENSHOT_TOKEN = "{{REPORT_SCREENSHOT}}";
+  private static final String TEST_FAILURE_ANALYSIS_FOCUS_QUERY =
+      "octaneFocus=test-management-failures&octaneFocusMode=individual";
+  private static final String TEST_MANAGEMENT_ZONE_FRAGMENT = "octane-test-management-zone";
   private static final Pattern PROJECT_SUMMARY_BULLET = Pattern.compile("^(\\*{1,5})\\s*(.*)$");
   private static final Pattern BOLD_ITALIC_MARKDOWN = Pattern.compile("_\\*\\*(.*?)\\*\\*_");
   private static final Pattern BOLD_MARKDOWN = Pattern.compile("\\*\\*(.*?)\\*\\*");
@@ -287,6 +290,7 @@ public class OctaneEmailBodyRenderer {
             projectName,
             domainName,
             snapshot,
+            normalizedReportUrl,
             screenshotContentId,
             theme,
             printDefectsOnEmailBody,
@@ -317,6 +321,7 @@ public class OctaneEmailBodyRenderer {
       String projectName,
       String domainName,
       OctaneGateReportSnapshot snapshot,
+      String reportUrl,
       String screenshotContentId,
       String theme,
       boolean printDefectsOnEmailBody,
@@ -328,7 +333,7 @@ public class OctaneEmailBodyRenderer {
     String testerExecution = renderTesterExecution(snapshot, printTestersOnEmailBody, theme);
     String screenshot = renderInlineScreenshot(screenshotContentId, projectName);
     String defects =
-        renderDefectsTable(snapshot, printDefectsOnEmailBody, defectFilter, defectLimit);
+        renderDefectsTable(snapshot, printDefectsOnEmailBody, defectFilter, defectLimit, reportUrl);
     int detailsStart = template.indexOf(EXECUTION_DETAILS_TOKEN);
     int screenshotStart = template.indexOf(REPORT_SCREENSHOT_TOKEN);
     if (detailsStart >= 0 && screenshotStart > detailsStart) {
@@ -1342,13 +1347,16 @@ public class OctaneEmailBodyRenderer {
   }
 
   private String renderDefectsTable(
-      OctaneGateReportSnapshot snapshot, boolean enabled, String filter, int limit) {
+      OctaneGateReportSnapshot snapshot,
+      boolean enabled,
+      String filter,
+      int limit,
+      String reportUrl) {
     if (!enabled || snapshot == null) {
       return "";
     }
-    List<OctaneTestManagementAnalytics.DefectDetail> defects =
-        filteredDefects(snapshot, filter, limit);
-    if (defects.isEmpty()) {
+    DefectTableSelection selection = defectTableSelection(snapshot, filter, limit);
+    if (selection.visibleDefects.isEmpty()) {
       return "";
     }
 
@@ -1367,7 +1375,7 @@ public class OctaneEmailBodyRenderer {
     appendHeader(html, "Severity", "left");
     appendHeader(html, "Status", "left");
     html.append("</tr></thead><tbody>");
-    for (OctaneTestManagementAnalytics.DefectDetail defect : defects) {
+    for (OctaneTestManagementAnalytics.DefectDetail defect : selection.visibleDefects) {
       html.append("<tr>");
       appendDefectTextCell(html, defect.getId());
       appendDefectTextCell(html, defect.getDescription());
@@ -1375,13 +1383,16 @@ public class OctaneEmailBodyRenderer {
       appendDefectTextCell(html, defect.getStatus());
       html.append("</tr>");
     }
+    if (selection.overflowed) {
+      appendDefectOverflowRow(html, reportUrl, 4, selection.errorCount);
+    }
     html.append("</tbody></table>");
     return html.toString();
   }
 
-  private List<OctaneTestManagementAnalytics.DefectDetail> filteredDefects(
+  private DefectTableSelection defectTableSelection(
       OctaneGateReportSnapshot snapshot, String filter, int limit) {
-    List<String> keywords =
+    List<String> criteria =
         List.of(Util.trimToEmpty(filter).split(",")).stream()
             .map(value -> value.trim())
             .filter(value -> !value.isEmpty())
@@ -1391,7 +1402,7 @@ public class OctaneEmailBodyRenderer {
     for (OctaneTestManagementAnalytics.FailureCategory category :
         snapshot.getTestManagement().getFailureCategories()) {
       for (OctaneTestManagementAnalytics.DefectDetail defect : category.getDefects()) {
-        if (keywords.isEmpty() || matchesDefectFilter(defect, keywords)) {
+        if (criteria.isEmpty() || matchesDefectFilter(defect, criteria)) {
           defects.add(defect);
         }
       }
@@ -1400,23 +1411,66 @@ public class OctaneEmailBodyRenderer {
         Comparator.comparingLong(
                 (OctaneTestManagementAnalytics.DefectDetail defect) -> defectId(defect.getId()))
             .thenComparing(defect -> defect.getId(), String.CASE_INSENSITIVE_ORDER));
-    return limit > 0 && defects.size() > limit
-        ? List.copyOf(defects.subList(0, limit))
-        : List.copyOf(defects);
+    int errorCount =
+        criteria.isEmpty() ? snapshot.getTestManagement().getTotalDefects() : defects.size();
+    boolean overflowed = limit > 0 && errorCount > limit;
+    List<OctaneTestManagementAnalytics.DefectDetail> visibleDefects =
+        limit > 0 && defects.size() > limit
+            ? List.copyOf(defects.subList(0, limit))
+            : List.copyOf(defects);
+    return new DefectTableSelection(visibleDefects, errorCount, overflowed);
   }
 
   private boolean matchesDefectFilter(
-      OctaneTestManagementAnalytics.DefectDetail defect, List<String> keywords) {
-    String searchable =
-        String.join(
-                " ",
-                defect.getId(),
-                defect.getDescription(),
-                defect.getSeverity(),
-                defect.getSeverityLabel(),
-                defect.getStatus())
-            .toLowerCase(Locale.ROOT);
-    return keywords.stream().anyMatch(searchable::contains);
+      OctaneTestManagementAnalytics.DefectDetail defect, List<String> criteria) {
+    Set<String> exactValues = new LinkedHashSet<>();
+    exactValues.add(Util.trimToEmpty(defect.getId()).toLowerCase(Locale.ROOT));
+    exactValues.add(Util.trimToEmpty(defect.getDescription()).toLowerCase(Locale.ROOT));
+    exactValues.add(Util.trimToEmpty(defect.getSeverity()).toLowerCase(Locale.ROOT));
+    exactValues.add(Util.trimToEmpty(defect.getSeverityLabel()).toLowerCase(Locale.ROOT));
+    exactValues.add(Util.trimToEmpty(defect.getStatus()).toLowerCase(Locale.ROOT));
+    return criteria.stream().allMatch(criterion -> exactValues.contains(criterion));
+  }
+
+  private void appendDefectOverflowRow(
+      StringBuilder html, String reportUrl, int totalColumns, int errorCount) {
+    String target = testFailureAnalysisUrl(reportUrl);
+    if (target.isEmpty()) {
+      return;
+    }
+    html.append("<tr data-octane-defect-overflow=\"true\" data-octane-error-count=\"")
+        .append(Math.max(0, errorCount))
+        .append("\"><td colspan=\"")
+        .append(totalColumns)
+        .append("\" style=\"border:1px solid #d0d7de;")
+        .append(TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append("text-align:center;\"><a href=\"")
+        .append(escape(target))
+        .append("\" style=\"color:#0969da;text-decoration:underline;\">")
+        .append("view all defects</a></td></tr>");
+  }
+
+  private String testFailureAnalysisUrl(String reportUrl) {
+    String normalized = Util.trimToEmpty(reportUrl);
+    if (normalized.isEmpty()) {
+      return "";
+    }
+    int fragmentStart = normalized.indexOf('#');
+    String base = fragmentStart >= 0 ? normalized.substring(0, fragmentStart) : normalized;
+    String separator;
+    if (!base.contains("?")) {
+      separator = "?";
+    } else if (base.endsWith("?") || base.endsWith("&")) {
+      separator = "";
+    } else {
+      separator = "&";
+    }
+    return base
+        + separator
+        + TEST_FAILURE_ANALYSIS_FOCUS_QUERY
+        + "#"
+        + TEST_MANAGEMENT_ZONE_FRAGMENT;
   }
 
   private long defectId(String value) {
@@ -1602,6 +1656,21 @@ public class OctaneEmailBodyRenderer {
     DefectStatusColumn(String label, List<String> types) {
       this.label = Util.trimToEmpty(label);
       this.types = List.copyOf(types);
+    }
+  }
+
+  private static class DefectTableSelection {
+    private final List<OctaneTestManagementAnalytics.DefectDetail> visibleDefects;
+    private final int errorCount;
+    private final boolean overflowed;
+
+    private DefectTableSelection(
+        List<OctaneTestManagementAnalytics.DefectDetail> visibleDefects,
+        int errorCount,
+        boolean overflowed) {
+      this.visibleDefects = List.copyOf(visibleDefects);
+      this.errorCount = Math.max(0, errorCount);
+      this.overflowed = overflowed;
     }
   }
 

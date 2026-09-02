@@ -168,6 +168,23 @@ test("reveals the clicked failure bar and matching tab after individual focus op
       /revealFailureCategory: scheduleFailureCategoryReveal/);
 });
 
+test("opens Test Failure Analysis in individual focus from an email deep link", () => {
+  assert.match(jelly, /function applyDeepLinkedTestFailureFocus\(\)/);
+  assert.match(
+      jelly,
+      /parameters\.get\("octaneFocus"\) !== "test-management-failures"/);
+  assert.match(
+      jelly,
+      /parameters\.get\("octaneFocusMode"\) !== "individual"/);
+  assert.match(
+      jelly,
+      /dashboard\.querySelector\(\s*'\[data-card-key="test-management-failures"\]'\)/);
+  assert.match(
+      jelly,
+      /function applyDeepLinkedTestFailureFocus[\s\S]*?expandCard\(card\);/);
+  assert.match(jelly, /applyDeepLinkedTestFailureFocus\(\);/);
+});
+
 test("keeps focused defect groups on one line with conditional scroll controls", () => {
   assert.match(jelly, /data-management-failure-tab-nav="true"/);
   assert.match(jelly, /data-management-category-scroll="-1"/);
