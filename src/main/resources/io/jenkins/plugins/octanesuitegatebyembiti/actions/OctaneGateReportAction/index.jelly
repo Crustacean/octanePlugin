@@ -215,7 +215,7 @@
           padding: 1rem;
           position: fixed;
           width: auto;
-          z-index: 9999;
+          z-index: 2147483646;
         }
         .octane-timer-zone.octane-zone-focused {
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1766,7 +1766,7 @@
           background: rgba(0, 0, 0, 0.42);
           inset: 0;
           position: fixed;
-          z-index: 9998;
+          z-index: 2147483645;
         }
         .octane-chart-card.octane-expanded {
           border-color: #4391F5;
@@ -1782,7 +1782,7 @@
           position: fixed;
           resize: none;
           width: auto;
-          z-index: 9999;
+          z-index: 2147483646;
         }
         .octane-chart-card.octane-expanded .octane-icon-expand {
           display: none;
@@ -2443,7 +2443,7 @@
           transition: opacity 90ms ease;
           visibility: hidden;
           will-change: left, top;
-          z-index: 10001;
+          z-index: 2147483647;
         }
         .octane-bar-popup.octane-bar-popup-visible {
           opacity: 1;
@@ -2521,6 +2521,23 @@
           transform-origin: center;
           white-space: nowrap;
           width: 100%;
+        }
+        .octane-suite-label[data-axis-label-rotation="45"],
+        .octane-suite-label[data-axis-label-rotation="90"] {
+          justify-self: center;
+          max-width: var(--octane-axis-label-max-width, 4rem);
+          min-height: 0;
+          padding-top: 0;
+          text-align: right;
+          transform-origin: right top;
+          width: max-content;
+        }
+        .octane-suite-label[data-axis-label-rotation="45"] {
+          transform: translateX(-50%) rotate(-45deg);
+        }
+        .octane-suite-label[data-axis-label-rotation="90"] {
+          font-size: 9px;
+          transform: translateX(-50%) rotate(-90deg);
         }
         .octane-chart-data-summary {
           border-collapse: collapse;
@@ -2871,6 +2888,13 @@
         .octane-client-axis-value {
           text-anchor: end;
         }
+        .octane-client-axis-label[data-axis-label-rotation="45"],
+        .octane-client-axis-label[data-axis-label-rotation="90"] {
+          font-size: 10px;
+        }
+        .octane-client-axis-label[data-axis-label-rotation="90"] {
+          font-size: 9px;
+        }
         .octane-client-overflow-line {
           stroke: #666;
           stroke-dasharray: 3 4;
@@ -2907,7 +2931,7 @@
           padding: 1rem;
           position: fixed;
           width: auto;
-          z-index: 9999;
+          z-index: 2147483646;
         }
         .octane-test-management-zone.octane-zone-focused
           > .octane-chart-card:nth-of-type(3) {
@@ -3167,6 +3191,9 @@
         }
         .octane-management-failure-axis-layout {
           --octane-management-failure-axis-row: 1.65rem;
+          --octane-management-failure-axis-value-width: 2ch;
+          grid-template-columns:
+            1.35rem var(--octane-management-failure-axis-value-width) minmax(0, 1fr);
           grid-template-rows:
             minmax(0, 1fr) var(--octane-management-failure-axis-row);
           min-height: 0;
@@ -7296,9 +7323,67 @@
             };
           }
           /* OCTANE_FLUID_BAR_CHART_END */
+          function applyFluidAxisLabelLayout(container, layout) {
+            var renderer = window.OctaneScaleReport;
+            if (!container || !renderer || !renderer.axisLabelLayout) {
+              return;
+            }
+            var labels = container.querySelectorAll(".octane-suite-label");
+            var graph = container.closest(".octane-bar-graph");
+            if (!labels.length || !graph) {
+              return;
+            }
+            var firstStyle = window.getComputedStyle(labels[0]);
+            var fontHeight = parseFloat(firstStyle.fontSize) || 12;
+            var font = firstStyle.font || fontHeight + "px Inter, sans-serif";
+            var averageCharacterWidth =
+                renderer.measureAxisLabel("MMMMMM\u2026", font) / 7;
+            var maximumLabelWidth = 0;
+            for (var index = 0; index < labels.length; index += 1) {
+              var fullLabel = labels[index].getAttribute("data-axis-label")
+                  || labels[index].textContent.trim();
+              labels[index].setAttribute("data-axis-label", fullLabel);
+              maximumLabelWidth = Math.max(
+                  maximumLabelWidth,
+                  renderer.measureAxisLabel(fullLabel, font));
+            }
+            var graphHeight = graph.getBoundingClientRect().height;
+            var containerWidth = container.getBoundingClientRect().width;
+            if (graphHeight <= 0 || containerWidth <= 0) {
+              graph.style.removeProperty("--octane-axis-label-row");
+              for (var resetIndex = 0; resetIndex < labels.length; resetIndex += 1) {
+                labels[resetIndex].textContent =
+                    labels[resetIndex].getAttribute("data-axis-label") || "";
+                labels[resetIndex].setAttribute("data-axis-label-rotation", "0");
+                labels[resetIndex].style.removeProperty("--octane-axis-label-max-width");
+              }
+              return;
+            }
+            var maximumMargin = Math.min(72, Math.max(40, graphHeight * 0.24));
+            var labelLayout = renderer.axisLabelLayout(
+                maximumLabelWidth,
+                layout.barWidth + layout.gap,
+                averageCharacterWidth,
+                maximumMargin,
+                fontHeight);
+            graph.style.setProperty(
+                "--octane-axis-label-row",
+                Math.max(27, labelLayout.axisMargin) + "px");
+            for (var labelIndex = 0; labelIndex < labels.length; labelIndex += 1) {
+              var label = labels[labelIndex];
+              var value = label.getAttribute("data-axis-label") || "";
+              label.textContent = renderer.truncateAxisLabel(
+                  value, labelLayout.maximumCharacters);
+              label.setAttribute(
+                  "data-axis-label-rotation", String(Math.abs(labelLayout.rotation)));
+              label.style.setProperty(
+                  "--octane-axis-label-max-width", maximumMargin + "px");
+            }
+          }
           var fluidBarContainers = [];
           var fluidBarResizeObserver = null;
           var fluidBarResizeScheduled = false;
+          var fluidBarResizeTimer = 0;
           var fluidBarFallbackBound = false;
           function directSuiteRunColumns(container) {
             var columns = [];
@@ -7344,6 +7429,7 @@
             container.style.setProperty("--octane-bar-gap", layout.gap + "px");
             var renderSignature = visibleCount + ":" + hiddenCount;
             if (container.octaneFluidRenderSignature === renderSignature) {
+              applyFluidAxisLabelLayout(container, layout);
               return;
             }
             container.octaneFluidRenderSignature = renderSignature;
@@ -7360,6 +7446,7 @@
               fragment.appendChild(createBarOverflowIndicator(hiddenCount));
             }
             container.appendChild(fragment);
+            applyFluidAxisLabelLayout(container, layout);
           }
           function renderAllFluidCharts() {
             fluidBarResizeScheduled = false;
@@ -7368,11 +7455,14 @@
             }
           }
           function scheduleFluidBarCharts() {
-            if (fluidBarResizeScheduled) {
-              return;
-            }
-            fluidBarResizeScheduled = true;
-            requestFrame(renderAllFluidCharts);
+            window.clearTimeout(fluidBarResizeTimer);
+            fluidBarResizeTimer = window.setTimeout(function () {
+              if (fluidBarResizeScheduled) {
+                return;
+              }
+              fluidBarResizeScheduled = true;
+              requestFrame(renderAllFluidCharts);
+            }, 80);
           }
           function initializeFluidBarCharts(root) {
             if (fluidBarResizeObserver) {
@@ -8264,6 +8354,9 @@
             document.body.appendChild(barPopupOverlay);
           }
           var barPopupRefreshInProgress = false;
+          var barPopupRenderTimer = 0;
+          var barPopupViewportTimer = 0;
+          var pendingBarPopup = null;
           var activeBarPopupState = {
             barKey: "",
             cardKey: "",
@@ -8273,6 +8366,9 @@
             visible: false
           };
           function hideBarPopup() {
+            window.clearTimeout(barPopupRenderTimer);
+            barPopupRenderTimer = 0;
+            pendingBarPopup = null;
             if (!activeBarPopupState.visible || !barPopupOverlay) {
               return;
             }
@@ -8740,6 +8836,29 @@
               });
             }
           }
+          function scheduleBarPopup(column, point, input) {
+            var sameActiveBar = activeBarPopupState.visible
+                && activeBarPopupState.input === input
+                && cardKeyForColumn(column) === activeBarPopupState.cardKey
+                && barKeyForColumn(column) === activeBarPopupState.barKey;
+            if (!sameActiveBar) {
+              window.clearTimeout(barPopupRenderTimer);
+              barPopupRenderTimer = 0;
+              pendingBarPopup = null;
+              showBarPopup(column, point, input, false);
+              return;
+            }
+            pendingBarPopup = {column: column, input: input, point: point};
+            window.clearTimeout(barPopupRenderTimer);
+            barPopupRenderTimer = window.setTimeout(function () {
+              barPopupRenderTimer = 0;
+              var pending = pendingBarPopup;
+              pendingBarPopup = null;
+              if (pending) {
+                showBarPopup(pending.column, pending.point, pending.input, false);
+              }
+            }, 16);
+          }
           function captureBarPopupRestoreState() {
             if (!activeBarPopupState.visible) {
               return null;
@@ -8778,6 +8897,10 @@
             }
             restoreBarPopupAfterRefresh(dashboard, captureBarPopupRestoreState());
           }
+          function scheduleActiveBarPopupRefresh() {
+            window.clearTimeout(barPopupViewportTimer);
+            barPopupViewportTimer = window.setTimeout(refreshActiveBarPopup, 100);
+          }
           dashboard.addEventListener("mousemove", function (event) {
             var bar = event.target.closest(".octane-vertical-bar");
             if (!bar || !dashboard.contains(bar)) {
@@ -8787,8 +8910,8 @@
             if (!column) {
               return;
             }
-            showBarPopup(
-                column, {clientX: event.clientX, clientY: event.clientY}, "mouse", false);
+            scheduleBarPopup(
+                column, {clientX: event.clientX, clientY: event.clientY}, "mouse");
           });
           dashboard.addEventListener("mouseout", function (event) {
             if (barPopupRefreshInProgress) {
@@ -8830,11 +8953,11 @@
               hideBarPopup();
             }
           });
-          window.addEventListener("scroll", refreshActiveBarPopup, true);
-          window.addEventListener("resize", refreshActiveBarPopup);
+          window.addEventListener("scroll", scheduleActiveBarPopupRefresh, true);
+          window.addEventListener("resize", scheduleActiveBarPopupRefresh);
           if (window.visualViewport) {
-            window.visualViewport.addEventListener("resize", refreshActiveBarPopup);
-            window.visualViewport.addEventListener("scroll", refreshActiveBarPopup);
+            window.visualViewport.addEventListener("resize", scheduleActiveBarPopupRefresh);
+            window.visualViewport.addEventListener("scroll", scheduleActiveBarPopupRefresh);
           }
           var expandedCard = null;
           var focusedZone = null;
@@ -8928,6 +9051,18 @@
           function activeOverlayElement() {
             return expandedCard || focusedZone;
           }
+          /* OCTANE_MODAL_CLICK_CONTAINMENT_START */
+          function stopOverlayContentClick(activeElement, event) {
+            if (!activeElement || !event || !activeElement.contains(event.target)) {
+              return false;
+            }
+            event.stopPropagation();
+            return true;
+          }
+          /* OCTANE_MODAL_CLICK_CONTAINMENT_END */
+          dashboard.addEventListener("click", function (event) {
+            stopOverlayContentClick(activeOverlayElement(), event);
+          });
           function setExpandButtonState(card, expanded) {
             var buttons = card ? card.querySelectorAll(".octane-expand-toggle") : [];
             if (!buttons.length) {
@@ -9075,7 +9210,10 @@
               expandCard(card);
             }
           }
-          expandedBackdrop.addEventListener("click", function () {
+          expandedBackdrop.addEventListener("click", function (event) {
+            if (event.target !== expandedBackdrop) {
+              return;
+            }
             collapseExpandedCard();
             collapseFocusedZone();
           });

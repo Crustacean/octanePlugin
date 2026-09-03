@@ -13,6 +13,7 @@
   var MAX_VISIBLE_BARS = 80;
   var MIN_BAR_SLOT_PX = 10;
   var OVERFLOW_WIDTH_PX = 24;
+  var MIN_READABLE_LABEL_CHARACTERS = 6;
   var SVG_NAMESPACE = "http://www.w3.org/2000/svg";
   var DONUT_CENTER = 50;
   var DONUT_RADIUS = 46;
@@ -59,6 +60,61 @@
     text.textContent = String(value);
     parent.appendChild(text);
     return text;
+  }
+
+  function truncateAxisLabel(value, maximumCharacters) {
+    var label = String(value || "");
+    var limit = Math.max(0, Math.floor(Number(maximumCharacters) || 0));
+    if (limit === 0 || label.length <= limit) {
+      return label;
+    }
+    return limit === 1 ? "\u2026" : label.slice(0, limit - 1) + "\u2026";
+  }
+
+  function axisLabelLayout(
+      labelWidth, slotWidth, averageCharacterWidth, maximumMargin, fontHeight) {
+    var safeLabelWidth = Math.max(0, Number(labelWidth) || 0);
+    var safeSlotWidth = Math.max(1, Number(slotWidth) || 1);
+    var safeCharacterWidth = Math.max(1, Number(averageCharacterWidth) || 6);
+    var safeMargin = Math.max(16, Number(maximumMargin) || 48);
+    var safeFontHeight = Math.max(1, Number(fontHeight) || 12);
+    var readableWidth = safeCharacterWidth * (MIN_READABLE_LABEL_CHARACTERS + 1);
+    var overlaps = safeLabelWidth > safeSlotWidth;
+    if (!overlaps && safeSlotWidth >= readableWidth) {
+      return {axisMargin: safeFontHeight + 6, maximumCharacters: 0, rotation: 0};
+    }
+    var rotation = safeSlotWidth < readableWidth ? -90 : -45;
+    var radians = Math.abs(rotation) * Math.PI / 180;
+    var availableTextWidth = Math.max(
+        safeCharacterWidth,
+        (safeMargin - Math.cos(radians) * safeFontHeight) / Math.sin(radians));
+    var maximumCharacters = Math.max(
+        1, Math.floor(availableTextWidth / safeCharacterWidth));
+    var renderedWidth = Math.min(safeLabelWidth, maximumCharacters * safeCharacterWidth);
+    var projectedHeight =
+        Math.sin(radians) * renderedWidth + Math.cos(radians) * safeFontHeight;
+    return {
+      axisMargin: Math.min(safeMargin, Math.ceil(projectedHeight + 6)),
+      maximumCharacters: maximumCharacters,
+      rotation: rotation
+    };
+  }
+
+  function measureAxisLabel(value, font) {
+    if (typeof document === "undefined" || !document.createElement) {
+      return String(value || "").length * 6;
+    }
+    var canvas = measureAxisLabel.canvas;
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      measureAxisLabel.canvas = canvas;
+    }
+    var context = canvas.getContext && canvas.getContext("2d");
+    if (!context) {
+      return String(value || "").length * 6;
+    }
+    context.font = font || '10px Inter, "Segoe UI", Arial, sans-serif';
+    return context.measureText(String(value || "")).width;
   }
 
   function donutPoint(angle, radius) {
@@ -404,10 +460,6 @@
     var content = createElement("div", "octane-chart-inner octane-client-bar-content");
     content.setAttribute("data-client-bar-content", "true");
     var svg = createSvgElement("svg", "octane-client-bar-chart");
-    svg.setAttribute("viewBox", "0 0 1000 300");
-    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", section.barChartTitle);
     var plotLeft = 52;
     var plotTop = 10;
     var plotBottom = 252;
@@ -419,6 +471,24 @@
     var plotRight = 988 - overflowSvgWidth;
     var plotWidth = Math.max(1, plotRight - plotLeft);
     var maximum = Math.max(1, Number(section.maxTotal) || 1);
+    var bars = page.bars || [];
+    var slotWidth = bars.length > 0 ? plotWidth / bars.length : plotWidth;
+    var slotWidthPx = slotWidth * chartWidth / 1000;
+    var labelFont = '12px Inter, "Segoe UI", Arial, sans-serif';
+    var averageCharacterWidth = measureAxisLabel("MMMMMM\u2026", labelFont) / 7;
+    var maximumLabelWidth = bars.reduce(function (width, bar) {
+      return Math.max(
+          width,
+          measureAxisLabel(bar.axisLabel || bar.name || "", labelFont));
+    }, 0);
+    var labelLayout = axisLabelLayout(
+        maximumLabelWidth, slotWidthPx, averageCharacterWidth, 60, 12);
+    var svgHeight = labelLayout.rotation === 0 ? 300 : 344;
+    svg.setAttribute("viewBox", "0 0 1000 " + svgHeight);
+    svg.style.aspectRatio = "1000 / " + svgHeight;
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", section.barChartTitle);
 
     (section.yAxisTicks || []).forEach(function (tick) {
       var y = plotBottom - Number(tick) / maximum * (plotBottom - plotTop);
@@ -437,12 +507,8 @@
     axis.setAttribute("y2", String(plotBottom));
     svg.appendChild(axis);
 
-    var bars = page.bars || [];
-    var slotWidth = bars.length > 0 ? plotWidth / bars.length : plotWidth;
-    var slotWidthPx = slotWidth * chartWidth / 1000;
     var barWidthPx = Math.min(100, Math.max(8, slotWidthPx * 0.72));
     var barWidth = barWidthPx * 1000 / chartWidth;
-    var labelEvery = Math.max(1, Math.ceil(54 / Math.max(1, slotWidthPx)));
     bars.forEach(function (bar, barIndex) {
       var center = plotLeft + slotWidth * (barIndex + 0.5);
       var group = createSvgElement("g", "octane-suite-column octane-client-suite-column");
@@ -474,10 +540,19 @@
         group.appendChild(segment);
         currentBottom -= height;
       });
-      if (barIndex % labelEvery === 0 || bars.length <= 12) {
-        var label = appendSvgText(
-            group, "octane-client-axis-label", bar.axisLabel || bar.name || "", center, 277);
-        label.setAttribute("text-anchor", "middle");
+      var fullLabel = bar.axisLabel || bar.name || "";
+      var label = appendSvgText(
+          group,
+          "octane-client-axis-label",
+          truncateAxisLabel(fullLabel, labelLayout.maximumCharacters),
+          center,
+          277);
+      label.setAttribute("data-axis-label-rotation", String(Math.abs(labelLayout.rotation)));
+      label.setAttribute("text-anchor", labelLayout.rotation === 0 ? "middle" : "end");
+      if (labelLayout.rotation !== 0) {
+        label.setAttribute(
+            "transform",
+            "rotate(" + labelLayout.rotation + " " + center + " 277)");
       }
       // Keep the transparent hit area above the painted segments so delegated pointer events
       // consistently target the bar in every browser.
@@ -803,8 +878,11 @@
     MAX_VISIBLE_BARS: MAX_VISIBLE_BARS,
     DONUT_HOLE_RADIUS: DONUT_HOLE_RADIUS,
     OVERFLOW_WIDTH_PX: OVERFLOW_WIDTH_PX,
+    axisLabelLayout: axisLabelLayout,
     computeDonutSlices: computeDonutSlices,
     computeVisibleBarCount: computeVisibleBarCount,
+    measureAxisLabel: measureAxisLabel,
+    truncateAxisLabel: truncateAxisLabel,
     stampBarData: stampBarData,
     mount: mount
   };

@@ -14,6 +14,7 @@ const context = {window: {}};
 vm.runInNewContext(source, context);
 const testManagement = context.window.OctaneTestManagement;
 const failureAxisMaximum = testManagement.failureAxisMaximum;
+const failureAxisValueWidth = testManagement.failureAxisValueWidth;
 const integerAxisTicks = testManagement.integerAxisTicks;
 const sortFailureDefects = testManagement.sortFailureDefects;
 const timelineAxisScale = testManagement.timelineAxisScale;
@@ -82,6 +83,18 @@ test("generates distinct integer failure ticks from the ceiling to zero", () => 
   assert.ok(largeTicks.length <= 10);
   assert.ok(largeTicks.every(Number.isInteger));
   assert.ok(largeTicks.every((tick, index) => index === 0 || tick < largeTicks[index - 1]));
+});
+
+test("expands the Failure Analysis y-axis gutter for three-plus digit values", () => {
+  assert.equal(failureAxisValueWidth([9, 0]), 2);
+  assert.equal(failureAxisValueWidth([125, 100, 0]), 4);
+  assert.equal(failureAxisValueWidth([3001, 0]), 5);
+  assert.match(
+      source,
+      /--octane-management-failure-axis-value-width[\s\S]*?failureAxisValueWidth\(ticks\) \+ "ch"/);
+  assert.match(
+      jelly,
+      /\.octane-management-failure-axis-layout\s*\{[^}]*grid-template-columns:\s*1\.35rem var\(--octane-management-failure-axis-value-width\) minmax\(0, 1fr\)/s);
 });
 
 test("binds failure labels and grid lines to the same axis positions", () => {
@@ -215,6 +228,20 @@ test("builds content through safe DOM APIs and no HTML injection", () => {
   assert.doesNotMatch(source, /\.innerHTML\s*=/);
   assert.match(source, /textContent =/);
   assert.match(source, /document\.createElement/);
+});
+
+test("reuses cached defect rows when switching Failure Analysis tabs", () => {
+  const categorySwitchSource = source
+      .split("function setSelectedCategory(zone, category) {")[1]
+      .split("function failureDetailEntries(payload) {")[0];
+  assert.match(source, /list\.__octaneFailureDetailCache/);
+  assert.match(source, /cache\.payload !== payload/);
+  assert.match(source, /entry\.row\.hidden = !visible/);
+  assert.match(source, /function applyFailureDetailCategory\(list, cache, category\)/);
+  assert.match(
+      source,
+      /if \(cache\.sortColumn !== sortState\.column[\s\S]*?renderFailureDetailStructure/);
+  assert.doesNotMatch(categorySwitchSource, /clear\(/);
 });
 
 test("exposes responsive focus, scaling, and card controls", () => {

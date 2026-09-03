@@ -871,7 +871,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("color: #827C7B"));
     assertTrue(xml.contains("text-align: center"));
     assertTrue(xml.contains("transform: none"));
-    assertFalse(xml.contains("rotate(-45deg)"));
+    assertTrue(xml.contains("rotate(-45deg)"));
+    assertTrue(xml.contains("rotate(-90deg)"));
+    assertTrue(xml.contains("transform-origin: right top"));
     assertTrue(xml.contains("octane-bar-popup"));
     assertTrue(xml.contains("id=\"octane-bar-popup-overlay\""));
     assertTrue(xml.contains("data-bar-key=\""));
@@ -911,7 +913,9 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("event.relatedTarget && bar.contains(event.relatedTarget)"));
     assertTrue(xml.contains("positionBarPopup(barPopupOverlay, column, point, input)"));
     assertTrue(xml.contains("popup.setAttribute(\"data-placement\""));
-    assertTrue(xml.contains("window.addEventListener(\"resize\", refreshActiveBarPopup)"));
+    assertTrue(xml.contains("window.addEventListener(\"resize\", scheduleActiveBarPopupRefresh)"));
+    assertTrue(
+        xml.contains("barPopupViewportTimer = window.setTimeout(refreshActiveBarPopup, 100)"));
     assertFalse(xml.contains(".octane-suite-column:hover .octane-bar-popup"));
     assertFalse(xml.contains("transform: translate(-50%"));
     assertFalse(xml.contains("class=\"octane-total\""));

@@ -459,6 +459,13 @@
     return ticks;
   }
 
+  function failureAxisValueWidth(ticks) {
+    var maximumCharacters = array(ticks).reduce(function (width, tick) {
+      return Math.max(width, String(tick).length);
+    }, 1);
+    return Math.max(2, maximumCharacters + 1);
+  }
+
   function failureAxisPosition(value, maximum) {
     return ((maximum - value) / maximum) * 100;
   }
@@ -689,8 +696,14 @@
     var chart = panel.querySelector("[data-management-failure-bars]");
     var yLabels = panel.querySelector("[data-management-y-labels]");
     var switcher = zone.querySelector("[data-management-failure-switcher]");
+    var axisLayout = panel.querySelector(".octane-management-failure-axis-layout");
     var maximum = failureAxisMaximum(categories);
     var ticks = integerAxisTicks(maximum);
+    if (axisLayout) {
+      axisLayout.style.setProperty(
+          "--octane-management-failure-axis-value-width",
+          failureAxisValueWidth(ticks) + "ch");
+    }
     clear(chart);
     renderFailureGridLines(chart, ticks, maximum);
     categories.forEach(function (category) {
@@ -969,6 +982,107 @@
     renderFailureDetails(zone);
   }
 
+  function failureDetailEntries(payload) {
+    var entries = [];
+    array(payload.failureCategories).forEach(function (category) {
+      array(category.defects).forEach(function (defect) {
+        entries.push({category: category.key || "", defect: defect});
+      });
+    });
+    return entries;
+  }
+
+  function sortFailureDetailEntries(entries, column, direction) {
+    var multiplier = direction === "descending" ? -1 : 1;
+    return entries
+        .map(function (entry, index) {
+          return {entry: entry, index: index};
+        })
+        .sort(function (left, right) {
+          var comparison = compareFailureDefects(
+              left.entry.defect, right.entry.defect, column);
+          return comparison === 0
+              ? left.index - right.index
+              : comparison * multiplier;
+        })
+        .map(function (entry) {
+          return entry.entry;
+        });
+  }
+
+  function createFailureDetailRow(entry, zone, colors) {
+    var defect = entry.defect;
+    var row = createElement("div", "octane-management-defect-row");
+    row.setAttribute("role", "row");
+    row.setAttribute("data-management-defect-category", entry.category);
+    var identifier = createElement("span", "octane-management-defect-id");
+    identifier.setAttribute("role", "cell");
+    identifier.textContent = defect.id ? "#" + defect.id : "N/A";
+    var description = createElement("span", "octane-management-defect-description");
+    description.setAttribute("role", "cell");
+    description.textContent = defect.description || "Defect";
+    var statusLabel = canonicalStatus(defect);
+    var severityLabel = displayedSeverity(defect);
+    var status = createElement(
+        "span",
+        "octane-management-defect-pill octane-management-defect-status");
+    status.setAttribute("role", "cell");
+    status.style.setProperty(
+        "--octane-pill-color",
+        statusLabel === "Open" ? colors.open : colors.closed);
+    status.style.setProperty(
+        "--octane-pill-text-color", emphasisTextColor(zone));
+    status.textContent = statusLabel;
+    status.setAttribute("aria-label", "Status: " + statusLabel);
+    var severity = createElement(
+        "span",
+        "octane-management-defect-pill octane-management-defect-severity");
+    severity.setAttribute("role", "cell");
+    severity.style.setProperty(
+        "--octane-pill-color",
+        severityColor(
+            defect.severityColorKey || defect.severity || severityLabel,
+            zone));
+    severity.style.setProperty(
+        "--octane-pill-text-color", emphasisTextColor(zone));
+    severity.textContent = severityLabel;
+    severity.setAttribute("aria-label", "Severity: " + severityLabel);
+    row.appendChild(identifier);
+    row.appendChild(description);
+    row.appendChild(status);
+    row.appendChild(severity);
+    return row;
+  }
+
+  function renderFailureDetailStructure(list, cache, sortState) {
+    clear(list);
+    renderDefectTableHeader(list, sortState);
+    var fragment = document.createDocumentFragment();
+    cache.entries = sortFailureDetailEntries(
+        cache.entries, sortState.column, sortState.direction);
+    cache.entries.forEach(function (entry) {
+      fragment.appendChild(entry.row);
+    });
+    fragment.appendChild(cache.empty);
+    list.appendChild(fragment);
+    cache.sortColumn = sortState.column;
+    cache.sortDirection = sortState.direction;
+  }
+
+  function applyFailureDetailCategory(list, cache, category) {
+    var visibleCount = 0;
+    cache.entries.forEach(function (entry) {
+      var visible = category === "all" || entry.category === category;
+      entry.row.hidden = !visible;
+      if (visible) {
+        visibleCount += 1;
+      }
+    });
+    cache.empty.hidden = visibleCount > 0;
+    list.setAttribute("data-visible-category", category);
+    list.setAttribute("aria-rowcount", String(visibleCount + 1));
+  }
+
   function renderFailureDetails(zone, colors) {
     var payload = zone.__octaneTestManagementPayload || {};
     colors = colors || colorsFor(payload, zone);
@@ -977,20 +1091,13 @@
     if (!list) {
       return;
     }
-    var defects = [];
-    array(payload.failureCategories).forEach(function (entry) {
-      if (category === "all" || entry.key === category) {
-        defects = defects.concat(array(entry.defects));
-      }
-    });
     var sortState = defectSortState(list);
     list.setAttribute("data-sort-column", sortState.column);
     list.setAttribute("data-sort-direction", sortState.direction);
-    defects = sortFailureDefects(defects, sortState.column, sortState.direction);
-    clear(list);
-    renderDefectTableHeader(list, sortState);
-    list.setAttribute("aria-rowcount", String(defects.length + 1));
-    if (!defects.length) {
+    var colorKey = colors.open + "|" + colors.closed + "|" + emphasisTextColor(zone);
+    var cache = list.__octaneFailureDetailCache;
+    if (!cache || cache.payload !== payload || cache.colorKey !== colorKey) {
+      var entries = failureDetailEntries(payload);
       var empty = createElement("div", "octane-management-defect-empty");
       empty.setAttribute("role", "row");
       var emptyCell = createElement("span");
@@ -998,50 +1105,24 @@
       emptyCell.setAttribute("aria-colspan", "4");
       emptyCell.textContent = "No defects in this category.";
       empty.appendChild(emptyCell);
-      list.appendChild(empty);
-      return;
+      cache = {
+        colorKey: colorKey,
+        empty: empty,
+        entries: entries.map(function (entry) {
+          entry.row = createFailureDetailRow(entry, zone, colors);
+          return entry;
+        }),
+        payload: payload,
+        sortColumn: "",
+        sortDirection: ""
+      };
+      list.__octaneFailureDetailCache = cache;
     }
-    defects.forEach(function (defect) {
-      var row = createElement("div", "octane-management-defect-row");
-      row.setAttribute("role", "row");
-      var identifier = createElement("span", "octane-management-defect-id");
-      identifier.setAttribute("role", "cell");
-      identifier.textContent = defect.id ? "#" + defect.id : "N/A";
-      var description = createElement("span", "octane-management-defect-description");
-      description.setAttribute("role", "cell");
-      description.textContent = defect.description || "Defect";
-      var statusLabel = canonicalStatus(defect);
-      var severityLabel = displayedSeverity(defect);
-      var status = createElement(
-          "span",
-          "octane-management-defect-pill octane-management-defect-status");
-      status.setAttribute("role", "cell");
-      status.style.setProperty(
-          "--octane-pill-color",
-          statusLabel === "Open" ? colors.open : colors.closed);
-      status.style.setProperty(
-          "--octane-pill-text-color", emphasisTextColor(zone));
-      status.textContent = statusLabel;
-      status.setAttribute("aria-label", "Status: " + statusLabel);
-      var severity = createElement(
-          "span",
-          "octane-management-defect-pill octane-management-defect-severity");
-      severity.setAttribute("role", "cell");
-      severity.style.setProperty(
-          "--octane-pill-color",
-          severityColor(
-              defect.severityColorKey || defect.severity || severityLabel,
-              zone));
-      severity.style.setProperty(
-          "--octane-pill-text-color", emphasisTextColor(zone));
-      severity.textContent = severityLabel;
-      severity.setAttribute("aria-label", "Severity: " + severityLabel);
-      row.appendChild(identifier);
-      row.appendChild(description);
-      row.appendChild(status);
-      row.appendChild(severity);
-      list.appendChild(row);
-    });
+    if (cache.sortColumn !== sortState.column
+        || cache.sortDirection !== sortState.direction) {
+      renderFailureDetailStructure(list, cache, sortState);
+    }
+    applyFailureDetailCategory(list, cache, category);
   }
 
   function renderMetrics(zone, payload) {
@@ -1190,6 +1271,7 @@
 
   global.OctaneTestManagement = {
     failureAxisMaximum: failureAxisMaximum,
+    failureAxisValueWidth: failureAxisValueWidth,
     integerAxisTicks: integerAxisTicks,
     mount: mount,
     render: render,

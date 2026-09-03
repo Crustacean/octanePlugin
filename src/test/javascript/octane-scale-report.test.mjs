@@ -21,6 +21,23 @@ test("caps a dense chart at eighty visible bars", () => {
   assert.equal(renderer.computeVisibleBarCount(0, 500), 1);
 });
 
+test("rotates and bounds dense x-axis labels from measured slot width", () => {
+  const horizontal = renderer.axisLabelLayout(30, 80, 6, 60, 12);
+  const diagonal = renderer.axisLabelLayout(80, 60, 6, 60, 12);
+  const vertical = renderer.axisLabelLayout(80, 30, 6, 60, 12);
+
+  assert.equal(horizontal.rotation, 0);
+  assert.equal(diagonal.rotation, -45);
+  assert.equal(vertical.rotation, -90);
+  assert.ok(vertical.maximumCharacters > 0);
+  assert.ok(vertical.axisMargin <= 60);
+  assert.equal(renderer.truncateAxisLabel("Long tester identity", 6), "Long \u2026");
+  assert.match(source, /label\.setAttribute\("text-anchor", labelLayout\.rotation === 0/);
+  assert.match(source, /rotate\(" \+ labelLayout\.rotation/);
+  assert.match(jelly, /function applyFluidAxisLabelLayout\(container, layout\)/);
+  assert.match(jelly, /data-axis-label-rotation/);
+});
+
 test("reserves exactly twenty-four pixels for the concise overflow marker", () => {
   assert.equal(renderer.OVERFLOW_WIDTH_PX, 24);
   assert.match(source, /"\+" \+ hiddenCount/);
