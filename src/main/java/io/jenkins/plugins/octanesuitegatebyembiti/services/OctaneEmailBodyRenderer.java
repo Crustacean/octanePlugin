@@ -747,9 +747,6 @@ public class OctaneEmailBodyRenderer {
     if (total <= 10) {
       return total;
     }
-    if (total <= 20) {
-      return 10;
-    }
     return (total + 1) / 2;
   }
 

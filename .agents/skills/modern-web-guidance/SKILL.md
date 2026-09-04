@@ -144,6 +144,23 @@ grouping key. Do not infer or repair it in a renderer.
   cannot silently corrupt the other. A test must also prove related Default run by outranks generic
   suite `owner` and reaches progress bars, Tester Details, screenshots, and email models.
 
+## Email Delivery Fail-Fast Guardrail
+
+For this Jenkins plugin, treat report email delivery as a staged pipeline whose cheap decisions
+must precede expensive artifact work.
+
+- Check the global enablement input first. A blank progress-email cron is an explicit disabled state
+  and must return before execution-progress evaluation.
+- Reconcile one snapshot, then evaluate timeout collisions and stagnant-progress policy against that
+  same snapshot before report HTML rendering or headless-browser capture. Carry the approved snapshot
+  forward rather than reading the mutable build action again.
+- Validate recipient syntax, effective sender, reply-to addresses, and subject header safety before
+  acquiring the delivery lock or invoking screenshot and body renderers. Keep this preflight on the
+  sender interface so alternate/test senders can participate without controller type checks.
+- Only approved delivery reaches screenshot generation, archiving, body rendering, and SMTP. Tests
+  must use invocation counters to prove disabled and rejected preflight paths do not call those
+  services, not merely assert a skip boolean.
+
 
 ## Interpreting Browser Support & Fallbacks
 

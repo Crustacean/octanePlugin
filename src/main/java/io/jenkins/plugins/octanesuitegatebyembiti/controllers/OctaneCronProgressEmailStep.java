@@ -85,11 +85,23 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
     };
   }
 
+  static boolean progressEmailsEnabled(String cron) {
+    return !Util.trimToEmpty(cron).isEmpty();
+  }
+
   static boolean shouldSendProgressEmail(
       Double lastExecutionProgress, double currentProgress, boolean intervalTimeoutEnabled) {
     return lastExecutionProgress == null
         || currentProgress > lastExecutionProgress
         || !intervalTimeoutEnabled;
+  }
+
+  static String stagnantProgressMessage(double progress) {
+    return "Skipping scheduled Octane progress email because execution progress remains at "
+        + String.format(Locale.ROOT, "%.2f%%", progress)
+        + " and "
+        + INTERVAL_TIMEOUT_ENV
+        + " is enabled.";
   }
 
   static boolean hasRenderableReportData(OctaneGateReportSnapshot snapshot) {
@@ -176,7 +188,7 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
 
     @Override
     public void onResume() {
-      if (completed || cron.isBlank()) {
+      if (completed || !progressEmailsEnabled(cron)) {
         return;
       }
       try {
@@ -202,6 +214,10 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
       if (completed) {
         return;
       }
+      if (!progressEmailsEnabled(cron)) {
+        log(progressEmailsDisabledMessage());
+        return;
+      }
       Run<?, ?> run = getContext().get(Run.class);
       OctaneGateReportAction currentAction = run.getAction(OctaneGateReportAction.class);
       if (suppressForTimeoutCollision(
@@ -216,18 +232,25 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
       if (suppressForTimeoutCollision(deliverySnapshot, Instant.now())) {
         return;
       }
-      if (!hasRenderableReportData(deliverySnapshot)) {
+      if (deliverySnapshot == null || !deliverySnapshot.hasReportSections()) {
         log(
             "Deferring scheduled Octane progress email until a completed poll produces "
                 + "renderable report data.");
         return;
       }
 
-      double[] deliveredProgress = {Double.NaN};
+      double currentProgress = deliverySnapshot.getExecutionProgress();
+      if (!shouldSendProgressEmail(
+          lastExecutionProgress, currentProgress, intervalTimeoutEnabled)) {
+        log(stagnantProgressMessage(currentProgress));
+        return;
+      }
+
       OctaneEmailReportStep.DeliveryResult deliveryResult =
           OctaneEmailReportStep.executeRequest(
               emailRequest,
               getContext(),
+              deliverySnapshot,
               snapshot -> {
                 if (suppressForTimeoutCollision(snapshot, Instant.now())) {
                   return false;
@@ -238,30 +261,11 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
                           + "contains no report data.");
                   return false;
                 }
-                double currentProgress = snapshot.getExecutionProgress();
-                Double previousProgress = lastExecutionProgress;
-                if (!shouldSendProgressEmail(
-                    previousProgress, currentProgress, intervalTimeoutEnabled)) {
-                  log(
-                      "Skipping scheduled Octane progress email because execution progress "
-                          + "remains at "
-                          + formatProgress(currentProgress)
-                          + " and "
-                          + INTERVAL_TIMEOUT_ENV
-                          + " is enabled.");
-                  return false;
-                }
-                deliveredProgress[0] = currentProgress;
                 return true;
               });
-      if (deliveryResult == OctaneEmailReportStep.DeliveryResult.SENT
-          && !Double.isNaN(deliveredProgress[0])) {
-        lastExecutionProgress = deliveredProgress[0];
+      if (deliveryResult == OctaneEmailReportStep.DeliveryResult.SENT) {
+        lastExecutionProgress = currentProgress;
       }
-    }
-
-    private String formatProgress(double progress) {
-      return String.format(Locale.ROOT, "%.2f%%", progress);
     }
 
     private Instant collisionEvaluationTime(OctaneProgressEmailScheduler.Occurrence occurrence) {
@@ -358,18 +362,19 @@ public class OctaneCronProgressEmailStep extends AbstractOctaneEmailStep {
     }
 
     private void registerIfEnabled() throws Exception {
-      if (cron.isBlank()) {
+      if (!progressEmailsEnabled(cron)) {
         TaskListener listener = getContext().get(TaskListener.class);
-        listener
-            .getLogger()
-            .println(
-                "Periodic Octane progress emails are disabled because "
-                    + "PROGRESS_EMAIL_INTERVAL_CRONJOB is blank.");
+        listener.getLogger().println(progressEmailsDisabledMessage());
         return;
       }
       intervalTimeoutEnabled =
           OctaneCronProgressEmailStep.intervalTimeoutEnabled(getContext().get(EnvVars.class));
       register();
+    }
+
+    private String progressEmailsDisabledMessage() {
+      return "Periodic Octane progress emails are disabled because "
+          + "PROGRESS_EMAIL_INTERVAL_CRONJOB is blank.";
     }
 
     private void register() throws Exception {

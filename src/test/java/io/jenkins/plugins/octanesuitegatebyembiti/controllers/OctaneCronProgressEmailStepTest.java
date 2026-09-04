@@ -24,12 +24,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 public class OctaneCronProgressEmailStepTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
+
+  @After
+  public void resetServices() {
+    OctaneEmailReportStep.resetServicesForTesting();
+  }
 
   @Test
   public void readsProgressEmailStalenessThresholdFromEnvironment() throws Exception {
@@ -74,10 +80,17 @@ public class OctaneCronProgressEmailStepTest {
 
   @Test
   public void firstEmailAlwaysSendsAndSubsequentTicksHonorTimeoutFlag() {
+    assertFalse(OctaneCronProgressEmailStep.progressEmailsEnabled(""));
+    assertFalse(OctaneCronProgressEmailStep.progressEmailsEnabled("  "));
+    assertTrue(OctaneCronProgressEmailStep.progressEmailsEnabled("* * * * *"));
     assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(null, 0.0, true));
     assertFalse(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 40.0, true));
     assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 41.0, true));
     assertTrue(OctaneCronProgressEmailStep.shouldSendProgressEmail(40.0, 40.0, false));
+    assertEquals(
+        "Skipping scheduled Octane progress email because execution progress remains at 40.00% "
+            + "and PROGRESS_EMAIL_INTERVAL_TIMEOUT is enabled.",
+        OctaneCronProgressEmailStep.stagnantProgressMessage(40.0));
   }
 
   @Test
@@ -171,6 +184,15 @@ public class OctaneCronProgressEmailStepTest {
 
   @Test
   public void blankCronDisablesEmailAndRunsBody() throws Exception {
+    AtomicInteger screenshots = new AtomicInteger();
+    AtomicInteger messages = new AtomicInteger();
+    OctaneEmailReportStep.setServicesForTesting(
+        (snapshot, workspace, envVars, launcher, listener, browserPath, viewportWidth, theme) -> {
+          screenshots.incrementAndGet();
+          return null;
+        },
+        (context, recipients, from, replyTo, subject, body, attachmentsPattern, important) ->
+            messages.incrementAndGet());
     WorkflowJob job = jenkins.createProject(WorkflowJob.class);
     job.setDefinition(
         new CpsFlowDefinition(
@@ -182,6 +204,8 @@ public class OctaneCronProgressEmailStepTest {
 
     jenkins.assertLogContains("PROGRESS_EMAIL_INTERVAL_CRONJOB is blank", run);
     assertEquals(0, OctaneProgressEmailScheduler.get().activeScheduleCount());
+    assertEquals(0, screenshots.get());
+    assertEquals(0, messages.get());
   }
 
   @Test

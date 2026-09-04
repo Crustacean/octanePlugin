@@ -80,9 +80,12 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
   }
 
   static DeliveryResult executeRequest(
-      EmailRequest request, StepContext context, DeliveryDecision deliveryDecision)
+      EmailRequest request,
+      StepContext context,
+      OctaneGateReportSnapshot reconciledSnapshot,
+      DeliveryDecision deliveryDecision)
       throws Exception {
-    return new Execution(request, context).deliver(deliveryDecision);
+    return new Execution(request, context).deliver(reconciledSnapshot, deliveryDecision);
   }
 
   @FunctionalInterface
@@ -211,16 +214,18 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
 
     @Override
     protected Void run() throws Exception {
-      deliver(null);
+      deliver(null, null);
       return null;
     }
 
-    private DeliveryResult deliver(DeliveryDecision deliveryDecision) throws Exception {
+    private DeliveryResult deliver(
+        OctaneGateReportSnapshot reconciledSnapshot, DeliveryDecision deliveryDecision)
+        throws Exception {
       OctaneEmailFailureMode failureMode = OctaneEmailFailureMode.from(request.onFailure);
       Run<?, ?> run = getContext().get(Run.class);
       TaskListener listener = getContext().get(TaskListener.class);
       try {
-        return sendReport(run, listener, deliveryDecision);
+        return sendReport(run, listener, reconciledSnapshot, deliveryDecision);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw e;
@@ -231,30 +236,46 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
     }
 
     private DeliveryResult sendReport(
-        Run<?, ?> run, TaskListener listener, DeliveryDecision deliveryDecision) throws Exception {
-      FilePath workspace = getContext().get(FilePath.class);
-      try (OctaneEmailDeliveryCoordinator.Lease ignored =
-          OctaneEmailDeliveryCoordinator.acquire(run, workspace)) {
-        return sendReportLocked(run, listener, workspace, deliveryDecision);
-      }
-    }
-
-    private DeliveryResult sendReportLocked(
-        Run<?, ?> run, TaskListener listener, FilePath workspace, DeliveryDecision deliveryDecision)
+        Run<?, ?> run,
+        TaskListener listener,
+        OctaneGateReportSnapshot reconciledSnapshot,
+        DeliveryDecision deliveryDecision)
         throws Exception {
-      Launcher launcher = getContext().get(Launcher.class);
-      EnvVars envVars = envVars();
       OctaneGateReportAction action = run.getAction(OctaneGateReportAction.class);
       if (action == null) {
         throw new AbortException(
             "Octane Gate Report is not available. Run octaneSuiteGate before octaneEmailReport.");
       }
+      FilePath workspace = getContext().get(FilePath.class);
       String recipients = composeRecipients(request.to, request.cc, request.bcc);
       if (recipients.isBlank()) {
         throw new AbortException("At least one recipient is required.");
       }
+      emailSender.validate(
+          recipients, request.from, request.replyTo, effectiveSubject(run, request.subject));
+      try (OctaneEmailDeliveryCoordinator.Lease ignored =
+          OctaneEmailDeliveryCoordinator.acquire(run, workspace)) {
+        return sendReportLocked(
+            run, listener, workspace, action, recipients, reconciledSnapshot, deliveryDecision);
+      }
+    }
 
-      OctaneGateReportSnapshot reportSnapshot = action.awaitReconciledSnapshot();
+    private DeliveryResult sendReportLocked(
+        Run<?, ?> run,
+        TaskListener listener,
+        FilePath workspace,
+        OctaneGateReportAction action,
+        String recipients,
+        OctaneGateReportSnapshot reconciledSnapshot,
+        DeliveryDecision deliveryDecision)
+        throws Exception {
+      Launcher launcher = getContext().get(Launcher.class);
+      EnvVars envVars = envVars();
+      OctaneGateReportSnapshot reportSnapshot =
+          reconciledSnapshot == null ? action.awaitReconciledSnapshot() : reconciledSnapshot;
+      if (deliveryDecision != null && !deliveryDecision.shouldSend(reportSnapshot)) {
+        return DeliveryResult.SKIPPED;
+      }
 
       OctaneReportScreenshot screenshot =
           screenshotService.capture(
@@ -266,9 +287,6 @@ public class OctaneEmailReportStep extends AbstractOctaneEmailStep {
               request.browserPath,
               request.viewportWidth,
               request.theme);
-      if (deliveryDecision != null && !deliveryDecision.shouldSend(reportSnapshot)) {
-        return DeliveryResult.SKIPPED;
-      }
       if (request.archiveScreenshot) {
         listener.getLogger().println("Archiving Octane report-zone screenshot.");
         archiveScreenshot(run, workspace, envVars, launcher, listener, screenshot);

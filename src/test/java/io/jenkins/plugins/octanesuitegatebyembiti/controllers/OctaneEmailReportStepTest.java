@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import hudson.AbortException;
 import hudson.FilePath;
 import hudson.model.Result;
 import hudson.model.TaskListener;
@@ -16,6 +17,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneEmailReportSender;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportScreenshot;
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -142,6 +145,48 @@ public class OctaneEmailReportStepTest {
   }
 
   @Test
+  public void senderPreflightFailureSkipsScreenshotAndSmtpWork() throws Exception {
+    AtomicBoolean screenshotRequested = new AtomicBoolean();
+    AtomicBoolean smtpRequested = new AtomicBoolean();
+    OctaneEmailReportStep.setServicesForTesting(
+        (snapshot, workspace, envVars, launcher, listener, browserPath, viewportWidth, theme) -> {
+          screenshotRequested.set(true);
+          return null;
+        },
+        new OctaneEmailReportSender() {
+          @Override
+          public void validate(String recipients, String from, String replyTo, String subject)
+              throws Exception {
+            throw new AbortException("recipient preflight rejected the email");
+          }
+
+          @Override
+          public void send(
+              StepContext context,
+              String recipients,
+              String from,
+              String replyTo,
+              String subject,
+              String body,
+              String attachmentsPattern,
+              boolean important) {
+            smtpRequested.set(true);
+          }
+        });
+
+    WorkflowJob job = jenkins.createProject(WorkflowJob.class, "email-preflight-rejected");
+    job.setDefinition(
+        new CpsFlowDefinition(
+            "node { octaneEmailReport(to: 'bad address', onFailure: 'WARN') }", true));
+
+    WorkflowRun run = jenkins.buildAndAssertSuccess(job);
+
+    jenkins.assertLogContains("recipient preflight rejected the email", run);
+    assertFalse(screenshotRequested.get());
+    assertFalse(smtpRequested.get());
+  }
+
+  @Test
   public void ongoingIntervalCalculationSendsRenderedReport() throws Exception {
     AtomicReference<String> sentRecipients = new AtomicReference<>();
     AtomicReference<String> sentSubject = new AtomicReference<>();
@@ -238,7 +283,8 @@ public class OctaneEmailReportStepTest {
   public static class AttachIntervalReportAction extends RunListener<WorkflowRun> {
     @Override
     public void onStarted(WorkflowRun run, TaskListener listener) {
-      if ("interval-email-success".equals(run.getParent().getName())) {
+      if ("interval-email-success".equals(run.getParent().getName())
+          || "email-preflight-rejected".equals(run.getParent().getName())) {
         OctaneGateReportAction action =
             OctaneGateReportAction.attachTo(run, new GateRequest("octane-prod", "4501"));
         List<RunRecord> records =

@@ -33,6 +33,20 @@ public class JenkinsMailerOctaneReportSender implements OctaneEmailReportSender 
   private static final int MAX_INLINE_IMAGE_BYTES = 25 * 1024 * 1024;
 
   @Override
+  public void validate(String recipients, String from, String replyTo, String subject)
+      throws AbortException {
+    Mailer.DescriptorImpl descriptor = Mailer.descriptor();
+    parseRecipients(recipients);
+    resolveSender(
+        from, smtpUsername(descriptor), JenkinsLocationConfiguration.get().getAdminAddress());
+    String effectiveReplyTo = firstNonBlank(replyTo, descriptor.getReplyToAddress());
+    if (!effectiveReplyTo.isEmpty()) {
+      validatedAddresses(effectiveReplyTo, "replyTo");
+    }
+    safeSubject(subject);
+  }
+
+  @Override
   public void send(
       StepContext context,
       String recipients,

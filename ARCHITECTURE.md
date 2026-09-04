@@ -287,15 +287,17 @@ octaneCronProgressEmail(
 `PROGRESS_EMAIL_INTERVAL_CRONJOB` accepts a standard five-field Jenkins cron expression. Blank or
 null input disables progress emails for that run without failing the gate. Scheduled messages use
 the same report screenshot, HTML body, recipient, theme, and SMTP implementation as
-`octaneEmailReport`; their gate result is rendered as `ONGOING`.
+`octaneEmailReport`; their gate result is rendered as `ONGOING`. The wrapper treats a blank cron as
+an explicit global disable gate both when registering and if a stale callback is invoked, so it
+returns before reading execution progress or starting email artifact work.
 
 `PROGRESS_EMAIL_INTERVAL_TIMEOUT` controls delivery when execution has not advanced since the
 previous scheduled email. Values `true` and `1` suppress unchanged follow-up emails; values `false`
 and `0` continue sending on every cron tick. The first scheduled email is deferred until a completed
-poll provides renderable report sections and the HTML/WebP capture succeeds. The capture completes
-before the progress decision and SMTP handoff; empty or failed attempts do not advance the
-per-wrapper execution-progress high-water mark and are retried on the next cron occurrence. The
-high-water mark is not shared between builds.
+poll provides renderable report sections. After freshness reconciliation, timeout-collision and
+progress-delta gates run against that exact snapshot before HTML rendering or headless-browser
+capture. Skipped or failed attempts do not advance the per-wrapper execution-progress high-water
+mark and are retried on the next cron occurrence. The high-water mark is not shared between builds.
 
 Each cron tick is also compared with the absolute gate closure deadline: `startedAt +
 timeoutMinutes + timeoutMinutesExtended`. When 60 seconds or less remain, the interval message is
@@ -558,6 +560,8 @@ flowchart LR
   Build["Completed or running Jenkins build"]
   Cron["Optional shared cron scheduler\nactive gate only"]
   Action["Octane Gate Report action"]
+  Preflight["Address and header preflight"]
+  DeliveryGate["Progress email policy gate"]
   Evaluation["Persisted criteria evaluation\nverdict + ordered comparisons"]
   Html["Temporary static HTML\ncontaining octane-report-zone"]
   Chrome["Headless Chrome / Chromium"]
@@ -565,13 +569,20 @@ flowchart LR
   Archive["Optional Jenkins archive"]
   Mail["Jenkins Mailer"]
 
-  Build --> Action --> Evaluation
+  Build --> Action --> Preflight --> DeliveryGate
+  DeliveryGate --> Evaluation
   Cron --> Action
-  Action --> Html --> Chrome --> Png
+  DeliveryGate --> Html --> Chrome --> Png
   Evaluation --> Mail
   Png --> Archive
   Png --> Mail
 ```
+
+The sender preflight runs before the per-build delivery lock and validates recipient syntax,
+effective sender, reply-to addresses, and subject header safety. The progress delivery gate runs
+before `OctaneReportZoneHtmlRenderer`, Chrome/Chromium startup, screenshot archiving, email-body
+rendering, and SMTP handoff. This keeps disabled, stagnant, malformed, and closure-collision paths
+free of downstream artifact cost.
 
 Generated email files live under:
 

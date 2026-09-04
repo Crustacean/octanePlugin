@@ -521,17 +521,29 @@ public class OctaneEmailBodyRendererTest {
 
   @Test
   public void splitsDefinedScopeTablesAccordingToEmailRowRules() {
-    String eleven = renderDefinedScopeEmail(11);
-    String twenty = renderDefinedScopeEmail(20);
+    String nine = renderDefinedScopeEmail(9);
+    String thirteen = renderDefinedScopeEmail(13);
     String thirtyThree = renderDefinedScopeEmail(33);
 
-    assertEquals(2, occurrences(eleven, "data-octane-email-table=\"defined-scope\""));
-    assertEquals(2, occurrences(twenty, "data-octane-email-table=\"defined-scope\""));
+    assertEquals(1, occurrences(nine, "data-octane-email-table=\"defined-scope\""));
+    assertEquals(2, occurrences(thirteen, "data-octane-email-table=\"defined-scope\""));
     assertEquals(2, occurrences(thirtyThree, "data-octane-email-table=\"defined-scope\""));
-    int firstTableEnd =
-        eleven.indexOf("</table>", eleven.indexOf("data-octane-email-table=\"defined-scope\""));
-    assertTrue(eleven.substring(0, firstTableEnd).contains("Project 10"));
-    assertFalse(eleven.substring(0, firstTableEnd).contains("Project 11"));
+    int nineTableStart = nine.indexOf("data-octane-email-table=\"defined-scope\"");
+    int nineTableEnd = nine.indexOf("</table>", nineTableStart);
+    assertEquals(9, occurrences(nine.substring(nineTableStart, nineTableEnd), "<tr><td"));
+    int firstTableStart = thirteen.indexOf("data-octane-email-table=\"defined-scope\"");
+    int firstTableEnd = thirteen.indexOf("</table>", firstTableStart);
+    String firstTable = thirteen.substring(firstTableStart, firstTableEnd);
+    int secondTableStart =
+        thirteen.indexOf("data-octane-email-table=\"defined-scope\"", firstTableEnd);
+    int secondTableEnd = thirteen.indexOf("</table>", secondTableStart);
+    String secondTable = thirteen.substring(secondTableStart, secondTableEnd);
+    assertEquals(7, occurrences(firstTable, "<tr><td"));
+    assertEquals(6, occurrences(secondTable, "<tr><td"));
+    assertTrue(firstTable.contains("Project 7"));
+    assertFalse(firstTable.contains("Project 8"));
+    assertTrue(secondTable.contains("Project 8"));
+    assertTrue(secondTable.contains("Project 13"));
     int thirtyThreeFirstEnd =
         thirtyThree.indexOf(
             "</table>", thirtyThree.indexOf("data-octane-email-table=\"defined-scope\""));
