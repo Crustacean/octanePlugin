@@ -44,6 +44,25 @@ test("reserves exactly twenty-four pixels for the concise overflow marker", () =
   assert.doesNotMatch(source, /hiddenCount \+ " more"/);
 });
 
+test("audits adaptive axes in the required uppercase console format", () => {
+  assert.equal(
+      renderer.selectedAxesAuditMessage("Status", "Count"),
+      "SELECTED AXES: X: STATUS, Y: COUNT");
+  assert.match(source, /console\.log\(selectedAxesAuditMessage\(xAxis, yAxis\)\)/);
+  assert.match(jelly, /SELECTED AXES: X: /);
+  assert.match(jelly, /xAxis\.toUpperCase\(\)/);
+  assert.match(jelly, /yAxis\.toUpperCase\(\)/);
+});
+
+test("status-grouped charts do not create tooltip targets or payloads", () => {
+  assert.match(source, /section\.tooltipsEnabled !== false/);
+  assert.match(
+      source,
+      /section\.tooltipsEnabled !== false[\s\S]*?octane-vertical-bar octane-client-bar-hit-target[\s\S]*?: "octane-client-bar-hit-target"/);
+  assert.match(jelly, /data-tooltips-enabled="\$\{section\.tooltipsEnabled\}"/);
+  assert.match(jelly, /<j:if test="\$\{section\.tooltipsEnabled\}">/);
+});
+
 test("uses delegated safe DOM rendering without per-bar tooltip trees", () => {
   assert.doesNotMatch(source, /\.innerHTML\s*=/);
   assert.match(source, /textContent = String\(value\)/);

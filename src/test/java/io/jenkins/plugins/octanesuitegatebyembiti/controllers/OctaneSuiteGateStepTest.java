@@ -116,6 +116,17 @@ public class OctaneSuiteGateStepTest {
   }
 
   @Test
+  public void bindsAdaptiveMetricRunLimitIntoGateRequestAndFreestyleBuilder() {
+    OctaneSuiteGateStep step = new OctaneSuiteGateStep("octane-prod", "1196");
+    step.setLimitForMetricRunsInSuite(350);
+    OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("1196");
+    builder.setLimitForMetricRunsInSuite(275);
+
+    assertEquals(350, step.toRequest().getLimitForMetricRunsInSuite());
+    assertEquals(275, builder.getLimitForMetricRunsInSuite());
+  }
+
+  @Test
   public void freestyleBuilderDelegatesTesterDetailThresholds() {
     OctaneSuiteGateBuilder builder = new OctaneSuiteGateBuilder("1196");
     builder.setBasePassrateFigure(84);

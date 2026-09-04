@@ -122,7 +122,7 @@ public class OctaneReportZoneHtmlRendererTest {
     assertTrue(html.contains("octane-suite-chart-meta"));
     assertTrue(html.contains("octane-bar-graph"));
     assertTrue(html.contains("octane-y-axis-label"));
-    assertTrue(html.contains(">Test Runs<"));
+    assertTrue(html.contains(">Count<"));
     assertTrue(html.contains("#827C7B"));
     assertTrue(html.contains("background-image: radial-gradient"));
     assertTrue(html.contains("rgba(33, 38, 45, 0.92)"));
@@ -350,6 +350,34 @@ public class OctaneReportZoneHtmlRendererTest {
     assertFalse(liveHtml.contains("octane-bar-overflow-indicator"));
     assertFalse(liveHtml.contains("--octane-bar-width:"));
     assertTrue(liveHtml.contains("Tester 205"));
+  }
+
+  @Test
+  public void keepsLargestBarsOnTheRightWhenEmailWidthTruncatesSmallerBars() {
+    OctaneGateReportSnapshot snapshot = variedBarSnapshot();
+
+    String html = new OctaneReportZoneHtmlRenderer().render(snapshot, "LIGHT", 320);
+
+    assertFalse(html.contains("data-bar-name=\"Tester 1\""));
+    assertTrue(html.contains("data-bar-name=\"Tester 8\""));
+    assertTrue(html.contains("data-bar-name=\"Tester 20\""));
+    assertTrue(
+        html.indexOf("data-bar-name=\"Tester 8\"") < html.indexOf("data-bar-name=\"Tester 20\""));
+    assertTrue(html.contains("data-hidden-count=\"7\""));
+  }
+
+  @Test
+  public void rendersDenseTestPayloadAsStatusBarsWithoutTooltips() {
+    OctaneGateReportSnapshot snapshot = adaptiveStatusSnapshot(350, 250);
+
+    String html = new OctaneReportZoneHtmlRenderer().renderZone(snapshot);
+
+    assertTrue(html.contains("data-x-axis=\"Status\""));
+    assertTrue(html.contains("data-y-axis=\"Count\""));
+    assertTrue(html.contains("data-tooltips-enabled=\"false\""));
+    assertEquals(5, occurrences(html, "class=\"octane-suite-column\""));
+    assertFalse(html.contains("class=\"octane-bar-popup\""));
+    assertFalse(html.contains("tabindex=\"0\""));
   }
 
   @Test
@@ -606,6 +634,69 @@ public class OctaneReportZoneHtmlRendererTest {
             Instant.parse("2026-05-15T00:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(
         OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot variedBarSnapshot() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    List<RunRecord> allRuns = new ArrayList<>();
+    for (int tester = 1; tester <= 20; tester++) {
+      List<RunRecord> testerRuns = new ArrayList<>();
+      for (int run = 0; run < tester; run++) {
+        RunRecord record =
+            new RunRecord(
+                "tester-" + tester + "-run-" + run, "Run " + run, "passed", "Tester " + tester);
+        testerRuns.add(record);
+        allRuns.add(record);
+      }
+      suiteRuns.put("suite-" + tester, List.copyOf(testerRuns));
+    }
+    GateResult result =
+        new GateResult(
+            String.join(",", suiteRuns.keySet()),
+            "regressions.passRate == 100",
+            true,
+            true,
+            GateMetrics.fromRuns(allRuns, classifier),
+            allRuns,
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot adaptiveStatusSnapshot(int testCount, int limit) {
+    List<String> statuses = List.of("passed", "failed", "blocked", "skipped", "planned");
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index < testCount; index++) {
+      runs.add(
+          new RunRecord(
+              "run-" + index,
+              "Run " + index,
+              statuses.get(index % statuses.size()),
+              "Tester " + index));
+    }
+    GateResult result =
+        new GateResult(
+            "dense-suite",
+            "regressions.executionRate >= 0",
+            false,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("dense-suite", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.POLLING,
+        "Polling",
+        result,
+        classifier,
+        30,
+        7_200,
+        0,
+        "2026-05-15T00:00:00Z",
+        limit);
   }
 
   private OctaneGateReportSnapshot thinSliceSnapshot() {

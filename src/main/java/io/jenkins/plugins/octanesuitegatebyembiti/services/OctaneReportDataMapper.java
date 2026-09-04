@@ -98,6 +98,9 @@ public final class OctaneReportDataMapper {
     value.put("barChartTitle", section.getSuiteRunChartTitle());
     value.put("suiteRunCount", section.getSuiteRunCount());
     value.put("barCount", section.getSuiteRuns().size());
+    value.put("xAxis", section.getXAxis());
+    value.put("yAxis", section.getYAxis());
+    value.put("tooltipsEnabled", section.isTooltipsEnabled());
     value.put("maxTotal", section.getMaxSuiteRunTotal());
     value.put("gridLineCount", section.getYAxisGridLineCount());
     value.put("yAxisTicks", section.getYAxisTicks());

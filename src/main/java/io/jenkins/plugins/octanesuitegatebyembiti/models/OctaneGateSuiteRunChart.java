@@ -82,6 +82,19 @@ public class OctaneGateSuiteRunChart implements Serializable {
         OctaneAutomationUsage.fromRuns(runs));
   }
 
+  static OctaneGateSuiteRunChart fromStatus(OctaneGateStatusCount status) {
+    Map<OctaneGateStatusBucket, Integer> counts = emptyCounts();
+    counts.put(status.getBucket(), status.getCount());
+    return new OctaneGateSuiteRunChart(
+        "status-" + status.getDataKey(),
+        status.getLabel(),
+        List.of(),
+        status.getCount(),
+        status.getCount(),
+        toStatusCounts(counts, status.getCount()),
+        OctaneAutomationUsage.empty());
+  }
+
   OctaneGateSuiteRunChart scaledAgainst(int maxTotal) {
     return new OctaneGateSuiteRunChart(
         suiteRunId, displayName, suiteRunIds, total, maxTotal, statuses, getAutomationUsage());

@@ -53,6 +53,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   private volatile int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
   private volatile int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
   private volatile int automatedTestingTarget = GateRequest.DEFAULT_AUTOMATED_TESTING_TARGET;
+  private volatile int limitForMetricRunsInSuite =
+      GateRequest.DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE;
   private volatile List<OctaneDefinedScope> definedScope = List.of();
   private volatile String criticalGraphsTitle = "";
   private volatile String regressionGraphsTitle = "";
@@ -616,6 +618,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     basePassrateFigure = request.getBasePassrateFigure();
     baseExecutionFigure = request.getBaseExecutionFigure();
     automatedTestingTarget = request.getAutomatedTestingTarget();
+    limitForMetricRunsInSuite = request.getLimitForMetricRunsInSuite();
     definedScope = List.copyOf(request.getDefinedScope());
     criticalGraphsTitle = request.getCriticalGraphsTitle();
     regressionGraphsTitle = request.getRegressionGraphsTitle();
@@ -721,7 +724,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
             refreshSeconds,
             timeoutSeconds,
             timeoutExtendedSeconds,
-            startedAt)
+            startedAt,
+            effectiveMetricRunsInSuiteLimit())
         .withSuiteAttributions(merged);
   }
 
@@ -733,6 +737,12 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
         .withTestMetrics(
             current.getTestMetrics().withAutomatedTestingTarget(automatedTestingTarget))
         .withCalculatedTestMetrics(previousCompletedSnapshot());
+  }
+
+  private int effectiveMetricRunsInSuiteLimit() {
+    return limitForMetricRunsInSuite <= 0
+        ? GateRequest.DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE
+        : limitForMetricRunsInSuite;
   }
 
   private OctaneGateReportSnapshot withLiveReportData(OctaneGateReportSnapshot current) {

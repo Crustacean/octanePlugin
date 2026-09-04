@@ -18,6 +18,7 @@ public class GateRequest implements Serializable {
   public static final int DEFAULT_BASE_PASSRATE_FIGURE = 95;
   public static final int DEFAULT_BASE_EXECUTION_FIGURE = 100;
   public static final int DEFAULT_AUTOMATED_TESTING_TARGET = 100;
+  public static final int DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE = 250;
   public static final String AUTOMATED_TESTING_TARGET_ENV = "AUTOMATED_TESTING_TARGET";
   public static final String GLOBAL_AUTOMATED_TESTING_TARGET_ENV =
       "global_automated_testing_target";
@@ -45,6 +46,7 @@ public class GateRequest implements Serializable {
   private int basePassrateFigure = DEFAULT_BASE_PASSRATE_FIGURE;
   private int baseExecutionFigure = DEFAULT_BASE_EXECUTION_FIGURE;
   private int automatedTestingTarget = DEFAULT_AUTOMATED_TESTING_TARGET;
+  private int limitForMetricRunsInSuite = DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE;
   private List<OctaneDefinedScope> definedScope = new ArrayList<>();
   private String criticalGraphsTitle = "";
   private String regressionGraphsTitle = "";
@@ -187,6 +189,14 @@ public class GateRequest implements Serializable {
 
   public void setAutomatedTestingTarget(int automatedTestingTarget) {
     this.automatedTestingTarget = Math.min(100, Math.max(1, automatedTestingTarget));
+  }
+
+  public int getLimitForMetricRunsInSuite() {
+    return Math.max(1, limitForMetricRunsInSuite);
+  }
+
+  public void setLimitForMetricRunsInSuite(int limitForMetricRunsInSuite) {
+    this.limitForMetricRunsInSuite = Math.max(1, limitForMetricRunsInSuite);
   }
 
   public List<OctaneDefinedScope> getDefinedScope() {

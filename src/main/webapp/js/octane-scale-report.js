@@ -47,6 +47,20 @@
     return element;
   }
 
+  function auditSelectedAxes(element, section) {
+    if (!element || element.getAttribute("data-axes-audited") === "true") {
+      return;
+    }
+    var xAxis = section.xAxis || "Tester";
+    var yAxis = section.yAxis || "Count";
+    console.log(selectedAxesAuditMessage(xAxis, yAxis));
+    element.setAttribute("data-axes-audited", "true");
+  }
+
+  function selectedAxesAuditMessage(xAxis, yAxis) {
+    return `SELECTED AXES: X: ${String(xAxis || "Tester").toUpperCase()}, Y: ${String(yAxis || "Count").toUpperCase()}`;
+  }
+
   function appendText(parent, name, className, text) {
     var element = createElement(name, className, text);
     parent.appendChild(element);
@@ -465,8 +479,7 @@
     var plotBottom = 252;
     var chartWidth = Math.max(320, card.clientWidth || 700);
     var pageCursor = Math.max(0, Number(page.cursor) || 0);
-    var hiddenCount = Math.max(
-        0, Number(page.totalBars) - pageCursor - (page.bars || []).length);
+    var hiddenCount = Math.max(0, Number(page.totalBars) - (page.bars || []).length);
     var overflowSvgWidth = hiddenCount > 0 ? OVERFLOW_WIDTH_PX * 1000 / chartWidth : 0;
     var plotRight = 988 - overflowSvgWidth;
     var plotWidth = Math.max(1, plotRight - plotLeft);
@@ -489,6 +502,10 @@
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", section.barChartTitle);
+    svg.setAttribute("data-x-axis", section.xAxis || "Tester");
+    svg.setAttribute("data-y-axis", section.yAxis || "Count");
+    svg.setAttribute("data-tooltips-enabled", String(section.tooltipsEnabled !== false));
+    auditSelectedAxes(svg, section);
 
     (section.yAxisTicks || []).forEach(function (tick) {
       var y = plotBottom - Number(tick) / maximum * (plotBottom - plotTop);
@@ -512,15 +529,22 @@
     bars.forEach(function (bar, barIndex) {
       var center = plotLeft + slotWidth * (barIndex + 0.5);
       var group = createSvgElement("g", "octane-suite-column octane-client-suite-column");
-      group.setAttribute("tabindex", "0");
+      if (section.tooltipsEnabled !== false) {
+        group.setAttribute("tabindex", "0");
+      }
       group.setAttribute("role", "img");
       group.setAttribute("aria-label", bar.title || bar.name || "Tester bar");
-      stampBarData(group, bar, "bars-" + section.source);
+      if (section.tooltipsEnabled !== false) {
+        stampBarData(group, bar, "bars-" + section.source);
+      }
       var currentBottom = plotBottom;
       var hitHeight = Math.max(
           0.5, Number(bar.total) / maximum * (plotBottom - plotTop));
       var hitTarget = createSvgElement(
-          "rect", "octane-vertical-bar octane-client-bar-hit-target");
+          "rect",
+          section.tooltipsEnabled !== false
+              ? "octane-vertical-bar octane-client-bar-hit-target"
+              : "octane-client-bar-hit-target");
       hitTarget.setAttribute("x", String(center - barWidth / 2));
       hitTarget.setAttribute("y", String(plotBottom - hitHeight));
       hitTarget.setAttribute("width", String(barWidth));
@@ -616,7 +640,10 @@
     loading.setAttribute("role", "status");
     parts.card.appendChild(loading);
     var lastLimit = 0;
-    var currentCursor = 0;
+    var currentCursor = Math.max(
+        0,
+        Number(section.barCount || 0)
+            - computeVisibleBarCount(700, section.barCount));
     var currentPage = null;
     var loadingRequest = false;
     var pendingCursor = null;
@@ -884,6 +911,7 @@
     measureAxisLabel: measureAxisLabel,
     truncateAxisLabel: truncateAxisLabel,
     stampBarData: stampBarData,
+    selectedAxesAuditMessage: selectedAxesAuditMessage,
     mount: mount
   };
 });

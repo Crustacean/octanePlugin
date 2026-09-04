@@ -5342,7 +5342,7 @@
                       </div>
                     </div>
                     <div class="octane-chart-inner octane-bar-graph">
-                      <div class="octane-y-axis-label">Test Runs</div>
+                      <div class="octane-y-axis-label">${section.yAxis}</div>
                       <div class="octane-y-axis-scale">
                         <j:forEach var="tick" items="${section.yAxisTicks}">
                           <span class="octane-axis-value">${tick}</span>
@@ -5350,9 +5350,13 @@
                       </div>
                       <div class="octane-bar-plot"
                           style="--octane-grid-line-count: ${section.yAxisGridLineCount};">
-                        <div class="octane-vertical-bars">
+                        <div class="octane-vertical-bars"
+                            data-x-axis="${section.xAxis}"
+                            data-y-axis="${section.yAxis}"
+                            data-tooltips-enabled="${section.tooltipsEnabled}">
                           <j:forEach var="suiteRun" items="${section.suiteRuns}">
-                            <div class="octane-suite-column" tabindex="0"
+                            <div class="octane-suite-column"
+                                tabindex="${section.tooltipsEnabled ? '0' : '-1'}"
                                 data-card-key="bars-${section.source}"
                                 data-bar-key="${suiteRun.suiteRunId}"
                                 data-bar-name="${suiteRun.displayName}"
@@ -5388,34 +5392,36 @@
                               <span class="octane-suite-label" title="${suiteRun.title}">
                                 ${suiteRun.axisLabel}
                               </span>
-                              <div class="octane-bar-popup" role="tooltip"
-                                  style="--octane-popup-border-color: ${suiteRun.dominantStatusColor};">
-                                <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
-                                <j:forEach var="status" items="${suiteRun.statuses}">
-                                  <j:if test="${status.count > 0}">
-                                    <div class="octane-bar-popup-row">
-                                      <span class="octane-swatch"
-                                          style="background: ${status.tooltipColor};"></span>
-                                      <span class="octane-bar-popup-label">${status.label}</span>
-                                      <span class="octane-bar-popup-value">${status.count}</span>
-                                      <span class="octane-bar-popup-percent">
-                                        (${status.percentageLabel})
-                                      </span>
-                                    </div>
-                                  </j:if>
-                                </j:forEach>
-                                <div class="octane-bar-popup-automation">
-                                  <span class="octane-automation-icon" aria-hidden="true">${suiteRun.automationEmoji}</span>
-                                  <span class="octane-bar-popup-label">Automation Usage</span>
-                                  <span class="octane-bar-popup-value">
-                                    ${suiteRun.automationPercentageText}
-                                  </span>
+                              <j:if test="${section.tooltipsEnabled}">
+                                <div class="octane-bar-popup" role="tooltip"
+                                    style="--octane-popup-border-color: ${suiteRun.dominantStatusColor};">
+                                  <div class="octane-bar-popup-name">${suiteRun.displayName}</div>
+                                  <j:forEach var="status" items="${suiteRun.statuses}">
+                                    <j:if test="${status.count > 0}">
+                                      <div class="octane-bar-popup-row">
+                                        <span class="octane-swatch"
+                                            style="background: ${status.tooltipColor};"></span>
+                                        <span class="octane-bar-popup-label">${status.label}</span>
+                                        <span class="octane-bar-popup-value">${status.count}</span>
+                                        <span class="octane-bar-popup-percent">
+                                          (${status.percentageLabel})
+                                        </span>
+                                      </div>
+                                    </j:if>
+                                  </j:forEach>
+                                  <div class="octane-bar-popup-automation">
+                                    <span class="octane-automation-icon" aria-hidden="true">${suiteRun.automationEmoji}</span>
+                                    <span class="octane-bar-popup-label">Automation Usage</span>
+                                    <span class="octane-bar-popup-value">
+                                      ${suiteRun.automationPercentageText}
+                                    </span>
+                                  </div>
+                                  <div class="octane-bar-popup-total">
+                                    <span>Total</span>
+                                    <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
+                                  </div>
                                 </div>
-                                <div class="octane-bar-popup-total">
-                                  <span>Total</span>
-                                  <span class="octane-bar-popup-total-value">${suiteRun.total}</span>
-                                </div>
-                              </div>
+                              </j:if>
                             </div>
                           </j:forEach>
                         </div>
@@ -5425,7 +5431,7 @@
                       <caption>${section.suiteRunChartTitle}</caption>
                       <thead>
                         <tr>
-                          <th scope="col">Run by</th>
+                          <th scope="col">${section.xAxis}</th>
                           <th scope="col">Status</th>
                           <th scope="col">Count</th>
                           <th scope="col">Percent</th>
@@ -5631,6 +5637,24 @@
           var dashboard = document.getElementById("octane-dashboard");
           if (!dashboard) {
             return;
+          }
+          function auditSelectedAxes(chart) {
+            if (!chart || chart.getAttribute("data-axes-audited") === "true") {
+              return;
+            }
+            var xAxis = chart.getAttribute("data-x-axis") || "Tester";
+            var yAxis = chart.getAttribute("data-y-axis") || "Count";
+            console.log(
+                "SELECTED AXES: X: " + xAxis.toUpperCase()
+                    + ", Y: " + yAxis.toUpperCase());
+            chart.setAttribute("data-axes-audited", "true");
+          }
+          var initialAxisCharts = dashboard.querySelectorAll(
+              ".octane-vertical-bars[data-x-axis][data-y-axis]");
+          for (var initialAxisIndex = 0;
+              initialAxisIndex < initialAxisCharts.length;
+              initialAxisIndex += 1) {
+            auditSelectedAxes(initialAxisCharts[initialAxisIndex]);
           }
           var timerCards = dashboard.querySelectorAll("[data-octane-timer]");
           var progressCards = dashboard.querySelectorAll("[data-octane-progress]");
@@ -7415,6 +7439,7 @@
             if (!container) {
               return;
             }
+            auditSelectedAxes(container);
             var allSuiteRuns = container.octaneAllSuiteRuns;
             if (!allSuiteRuns) {
               allSuiteRuns = directSuiteRunColumns(container);
@@ -7438,7 +7463,8 @@
               container.removeChild(container.firstChild);
             }
             var fragment = document.createDocumentFragment();
-            var visibleSuiteRuns = allSuiteRuns.slice(0, maxVisibleBars);
+            var visibleSuiteRuns = allSuiteRuns.slice(
+                Math.max(0, allSuiteRuns.length - maxVisibleBars));
             for (var index = 0; index < visibleSuiteRuns.length; index += 1) {
               fragment.appendChild(visibleSuiteRuns[index]);
             }
@@ -8394,6 +8420,10 @@
           function popupForColumn(column) {
             return column ? column.querySelector(".octane-bar-popup") : null;
           }
+          function tooltipsEnabledForColumn(column) {
+            var chart = column ? column.closest("[data-tooltips-enabled]") : null;
+            return !chart || chart.getAttribute("data-tooltips-enabled") === "true";
+          }
           function populateClientBarPopup(column) {
             if (!barPopupOverlay || !column) {
               return false;
@@ -8789,6 +8819,9 @@
             popup.setAttribute("data-placement", placement.side);
           }
           function showBarPopup(column, point, input, restoring) {
+            if (!tooltipsEnabledForColumn(column)) {
+              return;
+            }
             var source = popupForColumn(column);
             if (!barPopupOverlay || (!source && !column.hasAttribute("data-bar-name"))) {
               return;
@@ -8907,7 +8940,7 @@
               return;
             }
             var column = bar.closest(".octane-suite-column");
-            if (!column) {
+            if (!column || !tooltipsEnabledForColumn(column)) {
               return;
             }
             scheduleBarPopup(
@@ -8926,6 +8959,7 @@
             }
             var column = bar.closest(".octane-suite-column");
             if (column
+                && tooltipsEnabledForColumn(column)
                 && activeBarPopupState.input === "mouse"
                 && cardKeyForColumn(column) === activeBarPopupState.cardKey
                 && barKeyForColumn(column) === activeBarPopupState.barKey) {
@@ -8934,7 +8968,9 @@
           });
           dashboard.addEventListener("focusin", function (event) {
             var column = event.target.closest(".octane-suite-column");
-            if (!column || !dashboard.contains(column)) {
+            if (!column
+                || !dashboard.contains(column)
+                || !tooltipsEnabledForColumn(column)) {
               return;
             }
             showBarPopup(column, pointForColumn(column), "focus", false);

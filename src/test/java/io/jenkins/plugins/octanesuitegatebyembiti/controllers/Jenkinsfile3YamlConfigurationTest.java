@@ -70,6 +70,9 @@ class Jenkinsfile3YamlConfigurationTest {
     assertTrue(jenkinsfile.contains("OCTANE_BOOTSTRAP_CONFIGURATION_JSON"));
     assertTrue(jenkinsfile.contains("readJSON(text: transportedConfigurationJson)"));
     assertTrue(jenkinsfile.contains("validated variables.yaml from the dir2 bootstrap"));
+    assertTrue(jenkinsfile.contains("'LIMIT_FOR_METRIC_RUNS_IN_SUITE': '250'"));
+    assertTrue(jenkinsfile.contains("limitForMetricRunsInSuite: limitForMetricRunsInSuite"));
+    assertEquals("250", yamlScalar(yaml, "LIMIT_FOR_METRIC_RUNS_IN_SUITE"));
     assertTrue(
         jenkinsfile.contains("(automated) QE OCTANE GATE REPORT Job #${env.BUILD_NUMBER} \""));
     assertTrue(

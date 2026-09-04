@@ -33,6 +33,17 @@ The Octane JSON tree was not mutated in place. The leak was semantic:
 This explains `Unassigned (78834)`: the parent suite owner was not the sole source of the grouping
 key, and the child path reached the fallback before a stable parent identity was applied.
 
+### Octane 16.2.100 compatibility note
+
+`Unassigned (<number>)` is not a distinct tester returned by Octane. On 16.2.100, a suite-run
+projection can omit every supported parent assignment relationship (`default_run_by`, human
+`run_by`, `assigned_to`, `assignee`, and `owner`) even though its child runs remain available. The
+plugin historically rendered that missing assignment as `Unassigned (` plus the suite-run ID plus
+`)`, which made each affected suite look like a different tester. Chart and email aggregation now
+normalize blank assignments, plain `Unassigned`, and every case-insensitive
+`Unassigned (<numeric-id>)` variant to one `Unassigned` identity before grouping. The numeric suffix
+is therefore treated only as legacy diagnostic context and never as part of a tester key.
+
 ## Permanent Boundary
 
 - Parent suite payloads are mapped to the immutable `OctaneSuiteTopologyCache.Topology` DTO. Its

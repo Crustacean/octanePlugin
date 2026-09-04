@@ -43,7 +43,9 @@ public class OctaneReportArtifactStoreTest {
     assertNotNull(reloaded);
     assertEquals(snapshot.getUpdatedAt(), reloaded.getUpdatedAt());
     assertEquals(snapshot.getSuiteAttributions(), reloaded.getSuiteAttributions());
-    assertEquals(500, reloaded.getReportSections().get(0).getSuiteRuns().size());
+    assertEquals(1, reloaded.getReportSections().get(0).getSuiteRuns().size());
+    assertEquals("Status", reloaded.getReportSections().get(0).getXAxis());
+    assertEquals(500, reloaded.getProjectTestTotal());
     assertTrue(
         Files.isRegularFile(
             build

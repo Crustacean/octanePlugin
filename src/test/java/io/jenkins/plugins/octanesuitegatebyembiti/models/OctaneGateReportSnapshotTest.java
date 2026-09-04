@@ -309,9 +309,95 @@ public class OctaneGateReportSnapshotTest {
     List<OctaneGateSuiteRunChart> charts = snapshot.getSections().get(0).getSuiteRuns();
     assertEquals(2, charts.size());
     assertEquals(
-        List.of("Ada Owner", "Unassigned (55)"),
+        List.of("Ada Owner", "Unassigned"),
         charts.stream().map(chart -> chart.getDisplayName()).toList());
     assertEquals(List.of(1, 1), charts.stream().map(chart -> chart.getTotal()).toList());
+  }
+
+  @Test
+  public void collapsesNumberedUnassignedVariantsAcrossChartsAndTesterDetails() {
+    Map<String, List<RunRecord>> suiteRuns = new LinkedHashMap<>();
+    List<RunRecord> first = runsForOwner("first", "Unassigned (10221)", 5);
+    List<RunRecord> second = runsForOwner("second", " unassigned (99401) ", 10);
+    suiteRuns.put("10221", first);
+    suiteRuns.put("99401", second);
+    List<RunRecord> allRuns = Stream.concat(first.stream(), second.stream()).toList();
+    GateResult result =
+        new GateResult(
+            "10221,99401",
+            "regressions.executionRate == 100",
+            false,
+            true,
+            GateMetrics.fromRuns(allRuns, classifier),
+            allRuns,
+            suiteRuns,
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.PASSED, "Passed", result, classifier, 30);
+
+    assertEquals(1, snapshot.getSections().get(0).getSuiteRuns().size());
+    assertEquals(
+        "Unassigned", snapshot.getSections().get(0).getSuiteRuns().get(0).getDisplayName());
+    assertEquals(15, snapshot.getSections().get(0).getSuiteRuns().get(0).getTotal());
+    assertEquals(1, snapshot.getTesterPerformances().size());
+    assertEquals("Unassigned", snapshot.getTesterPerformances().get(0).getEmail());
+    assertEquals(15, snapshot.getTesterPerformances().get(0).getTotal());
+  }
+
+  @Test
+  public void groupsThreeHundredFiftyTestsByStatusWithoutChangingNumericTotals() {
+    List<RunRecord> runs = new java.util.ArrayList<>();
+    List<String> statuses = List.of("passed", "failed", "blocked", "skipped", "planned");
+    for (int index = 0; index < 350; index++) {
+      runs.add(
+          new RunRecord(
+              "run-" + index,
+              "Run " + index,
+              statuses.get(index % statuses.size()),
+              "Runner " + index,
+              "Tester " + index,
+              "",
+              "",
+              "",
+              ""));
+    }
+    GateResult result =
+        new GateResult(
+            "dense-suite",
+            "regressions.executionRate >= 0",
+            false,
+            false,
+            GateMetrics.fromRuns(runs, classifier),
+            runs,
+            Map.of("dense-suite", runs),
+            Map.of(),
+            Instant.parse("2026-05-15T00:00:00Z"));
+
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING,
+            "Polling",
+            result,
+            classifier,
+            30,
+            7_200,
+            0,
+            "2026-05-15T00:00:00Z",
+            250);
+    OctaneGateReportSection section = snapshot.getSections().get(0);
+
+    assertTrue(section.isStatusGrouped());
+    assertFalse(section.isTooltipsEnabled());
+    assertEquals("Status", section.getXAxis());
+    assertEquals("Count", section.getYAxis());
+    assertEquals(5, section.getSuiteRuns().size());
+    assertEquals(
+        350, section.getSuiteRuns().stream().mapToInt(OctaneGateSuiteRunChart::getTotal).sum());
+    assertEquals(350, section.getMetrics().getTotal());
+    assertEquals(350, snapshot.getProjectTestTotal());
   }
 
   @Test
@@ -781,6 +867,24 @@ public class OctaneGateReportSnapshotTest {
 
   private List<String> emails(List<OctaneTesterPerformance> testers) {
     return testers.stream().map(tester -> tester.getEmail()).toList();
+  }
+
+  private List<RunRecord> runsForOwner(String prefix, String owner, int count) {
+    List<RunRecord> runs = new java.util.ArrayList<>();
+    for (int index = 0; index < count; index++) {
+      runs.add(
+          new RunRecord(
+              prefix + "-" + index,
+              "Run " + index,
+              "passed",
+              "Default Manual Runner",
+              owner,
+              "",
+              "",
+              "",
+              ""));
+    }
+    return List.copyOf(runs);
   }
 
   private void assertDominantStatusForTie(

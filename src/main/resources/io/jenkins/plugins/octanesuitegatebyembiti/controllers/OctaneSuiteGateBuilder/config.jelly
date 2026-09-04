@@ -37,6 +37,9 @@
     <f:entry title="Base tester execution percentage" field="baseExecutionFigure">
       <f:number min="0" max="100" />
     </f:entry>
+    <f:entry title="Maximum test cases before status chart grouping" field="limitForMetricRunsInSuite">
+      <f:number min="1" />
+    </f:entry>
     <f:entry title="Mark unstable instead of failed" field="markUnstable">
       <f:checkbox />
     </f:entry>

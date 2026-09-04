@@ -49,6 +49,7 @@ pipeline {
     OCTANE_PROJECT_NAME = 'Single Suite Run Project'
     OCTANE_DOMAIN_NAME = 'QUALITY_ENGINEERING'
     AUTOMATED_TESTING_TARGET = '80'
+    LIMIT_FOR_METRIC_RUNS_IN_SUITE = '250'
   }
 
   stages {
@@ -137,6 +138,7 @@ pipeline {
                   timeoutMinutesExtended: 0,
                   basePassrateFigure: 95,
                   baseExecutionFigure: 100,
+                  limitForMetricRunsInSuite: env.LIMIT_FOR_METRIC_RUNS_IN_SUITE.toInteger(),
                   markUnstable: false,
                   riskHeatMap: true,
                   riskHeatMapDefectQuery: '',

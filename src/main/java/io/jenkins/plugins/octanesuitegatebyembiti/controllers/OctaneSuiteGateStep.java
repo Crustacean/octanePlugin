@@ -61,6 +61,7 @@ public class OctaneSuiteGateStep extends Step {
   private int timeoutMinutesExtended = GateRequest.DEFAULT_TIMEOUT_MINUTES_EXTENDED;
   private int basePassrateFigure = GateRequest.DEFAULT_BASE_PASSRATE_FIGURE;
   private int baseExecutionFigure = GateRequest.DEFAULT_BASE_EXECUTION_FIGURE;
+  private int limitForMetricRunsInSuite = GateRequest.DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE;
   private boolean markUnstable;
   private boolean riskHeatMap;
   private String riskHeatMapDefectQuery = "";
@@ -193,6 +194,15 @@ public class OctaneSuiteGateStep extends Step {
     this.baseExecutionFigure = percentageThreshold(baseExecutionFigure);
   }
 
+  public int getLimitForMetricRunsInSuite() {
+    return limitForMetricRunsInSuite;
+  }
+
+  @DataBoundSetter
+  public void setLimitForMetricRunsInSuite(int limitForMetricRunsInSuite) {
+    this.limitForMetricRunsInSuite = Math.max(1, limitForMetricRunsInSuite);
+  }
+
   public boolean isMarkUnstable() {
     return markUnstable;
   }
@@ -287,6 +297,7 @@ public class OctaneSuiteGateStep extends Step {
     request.setTimeoutMinutesExtended(timeoutMinutesExtended);
     request.setBasePassrateFigure(basePassrateFigure);
     request.setBaseExecutionFigure(baseExecutionFigure);
+    request.setLimitForMetricRunsInSuite(limitForMetricRunsInSuite);
     request.setMarkUnstable(markUnstable);
     request.setRiskHeatMap(riskHeatMap);
     request.setRiskHeatMapDefectQuery(riskHeatMapDefectQuery);

@@ -50,6 +50,7 @@ pipeline {
     OCTANE_PROJECT_NAME = 'Business Payments Secure Checkout'
     OCTANE_DOMAIN_NAME = 'FS_TRIBE_DOMAIN'
     AUTOMATED_TESTING_TARGET = '80'
+    LIMIT_FOR_METRIC_RUNS_IN_SUITE = '250'
   }
 
   stages {
@@ -155,6 +156,7 @@ pipeline {
                   timeoutMinutesExtended: 30,
                   basePassrateFigure: 95,
                   baseExecutionFigure: 100,
+                  limitForMetricRunsInSuite: env.LIMIT_FOR_METRIC_RUNS_IN_SUITE.toInteger(),
                   markUnstable: false,
                   riskHeatMap: true,
                   riskHeatMapDefectQuery: '',

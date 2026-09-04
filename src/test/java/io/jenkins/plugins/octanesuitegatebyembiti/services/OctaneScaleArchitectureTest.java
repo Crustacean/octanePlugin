@@ -38,8 +38,10 @@ public class OctaneScaleArchitectureTest {
 
     assertEquals(105_150, result.getRuns().size());
     assertEquals(
-        suites,
+        5,
         data.sections().stream().mapToInt(section -> ((List<?>) section.get("bars")).size()).sum());
+    assertEquals("Status", data.sections().get(0).get("xAxis"));
+    assertEquals(false, data.sections().get(0).get("tooltipsEnabled"));
     assertTrue(data.sections().get(0).containsKey("automationPercentage"));
     assertTrue(data.sections().get(0).containsKey("automationPercentageLabel"));
     assertTrue(!data.index().containsKey("suiteAttributions"));
@@ -111,12 +113,12 @@ public class OctaneScaleArchitectureTest {
         Measurement measurement = future.get();
         maximumIndexBytes.accumulateAndGet(measurement.indexBytes(), Math::max);
         maximumCompleteBytes.accumulateAndGet(measurement.completeBytes(), Math::max);
-        assertTrue(measurement.clientRendered());
+        assertTrue(!measurement.clientRendered());
         assertTrue("initial index must stay below 250 KB", measurement.indexBytes() < 250_000);
         assertTrue("complete JSON must stay below 5 MB", measurement.completeBytes() < 5_000_000);
         assertEquals(OctaneScaleTestFixture.DEFECTS_PER_JOB, measurement.defectCount());
         assertEquals(SUITES_PER_JOB * CHILD_RUNS_PER_SUITE, measurement.childRunCount());
-        assertEquals(SUITES_PER_JOB, measurement.barCount());
+        assertEquals(5, measurement.barCount());
       }
     } finally {
       sampling.set(false);

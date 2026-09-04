@@ -5,6 +5,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
@@ -39,7 +41,7 @@ public class OctaneScaleReportActionTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
 
   @Test
-  public void denseReportUsesSmallMetadataEtagAndDeferredClientRendering() throws Exception {
+  public void denseReportUsesSmallMetadataEtagAndInlineStatusAggregation() throws Exception {
     FreeStyleProject project = jenkins.createFreeStyleProject();
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
     GateRequest request = new GateRequest("octane-prod", "suite-0");
@@ -62,8 +64,10 @@ public class OctaneScaleReportActionTest {
             .toURL();
     HtmlPage report = jenkins.createWebClient().getPage(reportUrl);
     String reportXml = report.asXml();
-    assertTrue(reportXml.contains("data-client-rendered=\"true\""));
-    assertTrue(reportXml.contains("Loading report data"));
+    assertTrue(reportXml.contains("data-client-rendered=\"false\""));
+    assertFalse(reportXml.contains("Loading report data"));
+    assertTrue(reportXml.contains("data-x-axis=\"Status\""));
+    assertTrue(reportXml.contains("data-tooltips-enabled=\"false\""));
     long domNodes = Pattern.compile("<[A-Za-z][^!?/]*?").matcher(reportXml).results().count();
     assertTrue("initial DOM should remain below 5,000 nodes", domNodes < 5_000L);
 
@@ -83,7 +87,10 @@ public class OctaneScaleReportActionTest {
     Page index = jenkins.createWebClient().getPage(dataUrl);
     long indexBytes = index.getWebResponse().getContentLength();
     assertTrue(indexBytes < 250_000L);
-    assertTrue(index.getWebResponse().getContentAsString().contains("\"barCount\":" + suiteCount));
+    JsonNode indexData = new ObjectMapper().readTree(index.getWebResponse().getContentAsString());
+    JsonNode firstSection = indexData.path("sections").path(0);
+    assertEquals(1, firstSection.path("barCount").asInt());
+    assertEquals("Status", firstSection.path("xAxis").asText());
     String dataEtag = index.getWebResponse().getResponseHeaderValue("ETag");
     assertNotNull(dataEtag);
     WebRequest unchangedDataRequest = new WebRequest(dataUrl);
@@ -93,24 +100,24 @@ public class OctaneScaleReportActionTest {
 
     URL sectionUrl = reportUri.resolve("data?section=0&cursor=0&limit=80").toURL();
     Page section = jenkins.createWebClient().getPage(sectionUrl);
-    String sectionJson = section.getWebResponse().getContentAsString();
-    assertTrue(sectionJson.contains("\"totalBars\":" + suiteCount));
-    assertTrue(sectionJson.contains("\"nextCursor\":80"));
+    JsonNode sectionData =
+        new ObjectMapper().readTree(section.getWebResponse().getContentAsString());
+    assertEquals(1, sectionData.path("totalBars").asInt());
+    assertEquals(-1, sectionData.path("nextCursor").asInt());
 
     int cursor = 0;
     int pages = 0;
     while (cursor >= 0) {
       URL pageUrl = reportUri.resolve("data?section=0&cursor=" + cursor + "&limit=80").toURL();
-      String pageJson =
-          jenkins.createWebClient().getPage(pageUrl).getWebResponse().getContentAsString();
-      assertTrue(pageJson.contains("\"cursor\":" + cursor));
-      java.util.regex.Matcher nextCursor =
-          Pattern.compile("\"nextCursor\":(-?\\d+)").matcher(pageJson);
-      assertTrue(nextCursor.find());
-      cursor = Integer.parseInt(nextCursor.group(1));
+      JsonNode pageData =
+          new ObjectMapper()
+              .readTree(
+                  jenkins.createWebClient().getPage(pageUrl).getWebResponse().getContentAsString());
+      assertEquals(cursor, pageData.path("cursor").asInt());
+      cursor = pageData.path("nextCursor").asInt();
       pages++;
     }
-    assertEquals(9, pages);
+    assertEquals(1, pages);
     System.out.printf(
         "Octane report acceptance: buildXmlBytes=%d initialDomNodes=%d indexBytes=%d%n",
         buildXmlBytes, domNodes, indexBytes);

@@ -804,7 +804,9 @@ public class OctaneReportZoneHtmlRenderer {
     renderCardTools(html);
     html.append("</div>\n");
     html.append("<div class=\"octane-chart-inner octane-bar-graph\">\n");
-    html.append("<div class=\"octane-y-axis-label\">Test Runs</div>\n");
+    html.append("<div class=\"octane-y-axis-label\">");
+    html.append(escapeHtml(section.getYAxis()));
+    html.append("</div>\n");
     html.append("<div class=\"octane-y-axis-scale\">");
     for (Integer tick : section.getYAxisTicks()) {
       html.append("<span class=\"octane-axis-value\">");
@@ -820,7 +822,7 @@ public class OctaneReportZoneHtmlRenderer {
     List<OctaneGateSuiteRunChart> visibleSuiteRuns = suiteRuns;
     int hiddenCount = 0;
     if (maxVisibleBars != null && suiteRuns.size() > maxVisibleBars) {
-      visibleSuiteRuns = suiteRuns.subList(0, maxVisibleBars);
+      visibleSuiteRuns = suiteRuns.subList(suiteRuns.size() - maxVisibleBars, suiteRuns.size());
       hiddenCount = suiteRuns.size() - maxVisibleBars;
     }
     boolean hasOverflow = hiddenCount > 0;
@@ -828,6 +830,13 @@ public class OctaneReportZoneHtmlRenderer {
     if (hasOverflow) {
       html.append(" octane-fluid-bars-dense");
     }
+    html.append("\"");
+    html.append(" data-x-axis=\"");
+    html.append(escapeAttribute(section.getXAxis()));
+    html.append("\" data-y-axis=\"");
+    html.append(escapeAttribute(section.getYAxis()));
+    html.append("\" data-tooltips-enabled=\"");
+    html.append(section.isTooltipsEnabled());
     html.append("\"");
     if (barChartWidth != null) {
       BarLayout layout = calculateBarLayout(barChartWidth, visibleSuiteRuns.size(), hasOverflow);
@@ -839,7 +848,7 @@ public class OctaneReportZoneHtmlRenderer {
     }
     html.append(">\n");
     for (OctaneGateSuiteRunChart suiteRun : visibleSuiteRuns) {
-      renderSuiteRunColumn(html, suiteRun, cardKey);
+      renderSuiteRunColumn(html, suiteRun, cardKey, section.isTooltipsEnabled());
     }
     if (hasOverflow) {
       renderBarOverflowIndicator(html, hiddenCount);
@@ -903,7 +912,9 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("<caption>");
     html.append(escapeHtml(section.getSuiteRunChartTitle()));
     html.append("</caption><thead><tr>");
-    html.append("<th scope=\"col\">Run by</th>");
+    html.append("<th scope=\"col\">");
+    html.append(escapeHtml(section.getXAxis()));
+    html.append("</th>");
     html.append("<th scope=\"col\">Status</th>");
     html.append("<th scope=\"col\">Count</th>");
     html.append("<th scope=\"col\">Percent</th>");
@@ -930,8 +941,15 @@ public class OctaneReportZoneHtmlRenderer {
   }
 
   private void renderSuiteRunColumn(
-      StringBuilder html, OctaneGateSuiteRunChart suiteRun, String cardKey) {
-    html.append("<div class=\"octane-suite-column\" tabindex=\"0\" aria-label=\"");
+      StringBuilder html,
+      OctaneGateSuiteRunChart suiteRun,
+      String cardKey,
+      boolean tooltipsEnabled) {
+    html.append("<div class=\"octane-suite-column\"");
+    if (tooltipsEnabled) {
+      html.append(" tabindex=\"0\"");
+    }
+    html.append(" aria-label=\"");
     html.append(escapeAttribute(suiteRun.getTitle()));
     html.append("\" data-card-key=\"");
     html.append(escapeAttribute(cardKey));
@@ -992,14 +1010,16 @@ public class OctaneReportZoneHtmlRenderer {
     html.append("\">");
     html.append(escapeHtml(suiteRun.getAxisLabel()));
     html.append("</span>\n");
-    renderSuiteRunPopup(html, suiteRun);
+    if (tooltipsEnabled) {
+      renderSuiteRunPopup(html, suiteRun);
+    }
     html.append("</div>\n");
   }
 
   private void renderBarOverflowIndicator(StringBuilder html, int hiddenCount) {
     html.append("<div class=\"octane-bar-overflow-indicator\" role=\"note\" aria-label=\"");
     html.append(hiddenCount);
-    html.append(" tester bars omitted\" data-hidden-count=\"");
+    html.append(" smaller bars omitted\" data-hidden-count=\"");
     html.append(hiddenCount);
     html.append("\">");
     html.append("<span class=\"octane-bar-overflow-line\" aria-hidden=\"true\"></span>");

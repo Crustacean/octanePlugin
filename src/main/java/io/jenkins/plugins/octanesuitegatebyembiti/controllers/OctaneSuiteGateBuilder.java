@@ -165,6 +165,15 @@ public class OctaneSuiteGateBuilder extends Builder implements SimpleBuildStep {
     delegate.setBaseExecutionFigure(baseExecutionFigure);
   }
 
+  public int getLimitForMetricRunsInSuite() {
+    return delegate.getLimitForMetricRunsInSuite();
+  }
+
+  @DataBoundSetter
+  public void setLimitForMetricRunsInSuite(int limitForMetricRunsInSuite) {
+    delegate.setLimitForMetricRunsInSuite(limitForMetricRunsInSuite);
+  }
+
   public boolean isMarkUnstable() {
     return delegate.isMarkUnstable();
   }

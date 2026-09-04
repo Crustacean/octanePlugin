@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -27,6 +26,8 @@ public class OctaneGateReportSection implements Serializable {
   private final List<OctaneGateSuiteRunChart> suiteRuns;
   private final OctaneAutomationUsage automationUsage;
   private final String customGraphsTitle;
+  private final String xAxis;
+  private final String yAxis;
 
   private OctaneGateReportSection(
       String name,
@@ -36,7 +37,9 @@ public class OctaneGateReportSection implements Serializable {
       List<OctaneGateStatusCount> totals,
       List<OctaneGateSuiteRunChart> suiteRuns,
       OctaneAutomationUsage automationUsage,
-      String customGraphsTitle) {
+      String customGraphsTitle,
+      String xAxis,
+      String yAxis) {
     this.name = name;
     this.source = source;
     this.suiteRunIds = List.copyOf(suiteRunIds);
@@ -47,10 +50,17 @@ public class OctaneGateReportSection implements Serializable {
     this.automationUsage =
         automationUsage == null ? OctaneAutomationUsage.empty() : automationUsage;
     this.customGraphsTitle = Util.trimToEmpty(customGraphsTitle);
+    this.xAxis = Util.trimToEmpty(xAxis);
+    this.yAxis = Util.trimToEmpty(yAxis);
   }
 
   public static OctaneGateReportSection regressions(
       GateResult result, StatusClassifier classifier) {
+    return regressions(result, classifier, GateRequest.DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE);
+  }
+
+  public static OctaneGateReportSection regressions(
+      GateResult result, StatusClassifier classifier, int metricRunsInSuiteLimit) {
     return fromSuiteRuns(
         "Regressions suite runs",
         "regressions",
@@ -58,11 +68,17 @@ public class OctaneGateReportSection implements Serializable {
         result.getMetrics(),
         result.getSuiteRuns(),
         result.getRuns(),
-        classifier);
+        classifier,
+        metricRunsInSuiteLimit);
   }
 
   public static OctaneGateReportSection scoped(
       GateScopeResult scopeResult, StatusClassifier classifier) {
+    return scoped(scopeResult, classifier, GateRequest.DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE);
+  }
+
+  public static OctaneGateReportSection scoped(
+      GateScopeResult scopeResult, StatusClassifier classifier, int metricRunsInSuiteLimit) {
     String label =
         displayScopeName(scopeResult.getName())
             + (scopeResult.isSuiteRunScope() ? " suite runs" : " query scope");
@@ -74,7 +90,8 @@ public class OctaneGateReportSection implements Serializable {
         scopeResult.getMetrics(),
         scopeResult.getSuiteRuns(),
         scopeResult.getRuns(),
-        classifier);
+        classifier,
+        metricRunsInSuiteLimit);
   }
 
   private static OctaneGateReportSection fromSuiteRuns(
@@ -84,32 +101,38 @@ public class OctaneGateReportSection implements Serializable {
       GateMetrics metrics,
       Map<String, List<RunRecord>> suiteRuns,
       List<RunRecord> fallbackRuns,
-      StatusClassifier classifier) {
+      StatusClassifier classifier,
+      int metricRunsInSuiteLimit) {
     Map<String, List<RunRecord>> chartSuiteRuns = new LinkedHashMap<>(suiteRuns);
     if (chartSuiteRuns.isEmpty() && !fallbackRuns.isEmpty()) {
       chartSuiteRuns.put("matched-runs", fallbackRuns);
     }
 
+    List<RunRecord> reportRuns = runsForTotals(chartSuiteRuns, fallbackRuns);
+    List<OctaneGateStatusCount> totals =
+        reportRuns.isEmpty() ? totalsFromMetrics(metrics) : totalsFromRuns(reportRuns, classifier);
+    boolean groupByStatus = reportRuns.size() > Math.max(1, metricRunsInSuiteLimit);
     List<OctaneGateSuiteRunChart> suiteRunCharts =
-        groupSuiteRunsByRunBy(chartSuiteRuns).stream()
-            .map(group -> group.toChart(classifier))
-            .sorted(
-                Comparator.comparingInt((OctaneGateSuiteRunChart chart) -> chart.getTotal())
-                    .thenComparing(chart -> suiteRunSortKey(chart)))
-            .toList();
+        groupByStatus
+            ? groupSuiteRunsByStatus(totals)
+            : groupSuiteRunsByRunBy(chartSuiteRuns).stream()
+                .map(group -> group.toChart(classifier))
+                .sorted(chartOrder())
+                .toList();
     int maxSuiteRunTotal = maxSuiteRunTotal(suiteRunCharts);
     List<OctaneGateSuiteRunChart> scaledSuiteRunCharts =
         suiteRunCharts.stream().map(chart -> chart.scaledAgainst(maxSuiteRunTotal)).toList();
-    List<RunRecord> reportRuns = runsForTotals(chartSuiteRuns, fallbackRuns);
     return new OctaneGateReportSection(
         name,
         source,
         Util.splitIdList(suiteRunId),
         metrics,
-        reportRuns.isEmpty() ? totalsFromMetrics(metrics) : totalsFromRuns(reportRuns, classifier),
+        totals,
         scaledSuiteRunCharts,
         OctaneAutomationUsage.fromRuns(reportRuns),
-        "");
+        "",
+        groupByStatus ? "Status" : "Tester",
+        "Count");
   }
 
   public String getName() {
@@ -138,6 +161,22 @@ public class OctaneGateReportSection implements Serializable {
 
   public List<OctaneGateSuiteRunChart> getSuiteRuns() {
     return suiteRuns;
+  }
+
+  public String getXAxis() {
+    return Util.isBlank(xAxis) ? "Tester" : xAxis;
+  }
+
+  public String getYAxis() {
+    return Util.isBlank(yAxis) ? "Count" : yAxis;
+  }
+
+  public boolean isStatusGrouped() {
+    return "status".equalsIgnoreCase(getXAxis());
+  }
+
+  public boolean isTooltipsEnabled() {
+    return !isStatusGrouped();
   }
 
   public int getExecutedTestCount() {
@@ -234,6 +273,12 @@ public class OctaneGateReportSection implements Serializable {
   }
 
   public String getSuiteRunChartTitle() {
+    if (isStatusGrouped()) {
+      if (!Util.trimToEmpty(customGraphsTitle).isEmpty()) {
+        return customGraphsTitle + " Testing progress by Status";
+      }
+      return name + " testing progress by Status";
+    }
     if (!Util.trimToEmpty(customGraphsTitle).isEmpty()) {
       return customGraphsTitle + SUITE_RUN_DISTRIBUTION_TITLE_APPEND;
     }
@@ -255,7 +300,16 @@ public class OctaneGateReportSection implements Serializable {
       title = criticalGraphsTitle;
     }
     return new OctaneGateReportSection(
-        name, source, suiteRunIds, metrics, totals, suiteRuns, automationUsage, title);
+        name,
+        source,
+        suiteRunIds,
+        metrics,
+        totals,
+        suiteRuns,
+        automationUsage,
+        title,
+        getXAxis(),
+        getYAxis());
   }
 
   private static List<OctaneGateStatusCount> totalsFromMetrics(GateMetrics metrics) {
@@ -294,14 +348,14 @@ public class OctaneGateReportSection implements Serializable {
     Map<String, RunByGroup> groups = new LinkedHashMap<>();
     for (Map.Entry<String, List<RunRecord>> entry : suiteRuns.entrySet()) {
       if (entry.getValue().isEmpty()) {
-        String label = entry.getKey();
-        groups.putIfAbsent(groupKey(label), new RunByGroup(label));
-        groups.get(groupKey(label)).addSuiteRunId(entry.getKey());
+        String label = TesterIdentityResolver.displayName(entry.getKey());
+        groups.putIfAbsent(TesterIdentityResolver.key(label), new RunByGroup(label));
+        groups.get(TesterIdentityResolver.key(label)).addSuiteRunId(entry.getKey());
         continue;
       }
       for (RunRecord run : entry.getValue()) {
-        String label = assignedUserLabel(run, entry.getKey());
-        String key = groupKey(label);
+        String label = assignedUserLabel(run);
+        String key = TesterIdentityResolver.key(label);
         groups.putIfAbsent(key, new RunByGroup(label));
         groups.get(key).addSuiteRunId(entry.getKey());
         groups.get(key).addRun(run);
@@ -310,18 +364,22 @@ public class OctaneGateReportSection implements Serializable {
     return List.copyOf(groups.values());
   }
 
-  private static String assignedUserLabel(RunRecord run, String suiteRunId) {
-    if (!Util.isBlank(run.getSuiteOwnerName())) {
-      return run.getSuiteOwnerName();
-    }
-    if (Util.isBlank(suiteRunId)) {
-      return "Unassigned";
-    }
-    return "Unassigned (" + suiteRunId + ")";
+  private static String assignedUserLabel(RunRecord run) {
+    return TesterIdentityResolver.displayName(run.getSuiteOwnerName());
   }
 
-  private static String groupKey(String label) {
-    return label.trim().toLowerCase(Locale.ROOT);
+  private static List<OctaneGateSuiteRunChart> groupSuiteRunsByStatus(
+      List<OctaneGateStatusCount> totals) {
+    return totals.stream()
+        .filter(status -> status.getCount() > 0)
+        .map(OctaneGateSuiteRunChart::fromStatus)
+        .sorted(chartOrder())
+        .toList();
+  }
+
+  private static Comparator<OctaneGateSuiteRunChart> chartOrder() {
+    return Comparator.comparingInt((OctaneGateSuiteRunChart chart) -> chart.getTotal())
+        .thenComparing(OctaneGateReportSection::suiteRunSortKey);
   }
 
   private static List<OctaneGatePieSlice> buildPieSlices(List<OctaneGateStatusCount> totals) {

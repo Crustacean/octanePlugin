@@ -237,13 +237,36 @@ public class OctaneGateReportSnapshot implements Serializable {
       int timeoutSeconds,
       int timeoutExtendedSeconds,
       String startedAt) {
+    return fromResult(
+        state,
+        message,
+        result,
+        classifier,
+        refreshSeconds,
+        timeoutSeconds,
+        timeoutExtendedSeconds,
+        startedAt,
+        GateRequest.DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE);
+  }
+
+  public static OctaneGateReportSnapshot fromResult(
+      OctaneGateReportState state,
+      String message,
+      GateResult result,
+      StatusClassifier classifier,
+      int refreshSeconds,
+      int timeoutSeconds,
+      int timeoutExtendedSeconds,
+      String startedAt,
+      int metricRunsInSuiteLimit) {
     List<OctaneGateReportSection> sections = new ArrayList<>();
     if (result.isRegressionEvaluationEnabled()) {
-      sections.add(OctaneGateReportSection.regressions(result, classifier));
+      sections.add(OctaneGateReportSection.regressions(result, classifier, metricRunsInSuiteLimit));
     }
     for (GateScopeResult scopeResult : result.getScopedResults().values()) {
       if (scopeResult.isActive()) {
-        sections.add(OctaneGateReportSection.scoped(scopeResult, classifier));
+        sections.add(
+            OctaneGateReportSection.scoped(scopeResult, classifier, metricRunsInSuiteLimit));
       }
     }
     OctaneGateReportSnapshot snapshot =

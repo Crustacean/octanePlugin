@@ -798,7 +798,7 @@ public class OctaneGateReportActionTest {
     assertTrue(
         xml.contains("<caption>Testing progress per Tester Suite Runs_REGRESSIONS</caption>"));
     assertTrue(xml.contains("octane-y-axis-label"));
-    assertTrue(xml.contains(">Test Runs<"));
+    assertTrue(xml.contains(">Count<"));
     assertTrue(xml.contains("#827C7B"));
     assertTrue(xml.contains("background-image: radial-gradient"));
     assertTrue(xml.contains("rgba(33, 38, 45, 0.92)"));
@@ -841,7 +841,7 @@ public class OctaneGateReportActionTest {
     assertTrue(xml.contains("--octane-bar-width"));
     assertTrue(xml.contains("--octane-bar-gap"));
     assertTrue(xml.contains("var allSuiteRuns = container.octaneAllSuiteRuns"));
-    assertTrue(xml.contains("allSuiteRuns.slice(0, maxVisibleBars)"));
+    assertTrue(xml.contains("allSuiteRuns.length - maxVisibleBars"));
     assertTrue(
         xml.contains("count.textContent = &quot;+&quot; + hiddenCount")
             || xml.contains("count.textContent = \"+\" + hiddenCount"));

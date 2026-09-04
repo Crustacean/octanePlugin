@@ -29,6 +29,7 @@ def pipelineConfigurationDefaults() {
     'OCTANE_POLL_INTERVAL_SECONDS': '1',
     'OCTANE_BASE_PASSRATE_FIGURE': '95',
     'OCTANE_BASE_EXECUTION_FIGURE': '100',
+    'LIMIT_FOR_METRIC_RUNS_IN_SUITE': '250',
     'OCTANE_MARK_UNSTABLE': 'false',
     'OCTANE_CRITERIA': '''
       (regressions.executionRate == 100 AND regressions.passRate >= 95)
@@ -508,6 +509,7 @@ pipeline {
           int pollIntervalSeconds = wholeNumber('OCTANE_POLL_INTERVAL_SECONDS', 1)
           int basePassrateFigure = wholeNumber('OCTANE_BASE_PASSRATE_FIGURE', 0)
           int baseExecutionFigure = wholeNumber('OCTANE_BASE_EXECUTION_FIGURE', 0)
+          int limitForMetricRunsInSuite = wholeNumber('LIMIT_FOR_METRIC_RUNS_IN_SUITE', 1)
           int riskHeatMapMaxDefects = wholeNumber('OCTANE_RISK_HEAT_MAP_MAX_DEFECTS', 1)
           int emailViewportWidth = wholeNumber('OCTANE_EMAIL_VIEWPORT_WIDTH', 320)
           int emailDefectLimit = wholeNumber('PRINT_DEFECTS_ON_EMAIL_BODY_LIMIT', 0, true)
@@ -610,6 +612,7 @@ QA Automation Team''',
                       timeoutMinutesExtended: timeoutMinutesExtended,
                       basePassrateFigure: basePassrateFigure,
                       baseExecutionFigure: baseExecutionFigure,
+                      limitForMetricRunsInSuite: limitForMetricRunsInSuite,
                       markUnstable: markUnstable,
                       riskHeatMap: riskHeatMap,
                       riskHeatMapDefectQuery: env.OCTANE_RISK_HEAT_MAP_DEFECT_QUERY,

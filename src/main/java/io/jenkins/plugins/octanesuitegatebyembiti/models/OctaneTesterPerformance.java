@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 public class OctaneTesterPerformance implements Serializable {
@@ -154,8 +153,8 @@ public class OctaneTesterPerformance implements Serializable {
       List<RunRecord> runs) {
     for (int index = 0; index < runs.size(); index++) {
       RunRecord run = runs.get(index);
-      String email = Util.isBlank(run.getSuiteOwnerName()) ? "Unassigned" : run.getSuiteOwnerName();
-      String testerKey = email.trim().toLowerCase(Locale.ROOT);
+      String email = TesterIdentityResolver.displayName(run.getSuiteOwnerName());
+      String testerKey = TesterIdentityResolver.key(email);
       testers.putIfAbsent(testerKey, new TesterAccumulator(email));
       String runKey =
           Util.isBlank(run.getId())

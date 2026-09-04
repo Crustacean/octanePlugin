@@ -22,12 +22,16 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1685,6 +1689,106 @@ public class OctaneClientTest {
     }
   }
 
+  @Test(timeout = 10_000L)
+  public void prefetchesOnlySelectedSuiteAndPollsThreeThousandChildrenInParallel()
+      throws Exception {
+    int childCount = 3_000;
+    AtomicInteger topologyRequests = new AtomicInteger();
+    AtomicInteger childRequests = new AtomicInteger();
+    AtomicInteger childRequestsInFlight = new AtomicInteger();
+    AtomicInteger maximumChildRequestsInFlight = new AtomicInteger();
+    AtomicBoolean invalidTopologyScope = new AtomicBoolean();
+    AtomicBoolean nonSparseChildFields = new AtomicBoolean();
+    Set<String> requestedChildIds = ConcurrentHashMap.newKeySet();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          List<String> ids = idsFromQuery(exchange);
+          boolean topology = ids.contains("suite-current");
+          if (topology) {
+            topologyRequests.incrementAndGet();
+            if (!ids.equals(List.of("suite-current"))) {
+              invalidTopologyScope.set(true);
+            }
+            StringBuilder body =
+                new StringBuilder(
+                    "{\"data\":[{\"id\":\"suite-current\","
+                        + "\"default_run_by\":{\"name\":\"Scale Owner\"},"
+                        + "\"runs_in_suite\":[");
+            for (int index = 0; index < childCount; index++) {
+              if (index > 0) {
+                body.append(',');
+              }
+              body.append("{\"id\":\"run-").append(index).append("\"}");
+            }
+            body.append("]}]}");
+            json(exchange, 200, body.toString());
+            return;
+          }
+
+          childRequests.incrementAndGet();
+          int inFlight = childRequestsInFlight.incrementAndGet();
+          maximumChildRequestsInFlight.accumulateAndGet(inFlight, Math::max);
+          try {
+            String decodedQuery =
+                URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+            if (!decodedQuery.contains("fields=id,name,native_status")
+                || !decodedQuery.contains("status{logical_name,name}")
+                || !decodedQuery.contains("run_by{id,name}")
+                || !decodedQuery.contains("subtype")
+                || decodedQuery.contains("runs_in_suite")) {
+              nonSparseChildFields.set(true);
+            }
+            requestedChildIds.addAll(ids);
+            try {
+              Thread.sleep(30L);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            StringBuilder body = new StringBuilder("{\"data\":[");
+            for (int index = 0; index < ids.size(); index++) {
+              if (index > 0) {
+                body.append(',');
+              }
+              body.append("{\"id\":\"")
+                  .append(ids.get(index))
+                  .append("\",\"native_status\":{\"logical_name\":\"passed\"},")
+                  .append("\"run_by\":{\"name\":\"Jenkins Agent\"},")
+                  .append("\"subtype\":\"manual_run\"}");
+            }
+            body.append("]}");
+            json(exchange, 200, body.toString());
+          } finally {
+            childRequestsInFlight.decrementAndGet();
+          }
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    long startedAt = System.nanoTime();
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+      Map<String, List<RunRecord>> result =
+          client.fetchSuiteChildRuns("1001", "2002", List.of("suite-current"));
+      long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+
+      assertEquals(1, topologyRequests.get());
+      assertEquals(75, childRequests.get());
+      assertFalse(invalidTopologyScope.get());
+      assertFalse(nonSparseChildFields.get());
+      assertEquals(childCount, result.get("suite-current").size());
+      assertEquals(childCount, requestedChildIds.size());
+      assertEquals(expectedChildIds(childCount), requestedChildIds);
+      assertTrue(maximumChildRequestsInFlight.get() > 1);
+      assertTrue(
+          maximumChildRequestsInFlight.get() <= OctaneRequestCoordinator.DEFAULT_MAX_IN_FLIGHT);
+      assertTrue("3,000-run poll should finish well below two minutes", elapsedMillis < 5_000L);
+      System.out.printf(
+          "Octane 3000-run acceptance: childRequests=%d maxInFlight=%d elapsedMs=%d%n",
+          childRequests.get(), maximumChildRequestsInFlight.get(), elapsedMillis);
+    }
+  }
+
   @Test
   public void capsTwentyConcurrentRequestsAtEightPerServer() throws Exception {
     AtomicInteger workspaceRequests = new AtomicInteger();
@@ -1765,6 +1869,14 @@ public class OctaneClientTest {
     if (!expectedOwner.startsWith("Unassigned")) {
       assertFalse(emailReportZone.contains("Unassigned"));
     }
+  }
+
+  private Set<String> expectedChildIds(int count) {
+    Set<String> ids = new HashSet<>();
+    for (int index = 0; index < count; index++) {
+      ids.add("run-" + index);
+    }
+    return ids;
   }
 
   private StatusClassifier defaultClassifier() {

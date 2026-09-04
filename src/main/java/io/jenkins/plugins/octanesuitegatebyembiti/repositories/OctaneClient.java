@@ -25,6 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import tools.jackson.core.JacksonException;
@@ -48,6 +52,10 @@ public class OctaneClient implements AutoCloseable {
       "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
           + "test{id,name},product_areas{id,name},runs_in_suite";
   private static final String RUN_FIELDS = SAFE_RUN_FIELDS + ",native_tester{id,name}";
+  private static final String SAFE_CHILD_RUN_FIELDS =
+      "id,name,native_status{logical_name,name},status{logical_name,name},run_by{id,name},"
+          + "subtype,test{id,name},product_areas{id,name}";
+  private static final String CHILD_RUN_FIELDS = SAFE_CHILD_RUN_FIELDS + ",native_tester{id,name}";
   private static final String SUITE_RUN_FIELDS = RUN_FIELDS + ",owner{id,name}";
   private static final String SAFE_SUITE_RUN_FIELDS = SAFE_RUN_FIELDS + ",owner{id,name}";
   private static final String DEFAULT_RUN_BY_SUITE_RUN_FIELDS =
@@ -231,6 +239,26 @@ public class OctaneClient implements AutoCloseable {
     if (suiteRunIds.isEmpty()) {
       return Map.of();
     }
+    SuitePollPlan pollPlan =
+        preFetchSuitePoll(sharedSpaceId, workspaceId, suiteRunIds, tolerateMissingSuites);
+    Map<String, OctaneSuiteTopologyCache.Topology> topology = pollPlan.topology();
+    List<RunRecord> childRuns =
+        fetchRunsByIds(sharedSpaceId, workspaceId, pollPlan.childRunIds(), "");
+    return assembleSuiteRuns(
+        sharedSpaceId,
+        workspaceId,
+        suiteRunIds,
+        topology,
+        runsById(childRuns),
+        tolerateMissingSuites);
+  }
+
+  private SuitePollPlan preFetchSuitePoll(
+      String sharedSpaceId,
+      String workspaceId,
+      List<String> suiteRunIds,
+      boolean tolerateMissingSuites)
+      throws IOException, InterruptedException {
     Map<String, OctaneSuiteTopologyCache.Topology> topology =
         OctaneSuiteTopologyCache.getAll(
             topologyNamespace(sharedSpaceId, workspaceId, tolerateMissingSuites),
@@ -239,14 +267,7 @@ public class OctaneClient implements AutoCloseable {
                 fetchSuiteTopologies(sharedSpaceId, workspaceId, missing, tolerateMissingSuites));
     topology = resolveCachedSuiteOwners(sharedSpaceId, workspaceId, suiteRunIds, topology);
     List<String> childRunIds = childRunIds(suiteRunIds, topology);
-    List<RunRecord> childRuns = fetchRunsByIds(sharedSpaceId, workspaceId, childRunIds, "");
-    return assembleSuiteRuns(
-        sharedSpaceId,
-        workspaceId,
-        suiteRunIds,
-        topology,
-        runsById(childRuns),
-        tolerateMissingSuites);
+    return new SuitePollPlan(topology, childRunIds);
   }
 
   private String topologyNamespace(
@@ -681,22 +702,57 @@ public class OctaneClient implements AutoCloseable {
   private List<RunRecord> fetchRunsByIds(
       String sharedSpaceId, String workspaceId, List<String> runIds, String scopeQuery)
       throws IOException, InterruptedException {
-    List<RunRecord> records = new ArrayList<>();
+    if (runIds.isEmpty()) {
+      return List.of();
+    }
+    List<List<String>> chunks = new ArrayList<>();
     for (int start = 0; start < runIds.size(); start += QUERY_CHUNK_SIZE) {
       int end = Math.min(start + QUERY_CHUNK_SIZE, runIds.size());
-      records.addAll(
-          fetchRunsChunk(sharedSpaceId, workspaceId, runIds.subList(start, end), scopeQuery));
+      chunks.add(List.copyOf(runIds.subList(start, end)));
     }
-    return records;
+
+    List<Future<List<RunRecord>>> futures = new ArrayList<>(chunks.size());
+    try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      for (List<String> chunk : chunks) {
+        futures.add(
+            executor.submit(() -> fetchRunsChunk(sharedSpaceId, workspaceId, chunk, scopeQuery)));
+      }
+      List<RunRecord> records = new ArrayList<>(runIds.size());
+      try {
+        for (Future<List<RunRecord>> future : futures) {
+          records.addAll(future.get());
+        }
+      } catch (ExecutionException e) {
+        futures.forEach(future -> future.cancel(true));
+        throw mapParallelFetchFailure(e.getCause());
+      }
+      return records;
+    }
+  }
+
+  private IOException mapParallelFetchFailure(Throwable failure) throws InterruptedException {
+    if (failure instanceof InterruptedException interruptedException) {
+      throw interruptedException;
+    }
+    if (failure instanceof IOException ioException) {
+      return ioException;
+    }
+    if (failure instanceof RuntimeException runtimeException) {
+      throw runtimeException;
+    }
+    if (failure instanceof Error error) {
+      throw error;
+    }
+    return new IOException("Parallel ALM Octane run polling failed.", failure);
   }
 
   private List<RunRecord> fetchRunsChunk(
       String sharedSpaceId, String workspaceId, List<String> runIds, String scopeQuery)
       throws IOException, InterruptedException {
     try {
-      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, RUN_FIELDS);
+      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, CHILD_RUN_FIELDS);
     } catch (IOException richFieldsFailure) {
-      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, SAFE_RUN_FIELDS);
+      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, SAFE_CHILD_RUN_FIELDS);
     }
   }
 
@@ -1490,6 +1546,14 @@ public class OctaneClient implements AutoCloseable {
       int statusCode, HttpRequest request, HttpHeaders headers, String body) {}
 
   private record SuiteRunLookup(JsonNode node, Exception failure) {}
+
+  private record SuitePollPlan(
+      Map<String, OctaneSuiteTopologyCache.Topology> topology, List<String> childRunIds) {
+    private SuitePollPlan {
+      topology = Map.copyOf(topology);
+      childRunIds = List.copyOf(childRunIds);
+    }
+  }
 
   private enum ResponseAction {
     REAUTHENTICATE,

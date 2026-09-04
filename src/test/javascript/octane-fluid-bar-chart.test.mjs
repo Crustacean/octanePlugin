@@ -57,6 +57,13 @@ test("renders a concise overflow count at the x-axis trail", () => {
   assert.doesNotMatch(jelly, /margin-right: 2px !important;/);
 });
 
+test("retains the largest right-hand bars when the viewport truncates", () => {
+  assert.match(
+      jelly,
+      /allSuiteRuns\.slice\([\s\S]*?Math\.max\(0, allSuiteRuns\.length - maxVisibleBars\)\)/);
+  assert.doesNotMatch(jelly, /allSuiteRuns\.slice\(0, maxVisibleBars\)/);
+});
+
 test("uses the same fluid bar constraints in individual focused mode", () => {
   assert.doesNotMatch(
       jelly,
