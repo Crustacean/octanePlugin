@@ -81,4 +81,20 @@ public class DefectRecord implements Serializable {
         && !normalizedPhase.contains("resolved")
         && !normalizedPhase.contains("rejected");
   }
+
+  public DefectRecord withFallbackRelations(DefectRecord fallback) {
+    if (fallback == null) {
+      return this;
+    }
+    return new DefectRecord(
+        id,
+        name,
+        severity,
+        priority,
+        phase,
+        Util.isBlank(runId) ? fallback.runId : runId,
+        Util.isBlank(testId) ? fallback.testId : testId,
+        Util.isBlank(projectId) ? fallback.projectId : projectId,
+        Util.isBlank(projectName) ? fallback.projectName : projectName);
+  }
 }

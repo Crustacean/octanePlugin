@@ -26,7 +26,8 @@ public class OctaneDefectLedger implements Serializable {
         continue;
       }
       if (defectsById.containsKey(defect.getId()) || defectsById.size() < MAXIMUM_DEFECTS) {
-        defectsById.put(defect.getId(), defect);
+        defectsById.put(
+            defect.getId(), defect.withFallbackRelations(defectsById.get(defect.getId())));
       }
     }
   }

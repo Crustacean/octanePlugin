@@ -3290,11 +3290,7 @@
         }
         .octane-management-failure-group {
           align-items: stretch;
-          appearance: none;
-          background: transparent;
-          border: 0;
           color: inherit;
-          cursor: pointer;
           display: grid;
           flex: 0 0 calc(
             var(--octane-management-bar-width)
@@ -3314,10 +3310,6 @@
             + var(--octane-management-bar-gap));
           z-index: 1;
         }
-        .octane-management-failure-group:focus-visible {
-          outline: 3px solid #4391F5;
-          outline-offset: 3px;
-        }
         .octane-management-failure-bars {
           align-items: end;
           display: flex;
@@ -3327,14 +3319,25 @@
           min-height: 0;
         }
         .octane-management-failure-bar {
+          appearance: none;
           background: var(--octane-bar-color);
+          border: 0;
+          box-sizing: border-box;
+          cursor: pointer;
           display: block;
           flex: 0 0 var(--octane-management-bar-width);
           height: var(--octane-bar-size);
+          margin: 0;
           max-width: 100px;
           min-height: 2px;
           min-width: 8px;
+          padding: 0;
           width: var(--octane-management-bar-width);
+        }
+        .octane-management-failure-bar:focus-visible {
+          outline: 3px solid #4391F5;
+          outline-offset: 2px;
+          z-index: 2;
         }
         .octane-management-failure-label {
           align-self: center;
@@ -3379,7 +3382,7 @@
           display: grid;
           flex: 0 1 min(60cqw, 42rem);
           gap: 0.2rem;
-          grid-template-columns: auto minmax(0, 1fr) auto;
+          grid-template-columns: auto auto minmax(0, 1fr) auto;
           inline-size: min(60cqw, 42rem);
           max-width: min(60cqw, 42rem);
           min-width: 0;
@@ -3395,6 +3398,12 @@
           overscroll-behavior-inline: contain;
           scroll-behavior: smooth;
           scrollbar-width: none;
+        }
+        .octane-management-failure-status-switcher {
+          align-items: center;
+          display: flex;
+          flex: 0 0 auto;
+          gap: 0.2rem;
         }
         .octane-management-failure-switcher::-webkit-scrollbar {
           display: none;
@@ -5026,7 +5035,21 @@
                 <div class="octane-card-actions">
                   <div class="octane-management-failure-tab-nav"
                       data-management-failure-tab-nav="true"
-                      role="group" aria-label="Defect group filters">
+                      role="group" aria-label="Defect filters">
+                    <div class="octane-management-failure-status-switcher"
+                        data-management-failure-status-switcher="true"
+                        data-selected-status="all" role="group"
+                        aria-label="Defect status filters">
+                      <button class="octane-management-category-toggle" type="button"
+                          data-management-defect-status-filter="all"
+                          aria-pressed="true">All</button>
+                      <button class="octane-management-category-toggle" type="button"
+                          data-management-defect-status-filter="open"
+                          aria-pressed="false">Open</button>
+                      <button class="octane-management-category-toggle" type="button"
+                          data-management-defect-status-filter="closed"
+                          aria-pressed="false">Closed</button>
+                    </div>
                     <button class="octane-management-category-scroll" type="button"
                         data-management-category-scroll="-1" data-visible="false"
                         aria-label="Scroll defect groups left"
@@ -5085,7 +5108,7 @@
                     <div class="octane-management-y-labels"
                         data-management-y-labels="true"></div>
                     <div class="octane-management-failure-chart"
-                        data-management-failure-bars="true" role="img"
+                        data-management-failure-bars="true" role="group"
                         aria-label="Open and closed defects grouped by root cause"></div>
                   </div>
                   <div class="octane-management-defect-detail-panel">
@@ -7599,7 +7622,7 @@
               return {};
             }
           }
-          function expandFailureCategory(categoryBar, category) {
+          function expandFailureCategory(categoryBar, category, status) {
             var card = categoryBar
                 ? categoryBar.closest(".octane-chart-card")
                 : dashboard.querySelector('[data-card-key="test-management-failures"]');

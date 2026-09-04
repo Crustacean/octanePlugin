@@ -15,6 +15,7 @@ vm.runInNewContext(source, context);
 const testManagement = context.window.OctaneTestManagement;
 const failureAxisMaximum = testManagement.failureAxisMaximum;
 const failureAxisValueWidth = testManagement.failureAxisValueWidth;
+const failureDetailMatches = testManagement.failureDetailMatches;
 const integerAxisTicks = testManagement.integerAxisTicks;
 const sortFailureDefects = testManagement.sortFailureDefects;
 const timelineAxisScale = testManagement.timelineAxisScale;
@@ -47,7 +48,7 @@ test("renders dynamic failure clusters and keeps a valid category selected", () 
       source,
       /total \+ nonNegative\(category\.open\) \+ nonNegative\(category\.closed\)/);
   assert.match(source, /category\.label/);
-  assert.match(source, /button\.title = category\.label \|\| "Category"/);
+  assert.match(source, /group\.title = category\.label \|\| "Category"/);
   assert.match(source, /data-selected-category/);
   assert.match(source, /selected !== "all" && !available/);
   assert.match(source, /data-management-category-filter/);
@@ -156,7 +157,7 @@ test("adds dotted real-time lead and tail tracks to schedule and sprint charts",
 test("reveals the clicked failure bar and matching tab after individual focus opens", () => {
   assert.match(
       jelly,
-      /function expandFailureCategory\(categoryBar, category\)\s*\{[\s\S]*?expandCard\(card\);[\s\S]*?OctaneTestManagement\.revealFailureCategory\(\s*testManagementZone, category\);/);
+      /function expandFailureCategory\(categoryBar, category, status\)\s*\{[\s\S]*?expandCard\(card\);[\s\S]*?OctaneTestManagement\.revealFailureCategory\(\s*testManagementZone, category\);/);
   assert.match(source, /function scheduleFailureCategoryReveal\(zone, category\)/);
   assert.match(source, /global\.requestAnimationFrame\(function \(\) \{/);
   assert.match(source, /function revealFailureCategory\(zone, category\)/);
@@ -237,11 +238,48 @@ test("reuses cached defect rows when switching Failure Analysis tabs", () => {
   assert.match(source, /list\.__octaneFailureDetailCache/);
   assert.match(source, /cache\.payload !== payload/);
   assert.match(source, /entry\.row\.hidden = !visible/);
-  assert.match(source, /function applyFailureDetailCategory\(list, cache, category\)/);
+  assert.match(source, /function applyFailureDetailFilters\(list, cache, category, status\)/);
   assert.match(
       source,
       /if \(cache\.sortColumn !== sortState\.column[\s\S]*?renderFailureDetailStructure/);
   assert.doesNotMatch(categorySwitchSource, /clear\(/);
+});
+
+test("filters Failure Analysis defects by category and status independently", () => {
+  const openMajor = {category: "major", defect: {id: "10", open: true}};
+  const closedMajor = {category: "major", defect: {id: "9", open: false}};
+  const newerClosedMajor = {category: "major", defect: {id: "12", open: false}};
+  const openMinor = {category: "minor", defect: {id: "8", open: true}};
+  const entries = [openMajor, closedMajor, newerClosedMajor, openMinor];
+
+  assert.equal(failureDetailMatches(openMajor, "all", "open"), true);
+  assert.equal(failureDetailMatches(closedMajor, "all", "open"), false);
+  assert.equal(failureDetailMatches(closedMajor, "major", "closed"), true);
+  assert.equal(failureDetailMatches(openMinor, "major", "open"), false);
+  assert.equal(failureDetailMatches(openMinor, "all", "all"), true);
+
+  const closed = entries
+      .filter((entry) => failureDetailMatches(entry, "all", "closed"))
+      .map((entry) => entry.defect);
+  assert.equal(closed.length, 2);
+  assert.deepEqual(
+      Array.from(sortFailureDefects(closed, "id", "descending"), (defect) => defect.id),
+      ["12", "9"]);
+});
+
+test("binds Open and Closed bar segments to descending individual focus", () => {
+  assert.match(source, /createElement\("button", "octane-management-failure-bar"\)/);
+  assert.match(source, /data-management-defect-status/);
+  assert.match(source, /function selectFailureSegment\(zone, category, status\)/);
+  assert.match(
+      source,
+      /list\.setAttribute\("data-sort-column", "id"\);[\s\S]*?list\.setAttribute\("data-sort-direction", "descending"\);/);
+  assert.match(
+      source,
+      /selectFailureSegment\(zone, category, status\);[\s\S]*?__octaneTestManagementOnCategorySelect\(categoryBar, category, status\)/);
+  assert.match(jelly, /data-management-defect-status-filter="open"/);
+  assert.match(jelly, /data-management-defect-status-filter="closed"/);
+  assert.match(source, /setSelectedDefectStatus\(zone, status\)/);
 });
 
 test("exposes responsive focus, scaling, and card controls", () => {

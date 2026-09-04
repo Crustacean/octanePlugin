@@ -26,6 +26,21 @@ public class OctaneDefectTrendTest {
   }
 
   @Test
+  public void appendsCountsFromTheCanonicalDefectDatasetWithoutAHeatMap() {
+    List<DefectRecord> defects =
+        List.of(
+            new DefectRecord("1", "Open", "High", "", "opened", "run-1", "", "", ""),
+            new DefectRecord("2", "Closed", "Low", "", "closed", "run-2", "", "", ""));
+
+    OctaneDefectTrend trend =
+        OctaneDefectTrend.start(STARTED_AT, 60_000L).append("2026-06-30T08:00:15Z", defects, 4);
+
+    assertEquals(2, trend.getRaisedTotal());
+    assertEquals(1, trend.getClosedTotal());
+    assertEquals(4, trend.getPoints().get(1).getExecuted());
+  }
+
+  @Test
   public void replacesSameTimestampAndClampsToConfiguredDuration() {
     OctaneDefectTrend trend =
         OctaneDefectTrend.start(STARTED_AT, 60_000L)

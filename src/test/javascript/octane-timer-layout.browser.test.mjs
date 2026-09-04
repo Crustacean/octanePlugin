@@ -399,6 +399,20 @@ function managementCard(index, title) {
           <div class="octane-management-failure-tab-nav"
               data-management-failure-tab-nav="true"
               role="group" aria-label="Defect group filters">
+            <div class="octane-management-failure-status-switcher"
+                data-management-failure-status-switcher="true"
+                data-selected-status="all" role="group"
+                aria-label="Defect status filters">
+              <button class="octane-management-category-toggle" type="button"
+                  data-management-defect-status-filter="all"
+                  aria-pressed="true">All</button>
+              <button class="octane-management-category-toggle" type="button"
+                  data-management-defect-status-filter="open"
+                  aria-pressed="false">Open</button>
+              <button class="octane-management-category-toggle" type="button"
+                  data-management-defect-status-filter="closed"
+                  aria-pressed="false">Closed</button>
+            </div>
             <button class="octane-management-category-scroll" type="button"
                 data-management-category-scroll="-1" data-visible="true"
                 aria-label="Scroll defect groups left">
@@ -458,19 +472,21 @@ function managementCard(index, title) {
                     style="--octane-management-axis-position: 50%"></span>
               </span>
               ${Array.from({length: 8}, (_, category) => `
-                <button class="octane-management-failure-group" type="button">
+                <div class="octane-management-failure-group" role="group">
                   <span class="octane-management-failure-bars">
-                    <span class="octane-management-failure-bar"
+                    <button class="octane-management-failure-bar" type="button"
+                        data-management-defect-status="open"
                         style="--octane-bar-color: #FF453A;
-                            --octane-bar-size: ${30 + category * 5}%"></span>
-                    <span class="octane-management-failure-bar"
+                            --octane-bar-size: ${30 + category * 5}%"></button>
+                    <button class="octane-management-failure-bar" type="button"
+                        data-management-defect-status="closed"
                         style="--octane-bar-color: #34C759;
-                            --octane-bar-size: ${20 + category * 4}%"></span>
+                            --octane-bar-size: ${20 + category * 4}%"></button>
                   </span>
                   <span class="octane-management-failure-label">
                     Long dynamic failure category ${category + 1}
                   </span>
-                </button>`).join("")}
+                </div>`).join("")}
             </div>
           </div>
           <div class="octane-management-defect-detail-panel">

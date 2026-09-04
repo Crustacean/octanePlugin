@@ -707,11 +707,11 @@
     clear(chart);
     renderFailureGridLines(chart, ticks, maximum);
     categories.forEach(function (category) {
-      var button = createElement("button", "octane-management-failure-group");
-      button.type = "button";
-      button.title = category.label || "Category";
-      button.setAttribute("data-management-category", category.key || "");
-      button.setAttribute(
+      var group = createElement("div", "octane-management-failure-group");
+      group.title = category.label || "Category";
+      group.setAttribute("data-management-category-group", category.key || "");
+      group.setAttribute("role", "group");
+      group.setAttribute(
           "aria-label",
           String(category.label || "Category")
               + ": "
@@ -732,17 +732,28 @@
           label: "Closed"
         }
       ].forEach(function (series) {
-        var bar = createElement("span", "octane-management-failure-bar");
+        var bar = createElement("button", "octane-management-failure-bar");
+        bar.type = "button";
         bar.style.setProperty("--octane-bar-color", series.color);
         bar.style.setProperty("--octane-bar-size", ((series.count / maximum) * 100) + "%");
         bar.title = series.label + ": " + series.count;
+        bar.setAttribute("data-management-category", category.key || "");
+        bar.setAttribute(
+            "data-management-defect-status", series.label.toLowerCase());
+        bar.setAttribute(
+            "aria-label",
+            String(category.label || "Category")
+                + ", "
+                + series.label
+                + ": "
+                + series.count);
         bars.appendChild(bar);
       });
       var label = createElement("span", "octane-management-failure-label");
       label.textContent = category.label || "";
-      button.appendChild(bars);
-      button.appendChild(label);
-      chart.appendChild(button);
+      group.appendChild(bars);
+      group.appendChild(label);
+      chart.appendChild(group);
     });
     setFailureYAxisLabels(yLabels, ticks, maximum);
     renderLegend(
@@ -959,6 +970,46 @@
     return switcher ? switcher.getAttribute("data-selected-category") || "all" : "all";
   }
 
+  function selectedDefectStatus(zone) {
+    var switcher = zone.querySelector("[data-management-failure-status-switcher]");
+    return switcher
+      ? normalizeDefectStatusFilter(switcher.getAttribute("data-selected-status"))
+      : "all";
+  }
+
+  function normalizeDefectStatusFilter(status) {
+    var normalized = String(status || "").toLowerCase();
+    return normalized === "open" || normalized === "closed" ? normalized : "all";
+  }
+
+  function setSelectedDefectStatus(zone, status) {
+    var switcher = zone.querySelector("[data-management-failure-status-switcher]");
+    if (!switcher) {
+      return;
+    }
+    var selected = normalizeDefectStatusFilter(status);
+    switcher.setAttribute("data-selected-status", selected);
+    var buttons = switcher.querySelectorAll("[data-management-defect-status-filter]");
+    for (var index = 0; index < buttons.length; index += 1) {
+      buttons[index].setAttribute(
+          "aria-pressed",
+          String(
+              buttons[index].getAttribute("data-management-defect-status-filter")
+                  === selected));
+    }
+    renderFailureDetails(zone);
+  }
+
+  function selectFailureSegment(zone, category, status) {
+    var list = zone.querySelector("[data-management-defect-list]");
+    if (list) {
+      list.setAttribute("data-sort-column", "id");
+      list.setAttribute("data-sort-direction", "descending");
+    }
+    setSelectedCategory(zone, category || "all");
+    setSelectedDefectStatus(zone, status);
+  }
+
   function setSelectedCategory(zone, category) {
     var switcher = zone.querySelector("[data-management-failure-switcher]");
     if (!switcher) {
@@ -1069,10 +1120,18 @@
     cache.sortDirection = sortState.direction;
   }
 
-  function applyFailureDetailCategory(list, cache, category) {
+  function failureDetailMatches(entry, category, status) {
+    var categoryMatches = category === "all" || entry.category === category;
+    var statusMatches =
+        status === "all"
+        || canonicalStatus(entry.defect).toLowerCase() === status;
+    return categoryMatches && statusMatches;
+  }
+
+  function applyFailureDetailFilters(list, cache, category, status) {
     var visibleCount = 0;
     cache.entries.forEach(function (entry) {
-      var visible = category === "all" || entry.category === category;
+      var visible = failureDetailMatches(entry, category, status);
       entry.row.hidden = !visible;
       if (visible) {
         visibleCount += 1;
@@ -1080,6 +1139,7 @@
     });
     cache.empty.hidden = visibleCount > 0;
     list.setAttribute("data-visible-category", category);
+    list.setAttribute("data-visible-status", status);
     list.setAttribute("aria-rowcount", String(visibleCount + 1));
   }
 
@@ -1087,6 +1147,7 @@
     var payload = zone.__octaneTestManagementPayload || {};
     colors = colors || colorsFor(payload, zone);
     var category = selectedCategory(zone);
+    var status = selectedDefectStatus(zone);
     var list = zone.querySelector("[data-management-defect-list]");
     if (!list) {
       return;
@@ -1122,7 +1183,7 @@
         || cache.sortDirection !== sortState.direction) {
       renderFailureDetailStructure(list, cache, sortState);
     }
-    applyFailureDetailCategory(list, cache, category);
+    applyFailureDetailFilters(list, cache, category, status);
   }
 
   function renderMetrics(zone, payload) {
@@ -1233,9 +1294,10 @@
       var categoryBar = event.target.closest("[data-management-category]");
       if (categoryBar && zone.contains(categoryBar)) {
         var category = categoryBar.getAttribute("data-management-category") || "all";
-        setSelectedCategory(zone, category);
+        var status = categoryBar.getAttribute("data-management-defect-status") || "all";
+        selectFailureSegment(zone, category, status);
         if (typeof zone.__octaneTestManagementOnCategorySelect === "function") {
-          zone.__octaneTestManagementOnCategorySelect(categoryBar, category);
+          zone.__octaneTestManagementOnCategorySelect(categoryBar, category, status);
         }
         return;
       }
@@ -1244,6 +1306,13 @@
         setSelectedCategory(
             zone,
             categoryToggle.getAttribute("data-management-category-filter") || "all");
+        return;
+      }
+      var statusToggle = event.target.closest("[data-management-defect-status-filter]");
+      if (statusToggle && zone.contains(statusToggle)) {
+        setSelectedDefectStatus(
+            zone,
+            statusToggle.getAttribute("data-management-defect-status-filter") || "all");
       }
     });
   }
@@ -1277,6 +1346,8 @@
     render: render,
     revealFailureCategory: scheduleFailureCategoryReveal,
     setSelectedCategory: setSelectedCategory,
+    setSelectedDefectStatus: setSelectedDefectStatus,
+    failureDetailMatches: failureDetailMatches,
     sortFailureDefects: sortFailureDefects,
     timelineAxisScale: timelineAxisScale,
     update: update

@@ -763,7 +763,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
                 .getDefectTrend()
                 .append(
                     current.getUpdatedAt(),
-                    current.getRiskHeatMap(),
+                    current.getTestManagement().getTotalDefects(),
+                    current.getTestManagement().getClosedDefects(),
                     current.getExecutedTestCount());
       }
       testManagement = previous.getTestManagement().appendLatest(testManagement);

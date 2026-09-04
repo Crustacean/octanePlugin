@@ -77,6 +77,19 @@ public class OctaneDefectLedgerTest {
     assertEquals(List.of("904"), ledger.getDefectIds());
   }
 
+  @Test
+  public void preservesSuiteRelationsWhenAStatusRefreshOmitsThem() {
+    OctaneDefectLedger ledger = new OctaneDefectLedger();
+    ledger.merge(List.of(defect("905", "High", "opened", "run-1", "test-1")));
+
+    ledger.merge(List.of(defect("905", "High", "closed", "", "")));
+
+    DefectRecord refreshed = ledger.getDefects().get(0);
+    assertEquals("run-1", refreshed.getRunId());
+    assertEquals("test-1", refreshed.getTestId());
+    assertFalse(refreshed.isOpen());
+  }
+
   private DefectRecord defect(String id, String severity, String phase) {
     return defect(id, severity, phase, "run", "test");
   }

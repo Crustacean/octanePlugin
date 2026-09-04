@@ -25,6 +25,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateScope;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMap;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneRiskHeatMapBuilder;
+import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneSuiteScopedDefects;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.SuiteRunSelector;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
@@ -953,16 +954,17 @@ public class OctaneGateRunner {
           request.getRiskHeatMapMaxDefects(),
           defectLedger,
           defectCriteriaRequired);
+      List<DefectRecord> scopedDefects =
+          OctaneSuiteScopedDefects.select(suiteRuns, defectLedger.getDefects());
       OctaneRiskHeatMap heatMap =
-          new OctaneRiskHeatMapBuilder()
-              .build(workspaceId, suiteRuns, defectLedger.getDefects(), classifier);
+          new OctaneRiskHeatMapBuilder().build(workspaceId, suiteRuns, scopedDefects, classifier);
       if (request.isRiskHeatMap()) {
         logRiskHeatMapSummary(listener, heatMap);
       }
       return new DefectPollResult(
           request.isRiskHeatMap() ? heatMap : OctaneRiskHeatMap.disabled(),
           heatMap.getDefectSeveritySummary(),
-          defectLedger.getDefects());
+          scopedDefects);
     } catch (IOException e) {
       if (defectCriteriaRequired) {
         listener
@@ -974,10 +976,12 @@ public class OctaneGateRunner {
       listener
           .getLogger()
           .println("Octane risk heat map unavailable: " + Util.forLog(e.getMessage()));
+      List<DefectRecord> scopedDefects =
+          OctaneSuiteScopedDefects.select(suiteRuns, defectLedger.getDefects());
       return new DefectPollResult(
           OctaneRiskHeatMap.unavailable("Risk heat map unavailable: " + e.getMessage()),
           OctaneDefectSeveritySummary.empty(),
-          defectLedger.getDefects());
+          scopedDefects);
     }
   }
 

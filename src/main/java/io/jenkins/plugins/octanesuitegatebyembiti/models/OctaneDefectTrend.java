@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,6 +44,15 @@ public final class OctaneDefectTrend implements Serializable {
       closed = summary.getClosed();
     }
     return append(elapsedMillis(updatedAt), opened, closed, executed);
+  }
+
+  public OctaneDefectTrend append(String updatedAt, List<DefectRecord> defects, int executed) {
+    OctaneDefectSeveritySummary summary = OctaneDefectSeveritySummary.fromDefects(defects);
+    return append(elapsedMillis(updatedAt), summary.getTotal(), summary.getClosed(), executed);
+  }
+
+  public OctaneDefectTrend append(String updatedAt, int raised, int closed, int executed) {
+    return append(elapsedMillis(updatedAt), raised, closed, executed);
   }
 
   public OctaneDefectTrend append(long elapsedMillis, int opened, int closed) {

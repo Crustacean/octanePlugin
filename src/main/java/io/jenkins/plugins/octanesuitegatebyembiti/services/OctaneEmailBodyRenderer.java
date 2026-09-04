@@ -615,7 +615,12 @@ public class OctaneEmailBodyRenderer {
   private void appendTesterExecutionRow(
       StringBuilder html, OctaneTesterPerformance tester, TesterAutomationContext automation) {
     html.append("<tr data-octane-tester-row=\"true\">");
-    appendTesterExecutionLabelCell(html, testerUsername(tester.getEmail()), false);
+    appendTesterExecutionLabelCell(
+        html,
+        testerUsername(tester.getEmail()),
+        false,
+        tester.getBlocked() + tester.getFailed() > 0,
+        automation.theme);
     appendTesterExecutionValueCell(html, tester.getNoRun(), false);
     appendTesterExecutionValueCell(html, tester.getBlocked(), false);
     appendTesterExecutionValueCell(html, tester.getFailed(), false);
@@ -678,7 +683,25 @@ public class OctaneEmailBodyRenderer {
 
   private void appendTesterExecutionLabelCell(
       StringBuilder html, String label, boolean emphasized) {
-    html.append("<th scope=\"row\" style=\"background:#f6f8fa;border:1px solid #d0d7de;")
+    appendTesterExecutionLabelCell(html, label, emphasized, false, "");
+  }
+
+  private void appendTesterExecutionLabelCell(
+      StringBuilder html,
+      String label,
+      boolean emphasized,
+      boolean requiresAttention,
+      String theme) {
+    String background = requiresAttention ? systemOrange(emailTheme(theme)) : "#f6f8fa";
+    html.append("<th scope=\"row\"")
+        .append(requiresAttention ? " data-octane-tester-attention=\"true\"" : "")
+        .append(" bgcolor=\"")
+        .append(background)
+        .append("\" style=\"background-color:")
+        .append(background)
+        .append(';')
+        .append(requiresAttention ? "color:#000000;" : "")
+        .append("border:1px solid #d0d7de;")
         .append(emphasized ? TABLE_HEADER_STYLE : TABLE_VALUE_STYLE)
         .append(TABLE_CELL_PADDING)
         .append(

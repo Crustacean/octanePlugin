@@ -30,8 +30,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
@@ -571,6 +573,94 @@ public class OctaneGateRunnerTest {
   }
 
   @Test
+  public void suiteScopedDefectPoolFeedsAllChartsAndTheEmailTable() throws Exception {
+    GateRequest request = new GateRequest("octane-prod", "regression-suite");
+    request.setCriteria("defects.highCount >= 0");
+    request.setRiskHeatMap(true);
+    OctaneGateScope critical = new OctaneGateScope("critical");
+    critical.setSuiteRunId("critical-suite");
+    request.setScopes(List.of(critical));
+    RunRecord regressionRun = scopedRun("regression-run", "regression-test");
+    RunRecord criticalRun = scopedRun("critical-run", "critical-test");
+    ScopeIsolationDefectClient client = new ScopeIsolationDefectClient();
+    StatusClassifier classifier = request.createStatusClassifier();
+    OctaneGateRunner runner =
+        new OctaneGateRunner(
+            Clock.fixed(Instant.parse("2026-05-16T14:00:00Z"), ZoneOffset.UTC),
+            new OctaneGateLogListener());
+
+    GateResult result =
+        runner.poll(
+            client,
+            request,
+            Map.of("regression-suite", List.of(regressionRun)),
+            Map.of("critical", Map.of("critical-suite", List.of(criticalRun))),
+            true,
+            false,
+            "1001",
+            "2001",
+            CriteriaExpression.parse(request.getCriteria()),
+            classifier,
+            taskListener(new ByteArrayOutputStream()),
+            new OctaneDefectLedger());
+    OctaneGateReportSnapshot snapshot =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING,
+            "Polling",
+            result,
+            classifier,
+            30,
+            300,
+            0,
+            "2026-05-16T13:59:00Z",
+            GateRequest.DEFAULT_LIMIT_FOR_METRIC_RUNS_IN_SUITE);
+
+    assertEquals(5, result.getDefects().size());
+    assertEquals(5, result.getRiskHeatMap().getDefectSeveritySummary().getTotal());
+    assertEquals(5, snapshot.getTestManagement().getTotalDefects());
+    assertEquals(5, snapshot.getDefectTrend().getRaisedTotal());
+    assertEquals(
+        5,
+        snapshot.getDefectTrend().getDensityBuckets().stream()
+            .mapToInt(bucket -> bucket.getNewDefects())
+            .sum());
+
+    Set<String> chartIds = new LinkedHashSet<>();
+    for (var category : snapshot.getTestManagement().getFailureCategories()) {
+      for (var defect : category.getDefects()) {
+        chartIds.add(defect.getId());
+      }
+    }
+    String email =
+        new OctaneEmailBodyRenderer()
+            .render(
+                "{{EXECUTION_DETAILS}}\n{{REPORT_SCREENSHOT}}",
+                "Project",
+                "Domain",
+                snapshot,
+                "https://jenkins.example/job/1/octane-gate-report/",
+                "report-image",
+                "LIGHT",
+                false,
+                "",
+                false,
+                true,
+                "",
+                100,
+                false);
+    Set<String> emailIds = new LinkedHashSet<>();
+    for (DefectRecord defect : client.defects) {
+      if (email.contains(">" + defect.getId() + "</td>")) {
+        emailIds.add(defect.getId());
+      }
+    }
+    assertEquals(chartIds, emailIds);
+    assertEquals(
+        Set.of("regression-1", "regression-2", "regression-3", "critical-1", "critical-2"),
+        chartIds);
+  }
+
+  @Test
   public void totalFormulaMetricsDeduplicateRunsAcrossRegressionAndCriticalTargets()
       throws Exception {
     GateRequest request = new GateRequest("octane-prod", "1001");
@@ -1045,6 +1135,49 @@ public class OctaneGateRunnerTest {
     public List<DefectRecord> fetchDefectsByIds(
         String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
       return List.of();
+    }
+  }
+
+  private RunRecord scopedRun(String runId, String testId) {
+    return new RunRecord(
+        runId, "Run " + runId, "failed", "Tester", testId, "Test " + testId, "", "");
+  }
+
+  private static class ScopeIsolationDefectClient extends FakeOctaneClient {
+    private final List<DefectRecord> defects;
+
+    ScopeIsolationDefectClient() {
+      super(List.of());
+      List<DefectRecord> values = new java.util.ArrayList<>();
+      values.add(defect("regression-1", "regression-run", "opened"));
+      values.add(defect("regression-2", "regression-run", "opened"));
+      values.add(defect("regression-3", "regression-run", "opened"));
+      values.add(defect("critical-1", "critical-run", "opened"));
+      values.add(defect("critical-2", "critical-run", "closed"));
+      for (int index = 1; index <= 5; index++) {
+        values.add(defect("unrelated-" + index, "other-run-" + index, "opened"));
+      }
+      defects = List.copyOf(values);
+    }
+
+    @Override
+    public List<DefectRecord> fetchLinkedDefects(
+        String sharedSpaceId,
+        String workspaceId,
+        Map<String, List<RunRecord>> suiteRuns,
+        String defectQuery,
+        int maxDefects) {
+      return defects;
+    }
+
+    @Override
+    public List<DefectRecord> fetchDefectsByIds(
+        String sharedSpaceId, String workspaceId, List<String> defectIds, int maxDefects) {
+      return defects;
+    }
+
+    private static DefectRecord defect(String id, String runId, String phase) {
+      return new DefectRecord(id, "Defect " + id, "High", "", phase, runId, "", "", "");
     }
   }
 

@@ -551,6 +551,28 @@ public class OctaneEmailBodyRendererTest {
   }
 
   @Test
+  public void highlightsOnlyTesterNamesWithBlockedOrFailedTests() {
+    Map<String, List<String>> testerStatuses = new LinkedHashMap<>();
+    testerStatuses.put(
+        "Tester A", List.of("planned", "passed", "passed", "passed", "passed", "passed"));
+    testerStatuses.put("Tester B", List.of("blocked", "passed", "passed"));
+    testerStatuses.put("Tester C", List.of("failed", "failed", "failed", "passed"));
+
+    String html = renderTesterExecutionEmail(testerSnapshot(testerStatuses), true);
+    String table = testerColumnTable(html, "single");
+    String testerA = testerRow(table, "tester a");
+    String testerB = testerRow(table, "tester b");
+    String testerC = testerRow(table, "tester c");
+
+    assertFalse(testerA.contains("data-octane-tester-attention=\"true\""));
+    assertTrue(testerA.contains("background-color:#f6f8fa;"));
+    assertTrue(testerB.contains("data-octane-tester-attention=\"true\""));
+    assertTrue(testerB.contains("background-color:#FF9500;color:#000000;"));
+    assertTrue(testerC.contains("data-octane-tester-attention=\"true\""));
+    assertTrue(testerC.contains("background-color:#FF9500;color:#000000;"));
+  }
+
+  @Test
   public void formatsTesterEmailUsernameForTheBreakdownTable() {
     String html = renderTesterExecutionEmail(testerAutomationSnapshot(80), true);
     String table = testerColumnTable(html, "single");
