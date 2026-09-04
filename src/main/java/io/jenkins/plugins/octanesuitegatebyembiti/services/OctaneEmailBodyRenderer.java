@@ -1401,7 +1401,7 @@ public class OctaneEmailBodyRenderer {
     for (OctaneTestManagementAnalytics.DefectDetail defect : selection.visibleDefects) {
       html.append("<tr>");
       appendDefectTextCell(html, defect.getId());
-      appendDefectTextCell(html, defect.getDescription());
+      appendDefectDescriptionCell(html, defect.getDescription());
       appendDefectTextCell(html, defect.getSeverityLabel());
       appendDefectTextCell(html, defect.getStatus());
       html.append("</tr>");
@@ -1511,6 +1511,16 @@ public class OctaneEmailBodyRenderer {
         .append(
             "overflow-wrap:anywhere;text-align:left;vertical-align:top;word-break:break-word;\">")
         .append(escape(value))
+        .append("</td>");
+  }
+
+  private void appendDefectDescriptionCell(StringBuilder html, String value) {
+    html.append("<td style=\"border:1px solid #d0d7de;")
+        .append(TABLE_VALUE_STYLE)
+        .append(TABLE_CELL_PADDING)
+        .append(
+            "overflow-wrap:anywhere;text-align:left;vertical-align:top;word-break:break-word;\">")
+        .append(escape(value).replace("\n", "<br>"))
         .append("</td>");
   }
 

@@ -223,7 +223,7 @@ public class OctaneTestManagementAnalyticsTest {
             "2026-07-23T08:01:00Z", runs().subList(0, 3), values, CriteriaEvaluation.unavailable());
     Map<String, OctaneTestManagementAnalytics.DefectDetail> details = defectDetails(analytics);
 
-    assertEquals("DEF-101: NullPointer in Gateway", details.get("a").getDescription());
+    assertEquals("DEF-101:\nNullPointer in Gateway", details.get("a").getDescription());
     assertEquals("DEF-102", details.get("b").getDescription());
     assertEquals("Timeout on Checkout", details.get("c").getDescription());
     assertTrue(

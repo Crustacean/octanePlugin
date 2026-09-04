@@ -993,27 +993,14 @@
     return switcher ? switcher.getAttribute("data-selected-category") || "all" : "all";
   }
 
-  function selectedDefectStatus(zone) {
-    var switcher = zone.querySelector("[data-management-failure-switcher]");
-    return switcher
-      ? normalizeDefectStatusFilter(switcher.getAttribute("data-selected-status"))
-      : "all";
-  }
-
-  function normalizeDefectStatusFilter(status) {
-    var normalized = String(status || "").toLowerCase();
-    return normalized === "open" || normalized === "closed" ? normalized : "all";
-  }
-
-  function setFailureSelection(zone, category, status) {
+  function setFailureSelection(zone, category) {
     var switcher = zone.querySelector("[data-management-failure-switcher]");
     if (!switcher) {
       return;
     }
     var selectedCategory = category || "all";
-    var selectedStatus = normalizeDefectStatusFilter(status);
     switcher.setAttribute("data-selected-category", selectedCategory);
-    switcher.setAttribute("data-selected-status", selectedStatus);
+    switcher.setAttribute("data-selected-status", "all");
     var buttons = switcher.querySelectorAll("[data-management-category-filter]");
     for (var index = 0; index < buttons.length; index += 1) {
       var selected =
@@ -1032,17 +1019,21 @@
     renderFailureDetails(zone);
   }
 
-  function selectFailureSegment(zone, category, status) {
+  function selectFailureCategory(zone, category) {
+    setFailureSelection(zone, category || "all");
+  }
+
+  function selectFailureSegment(zone, category) {
     var list = zone.querySelector("[data-management-defect-list]");
     if (list) {
       list.setAttribute("data-sort-column", "id");
       list.setAttribute("data-sort-direction", "descending");
     }
-    setFailureSelection(zone, category || "all", status);
+    selectFailureCategory(zone, category);
   }
 
   function setSelectedCategory(zone, category) {
-    setFailureSelection(zone, category || "all", "all");
+    selectFailureCategory(zone, category);
   }
 
   function failureDetailEntries(payload) {
@@ -1132,34 +1123,34 @@
     cache.sortDirection = sortState.direction;
   }
 
-  function failureDetailMatches(entry, category, status) {
-    var categoryMatches = category === "all" || entry.category === category;
-    var statusMatches =
-        status === "all"
-        || canonicalStatus(entry.defect).toLowerCase() === status;
-    return categoryMatches && statusMatches;
+  function failureDetailMatches(entry, category) {
+    return category === "all" || entry.category === category;
   }
 
-  function applyFailureDetailFilters(list, cache, category, status) {
-    var visibleCount = 0;
-    cache.entries.forEach(function (entry) {
-      var visible = failureDetailMatches(entry, category, status);
-      entry.row.hidden = !visible;
-      if (visible) {
-        visibleCount += 1;
-      }
+  function filterFailureDetailEntries(entries, category) {
+    return array(entries).filter(function (entry) {
+      return failureDetailMatches(entry, category);
     });
-    cache.empty.hidden = visibleCount > 0;
+  }
+
+  function applyFailureDetailFilters(list, cache, category) {
+    cache.entries.forEach(function (entry) {
+      entry.row.hidden = true;
+    });
+    var visibleEntries = filterFailureDetailEntries(cache.entries, category);
+    visibleEntries.forEach(function (entry) {
+      entry.row.hidden = false;
+    });
+    cache.empty.hidden = visibleEntries.length > 0;
     list.setAttribute("data-visible-category", category);
-    list.setAttribute("data-visible-status", status);
-    list.setAttribute("aria-rowcount", String(visibleCount + 1));
+    list.setAttribute("data-visible-status", "all");
+    list.setAttribute("aria-rowcount", String(visibleEntries.length + 1));
   }
 
   function renderFailureDetails(zone, colors) {
     var payload = zone.__octaneTestManagementPayload || {};
     colors = colors || colorsFor(payload, zone);
     var category = selectedCategory(zone);
-    var status = selectedDefectStatus(zone);
     var list = zone.querySelector("[data-management-defect-list]");
     if (!list) {
       return;
@@ -1195,7 +1186,7 @@
         || cache.sortDirection !== sortState.direction) {
       renderFailureDetailStructure(list, cache, sortState);
     }
-    applyFailureDetailFilters(list, cache, category, status);
+    applyFailureDetailFilters(list, cache, category);
   }
 
   function renderMetrics(zone, payload) {
@@ -1307,7 +1298,7 @@
       if (categoryBar && zone.contains(categoryBar)) {
         var category = categoryBar.getAttribute("data-management-category") || "all";
         var status = categoryBar.getAttribute("data-management-defect-status") || "all";
-        selectFailureSegment(zone, category, status);
+        selectFailureSegment(zone, category);
         if (typeof zone.__octaneTestManagementOnCategorySelect === "function") {
           zone.__octaneTestManagementOnCategorySelect(categoryBar, category, status);
         }
@@ -1348,6 +1339,7 @@
     failureAxisMaximum: failureAxisMaximum,
     failureAxisValueWidth: failureAxisValueWidth,
     failureCategoryOptions: failureCategoryOptions,
+    filterFailureDetailEntries: filterFailureDetailEntries,
     integerAxisTicks: integerAxisTicks,
     mount: mount,
     render: render,

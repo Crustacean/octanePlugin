@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.entities;
 
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.DefectDescriptionFormatter;
 import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 
@@ -43,7 +44,7 @@ public class DefectRecord implements Serializable {
       String projectName) {
     this.id = Util.trimToEmpty(id);
     this.name = Util.trimToEmpty(name);
-    this.description = Util.trimToEmpty(description);
+    this.description = DefectDescriptionFormatter.toPlainText(description);
     this.severity = Util.trimToEmpty(severity);
     this.priority = Util.trimToEmpty(priority);
     this.phase = Util.trimToEmpty(phase);
@@ -62,14 +63,14 @@ public class DefectRecord implements Serializable {
   }
 
   public String getDescription() {
-    return Util.trimToEmpty(description);
+    return DefectDescriptionFormatter.toPlainText(description);
   }
 
   public String getDisplayDescription() {
     String normalizedName = Util.trimToEmpty(name);
     String normalizedDescription = getDescription();
     if (!normalizedName.isEmpty() && !normalizedDescription.isEmpty()) {
-      return normalizedName + ": " + normalizedDescription;
+      return normalizedName + ":\n" + normalizedDescription;
     }
     return normalizedName.isEmpty() ? normalizedDescription : normalizedName;
   }

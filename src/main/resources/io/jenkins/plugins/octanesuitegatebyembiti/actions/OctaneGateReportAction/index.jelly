@@ -3578,6 +3578,7 @@
           line-height: 1.35;
           min-width: 0;
           overflow-wrap: anywhere;
+          white-space: pre-line;
         }
         .octane-management-defect-pill {
           align-items: center;

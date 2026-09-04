@@ -1499,7 +1499,7 @@ public class OctaneClientTest {
       assertFalse(records.get(0).isOpen());
       assertEquals("902", records.get(1).getId());
       assertTrue(records.get(1).isOpen());
-      assertEquals("DEF-902: still open", records.get(1).getDisplayDescription());
+      assertEquals("DEF-902:\nstill open", records.get(1).getDisplayDescription());
     }
   }
 

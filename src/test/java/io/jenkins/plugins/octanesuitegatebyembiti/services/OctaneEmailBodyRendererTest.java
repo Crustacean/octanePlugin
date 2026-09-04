@@ -400,8 +400,10 @@ public class OctaneEmailBodyRendererTest {
         List.of(
             new DefectRecord(
                 "101",
-                "DEF-101",
-                "NullPointer in Gateway",
+                "Rosebella",
+                "<html><body><p>error on dormant refund</p>"
+                    + "<p>Trace Id :24ba66e4</p><br>"
+                    + "<p>Solution :Contact admin</p></body></html>",
                 "High",
                 "",
                 "opened",
@@ -418,7 +420,12 @@ public class OctaneEmailBodyRendererTest {
 
     assertTrue(table.contains(">Description</th>"));
     assertFalse(table.contains(">Name</th>"));
-    assertTrue(table.contains(">DEF-101: NullPointer in Gateway</td>"));
+    assertTrue(
+        table.contains(
+            ">Rosebella:<br>error on dormant refund<br>Trace Id :24ba66e4"
+                + "<br>Solution :Contact admin</td>"));
+    assertFalse(table.contains("&lt;html&gt;"));
+    assertFalse(table.contains("&lt;body&gt;"));
     assertTrue(table.contains(">DEF-102</td>"));
     assertTrue(table.contains(">Timeout on Checkout</td>"));
   }
