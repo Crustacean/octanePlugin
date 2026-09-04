@@ -316,6 +316,44 @@ test("binds pills and bar segments to the same category-only filter", () => {
   assert.match(source, /buttons\[index\]\.scrollIntoView\(\{/);
 });
 
+test("isolates the defect table to the selected category pill and resets on All", () => {
+  const entries = [
+    ...Array.from({length: 3}, (_, index) => ({
+      category: "paybill-clos", defect: {id: "pc" + index}
+    })),
+    ...Array.from({length: 2}, (_, index) => ({
+      category: "thi-team", defect: {id: "tt" + index}
+    })),
+    {category: "digital-more", defect: {id: "dm0"}},
+    {category: "i-pre", defect: {id: "ip0"}},
+    ...Array.from({length: 2}, (_, index) => ({
+      category: "other", defect: {id: "ot" + index}
+    }))
+  ];
+  assert.equal(entries.length, 9);
+
+  const paybillClosRows = filterFailureDetailEntries(entries, "paybill-clos");
+  assert.equal(paybillClosRows.length, 3);
+  assert.ok(paybillClosRows.every((entry) => entry.category === "paybill-clos"));
+
+  const resetRows = filterFailureDetailEntries(entries, "all");
+  assert.equal(resetRows.length, 9);
+
+  // Selection state and table re-filtering must be one call chain, not two independent updates,
+  // otherwise a pill can render active while the table keeps showing every category.
+  assert.match(
+      source,
+      /function setFailureSelection\(zone, category\) \{[\s\S]*?switcher\.setAttribute\("data-selected-category", selectedCategory\);[\s\S]*?renderFailureDetails\(zone\);\n  \}/);
+  assert.match(
+      source,
+      /function renderFailureDetails\(zone, colors\) \{[\s\S]*?var category = selectedCategory\(zone\);[\s\S]*?applyFailureDetailFilters\(list, cache, category\);/);
+  // Pills must match by the category key, never by the rendered "Label N" text with its count.
+  assert.match(
+      source,
+      /button\.setAttribute\(\s*"data-management-category-filter", key\);/);
+  assert.match(source, /function failureDetailMatches\(entry, category\) \{\n\s*return category === "all" \|\| entry\.category === category;/);
+});
+
 test("exposes responsive focus, scaling, and card controls", () => {
   assert.match(jelly, /\.octane-test-management-zone\.octane-zone-focused/);
   assert.match(
