@@ -77,14 +77,17 @@ public class OctaneClient implements AutoCloseable {
   private static final Pattern SYSTEM_PARENT_RUNNER =
       Pattern.compile("(?:jenkins|default\\s+manual\\s+runner)", Pattern.CASE_INSENSITIVE);
   private static final String EXTENDED_DEFECT_FIELDS =
-      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
+      "id,name,description,severity{logical_name,name},priority{logical_name,name},"
+          + "phase{logical_name,name},"
           + "run{id,name},detected_in_run{id,name},test{id,name},owner_test{id,name},"
           + "product_areas{id,name}";
   private static final String DEFECT_FIELDS =
-      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name},"
+      "id,name,description,severity{logical_name,name},priority{logical_name,name},"
+          + "phase{logical_name,name},"
           + "run{id,name},test{id,name},product_areas{id,name}";
   private static final String MINIMAL_DEFECT_FIELDS =
-      "id,name,severity{logical_name,name},priority{logical_name,name},phase{logical_name,name}";
+      "id,name,description,severity{logical_name,name},priority{logical_name,name},"
+          + "phase{logical_name,name}";
   private static final HttpClient SHARED_HTTP_CLIENT =
       HttpClient.newBuilder()
           .connectTimeout(Duration.ofSeconds(30))
@@ -1412,6 +1415,7 @@ public class OctaneClient implements AutoCloseable {
     return new DefectRecord(
         node.path("id").asString(),
         node.path("name").asString(),
+        node.path("description").asString(),
         readStatus(node.path("severity")),
         readStatus(node.path("priority")),
         readStatus(node.path("phase")),

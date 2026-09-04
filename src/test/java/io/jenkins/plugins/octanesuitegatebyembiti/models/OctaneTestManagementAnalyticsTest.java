@@ -200,6 +200,38 @@ public class OctaneTestManagementAnalyticsTest {
   }
 
   @Test
+  public void formatsAndCategorizesDefectsFromNameAndDescription() {
+    List<DefectRecord> values =
+        List.of(
+            new DefectRecord(
+                "a",
+                "DEF-101",
+                "NullPointer in Gateway",
+                "high",
+                "",
+                "opened",
+                "1",
+                "test-1",
+                "",
+                ""),
+            new DefectRecord("b", "DEF-102", "", "high", "", "opened", "2", "test-2", "", ""),
+            new DefectRecord(
+                "c", "", "Timeout on Checkout", "high", "", "opened", "3", "test-3", "", ""));
+
+    OctaneTestManagementAnalytics analytics =
+        analyticsAt(
+            "2026-07-23T08:01:00Z", runs().subList(0, 3), values, CriteriaEvaluation.unavailable());
+    Map<String, OctaneTestManagementAnalytics.DefectDetail> details = defectDetails(analytics);
+
+    assertEquals("DEF-101: NullPointer in Gateway", details.get("a").getDescription());
+    assertEquals("DEF-102", details.get("b").getDescription());
+    assertEquals("Timeout on Checkout", details.get("c").getDescription());
+    assertTrue(
+        analytics.getFailureCategories().stream()
+            .anyMatch(category -> category.getLabel().toLowerCase().contains("timeout")));
+  }
+
+  @Test
   public void normalizesDefectListStatusSeverityAndHierarchyColors() {
     List<DefectRecord> values =
         List.of(

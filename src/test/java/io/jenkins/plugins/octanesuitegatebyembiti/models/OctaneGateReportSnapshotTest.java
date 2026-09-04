@@ -394,8 +394,7 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("Status", section.getXAxis());
     assertEquals("Count", section.getYAxis());
     assertEquals(5, section.getSuiteRuns().size());
-    assertEquals(
-        350, section.getSuiteRuns().stream().mapToInt(OctaneGateSuiteRunChart::getTotal).sum());
+    assertEquals(350, section.getSuiteRuns().stream().mapToInt(chart -> chart.getTotal()).sum());
     assertEquals(350, section.getMetrics().getTotal());
     assertEquals(350, snapshot.getProjectTestTotal());
   }

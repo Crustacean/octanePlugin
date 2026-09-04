@@ -1394,7 +1394,7 @@ public class OctaneEmailBodyRenderer {
             + "<col style=\"width:43%;\"><col style=\"width:25%;\">"
             + "<col style=\"width:20%;\"></colgroup><thead><tr>");
     appendHeader(html, "ID", "left");
-    appendHeader(html, "Name", "left");
+    appendHeader(html, "Description", "left");
     appendHeader(html, "Severity", "left");
     appendHeader(html, "Status", "left");
     html.append("</tr></thead><tbody>");

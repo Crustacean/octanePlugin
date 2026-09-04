@@ -1473,6 +1473,7 @@ public class OctaneClientTest {
           String query =
               URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
           assertTrue(query.contains("id EQ 901||id EQ 902"));
+          assertTrue(query.contains("description"));
           json(
               exchange,
               200,
@@ -1480,7 +1481,8 @@ public class OctaneClientTest {
                   + "{\"id\":\"901\",\"name\":\"closed later\","
                   + "\"severity\":{\"logical_name\":\"high\"},"
                   + "\"phase\":{\"logical_name\":\"closed\"}},"
-                  + "{\"id\":\"902\",\"name\":\"still open\","
+                  + "{\"id\":\"902\",\"name\":\"DEF-902\","
+                  + "\"description\":\"still open\","
                   + "\"severity\":{\"logical_name\":\"critical\"},"
                   + "\"phase\":{\"logical_name\":\"opened\"}}"
                   + "]}");
@@ -1497,6 +1499,7 @@ public class OctaneClientTest {
       assertFalse(records.get(0).isOpen());
       assertEquals("902", records.get(1).getId());
       assertTrue(records.get(1).isOpen());
+      assertEquals("DEF-902: still open", records.get(1).getDisplayDescription());
     }
   }
 

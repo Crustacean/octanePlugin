@@ -399,20 +399,6 @@ function managementCard(index, title) {
           <div class="octane-management-failure-tab-nav"
               data-management-failure-tab-nav="true"
               role="group" aria-label="Defect group filters">
-            <div class="octane-management-failure-status-switcher"
-                data-management-failure-status-switcher="true"
-                data-selected-status="all" role="group"
-                aria-label="Defect status filters">
-              <button class="octane-management-category-toggle" type="button"
-                  data-management-defect-status-filter="all"
-                  aria-pressed="true">All</button>
-              <button class="octane-management-category-toggle" type="button"
-                  data-management-defect-status-filter="open"
-                  aria-pressed="false">Open</button>
-              <button class="octane-management-category-toggle" type="button"
-                  data-management-defect-status-filter="closed"
-                  aria-pressed="false">Closed</button>
-            </div>
             <button class="octane-management-category-scroll" type="button"
                 data-management-category-scroll="-1" data-visible="true"
                 aria-label="Scroll defect groups left">
@@ -421,7 +407,8 @@ function managementCard(index, title) {
               </svg>
             </button>
             <div class="octane-management-failure-switcher"
-                data-management-failure-switcher="true">
+                data-management-failure-switcher="true"
+                data-selected-category="all" data-selected-status="all">
               ${[
                 "All",
                 "Environment Configuration",

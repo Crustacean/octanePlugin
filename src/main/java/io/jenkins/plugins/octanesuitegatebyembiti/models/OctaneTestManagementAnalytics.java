@@ -578,7 +578,7 @@ public final class OctaneTestManagementAnalytics implements Serializable {
 
   private static Map<String, Integer> clusterTokenCounts(DefectRecord defect) {
     Map<String, Integer> counts = new LinkedHashMap<>();
-    String signal = Util.trimToEmpty(defect.getName()).toLowerCase(Locale.ROOT);
+    String signal = defect.getDisplayDescription().toLowerCase(Locale.ROOT);
     Matcher matcher = CLUSTER_TOKEN_PATTERN.matcher(signal);
     while (matcher.find()) {
       String token = normalizeClusterToken(matcher.group());
@@ -1189,9 +1189,10 @@ public final class OctaneTestManagementAnalytics implements Serializable {
           severityPresentations.getOrDefault(
               normalizedSeverity,
               new SeverityPresentation(severity, severity, sortingSeverityRank(severity)));
+      String displayDescription = defect.getDisplayDescription();
       return new DefectDetail(
           defect.getId(),
-          Util.isBlank(defect.getName()) ? "Defect " + defect.getId() : defect.getName(),
+          Util.isBlank(displayDescription) ? "Defect " + defect.getId() : displayDescription,
           severity,
           presentation.label,
           presentation.colorSeverity,

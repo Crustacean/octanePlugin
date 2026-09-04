@@ -8,6 +8,7 @@ public class DefectRecord implements Serializable {
 
   private final String id;
   private final String name;
+  private final String description;
   private final String severity;
   private final String priority;
   private final String phase;
@@ -26,8 +27,23 @@ public class DefectRecord implements Serializable {
       String testId,
       String projectId,
       String projectName) {
+    this(id, name, "", severity, priority, phase, runId, testId, projectId, projectName);
+  }
+
+  public DefectRecord(
+      String id,
+      String name,
+      String description,
+      String severity,
+      String priority,
+      String phase,
+      String runId,
+      String testId,
+      String projectId,
+      String projectName) {
     this.id = Util.trimToEmpty(id);
     this.name = Util.trimToEmpty(name);
+    this.description = Util.trimToEmpty(description);
     this.severity = Util.trimToEmpty(severity);
     this.priority = Util.trimToEmpty(priority);
     this.phase = Util.trimToEmpty(phase);
@@ -43,6 +59,19 @@ public class DefectRecord implements Serializable {
 
   public String getName() {
     return name;
+  }
+
+  public String getDescription() {
+    return Util.trimToEmpty(description);
+  }
+
+  public String getDisplayDescription() {
+    String normalizedName = Util.trimToEmpty(name);
+    String normalizedDescription = getDescription();
+    if (!normalizedName.isEmpty() && !normalizedDescription.isEmpty()) {
+      return normalizedName + ": " + normalizedDescription;
+    }
+    return normalizedName.isEmpty() ? normalizedDescription : normalizedName;
   }
 
   public String getSeverity() {
@@ -88,7 +117,8 @@ public class DefectRecord implements Serializable {
     }
     return new DefectRecord(
         id,
-        name,
+        Util.isBlank(name) ? fallback.name : name,
+        Util.isBlank(description) ? fallback.description : description,
         severity,
         priority,
         phase,

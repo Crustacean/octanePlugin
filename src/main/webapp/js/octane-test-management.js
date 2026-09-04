@@ -776,6 +776,29 @@
     }, 0);
   }
 
+  function failureCategoryCount(category) {
+    if (category && Array.isArray(category.defects)) {
+      return category.defects.length;
+    }
+    return nonNegative(category && category.open)
+        + nonNegative(category && category.closed);
+  }
+
+  function failureCategoryOptions(categories, totalDefects) {
+    var availableCategories = array(categories);
+    return [{
+      key: "all",
+      label: "All",
+      count: failureCategoryTotal(availableCategories, totalDefects)
+    }].concat(availableCategories.map(function (category) {
+      return {
+        key: category.key || "other-failures",
+        label: category.label || "Other",
+        count: failureCategoryCount(category)
+      };
+    }));
+  }
+
   function renderCategorySwitcher(container, categories, totalDefects) {
     if (!container) {
       return;
@@ -787,16 +810,16 @@
     if (selected !== "all" && !available) {
       selected = "all";
       container.setAttribute("data-selected-category", selected);
+      container.setAttribute("data-selected-status", "all");
     }
     clear(container);
-    var allLabel = "All " + failureCategoryTotal(categories, totalDefects);
-    [{key: "all", label: allLabel}].concat(categories).forEach(function (category) {
+    failureCategoryOptions(categories, totalDefects).forEach(function (category) {
       var button = createElement("button", "octane-management-category-toggle");
       var key = category.key || "all";
       button.type = "button";
       button.setAttribute("data-management-category-filter", key);
       button.setAttribute("aria-pressed", String(key === selected));
-      button.textContent = category.label || "All";
+      button.textContent = (category.label || "All") + " " + category.count;
       container.appendChild(button);
     });
     bindCategoryScroller(container);
@@ -971,7 +994,7 @@
   }
 
   function selectedDefectStatus(zone) {
-    var switcher = zone.querySelector("[data-management-failure-status-switcher]");
+    var switcher = zone.querySelector("[data-management-failure-switcher]");
     return switcher
       ? normalizeDefectStatusFilter(switcher.getAttribute("data-selected-status"))
       : "all";
@@ -982,44 +1005,20 @@
     return normalized === "open" || normalized === "closed" ? normalized : "all";
   }
 
-  function setSelectedDefectStatus(zone, status) {
-    var switcher = zone.querySelector("[data-management-failure-status-switcher]");
-    if (!switcher) {
-      return;
-    }
-    var selected = normalizeDefectStatusFilter(status);
-    switcher.setAttribute("data-selected-status", selected);
-    var buttons = switcher.querySelectorAll("[data-management-defect-status-filter]");
-    for (var index = 0; index < buttons.length; index += 1) {
-      buttons[index].setAttribute(
-          "aria-pressed",
-          String(
-              buttons[index].getAttribute("data-management-defect-status-filter")
-                  === selected));
-    }
-    renderFailureDetails(zone);
-  }
-
-  function selectFailureSegment(zone, category, status) {
-    var list = zone.querySelector("[data-management-defect-list]");
-    if (list) {
-      list.setAttribute("data-sort-column", "id");
-      list.setAttribute("data-sort-direction", "descending");
-    }
-    setSelectedCategory(zone, category || "all");
-    setSelectedDefectStatus(zone, status);
-  }
-
-  function setSelectedCategory(zone, category) {
+  function setFailureSelection(zone, category, status) {
     var switcher = zone.querySelector("[data-management-failure-switcher]");
     if (!switcher) {
       return;
     }
-    switcher.setAttribute("data-selected-category", category || "all");
+    var selectedCategory = category || "all";
+    var selectedStatus = normalizeDefectStatusFilter(status);
+    switcher.setAttribute("data-selected-category", selectedCategory);
+    switcher.setAttribute("data-selected-status", selectedStatus);
     var buttons = switcher.querySelectorAll("[data-management-category-filter]");
     for (var index = 0; index < buttons.length; index += 1) {
       var selected =
-          buttons[index].getAttribute("data-management-category-filter") === category;
+          buttons[index].getAttribute("data-management-category-filter")
+              === selectedCategory;
       buttons[index].setAttribute("aria-pressed", String(selected));
       if (selected) {
         buttons[index].scrollIntoView({
@@ -1031,6 +1030,19 @@
     }
     scheduleCategoryScrollControls(switcher);
     renderFailureDetails(zone);
+  }
+
+  function selectFailureSegment(zone, category, status) {
+    var list = zone.querySelector("[data-management-defect-list]");
+    if (list) {
+      list.setAttribute("data-sort-column", "id");
+      list.setAttribute("data-sort-direction", "descending");
+    }
+    setFailureSelection(zone, category || "all", status);
+  }
+
+  function setSelectedCategory(zone, category) {
+    setFailureSelection(zone, category || "all", "all");
   }
 
   function failureDetailEntries(payload) {
@@ -1308,12 +1320,6 @@
             categoryToggle.getAttribute("data-management-category-filter") || "all");
         return;
       }
-      var statusToggle = event.target.closest("[data-management-defect-status-filter]");
-      if (statusToggle && zone.contains(statusToggle)) {
-        setSelectedDefectStatus(
-            zone,
-            statusToggle.getAttribute("data-management-defect-status-filter") || "all");
-      }
     });
   }
 
@@ -1341,12 +1347,12 @@
   global.OctaneTestManagement = {
     failureAxisMaximum: failureAxisMaximum,
     failureAxisValueWidth: failureAxisValueWidth,
+    failureCategoryOptions: failureCategoryOptions,
     integerAxisTicks: integerAxisTicks,
     mount: mount,
     render: render,
     revealFailureCategory: scheduleFailureCategoryReveal,
     setSelectedCategory: setSelectedCategory,
-    setSelectedDefectStatus: setSelectedDefectStatus,
     failureDetailMatches: failureDetailMatches,
     sortFailureDefects: sortFailureDefects,
     timelineAxisScale: timelineAxisScale,

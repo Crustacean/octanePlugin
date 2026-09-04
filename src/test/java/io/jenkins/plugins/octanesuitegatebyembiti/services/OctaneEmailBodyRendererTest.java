@@ -366,7 +366,7 @@ public class OctaneEmailBodyRendererTest {
     String table = emailTable(html, "defects");
 
     assertTrue(table.contains(">ID</th>"));
-    assertTrue(table.contains(">Name</th>"));
+    assertTrue(table.contains(">Description</th>"));
     assertTrue(table.contains(">Severity</th>"));
     assertTrue(table.contains(">Status</th>"));
     assertTrue(table.contains(">1</td>"));
@@ -392,6 +392,35 @@ public class OctaneEmailBodyRendererTest {
     assertTrue(closedOnly.contains(">8</td>"));
     assertFalse(closedOnly.contains(">1</td>"));
     assertFalse(closedOnly.contains("data-octane-defect-overflow=\"true\""));
+  }
+
+  @Test
+  public void rendersCombinedDefectDescriptionsInTheEmailTable() {
+    List<DefectRecord> defects =
+        List.of(
+            new DefectRecord(
+                "101",
+                "DEF-101",
+                "NullPointer in Gateway",
+                "High",
+                "",
+                "opened",
+                "run",
+                "test",
+                "",
+                ""),
+            new DefectRecord("102", "DEF-102", "", "High", "", "opened", "run", "test", "", ""),
+            new DefectRecord(
+                "103", "", "Timeout on Checkout", "High", "", "opened", "run", "test", "", ""));
+    String table =
+        emailTable(
+            renderCustomizedEmail(snapshotWithDefects(defects), "", false, true, "", 0), "defects");
+
+    assertTrue(table.contains(">Description</th>"));
+    assertFalse(table.contains(">Name</th>"));
+    assertTrue(table.contains(">DEF-101: NullPointer in Gateway</td>"));
+    assertTrue(table.contains(">DEF-102</td>"));
+    assertTrue(table.contains(">Timeout on Checkout</td>"));
   }
 
   @Test
@@ -1219,6 +1248,26 @@ public class OctaneEmailBodyRendererTest {
             evaluation,
             Instant.parse("2026-06-30T12:00:00Z"));
     return OctaneGateReportSnapshot.fromResult(state, message, result, classifier, 30);
+  }
+
+  private OctaneGateReportSnapshot snapshotWithDefects(List<DefectRecord> defects) {
+    GateResult result =
+        new GateResult(
+            "suite-1",
+            "regressions.executionRate == 100",
+            true,
+            true,
+            new GateMetrics(3, 3, 3, 0, 0, 0),
+            List.of(),
+            Map.of(),
+            Map.of(),
+            OctaneRiskHeatMap.disabled(),
+            new DefectCriteriaMetrics(OctaneDefectSeveritySummary.fromDefects(defects), List.of()),
+            defects,
+            CriteriaEvaluation.available(true, List.of()),
+            Instant.parse("2026-06-30T12:00:00Z"));
+    return OctaneGateReportSnapshot.fromResult(
+        OctaneGateReportState.PASSED, "Gate passed.", result, classifier, 30);
   }
 
   private OctaneGateReportSnapshot reconciliationSnapshot(

@@ -15,6 +15,7 @@ vm.runInNewContext(source, context);
 const testManagement = context.window.OctaneTestManagement;
 const failureAxisMaximum = testManagement.failureAxisMaximum;
 const failureAxisValueWidth = testManagement.failureAxisValueWidth;
+const failureCategoryOptions = testManagement.failureCategoryOptions;
 const failureDetailMatches = testManagement.failureDetailMatches;
 const integerAxisTicks = testManagement.integerAxisTicks;
 const sortFailureDefects = testManagement.sortFailureDefects;
@@ -38,9 +39,7 @@ test("renders dynamic failure clusters and keeps a valid category selected", () 
   assert.match(
       source,
       /renderCategorySwitcher\(switcher, categories, payload\.totalDefects\)/);
-  assert.match(
-      source,
-      /var allLabel = "All " \+ failureCategoryTotal\(categories, totalDefects\)/);
+  assert.match(source, /failureCategoryOptions\(categories, totalDefects\)/);
   assert.match(
       source,
       /Number\.isFinite\(reportedTotal\) && reportedTotal >= 0/);
@@ -54,6 +53,26 @@ test("renders dynamic failure clusters and keeps a valid category selected", () 
   assert.match(source, /data-management-category-filter/);
   assert.match(source, /setSelectedCategory\(zone, category\)/);
   assert.match(source, /__octaneTestManagementOnCategorySelect/);
+});
+
+test("creates one scoped All pill and dynamically counted category pills", () => {
+  const categories = [
+    {key: "api", label: "API", open: 3, closed: 1, defects: [{}, {}, {}, {}]},
+    {key: "ui", label: "UI", open: 2, closed: 2, defects: [{}, {}, {}, {}]},
+    {key: "db", label: "DB", open: 2, closed: 0, defects: [{}, {}]}
+  ];
+
+  assert.deepEqual(
+      JSON.parse(JSON.stringify(failureCategoryOptions(categories, 10))),
+      [
+        {key: "all", label: "All", count: 10},
+        {key: "api", label: "API", count: 4},
+        {key: "ui", label: "UI", count: 4},
+        {key: "db", label: "DB", count: 2}
+      ]);
+  assert.doesNotMatch(jelly, /data-management-defect-status-filter/);
+  assert.doesNotMatch(jelly, /data-management-failure-status-switcher/);
+  assert.match(source, /button\.textContent = \(category\.label \|\| "All"\) \+ " " \+ category\.count/);
 });
 
 test("uses a dynamic maximum one above the largest failure category total", () => {
@@ -267,6 +286,24 @@ test("filters Failure Analysis defects by category and status independently", ()
       ["12", "9"]);
 });
 
+test("filters a ten-defect payload to the four API defects", () => {
+  const entries = [
+    ...Array.from({length: 4}, (_, index) => ({
+      category: "api", defect: {id: String(index + 1), open: index < 3}
+    })),
+    ...Array.from({length: 4}, (_, index) => ({
+      category: "ui", defect: {id: String(index + 5), open: index < 2}
+    })),
+    ...Array.from({length: 2}, (_, index) => ({
+      category: "db", defect: {id: String(index + 9), open: true}
+    }))
+  ];
+
+  const apiDefects = entries.filter((entry) => failureDetailMatches(entry, "api", "all"));
+  assert.equal(apiDefects.length, 4);
+  assert.ok(apiDefects.every((entry) => entry.category === "api"));
+});
+
 test("binds Open and Closed bar segments to descending individual focus", () => {
   assert.match(source, /createElement\("button", "octane-management-failure-bar"\)/);
   assert.match(source, /data-management-defect-status/);
@@ -277,9 +314,11 @@ test("binds Open and Closed bar segments to descending individual focus", () => 
   assert.match(
       source,
       /selectFailureSegment\(zone, category, status\);[\s\S]*?__octaneTestManagementOnCategorySelect\(categoryBar, category, status\)/);
-  assert.match(jelly, /data-management-defect-status-filter="open"/);
-  assert.match(jelly, /data-management-defect-status-filter="closed"/);
-  assert.match(source, /setSelectedDefectStatus\(zone, status\)/);
+  assert.match(source, /setFailureSelection\(zone, category \|\| "all", status\)/);
+  assert.match(
+      source,
+      /setSelectedCategory\(zone, category\)[\s\S]*?setFailureSelection\(zone, category \|\| "all", "all"\)/);
+  assert.match(source, /buttons\[index\]\.scrollIntoView\(\{/);
 });
 
 test("exposes responsive focus, scaling, and card controls", () => {
