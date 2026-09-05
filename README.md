@@ -320,6 +320,25 @@ never in either configuration file. `OCTANE_REGRESSION_SUITE_RUN_ID` provides th
 suite-run source, while `OCTANE_DEFINED_SCOPE` supplies the optional defined-scope selections
 consumed by the report analytics.
 
+### ArgoCD GitOps state synchronization
+
+`examples/Jenkinsfile3` can publish the applied Octane gate result to a Git repository immediately
+after the quality-gate stage. Configure the integration only in the user-managed `variables.yaml`:
+
+- `ARGOCD_SYNC_REPO_URL`: target Git repository URL. Leave this or the state path blank to bypass
+  synchronization without invoking credentials or Git.
+- `ARGOCD_SYNC_BRANCH`: target branch; defaults to `main` when blank.
+- `ARGOCD_STATE_FILE_PATH`: safe repository-relative path to the state file, for example
+  `environments/qa/octane-gate.yaml`.
+- `ARGOCD_GIT_CREDENTIAL_ID`: ID of a Jenkins **Username with password** credential. For HTTPS Git,
+  store the Git username as the username and the personal access token as the password. Never put a
+  token in YAML or in the repository URL.
+
+The Pipeline writes deterministic YAML in the form `gate_status: "PASS"`. Possible values are
+`PASS`, `FAIL`, `WARNING`, `CANCELLED`, and `ERROR`. An unchanged value does not create another
+commit. Repository authentication or push failure logs a warning and does not replace the Octane
+gate result or abort the Pipeline.
+
 ## Configuration
 
 `examples/Jenkinsfile3` resolves the ALM Octane connection from the centrally controlled mapping and

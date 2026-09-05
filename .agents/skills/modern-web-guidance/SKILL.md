@@ -161,6 +161,23 @@ must precede expensive artifact work.
   must use invocation counters to prove disabled and rejected preflight paths do not call those
   services, not merely assert a skip boolean.
 
+## Jenkins GitOps Publication Guardrail
+
+When an optional Pipeline stage publishes gate state to Git, keep publication isolated from the
+authoritative gate result and prove the complete Git path instead of testing strings alone.
+
+- Check optional repository and state-path inputs before credential binding, workspace mutation, or
+  Git execution. A disabled integration must perform none of those operations.
+- Bind a Jenkins credential ID with `withCredentials`; use `GIT_ASKPASS`, `GIT_TERMINAL_PROMPT=0`,
+  and `set +x`. Never interpolate a username or token into a URL, command argument, log, or file.
+- Validate the branch with Git and require a normalized repository-relative state path without
+  absolute paths, empty segments, or traversal. Refuse to replace a symbolic-link target.
+- Clone into a dedicated disposable directory, write deterministic structured state, skip unchanged
+  commits, and delete the checkout in `finally`. Publication failures may warn and continue only
+  when the integration is explicitly best effort.
+- Tests must count credential and shell invocations for bypasses, push to a local bare repository to
+  prove file creation and commit behavior, and simulate denied access to prove non-fatal handling.
+
 
 ## Interpreting Browser Support & Fallbacks
 
