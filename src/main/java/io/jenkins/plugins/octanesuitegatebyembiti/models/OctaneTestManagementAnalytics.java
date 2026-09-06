@@ -30,7 +30,8 @@ public final class OctaneTestManagementAnalytics implements Serializable {
   private static final Set<String> CLUSTER_STOP_WORDS =
       Set.of(
           "a", "an", "and", "are", "at", "by", "defect", "error", "failed", "failure", "for",
-          "from", "in", "is", "issue", "of", "on", "or", "test", "the", "to", "was", "with");
+          "from", "i", "in", "is", "issue", "of", "on", "or", "select", "test", "the", "to", "was",
+          "when", "with");
 
   public static final String PLANNED_COLOR = "#8E8E93";
   public static final String IN_PROGRESS_COLOR = "#4391F5";

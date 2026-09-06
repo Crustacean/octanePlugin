@@ -56,7 +56,7 @@ test("renders dynamic failure clusters and keeps a valid category selected", () 
   assert.match(source, /__octaneTestManagementOnCategorySelect/);
 });
 
-test("creates one scoped All pill and dynamically counted category pills", () => {
+test("renders a counted All pill and category pills without count suffixes", () => {
   const categories = [
     {key: "api", label: "API", open: 3, closed: 1, defects: [{}, {}, {}, {}]},
     {key: "ui", label: "UI", open: 2, closed: 2, defects: [{}, {}, {}, {}]},
@@ -73,7 +73,11 @@ test("creates one scoped All pill and dynamically counted category pills", () =>
       ]);
   assert.doesNotMatch(jelly, /data-management-defect-status-filter/);
   assert.doesNotMatch(jelly, /data-management-failure-status-switcher/);
-  assert.match(source, /button\.textContent = \(category\.label \|\| "All"\) \+ " " \+ category\.count/);
+  assert.match(source, /key === "all"[\s\S]*?"All " \+ category\.count/);
+  assert.match(source, /: category\.label \|\| "Other"/);
+  assert.match(
+      jelly,
+      /\.octane-management-defect-row\[hidden\],[\s\S]*?\.octane-management-defect-empty\[hidden\]\s*\{\s*display:\s*none;/);
 });
 
 test("uses the same canonical key for mapped defects, pills, and chart bars", () => {

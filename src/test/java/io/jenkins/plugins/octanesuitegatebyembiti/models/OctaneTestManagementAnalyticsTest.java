@@ -232,6 +232,38 @@ public class OctaneTestManagementAnalyticsTest {
   }
 
   @Test
+  public void categorizesUsingDescriptionWhenDefectNameHasNoCategorySignal() {
+    DefectRecord loanDefect =
+        new DefectRecord(
+            "loan-1",
+            "Issue",
+            "Timeout when i select business loans",
+            "high",
+            "",
+            "opened",
+            "1",
+            "test-1",
+            "",
+            "");
+
+    OctaneTestManagementAnalytics analytics =
+        analyticsAt(
+            "2026-07-23T08:01:00Z",
+            runs().subList(0, 1),
+            List.of(loanDefect),
+            CriteriaEvaluation.unavailable());
+
+    assertEquals(1, analytics.getFailureCategories().size());
+    OctaneTestManagementAnalytics.FailureCategory category =
+        analytics.getFailureCategories().get(0);
+    assertTrue(category.getLabel().toLowerCase().contains("loan"));
+    assertEquals(1, category.getDefects().size());
+    assertEquals(
+        "Issue:\nTimeout when i select business loans",
+        category.getDefects().get(0).getDescription());
+  }
+
+  @Test
   public void normalizesDefectListStatusSeverityAndHierarchyColors() {
     List<DefectRecord> values =
         List.of(

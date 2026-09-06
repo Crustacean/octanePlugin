@@ -866,7 +866,9 @@
       button.type = "button";
       button.setAttribute("data-management-category-filter", key);
       button.setAttribute("aria-pressed", String(key === selected));
-      button.textContent = (category.label || "All") + " " + category.count;
+      button.textContent = key === "all"
+        ? "All " + category.count
+        : category.label || "Other";
       fragment.appendChild(button);
     });
     clear(container);

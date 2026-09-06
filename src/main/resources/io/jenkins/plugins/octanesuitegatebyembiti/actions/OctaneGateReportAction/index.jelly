@@ -3498,6 +3498,10 @@
           border-bottom: 1px solid var(--input-border);
           padding: clamp(0.5rem, 1.7cqi, 0.7rem) 0.2rem;
         }
+        .octane-management-defect-row[hidden],
+        .octane-management-defect-empty[hidden] {
+          display: none;
+        }
         .octane-management-defect-empty {
           border-bottom: 1px solid var(--input-border);
           padding: 0.65rem 0.2rem;
