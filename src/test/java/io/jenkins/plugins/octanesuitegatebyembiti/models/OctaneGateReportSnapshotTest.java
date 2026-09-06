@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
@@ -597,6 +598,65 @@ public class OctaneGateReportSnapshotTest {
     assertEquals("2026-05-15T00:00:00Z", snapshot.getStartedAt());
     assertEquals(80, snapshot.getBasePassrateFigure());
     assertEquals(90, snapshot.getBaseExecutionFigure());
+  }
+
+  @Test
+  public void withMethodsPreserveUnchangedSnapshotFieldsAcrossCopies() {
+    OctaneGateReportSnapshot original =
+        OctaneGateReportSnapshot.fromResult(
+            OctaneGateReportState.POLLING,
+            "Polling",
+            result(),
+            classifier,
+            17,
+            2700,
+            720,
+            "2026-05-14T23:45:00Z");
+    OctaneTestMetrics testMetrics = original.getTestMetrics().withAutomatedTestingTarget(73);
+    OctaneDefectTrend defectTrend = OctaneDefectTrend.start("2026-05-14T23:45:00Z", 3_420_000L);
+    OctaneRiskHeatMap riskHeatMap = OctaneRiskHeatMap.waiting();
+    OctaneTestManagementAnalytics testManagement =
+        OctaneTestManagementAnalytics.empty("2026-05-14T23:45:00Z", 3_420_000L);
+    List<OctaneDefinedScope> definedScope =
+        List.of(new OctaneDefinedScope("Payments", "Quality Team"));
+    Map<String, String> suiteAttributions = Map.of("4501", "owner@example.com");
+
+    OctaneGateReportSnapshot copied =
+        original
+            .withTestMetrics(testMetrics)
+            .withDefectTrend(defectTrend)
+            .withRiskHeatMap(riskHeatMap)
+            .withTestManagement(testManagement)
+            .withTesterThresholds(71, 88)
+            .withState(OctaneGateReportState.FINALIZING, "Finalizing", "2026-05-15T00:01:00Z")
+            .withDefinedScope(definedScope)
+            .withSuiteAttributions(suiteAttributions)
+            .withGraphTitles("Release Regression", "Release Critical");
+
+    assertEquals(OctaneGateReportState.FINALIZING, copied.getState());
+    assertEquals("Finalizing", copied.getMessage());
+    assertEquals("2026-05-15T00:01:00Z", copied.getUpdatedAt());
+    assertSame(testMetrics, copied.getTestMetrics());
+    assertSame(defectTrend, copied.getDefectTrend());
+    assertSame(riskHeatMap, copied.getRiskHeatMap());
+    assertEquals(88, copied.getTestManagement().getExecutionTarget());
+    assertEquals(71, copied.getBasePassrateFigure());
+    assertEquals(88, copied.getBaseExecutionFigure());
+    assertEquals(suiteAttributions, copied.getSuiteAttributions());
+    assertEquals("Payments", copied.getDefinedScope().get(0).getProject());
+    assertEquals(
+        "Release Regression Status Distribution",
+        copied.getSections().get(0).getStatusDistributionTitle());
+
+    assertEquals(original.getCriteria(), copied.getCriteria());
+    assertEquals(original.getSuiteRunId(), copied.getSuiteRunId());
+    assertEquals(original.getRefreshSeconds(), copied.getRefreshSeconds());
+    assertEquals(original.getTimeoutSeconds(), copied.getTimeoutSeconds());
+    assertEquals(original.getTimeoutExtendedSeconds(), copied.getTimeoutExtendedSeconds());
+    assertEquals(original.getStartedAt(), copied.getStartedAt());
+    assertSame(original.getDefectMetrics(), copied.getDefectMetrics());
+    assertSame(original.getCriteriaEvaluation(), copied.getCriteriaEvaluation());
+    assertEquals(original.getTesterPerformances(), copied.getTesterPerformances());
   }
 
   @Test

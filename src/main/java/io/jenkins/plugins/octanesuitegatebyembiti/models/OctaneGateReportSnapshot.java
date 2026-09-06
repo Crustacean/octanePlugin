@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 public class OctaneGateReportSnapshot implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -383,205 +384,47 @@ public class OctaneGateReportSnapshot implements Serializable {
   }
 
   public OctaneGateReportSnapshot withTestMetrics(OctaneTestMetrics testMetrics) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        sections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        getTestManagement(),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(copy -> copy.testMetrics = testMetrics);
   }
 
   public OctaneGateReportSnapshot withDefectTrend(OctaneDefectTrend defectTrend) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        sections,
-        riskHeatMap,
-        testMetrics,
-        defectTrend,
-        getTestManagement(),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(copy -> copy.defectTrend = defectTrend);
   }
 
   public OctaneGateReportSnapshot withRiskHeatMap(OctaneRiskHeatMap riskHeatMap) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        sections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        getTestManagement(),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(copy -> copy.riskHeatMap = riskHeatMap);
   }
 
   public OctaneGateReportSnapshot withTesterThresholds(
       int basePassrateFigure, int baseExecutionFigure) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        sections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        getTestManagement().withExecutionTarget(baseExecutionFigure),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(
+        copy -> {
+          copy.testManagement = getTestManagement().withExecutionTarget(baseExecutionFigure);
+          copy.basePassrateFigure = basePassrateFigure;
+          copy.baseExecutionFigure = baseExecutionFigure;
+        });
   }
 
   public OctaneGateReportSnapshot withTestManagement(OctaneTestManagementAnalytics testManagement) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        sections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        testManagement,
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(copy -> copy.testManagement = testManagement);
   }
 
   public OctaneGateReportSnapshot withState(
       OctaneGateReportState state, String message, String updatedAt) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        sections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        getTestManagement(),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(
+        copy -> {
+          copy.state = state;
+          copy.message = message;
+          copy.updatedAt = updatedAt;
+        });
   }
 
   public OctaneGateReportSnapshot withDefinedScope(List<OctaneDefinedScope> definedScope) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        sections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        getTestManagement(),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        definedScope,
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(copy -> copy.definedScope = definedScope);
   }
 
   public OctaneGateReportSnapshot withSuiteAttributions(Map<String, String> suiteAttributions) {
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        suiteAttributions,
-        sections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        getTestManagement(),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(copy -> copy.suiteAttributions = suiteAttributions);
   }
 
   public OctaneGateReportSnapshot withGraphTitles(
@@ -590,28 +433,70 @@ public class OctaneGateReportSnapshot implements Serializable {
         sections.stream()
             .map(section -> section.withGraphTitles(regressionGraphsTitle, criticalGraphsTitle))
             .toList();
-    return new OctaneGateReportSnapshot(
-        state,
-        message,
-        criteria,
-        suiteRunId,
-        refreshSeconds,
-        timeoutSeconds,
-        timeoutExtendedSeconds,
-        startedAt,
-        updatedAt,
-        getSuiteAttributions(),
-        titledSections,
-        riskHeatMap,
-        testMetrics,
-        getDefectTrend(),
-        getTestManagement(),
-        getDefectMetrics(),
-        getCriteriaEvaluation(),
-        testerPerformances,
-        getDefinedScope(),
-        basePassrateFigure,
-        baseExecutionFigure);
+    return copy(copy -> copy.sections = titledSections);
+  }
+
+  private OctaneGateReportSnapshot copy(Consumer<SnapshotCopy> changes) {
+    SnapshotCopy copy = new SnapshotCopy(this);
+    changes.accept(copy);
+    return copy.build();
+  }
+
+  private static final class SnapshotCopy {
+    private final OctaneGateReportSnapshot source;
+    private OctaneGateReportState state;
+    private String message;
+    private String updatedAt;
+    private Map<String, String> suiteAttributions;
+    private List<OctaneGateReportSection> sections;
+    private OctaneRiskHeatMap riskHeatMap;
+    private OctaneTestMetrics testMetrics;
+    private OctaneDefectTrend defectTrend;
+    private OctaneTestManagementAnalytics testManagement;
+    private List<OctaneDefinedScope> definedScope;
+    private int basePassrateFigure;
+    private int baseExecutionFigure;
+
+    private SnapshotCopy(OctaneGateReportSnapshot source) {
+      this.source = source;
+      state = source.state;
+      message = source.message;
+      updatedAt = source.updatedAt;
+      suiteAttributions = source.getSuiteAttributions();
+      sections = source.sections;
+      riskHeatMap = source.riskHeatMap;
+      testMetrics = source.testMetrics;
+      defectTrend = source.getDefectTrend();
+      testManagement = source.getTestManagement();
+      definedScope = source.getDefinedScope();
+      basePassrateFigure = source.basePassrateFigure;
+      baseExecutionFigure = source.baseExecutionFigure;
+    }
+
+    private OctaneGateReportSnapshot build() {
+      return new OctaneGateReportSnapshot(
+          state,
+          message,
+          source.criteria,
+          source.suiteRunId,
+          source.refreshSeconds,
+          source.timeoutSeconds,
+          source.timeoutExtendedSeconds,
+          source.startedAt,
+          updatedAt,
+          suiteAttributions,
+          sections,
+          riskHeatMap,
+          testMetrics,
+          defectTrend,
+          testManagement,
+          source.getDefectMetrics(),
+          source.getCriteriaEvaluation(),
+          source.testerPerformances,
+          definedScope,
+          basePassrateFigure,
+          baseExecutionFigure);
+    }
   }
 
   public OctaneGateReportState getState() {

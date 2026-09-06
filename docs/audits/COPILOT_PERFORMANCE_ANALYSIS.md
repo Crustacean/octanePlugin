@@ -99,3 +99,34 @@ The chart renderer reads `clientWidth` while rendering and while loading a page.
 
 Address network fallback amplification first, then cache lock contention and browser layout work. Validate each change with request-count, lock-wait, allocation, and long-task measurements.
 
+## Dead code and duplication review
+
+**Method:** every class under `services/`, `models/`, `controllers/`, `repositories/`, `utils/`, `configs/`, `listeners/`, `entities/`, and `actions/` was checked for live callers outside its own file and tests.
+
+### 7. No unused services found
+
+Every reviewed class (including less-obvious candidates such as `OctaneGateExecutors`, `OctanePollRefreshCoordinator`, `OctaneReportDataMapper`, `OctaneRiskHeatMapRenderer`, `OctaneSpaceMappingResolver`, `OctaneTestMetricsRenderer`, `CriteriaEmailTranslator`, `OctaneCronSchedule`, `DefectDescriptionFormatter`, `OctaneQueryValidator`, `OctaneServerUrl`, and `TesterIdentityResolver`) has at least one production caller in `src/main`. There are no whole-class deletions available without breaking functionality.
+
+### 8. Medium — `OctaneGateReportSnapshot` repeats its full constructor call in nine "with" methods
+
+**Location:** `src/main/java/io/jenkins/plugins/octanesuitegatebyembiti/models/OctaneGateReportSnapshot.java:385-613`
+
+`withTestMetrics`, `withDefectTrend`, `withRiskHeatMap`, `withTesterThresholds`, `withTestManagement`, `withState`, `withDefinedScope`, `withSuiteAttributions`, and `withGraphTitles` each re-invoke the same 21-argument constructor, changing only the one or two fields the method name implies. The other ~19 arguments are copy-pasted identically across all nine methods (~230 lines total).
+
+**Mitigation:** introduce one private all-fields copy method (or a small builder) that the nine public `with*` methods delegate to, passing only the field(s) they change. This is a pure mechanical refactor — each method's return value is unchanged — and removes roughly 150-180 lines with no behavior change. Recommended before any unrelated edits to this class, since the duplication also creates risk of a future field being added to the constructor but missed in one of the nine call sites.
+
+### 9. Low — `createElement`/`createSvgElement` are duplicated between the two dashboard scripts
+
+**Location:** `src/main/webapp/js/octane-scale-report.js:31-48` and `src/main/webapp/js/octane-test-management.js:98-111`
+
+Both files define nearly identical `createElement()` and `createSvgElement()` helpers (the scale-report version additionally accepts an optional `text` argument). Combined, this is roughly 20 duplicate lines.
+
+**Mitigation:** low priority — consolidating would require a shared module and a load-order dependency between two scripts that are currently independently self-contained. Only worth doing if a third script needs the same helpers.
+
+### Out of scope
+
+`examples/Jenkinsfile`, `Jenkinsfile2`, `Jenkinsfile3`, and `Jenkinsfile4` share structure but are user-facing usage examples, not shipped plugin code; removing or merging them would reduce repository LOC but not plugin LOC, and risks deleting a documented scenario a user may be following.
+
+
+
+LOC Report:
