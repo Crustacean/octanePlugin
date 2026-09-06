@@ -46,25 +46,44 @@ function fixtureHtml() {
     ],
     totalDefects: 14
   };
+  const refreshedPayload = {
+    failureCategories: [
+      category("ui", "UI", 6, 20),
+      category("api", "API", 3, 30),
+      category("database", "Database", 4, 40),
+      category("network", "Network", 3, 50)
+    ],
+    totalDefects: 16
+  };
   return `<!doctype html><html><body>
     <section id="management-zone">
-      <article class="octane-test-management-card">
+      <article class="octane-test-management-card"
+          data-card-key="test-management-failures">
         <div data-management-legend></div>
+        <div data-management-failure-switcher data-selected-category="all"
+            data-selected-status="all"></div>
         <div data-management-failures>
           <div class="octane-management-failure-axis-layout"></div>
           <div data-management-y-labels></div>
           <div data-management-failure-bars></div>
         </div>
+        <div data-management-defect-list data-sort-column="id"
+            data-sort-direction="ascending"></div>
       </article>
-      <div data-management-failure-switcher data-selected-category="all"
-          data-selected-status="all"></div>
-      <div data-management-defect-list data-sort-column="id"
-          data-sort-direction="ascending"></div>
     </section>
     <script>${source}</script>
     <script>
       var zone = document.getElementById("management-zone");
-      OctaneTestManagement.mount(zone, ${JSON.stringify(payload)});
+      var card = zone.querySelector('[data-card-key="test-management-failures"]');
+      OctaneTestManagement.mount(zone, ${JSON.stringify(payload)}, {
+        onCategorySelect: function () {
+          card.classList.add("octane-expanded");
+        }
+      });
+
+      document.body.setAttribute(
+          "data-all-label",
+          zone.querySelector('[data-management-category-filter="all"]').textContent);
 
       zone.querySelector('[data-management-category-filter="ui"]').click();
       var pillRows = Array.prototype.filter.call(
@@ -83,6 +102,48 @@ function fixtureHtml() {
       document.body.setAttribute("data-bar-categories", barRows.map(function (row) {
         return row.getAttribute("data-management-defect-category");
       }).join(","));
+
+      zone.querySelector('[data-management-category-filter="api"]').click();
+      var focusedPillRows = Array.prototype.filter.call(
+          zone.querySelectorAll(".octane-management-defect-row"),
+          function (row) { return !row.hidden; });
+      document.body.setAttribute("data-focused-pill-count", String(focusedPillRows.length));
+      document.body.setAttribute(
+          "data-focused-pill-categories",
+          focusedPillRows.map(function (row) {
+            return row.getAttribute("data-management-defect-category");
+          }).join(","));
+
+      zone.querySelector('[data-management-category-filter="all"]').click();
+      var allRows = Array.prototype.filter.call(
+          zone.querySelectorAll(".octane-management-defect-row"),
+          function (row) { return !row.hidden; });
+      var switcher = zone.querySelector("[data-management-failure-switcher]");
+      document.body.setAttribute("data-all-count", String(allRows.length));
+      document.body.setAttribute(
+          "data-all-selected",
+          zone.querySelector('[data-management-category-filter="all"]')
+              .getAttribute("aria-pressed"));
+      document.body.setAttribute(
+          "data-all-status", switcher.getAttribute("data-selected-status"));
+
+      zone.querySelector('[data-management-category-filter="network"]').click();
+      OctaneTestManagement.update(zone, ${JSON.stringify(refreshedPayload)});
+      setTimeout(function () {
+        var refreshedRows = Array.prototype.filter.call(
+            zone.querySelectorAll(".octane-management-defect-row"),
+            function (row) { return !row.hidden; });
+        document.body.setAttribute("data-refresh-count", String(refreshedRows.length));
+        document.body.setAttribute(
+            "data-refresh-categories",
+            refreshedRows.map(function (row) {
+              return row.getAttribute("data-management-defect-category");
+            }).join(","));
+        document.body.setAttribute(
+            "data-refresh-selected",
+            zone.querySelector('[data-management-category-filter="network"]')
+                .getAttribute("aria-pressed"));
+      }, 50);
     </script>
   </body></html>`;
 }
@@ -109,12 +170,21 @@ test(
             {encoding: "utf8", maxBuffer: 4 * 1024 * 1024, timeout: 20000});
 
         assert.equal(result.status, 0, result.error || result.stderr);
+        assert.match(result.stdout, /data-all-label="All 14"/);
         assert.match(result.stdout, /data-pill-count="5"/);
         assert.match(result.stdout, /data-pill-categories="ui,ui,ui,ui,ui"/);
         assert.match(result.stdout, /data-bar-count="4"/);
         assert.match(
             result.stdout,
             /data-bar-categories="database,database,database,database"/);
+        assert.match(result.stdout, /data-focused-pill-count="3"/);
+        assert.match(result.stdout, /data-focused-pill-categories="api,api,api"/);
+        assert.match(result.stdout, /data-all-count="14"/);
+        assert.match(result.stdout, /data-all-selected="true"/);
+        assert.match(result.stdout, /data-all-status="all"/);
+        assert.match(result.stdout, /data-refresh-count="3"/);
+        assert.match(result.stdout, /data-refresh-categories="network,network,network"/);
+        assert.match(result.stdout, /data-refresh-selected="true"/);
       } finally {
         rmSync(directory, {force: true, recursive: true});
       }

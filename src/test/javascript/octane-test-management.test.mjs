@@ -39,7 +39,7 @@ test("renders dynamic failure clusters and keeps a valid category selected", () 
   assert.match(source, /payload\.failureCategories/);
   assert.match(
       source,
-      /renderCategorySwitcher\(switcher, categories, payload\.totalDefects\)/);
+      /renderCategorySwitcher\(zone, switcher, categories, payload\.totalDefects\)/);
   assert.match(source, /failureCategoryOptions\(categories, totalDefects\)/);
   assert.match(
       source,
@@ -74,6 +74,26 @@ test("creates one scoped All pill and dynamically counted category pills", () =>
   assert.doesNotMatch(jelly, /data-management-defect-status-filter/);
   assert.doesNotMatch(jelly, /data-management-failure-status-switcher/);
   assert.match(source, /button\.textContent = \(category\.label \|\| "All"\) \+ " " \+ category\.count/);
+});
+
+test("uses the same canonical key for mapped defects, pills, and chart bars", () => {
+  assert.deepEqual(
+      JSON.parse(JSON.stringify(failureCategoryOptions([
+        {key: 7, label: "Numeric", defects: [{}]},
+        {label: "Other", defects: [{}, {}]}
+      ], 3))),
+      [
+        {key: "all", label: "All", count: 3},
+        {key: "7", label: "Numeric", count: 1},
+        {key: "other-failures", label: "Other", count: 2}
+      ]);
+  assert.equal(failureDetailMatches({category: 7}, "7"), true);
+  assert.equal(failureDetailMatches({category: ""}, "other-failures"), true);
+  assert.match(source, /group\.setAttribute\("data-management-category-group", categoryKey\)/);
+  assert.match(source, /bar\.setAttribute\("data-management-category", categoryKey\)/);
+  assert.match(
+      source,
+      /entries\.push\(\{category: failureCategoryKey\(category\), defect: defect\}\)/);
 });
 
 test("uses a dynamic maximum one above the largest failure category total", () => {
@@ -302,17 +322,13 @@ test("binds pills and bar segments to the same category-only filter", () => {
   assert.match(source, /createElement\("button", "octane-management-failure-bar"\)/);
   assert.match(source, /data-management-defect-status/);
   assert.match(source, /function selectFailureCategory\(zone, category\)/);
-  assert.match(source, /function selectFailureSegment\(zone, category\)/);
   assert.match(
       source,
-      /list\.setAttribute\("data-sort-column", "id"\);[\s\S]*?list\.setAttribute\("data-sort-direction", "descending"\);/);
-  assert.match(
-      source,
-      /selectFailureSegment\(zone, category\);[\s\S]*?__octaneTestManagementOnCategorySelect\(categoryBar, category, status\)/);
-  assert.match(source, /selectFailureCategory\(zone, category\);/);
+      /setSelectedCategory\(zone, category\);[\s\S]*?__octaneTestManagementOnCategorySelect\(categoryBar, category, status\)/);
   assert.match(
       source,
       /setSelectedCategory\(zone, category\)[\s\S]*?selectFailureCategory\(zone, category\)/);
+  assert.doesNotMatch(source, /function selectFailureSegment\(/);
   assert.match(source, /buttons\[index\]\.scrollIntoView\(\{/);
 });
 
@@ -343,7 +359,7 @@ test("isolates the defect table to the selected category pill and resets on All"
   // otherwise a pill can render active while the table keeps showing every category.
   assert.match(
       source,
-      /function setFailureSelection\(zone, category\) \{[\s\S]*?switcher\.setAttribute\("data-selected-category", selectedCategory\);[\s\S]*?renderFailureDetails\(zone\);\n  \}/);
+      /function setFailureSelection\(zone, category\) \{[\s\S]*?zone\.__octaneSelectedFailureCategory = selectedCategory;[\s\S]*?switcher\.setAttribute\("data-selected-category", selectedCategory\);[\s\S]*?renderFailureDetails\(zone\);\n  \}/);
   assert.match(
       source,
       /function renderFailureDetails\(zone, colors\) \{[\s\S]*?var category = selectedCategory\(zone\);[\s\S]*?applyFailureDetailFilters\(list, cache, category\);/);
@@ -351,7 +367,9 @@ test("isolates the defect table to the selected category pill and resets on All"
   assert.match(
       source,
       /button\.setAttribute\(\s*"data-management-category-filter", key\);/);
-  assert.match(source, /function failureDetailMatches\(entry, category\) \{\n\s*return category === "all" \|\| entry\.category === category;/);
+  assert.match(
+      source,
+      /function failureDetailMatches\(entry, category\) \{[\s\S]*?failureCategoryKey\(entry\.category\) === selected;/);
 });
 
 test("exposes responsive focus, scaling, and card controls", () => {
