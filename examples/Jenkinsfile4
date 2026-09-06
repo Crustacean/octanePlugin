@@ -1,0 +1,54 @@
+pipeline {
+  agent none
+
+  parameters {
+    string(
+        name: 'OCTANE_TEST_JOB',
+        defaultValue: 'dashboardVariables',
+        description: 'Jenkins job or Multibranch Pipeline name.')
+    string(
+        name: 'OCTANE_TEST_BRANCH',
+        defaultValue: 'main',
+        description: 'Multibranch child job to run. Leave blank for a regular Pipeline job.')
+  }
+
+  stages {
+    stage('Trigger and poll Octane Tests results') {
+      steps {
+        script {
+          String downstreamJob = params.OCTANE_TEST_JOB?.toString()?.trim()
+          if (!downstreamJob) {
+            error 'OCTANE_TEST_JOB must identify the Jenkins job that runs the Octane tests.'
+          }
+          String downstreamBranch = params.OCTANE_TEST_BRANCH?.toString()?.trim()
+          String downstreamTarget =
+              downstreamBranch ? "${downstreamJob}/${downstreamBranch}" : downstreamJob
+
+          echo "Triggering Octane test job: ${downstreamTarget}"
+          def completedBuild =
+              build(
+                  job: downstreamTarget,
+                  propagate: false,
+                  wait: true)
+          env.OCTANE_TEST_RESULT = completedBuild.result ?: 'UNKNOWN'
+          echo(
+              "Octane test job completed: ${completedBuild.fullDisplayName} "
+                  + "(${env.OCTANE_TEST_RESULT})")
+        }
+      }
+    }
+
+    stage('Deploy to UAT') {
+      steps {
+        script {
+          if (env.OCTANE_TEST_RESULT == 'SUCCESS') {
+            echo 'Octane results PASS. Deploying.'
+          } else {
+            echo 'Octane results FAIL. Aborting deployment.'
+            error "Octane test job finished with result: ${env.OCTANE_TEST_RESULT}"
+          }
+        }
+      }
+    }
+  }
+}
