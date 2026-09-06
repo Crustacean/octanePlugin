@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -79,5 +80,16 @@ public class OctaneReportArtifactStoreTest {
             IOException.class, () -> new OctaneReportArtifactStore().loadSnapshot(build, metadata));
 
     assertTrue(failure.getMessage().contains("filter status: REJECTED"));
+  }
+
+  @Test
+  public void deletesNestedArtifactTreesInPostOrder() throws Exception {
+    Path root = Files.createTempDirectory("octane-artifact-cleanup-");
+    Path nested = Files.createDirectories(root.resolve("one/two/three"));
+    Files.writeString(nested.resolve("report.json"), "{}");
+
+    new OctaneReportArtifactStore().deleteRecursively(root);
+
+    assertFalse(Files.exists(root));
   }
 }

@@ -143,6 +143,18 @@ function fixtureHtml() {
             "data-refresh-selected",
             zone.querySelector('[data-management-category-filter="network"]')
                 .getAttribute("aria-pressed"));
+        var refreshedBar = zone.querySelector(".octane-management-failure-group");
+        var refreshedRow = zone.querySelector(".octane-management-defect-row");
+        OctaneTestManagement.update(
+            zone, JSON.parse(${JSON.stringify(JSON.stringify(refreshedPayload))}));
+        setTimeout(function () {
+          document.body.setAttribute(
+              "data-unchanged-bar-reused",
+              String(refreshedBar === zone.querySelector(".octane-management-failure-group")));
+          document.body.setAttribute(
+              "data-unchanged-row-reused",
+              String(refreshedRow === zone.querySelector(".octane-management-defect-row")));
+        }, 50);
       }, 50);
     </script>
   </body></html>`;
@@ -185,6 +197,8 @@ test(
         assert.match(result.stdout, /data-refresh-count="3"/);
         assert.match(result.stdout, /data-refresh-categories="network,network,network"/);
         assert.match(result.stdout, /data-refresh-selected="true"/);
+        assert.match(result.stdout, /data-unchanged-bar-reused="true"/);
+        assert.match(result.stdout, /data-unchanged-row-reused="true"/);
       } finally {
         rmSync(directory, {force: true, recursive: true});
       }

@@ -9,10 +9,13 @@ import java.io.IOException;
 import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -242,15 +245,30 @@ public final class OctaneReportArtifactStore {
     }
   }
 
-  private void deleteRecursively(Path path) throws IOException {
+  void deleteRecursively(Path path) throws IOException {
     if (path == null || !Files.exists(path)) {
       return;
     }
-    try (var paths = Files.walk(path)) {
-      for (Path item : paths.sorted((left, right) -> right.compareTo(left)).toList()) {
-        Files.deleteIfExists(item);
-      }
-    }
+    Files.walkFileTree(
+        path,
+        new SimpleFileVisitor<>() {
+          @Override
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attributes)
+              throws IOException {
+            Files.deleteIfExists(file);
+            return FileVisitResult.CONTINUE;
+          }
+
+          @Override
+          public FileVisitResult postVisitDirectory(Path directory, IOException failure)
+              throws IOException {
+            if (failure != null) {
+              throw failure;
+            }
+            Files.deleteIfExists(directory);
+            return FileVisitResult.CONTINUE;
+          }
+        });
   }
 
   private String sectionFile(int section) {

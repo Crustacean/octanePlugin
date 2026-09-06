@@ -99,9 +99,14 @@ public class OctaneClient implements AutoCloseable {
   private final String baseUrl;
   private final String clientId;
   private final String clientSecret;
+  private final Object childRunFieldProfileLock = new Object();
   // Parent suite ownership is immutable for this client session. Child execution actors never
   // enter this map and are retained only on RunRecord for automation metrics.
   private final Map<String, String> lockedSuiteOwners = new LinkedHashMap<>(256, 0.75f, true);
+  private volatile String preferredChildRunFields = "";
+  private volatile String preferredDefectFields = "";
+  private volatile String preferredRunSuiteFields = "";
+  private volatile String preferredSuiteEntityFields = "";
   private String cookieHeader = "";
 
   public OctaneClient(String baseUrl, String clientId, String clientSecret) {
@@ -517,7 +522,7 @@ public class OctaneClient implements AutoCloseable {
       String sharedSpaceId, String workspaceId, String suiteRunId, String query)
       throws InterruptedException {
     Exception lookupFailure = null;
-    for (String fields : suiteRunFieldCandidates()) {
+    for (String fields : preferredFirst(suiteRunFieldCandidates(), preferredRunSuiteFields)) {
       String path =
           workspacePath(sharedSpaceId, workspaceId)
               + "/runs?"
@@ -528,6 +533,7 @@ public class OctaneClient implements AutoCloseable {
               + parameter("limit", "1");
       try {
         JsonNode collection = getJson(path);
+        preferredRunSuiteFields = fields;
         JsonNode data = collection.path("data");
         if (data.isArray() && !data.isEmpty()) {
           JsonNode candidate = data.get(0);
@@ -547,7 +553,7 @@ public class OctaneClient implements AutoCloseable {
       String sharedSpaceId, String workspaceId, String suiteRunId)
       throws IOException, InterruptedException {
     IOException suiteLookupFailure = null;
-    for (String fields : suiteRunFieldCandidates()) {
+    for (String fields : preferredFirst(suiteRunFieldCandidates(), preferredSuiteEntityFields)) {
       String fallbackPath =
           workspacePath(sharedSpaceId, workspaceId)
               + "/suite_runs/"
@@ -557,6 +563,7 @@ public class OctaneClient implements AutoCloseable {
       JsonNode node;
       try {
         node = getJson(fallbackPath);
+        preferredSuiteEntityFields = fields;
       } catch (IOException e) {
         if (isNotFound(e)) {
           throw new AbortException(suiteRunNotFoundMessage(sharedSpaceId, workspaceId, suiteRunId));
@@ -597,10 +604,11 @@ public class OctaneClient implements AutoCloseable {
       List<String> suiteRunIds,
       Map<String, OctaneSuiteTopologyCache.Topology> topology)
       throws InterruptedException {
-    for (String fields : suiteRunFieldCandidates()) {
+    for (String fields : preferredFirst(suiteRunFieldCandidates(), preferredRunSuiteFields)) {
       try {
         JsonNode data =
             getJson(suiteRunsPath(sharedSpaceId, workspaceId, suiteRunIds, fields)).path("data");
+        preferredRunSuiteFields = fields;
         addRunTopologies(suiteRunIds, data, topology);
         return;
       } catch (IOException ignored) {
@@ -632,6 +640,22 @@ public class OctaneClient implements AutoCloseable {
         SAFE_SUITE_RUN_FIELDS,
         RUN_FIELDS,
         SAFE_RUN_FIELDS);
+  }
+
+  private List<String> preferredFirst(List<String> candidates, String preferred) {
+    if (Util.isBlank(preferred) || preferred.equals(candidates.get(0))) {
+      return candidates;
+    }
+    List<String> ordered = new ArrayList<>(candidates.size());
+    if (candidates.contains(preferred)) {
+      ordered.add(preferred);
+    }
+    for (String candidate : candidates) {
+      if (!candidate.equals(preferred)) {
+        ordered.add(candidate);
+      }
+    }
+    return ordered;
   }
 
   private void addRunTopologies(
@@ -752,11 +776,35 @@ public class OctaneClient implements AutoCloseable {
   private List<RunRecord> fetchRunsChunk(
       String sharedSpaceId, String workspaceId, List<String> runIds, String scopeQuery)
       throws IOException, InterruptedException {
-    try {
-      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, CHILD_RUN_FIELDS);
-    } catch (IOException richFieldsFailure) {
-      return fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, SAFE_CHILD_RUN_FIELDS);
+    if (Util.isBlank(preferredChildRunFields)) {
+      synchronized (childRunFieldProfileLock) {
+        if (Util.isBlank(preferredChildRunFields)) {
+          return fetchRunsChunkWithFieldFallback(sharedSpaceId, workspaceId, runIds, scopeQuery);
+        }
+      }
     }
+    return fetchRunsChunkWithFieldFallback(sharedSpaceId, workspaceId, runIds, scopeQuery);
+  }
+
+  private List<RunRecord> fetchRunsChunkWithFieldFallback(
+      String sharedSpaceId, String workspaceId, List<String> runIds, String scopeQuery)
+      throws IOException, InterruptedException {
+    IOException failure = null;
+    for (String fields :
+        preferredFirst(List.of(CHILD_RUN_FIELDS, SAFE_CHILD_RUN_FIELDS), preferredChildRunFields)) {
+      try {
+        List<RunRecord> records =
+            fetchRunsChunk(sharedSpaceId, workspaceId, runIds, scopeQuery, fields);
+        preferredChildRunFields = fields;
+        return records;
+      } catch (IOException e) {
+        failure = e;
+      }
+    }
+    if (failure == null) {
+      throw new IOException("No ALM Octane child-run field profile is configured.");
+    }
+    throw failure;
   }
 
   private List<RunRecord> fetchRunsChunk(
@@ -918,24 +966,27 @@ public class OctaneClient implements AutoCloseable {
   private JsonNode getDefectsJson(
       String sharedSpaceId, String workspaceId, String query, int limit, int offset)
       throws IOException, InterruptedException {
-    try {
-      return getJson(
-          defectsPath(sharedSpaceId, workspaceId, query, EXTENDED_DEFECT_FIELDS, limit, offset));
-    } catch (IOException e) {
-      if (!isUnknownFieldFailure(e)) {
-        throw e;
-      }
+    IOException failure = null;
+    for (String fields :
+        preferredFirst(
+            List.of(EXTENDED_DEFECT_FIELDS, DEFECT_FIELDS, MINIMAL_DEFECT_FIELDS),
+            preferredDefectFields)) {
       try {
-        return getJson(
-            defectsPath(sharedSpaceId, workspaceId, query, DEFECT_FIELDS, limit, offset));
-      } catch (IOException fallbackError) {
-        if (!isUnknownFieldFailure(fallbackError)) {
-          throw fallbackError;
+        JsonNode defects =
+            getJson(defectsPath(sharedSpaceId, workspaceId, query, fields, limit, offset));
+        preferredDefectFields = fields;
+        return defects;
+      } catch (IOException e) {
+        if (!isUnknownFieldFailure(e)) {
+          throw e;
         }
-        return getJson(
-            defectsPath(sharedSpaceId, workspaceId, query, MINIMAL_DEFECT_FIELDS, limit, offset));
+        failure = e;
       }
     }
+    if (failure == null) {
+      throw new IOException("No ALM Octane defect field profile is configured.");
+    }
+    throw failure;
   }
 
   private String defectsPath(

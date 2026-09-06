@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 final class OctaneSuiteTopologyCache {
   static final int MAXIMUM_ENTRIES = 20_000;
   static final Duration ACTIVE_TTL = Duration.ofSeconds(30);
+  private static final int CACHE_WRITE_BATCH_SIZE = 64;
 
   private static final Map<Key, Entry> CACHE = new LinkedHashMap<>(256, 0.75f, true);
   private static final ConcurrentMap<Key, CompletableFuture<Topology>> IN_FLIGHT =
@@ -88,8 +89,9 @@ final class OctaneSuiteTopologyCache {
 
   private static void evictToBound() {
     while (CACHE.size() > MAXIMUM_ENTRIES) {
-      Key eldest = CACHE.keySet().iterator().next();
-      CACHE.remove(eldest);
+      var iterator = CACHE.entrySet().iterator();
+      iterator.next();
+      iterator.remove();
       EVICTIONS.incrementAndGet();
     }
   }
@@ -114,23 +116,35 @@ final class OctaneSuiteTopologyCache {
     try {
       Map<String, Topology> loaded = loader.load(ids);
       long expiry = loadedAt + ACTIVE_TTL.toNanos();
-      synchronized (CACHE) {
-        for (Map.Entry<Key, CompletableFuture<Topology>> entry : owned.entrySet()) {
-          String suiteRunId = entry.getKey().suiteRunId;
-          boolean topologyWasFound = loaded.containsKey(suiteRunId);
-          Topology topology = loaded.getOrDefault(suiteRunId, Topology.empty());
-          if (topologyWasFound) {
-            CACHE.put(entry.getKey(), new Entry(topology, expiry));
-          }
-          entry.getValue().complete(topology);
+      List<Map.Entry<Key, Entry>> cacheWrites = new java.util.ArrayList<>();
+      for (Map.Entry<Key, CompletableFuture<Topology>> entry : owned.entrySet()) {
+        String suiteRunId = entry.getKey().suiteRunId;
+        if (loaded.containsKey(suiteRunId)) {
+          cacheWrites.add(Map.entry(entry.getKey(), new Entry(loaded.get(suiteRunId), expiry)));
         }
-        evictToBound();
+      }
+      cacheInBoundedBatches(cacheWrites);
+      for (Map.Entry<Key, CompletableFuture<Topology>> entry : owned.entrySet()) {
+        entry.getValue().complete(loaded.getOrDefault(entry.getKey().suiteRunId, Topology.empty()));
       }
     } catch (IOException | InterruptedException | RuntimeException | Error failure) {
       owned.values().forEach(future -> future.completeExceptionally(failure));
       throw failure;
     } finally {
       owned.forEach((key, future) -> IN_FLIGHT.remove(key, future));
+    }
+  }
+
+  private static void cacheInBoundedBatches(List<Map.Entry<Key, Entry>> writes) {
+    for (int start = 0; start < writes.size(); start += CACHE_WRITE_BATCH_SIZE) {
+      int end = Math.min(start + CACHE_WRITE_BATCH_SIZE, writes.size());
+      synchronized (CACHE) {
+        for (int index = start; index < end; index++) {
+          Map.Entry<Key, Entry> write = writes.get(index);
+          CACHE.put(write.getKey(), write.getValue());
+        }
+        evictToBound();
+      }
     }
   }
 

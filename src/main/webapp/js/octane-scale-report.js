@@ -466,7 +466,7 @@
         bar.automationEmoji || (Number(bar.automationPercentage) > 0 ? "🔥" : "🐢"));
   }
 
-  function renderBarChart(card, section, page) {
+  function renderBarChart(card, section, page, measuredWidth) {
     var old = card.querySelector("[data-client-bar-content]");
     if (old) {
       old.remove();
@@ -477,7 +477,7 @@
     var plotLeft = 52;
     var plotTop = 10;
     var plotBottom = 252;
-    var chartWidth = Math.max(320, card.clientWidth || 700);
+    var chartWidth = Math.max(320, Number(measuredWidth) || 700);
     var pageCursor = Math.max(0, Number(page.cursor) || 0);
     var hiddenCount = Math.max(0, Number(page.totalBars) - (page.bars || []).length);
     var overflowSvgWidth = hiddenCount > 0 ? OVERFLOW_WIDTH_PX * 1000 / chartWidth : 0;
@@ -649,8 +649,16 @@
     var pendingCursor = null;
     var requestController = null;
     var requestGeneration = 0;
+    var measuredChartWidth = 0;
+    function chartWidth() {
+      if (measuredChartWidth <= 0) {
+        measuredChartWidth = Math.max(320, parts.card.clientWidth || 700);
+      }
+      return measuredChartWidth;
+    }
     function load(cursor) {
-      var limit = computeVisibleBarCount(parts.card.clientWidth || 700, section.barCount);
+      var renderWidth = chartWidth();
+      var limit = computeVisibleBarCount(renderWidth, section.barCount);
       var safeCursor = Math.max(0, Number(cursor) || 0);
       if (loadingRequest) {
         pendingCursor = safeCursor;
@@ -687,7 +695,7 @@
             currentCursor = Math.max(0, Number(page.cursor) || 0);
             currentPage = page;
             loading.remove();
-            renderBarChart(parts.card, section, page);
+            renderBarChart(parts.card, section, page, renderWidth);
             updatePageControls();
             loadPending();
           })
@@ -762,6 +770,7 @@
       var resizeTimer = 0;
       var resizeObserver = new ResizeObserver(function () {
         window.clearTimeout(resizeTimer);
+        measuredChartWidth = 0;
         resizeTimer = window.setTimeout(function () { load(currentCursor); }, 80);
       });
       resizeObserver.observe(parts.card);

@@ -282,33 +282,46 @@
     }
   }
 
-  function severityColor(severity, zone) {
+  function severityColor(severity, colors) {
     var key = String(severity || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_SEVERITY_COLORS, key)) {
       key = "unspecified";
     }
-    return themeColor(
-        zone, SEVERITY_COLOR_PROPERTIES[key], DEFAULT_SEVERITY_COLORS[key]);
+    return colors && colors.severity
+      ? colors.severity[key]
+      : DEFAULT_SEVERITY_COLORS[key];
   }
 
-  function emphasisTextColor(zone) {
-    return themeColor(zone, "--octane-color-on-emphasis", "#000000");
+  function emphasisTextColor(colors) {
+    return colors && colors.emphasisText ? colors.emphasisText : "#000000";
   }
 
-  function themeColor(zone, propertyName, fallback) {
-    if (!zone || typeof global.getComputedStyle !== "function") {
+  function themeColor(computedStyle, propertyName, fallback) {
+    if (!computedStyle) {
       return fallback;
     }
-    var value = global.getComputedStyle(zone).getPropertyValue(propertyName).trim();
+    var value = computedStyle.getPropertyValue(propertyName).trim();
     return value || fallback;
   }
 
   function colorsFor(payload, zone) {
     var source = payload && payload.colors ? payload.colors : {};
+    var computedStyle = zone && typeof global.getComputedStyle === "function"
+      ? global.getComputedStyle(zone)
+      : null;
     var colors = {};
     Object.keys(DEFAULT_COLORS).forEach(function (key) {
       var fallback = source[key] || DEFAULT_COLORS[key];
-      colors[key] = themeColor(zone, THEME_COLOR_PROPERTIES[key], fallback);
+      colors[key] = themeColor(computedStyle, THEME_COLOR_PROPERTIES[key], fallback);
+    });
+    colors.emphasisText = themeColor(
+        computedStyle, "--octane-color-on-emphasis", "#000000");
+    colors.severity = {};
+    Object.keys(DEFAULT_SEVERITY_COLORS).forEach(function (key) {
+      colors.severity[key] = themeColor(
+          computedStyle,
+          SEVERITY_COLOR_PROPERTIES[key],
+          DEFAULT_SEVERITY_COLORS[key]);
     });
     return colors;
   }
@@ -700,6 +713,17 @@
     return key || "all";
   }
 
+  function failureRenderKey(payload, colors) {
+    return JSON.stringify([
+      payload.totalDefects,
+      array(payload.failureCategories),
+      colors.open,
+      colors.closed,
+      colors.emphasisText,
+      colors.severity
+    ]);
+  }
+
   function renderFailureAnalysis(zone, payload, colors) {
     var panel = zone.querySelector("[data-management-failures]");
     if (!panel) {
@@ -710,6 +734,11 @@
     var yLabels = panel.querySelector("[data-management-y-labels]");
     var switcher = zone.querySelector("[data-management-failure-switcher]");
     var axisLayout = panel.querySelector(".octane-management-failure-axis-layout");
+    var renderKey = failureRenderKey(payload, colors);
+    if (panel.__octaneFailureRenderKey === renderKey) {
+      renderFailureDetails(zone, colors, renderKey);
+      return;
+    }
     var maximum = failureAxisMaximum(categories);
     var ticks = integerAxisTicks(maximum);
     if (axisLayout) {
@@ -717,8 +746,8 @@
           "--octane-management-failure-axis-value-width",
           failureAxisValueWidth(ticks) + "ch");
     }
-    clear(chart);
-    renderFailureGridLines(chart, ticks, maximum);
+    var chartFragment = document.createDocumentFragment();
+    renderFailureGridLines(chartFragment, ticks, maximum);
     categories.forEach(function (category) {
       var categoryKey = failureCategoryKey(category);
       var group = createElement("div", "octane-management-failure-group");
@@ -767,8 +796,10 @@
       label.textContent = category.label || "";
       group.appendChild(bars);
       group.appendChild(label);
-      chart.appendChild(group);
+      chartFragment.appendChild(group);
     });
+    clear(chart);
+    chart.appendChild(chartFragment);
     setFailureYAxisLabels(yLabels, ticks, maximum);
     renderLegend(
         legendForPanel(panel),
@@ -777,7 +808,8 @@
           {color: colors.closed, label: "Closed"}
         ]);
     renderCategorySwitcher(zone, switcher, categories, payload.totalDefects);
-    renderFailureDetails(zone, colors);
+    panel.__octaneFailureRenderKey = renderKey;
+    renderFailureDetails(zone, colors, renderKey);
   }
 
   function failureCategoryTotal(categories, totalDefects) {
@@ -827,7 +859,7 @@
     }
     container.setAttribute("data-selected-category", selected);
     container.setAttribute("data-selected-status", "all");
-    clear(container);
+    var fragment = document.createDocumentFragment();
     failureCategoryOptions(categories, totalDefects).forEach(function (category) {
       var button = createElement("button", "octane-management-category-toggle");
       var key = normalizedFailureSelection(category.key);
@@ -835,8 +867,10 @@
       button.setAttribute("data-management-category-filter", key);
       button.setAttribute("aria-pressed", String(key === selected));
       button.textContent = (category.label || "All") + " " + category.count;
-      container.appendChild(button);
+      fragment.appendChild(button);
     });
+    clear(container);
+    container.appendChild(fragment);
     bindCategoryScroller(container);
     scheduleCategoryScrollControls(container);
   }
@@ -859,17 +893,18 @@
     var availableWithoutControls =
         Math.max(0, navigation.clientWidth - (columnGap * 2));
     var hasOverflow = container.scrollWidth > availableWithoutControls + 1;
+    var maximum = Math.max(0, container.scrollWidth - container.clientWidth);
+    var scrollLeft = container.scrollLeft;
     [previous, next].forEach(function (button) {
       if (button) {
         button.setAttribute("data-visible", String(hasOverflow));
       }
     });
-    var maximum = Math.max(0, container.scrollWidth - container.clientWidth);
     if (previous) {
-      previous.disabled = !hasOverflow || container.scrollLeft <= 1;
+      previous.disabled = !hasOverflow || scrollLeft <= 1;
     }
     if (next) {
-      next.disabled = !hasOverflow || container.scrollLeft >= maximum - 1;
+      next.disabled = !hasOverflow || scrollLeft >= maximum - 1;
     }
   }
 
@@ -1028,18 +1063,22 @@
       switcher.setAttribute("data-selected-category", selectedCategory);
       switcher.setAttribute("data-selected-status", "all");
       var buttons = switcher.querySelectorAll("[data-management-category-filter]");
+      var selectedButton = null;
       for (var index = 0; index < buttons.length; index += 1) {
         var selected =
             buttons[index].getAttribute("data-management-category-filter")
                 === selectedCategory;
         buttons[index].setAttribute("aria-pressed", String(selected));
         if (selected) {
-          buttons[index].scrollIntoView({
-            behavior: motionBehavior(),
-            block: "nearest",
-            inline: "nearest"
-          });
+          selectedButton = buttons[index];
         }
+      }
+      if (selectedButton) {
+        selectedButton.scrollIntoView({
+          behavior: motionBehavior(),
+          block: "nearest",
+          inline: "nearest"
+        });
       }
       scheduleCategoryScrollControls(switcher);
     }
@@ -1082,7 +1121,7 @@
         });
   }
 
-  function createFailureDetailRow(entry, zone, colors) {
+  function createFailureDetailRow(entry, colors) {
     var defect = entry.defect;
     var row = createElement("div", "octane-management-defect-row");
     row.setAttribute("role", "row");
@@ -1103,7 +1142,7 @@
         "--octane-pill-color",
         statusLabel === "Open" ? colors.open : colors.closed);
     status.style.setProperty(
-        "--octane-pill-text-color", emphasisTextColor(zone));
+        "--octane-pill-text-color", emphasisTextColor(colors));
     status.textContent = statusLabel;
     status.setAttribute("aria-label", "Status: " + statusLabel);
     var severity = createElement(
@@ -1114,9 +1153,9 @@
         "--octane-pill-color",
         severityColor(
             defect.severityColorKey || defect.severity || severityLabel,
-            zone));
+            colors));
     severity.style.setProperty(
-        "--octane-pill-text-color", emphasisTextColor(zone));
+        "--octane-pill-text-color", emphasisTextColor(colors));
     severity.textContent = severityLabel;
     severity.setAttribute("aria-label", "Severity: " + severityLabel);
     row.appendChild(identifier);
@@ -1153,6 +1192,9 @@
   }
 
   function applyFailureDetailFilters(list, cache, category) {
+    if (cache.visibleCategory === category) {
+      return;
+    }
     cache.entries.forEach(function (entry) {
       entry.row.hidden = true;
     });
@@ -1164,9 +1206,10 @@
     list.setAttribute("data-visible-category", category);
     list.setAttribute("data-visible-status", "all");
     list.setAttribute("aria-rowcount", String(visibleEntries.length + 1));
+    cache.visibleCategory = category;
   }
 
-  function renderFailureDetails(zone, colors) {
+  function renderFailureDetails(zone, colors, renderKey) {
     var payload = zone.__octaneTestManagementPayload || {};
     colors = colors || colorsFor(payload, zone);
     var category = selectedCategory(zone);
@@ -1177,9 +1220,9 @@
     var sortState = defectSortState(list);
     list.setAttribute("data-sort-column", sortState.column);
     list.setAttribute("data-sort-direction", sortState.direction);
-    var colorKey = colors.open + "|" + colors.closed + "|" + emphasisTextColor(zone);
+    renderKey = renderKey || failureRenderKey(payload, colors);
     var cache = list.__octaneFailureDetailCache;
-    if (!cache || cache.payload !== payload || cache.colorKey !== colorKey) {
+    if (!cache || cache.renderKey !== renderKey) {
       var entries = failureDetailEntries(payload);
       var empty = createElement("div", "octane-management-defect-empty");
       empty.setAttribute("role", "row");
@@ -1189,15 +1232,15 @@
       emptyCell.textContent = "No defects in this category.";
       empty.appendChild(emptyCell);
       cache = {
-        colorKey: colorKey,
         empty: empty,
         entries: entries.map(function (entry) {
-          entry.row = createFailureDetailRow(entry, zone, colors);
+          entry.row = createFailureDetailRow(entry, colors);
           return entry;
         }),
-        payload: payload,
+        renderKey: renderKey,
         sortColumn: "",
-        sortDirection: ""
+        sortDirection: "",
+        visibleCategory: ""
       };
       list.__octaneFailureDetailCache = cache;
     }

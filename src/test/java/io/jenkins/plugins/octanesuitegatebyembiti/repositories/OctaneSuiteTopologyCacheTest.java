@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneSuiteTopologyCache.Topology;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -182,6 +183,29 @@ public class OctaneSuiteTopologyCacheTest {
     assertEquals(List.of("run-a"), first.get("suite-1").runIds());
     assertEquals(List.of("run-b"), second.get("suite-1").runIds());
     assertEquals(2, loads.get());
+  }
+
+  @Test
+  public void evictsOnlyOverflowingEntriesWhenLargeLoadsExceedTheBound() throws Exception {
+    int requestedEntries = OctaneSuiteTopologyCache.MAXIMUM_ENTRIES + 65;
+    List<String> suiteIds =
+        java.util.stream.IntStream.range(0, requestedEntries)
+            .mapToObj(index -> "suite-" + index)
+            .toList();
+
+    OctaneSuiteTopologyCache.getAll(
+        "server/workspace",
+        suiteIds,
+        ids -> {
+          Map<String, Topology> loaded = new LinkedHashMap<>();
+          ids.forEach(id -> loaded.put(id, topology("run-" + id)));
+          return loaded;
+        },
+        1_000L);
+
+    assertEquals(
+        OctaneSuiteTopologyCache.MAXIMUM_ENTRIES, OctaneSuiteTopologyCache.metrics().size());
+    assertEquals(65L, OctaneSuiteTopologyCache.metrics().evictions());
   }
 
   private Map<String, Topology> loadAfterBarrier(

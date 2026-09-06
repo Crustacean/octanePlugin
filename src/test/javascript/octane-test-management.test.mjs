@@ -257,8 +257,8 @@ test("keeps focused defect groups on one line with conditional scroll controls",
   assert.match(source, /function updateCategoryScrollControls\(container\)/);
   assert.match(source, /navigation\.clientWidth - \(columnGap \* 2\)/);
   assert.match(source, /container\.scrollWidth > availableWithoutControls \+ 1/);
-  assert.match(source, /previous\.disabled = !hasOverflow \|\| container\.scrollLeft <= 1/);
-  assert.match(source, /next\.disabled = !hasOverflow \|\| container\.scrollLeft >= maximum - 1/);
+  assert.match(source, /previous\.disabled = !hasOverflow \|\| scrollLeft <= 1/);
+  assert.match(source, /next\.disabled = !hasOverflow \|\| scrollLeft >= maximum - 1/);
   assert.match(source, /new global\.ResizeObserver/);
   assert.match(source, /container\.scrollBy\(\{/);
   assert.match(source, /data-management-category-scroll/);
@@ -279,13 +279,23 @@ test("reuses cached defect rows when switching Failure Analysis tabs", () => {
       .split("function setSelectedCategory(zone, category) {")[1]
       .split("function failureDetailEntries(payload) {")[0];
   assert.match(source, /list\.__octaneFailureDetailCache/);
-  assert.match(source, /cache\.payload !== payload/);
+  assert.match(source, /cache\.renderKey !== renderKey/);
   assert.match(source, /entry\.row\.hidden = true/);
   assert.match(source, /function applyFailureDetailFilters\(list, cache, category\)/);
   assert.match(
       source,
       /if \(cache\.sortColumn !== sortState\.column[\s\S]*?renderFailureDetailStructure/);
   assert.doesNotMatch(categorySwitchSource, /clear\(/);
+});
+
+test("skips unchanged Failure Analysis DOM work and batches replacements", () => {
+  assert.match(source, /function failureRenderKey\(payload, colors\)/);
+  assert.match(source, /panel\.__octaneFailureRenderKey === renderKey/);
+  assert.match(source, /panel\.__octaneFailureRenderKey = renderKey/);
+  assert.match(source, /var chartFragment = document\.createDocumentFragment\(\)/);
+  assert.match(source, /chart\.appendChild\(chartFragment\)/);
+  assert.match(source, /var fragment = document\.createDocumentFragment\(\)/);
+  assert.match(source, /if \(cache\.visibleCategory === category\) \{\s*return;/);
 });
 
 test("filters the defect table to the category selected by a pill", () => {
@@ -329,7 +339,7 @@ test("binds pills and bar segments to the same category-only filter", () => {
       source,
       /setSelectedCategory\(zone, category\)[\s\S]*?selectFailureCategory\(zone, category\)/);
   assert.doesNotMatch(source, /function selectFailureSegment\(/);
-  assert.match(source, /buttons\[index\]\.scrollIntoView\(\{/);
+  assert.match(source, /selectedButton\.scrollIntoView\(\{/);
 });
 
 test("isolates the defect table to the selected category pill and resets on All", () => {
@@ -362,7 +372,7 @@ test("isolates the defect table to the selected category pill and resets on All"
       /function setFailureSelection\(zone, category\) \{[\s\S]*?zone\.__octaneSelectedFailureCategory = selectedCategory;[\s\S]*?switcher\.setAttribute\("data-selected-category", selectedCategory\);[\s\S]*?renderFailureDetails\(zone\);\n  \}/);
   assert.match(
       source,
-      /function renderFailureDetails\(zone, colors\) \{[\s\S]*?var category = selectedCategory\(zone\);[\s\S]*?applyFailureDetailFilters\(list, cache, category\);/);
+      /function renderFailureDetails\(zone, colors, renderKey\) \{[\s\S]*?var category = selectedCategory\(zone\);[\s\S]*?applyFailureDetailFilters\(list, cache, category\);/);
   // Pills must match by the category key, never by the rendered "Label N" text with its count.
   assert.match(
       source,
@@ -636,7 +646,11 @@ test("resolves semantic chart and metric colors from the active theme", () => {
   assert.match(source, /failed: "--octane-status-failed"/);
   assert.match(source, /open: "--octane-color-bad"/);
   assert.match(source, /passed: "--octane-status-passed"/);
-  assert.match(source, /global\.getComputedStyle\(zone\)\.getPropertyValue\(propertyName\)/);
+  const colorsSource = source
+      .split("function colorsFor(payload, zone) {")[1]
+      .split("function normalizedPoints(payload) {")[0];
+  assert.equal((colorsSource.match(/global\.getComputedStyle\(zone\)/g) || []).length, 1);
+  assert.match(source, /computedStyle\.getPropertyValue\(propertyName\)\.trim\(\)/);
   assert.match(source, /colorsFor\(payload, zone\)/);
   assert.match(source, /critical: "--octane-severity-critical"/);
   assert.match(source, /veryhigh: "--octane-severity-very-high"/);

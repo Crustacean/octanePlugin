@@ -87,6 +87,14 @@ test("cancels stale data requests and replays the latest resize demand", () => {
   assert.match(source, /requestGeneration\+\+/);
 });
 
+test("measures each bar card once until a resize invalidates its width", () => {
+  assert.match(source, /var measuredChartWidth = 0/);
+  assert.match(source, /function chartWidth\(\)/);
+  assert.equal((source.match(/parts\.card\.clientWidth/g) || []).length, 1);
+  assert.match(source, /renderBarChart\(parts\.card, section, page, renderWidth\)/);
+  assert.match(source, /measuredChartWidth = 0;[\s\S]*?load\(currentCursor\)/);
+});
+
 test("preserves SVG text proportions across responsive layouts", () => {
   assert.match(source, /preserveAspectRatio", "xMidYMid meet"/);
   assert.doesNotMatch(source, /preserveAspectRatio", "none"/);

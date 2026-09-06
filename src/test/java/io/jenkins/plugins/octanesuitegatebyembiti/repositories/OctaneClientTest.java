@@ -1504,6 +1504,99 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void reusesCompatibleDefectFieldProfileForLaterRequests() throws Exception {
+    AtomicInteger extendedFieldRequests = new AtomicInteger();
+    AtomicInteger compatibleFieldRequests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/defects",
+        exchange -> {
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (query.contains("detected_in_run{id,name}")) {
+            extendedFieldRequests.incrementAndGet();
+            json(exchange, 400, "{\"error\":\"platform.unknown_field\"}");
+            return;
+          }
+          compatibleFieldRequests.incrementAndGet();
+          String id = query.contains("id EQ 902") ? "902" : "901";
+          json(
+              exchange,
+              200,
+              "{\"data\":[{\"id\":\"" + id + "\",\"phase\":{\"logical_name\":\"opened\"}}]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      assertEquals(1, client.fetchDefectsByIds("1001", "2002", List.of("901"), 10).size());
+      assertEquals(1, client.fetchDefectsByIds("1001", "2002", List.of("902"), 10).size());
+
+      assertEquals(1, extendedFieldRequests.get());
+      assertEquals(2, compatibleFieldRequests.get());
+    }
+  }
+
+  @Test
+  public void reusesCompatibleSuiteFieldProfileAcrossTopologyBatches() throws Exception {
+    AtomicInteger incompatibleFieldRequests = new AtomicInteger();
+    AtomicInteger compatibleFieldRequests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          List<String> ids = idsFromQuery(exchange);
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (ids.stream().allMatch(id -> id.startsWith("suite-"))) {
+            if (query.contains("default_run_by")) {
+              incompatibleFieldRequests.incrementAndGet();
+              json(exchange, 400, "{\"error\":\"platform.unknown_field\"}");
+              return;
+            }
+            if (query.contains("assigned_to")) {
+              compatibleFieldRequests.incrementAndGet();
+            }
+            String suiteId = ids.get(0);
+            String suffix = suiteId.substring("suite-".length());
+            json(
+                exchange,
+                200,
+                "{\"data\":[{\"id\":\""
+                    + suiteId
+                    + "\",\"assigned_to\":{\"name\":\"Ada Owner\"},"
+                    + "\"runs_in_suite\":[{\"id\":\"run-"
+                    + suffix
+                    + "\"}]}]}");
+            return;
+          }
+          String runId = ids.get(0);
+          json(
+              exchange,
+              200,
+              "{\"data\":[{\"id\":\""
+                  + runId
+                  + "\",\"native_status\":{\"logical_name\":\"passed\"}}]}");
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      Map<String, List<RunRecord>> first =
+          client.fetchSuiteChildRuns("1001", "2002", List.of("suite-1"));
+      Map<String, List<RunRecord>> second =
+          client.fetchSuiteChildRuns("1001", "2002", List.of("suite-2"));
+
+      assertEquals("Ada Owner", first.get("suite-1").get(0).getSuiteOwnerName());
+      assertEquals("Ada Owner", second.get("suite-2").get(0).getSuiteOwnerName());
+      assertEquals(1, incompatibleFieldRequests.get());
+      assertEquals(2, compatibleFieldRequests.get());
+    }
+  }
+
+  @Test
   public void ignoresOnlyUnsupportedDefectRelationsAndKeepsSupportedResults() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(
@@ -1617,6 +1710,63 @@ public class OctaneClientTest {
       assertEquals(26, childRequests.get());
       assertTrue(topologyRequests.get() + childRequests.get() <= 39);
       assertTrue(OctaneSuiteTopologyCache.metrics().hits() >= 500L);
+    }
+  }
+
+  @Test
+  public void negotiatesChildRunFieldProfileOnceAcrossParallelChunks() throws Exception {
+    AtomicInteger richChildRequests = new AtomicInteger();
+    AtomicInteger safeChildRequests = new AtomicInteger();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/runs",
+        exchange -> {
+          List<String> ids = idsFromQuery(exchange);
+          String query =
+              URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8);
+          if (ids.equals(List.of("suite-1"))) {
+            StringBuilder body =
+                new StringBuilder(
+                    "{\"data\":[{\"id\":\"suite-1\","
+                        + "\"default_run_by\":{\"name\":\"Ada Owner\"},"
+                        + "\"runs_in_suite\":[");
+            for (int index = 0; index < 81; index++) {
+              if (index > 0) {
+                body.append(',');
+              }
+              body.append("{\"id\":\"run-").append(index).append("\"}");
+            }
+            json(exchange, 200, body.append("]}]} ").toString());
+            return;
+          }
+          if (query.contains("native_tester")) {
+            richChildRequests.incrementAndGet();
+            json(exchange, 400, "{\"error\":\"platform.unknown_field\"}");
+            return;
+          }
+          safeChildRequests.incrementAndGet();
+          StringBuilder body = new StringBuilder("{\"data\":[");
+          for (int index = 0; index < ids.size(); index++) {
+            if (index > 0) {
+              body.append(',');
+            }
+            body.append("{\"id\":\"")
+                .append(ids.get(index))
+                .append("\",\"native_status\":{\"logical_name\":\"passed\"}}");
+          }
+          json(exchange, 200, body.append("]}").toString());
+        });
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      client.authenticate();
+
+      Map<String, List<RunRecord>> records =
+          client.fetchSuiteChildRuns("1001", "2002", List.of("suite-1"));
+
+      assertEquals(81, records.get("suite-1").size());
+      assertEquals(1, richChildRequests.get());
+      assertEquals(3, safeChildRequests.get());
     }
   }
 
