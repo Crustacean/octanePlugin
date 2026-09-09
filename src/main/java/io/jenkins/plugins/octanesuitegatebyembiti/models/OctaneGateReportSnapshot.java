@@ -303,7 +303,8 @@ public class OctaneGateReportSnapshot implements Serializable {
             .getDefectTrend()
             .append(
                 result.getPolledAt().toString(),
-                result.getDefects(),
+                snapshot.getTestManagement().getTotalDefects(),
+                snapshot.getTestManagement().getClosedDefects(),
                 snapshot.getExecutedTestCount());
     return snapshot.withDefectTrend(trend).withCalculatedTestMetrics(null);
   }

@@ -91,6 +91,10 @@ public final class OctaneDefectTrend implements Serializable {
     return latestPoint().getOpened();
   }
 
+  public int getOpenTotal() {
+    return latestPoint().getOpen();
+  }
+
   public int getRaisedTotal() {
     return latestPoint().getOpened();
   }
@@ -210,6 +214,10 @@ public final class OctaneDefectTrend implements Serializable {
 
     public int getClosed() {
       return closed;
+    }
+
+    public int getOpen() {
+      return Math.max(0, opened - closed);
     }
 
     public int getExecuted() {

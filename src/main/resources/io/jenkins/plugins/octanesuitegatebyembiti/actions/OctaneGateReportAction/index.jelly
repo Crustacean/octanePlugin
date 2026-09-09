@@ -4088,7 +4088,7 @@
                 <div class="octane-flip-face octane-flip-face-metrics" data-card-view="metrics">
                   <div class="octane-flip-face-header">
                     <div>
-                      <h2 class="octane-card-title">Test Metrics</h2>
+                      <h2 class="octane-card-title">Test Insights</h2>
                       <div class="octane-muted">Current Job Analytics</div>
                     </div>
                   </div>
@@ -4789,10 +4789,10 @@
                                 <div class="octane-defect-trend-totals">
                                   <div class="octane-defect-trend-total octane-defect-trend-total-opened">
                                     <div class="octane-defect-trend-value"
-                                        data-defect-trend-opened-total="true">
-                                      ${snapshot.defectTrend.openedTotal}
+                                        data-defect-trend-open-total="true">
+                                      ${snapshot.defectTrend.openTotal}
                                     </div>
-                                    <div class="octane-defect-trend-total-label">Opened Defects</div>
+                                    <div class="octane-defect-trend-total-label">Open Defects</div>
                                   </div>
                                   <div class="octane-defect-trend-total octane-defect-trend-total-closed"
                                       data-defect-trend-closed="true"
@@ -6584,6 +6584,11 @@
             return defectTrendState.points[defectTrendState.points.length - 1];
           }
           /* OCTANE_DEFECT_VOLUME_MATH_START */
+          function activeOpenDefectCount(raised, closed) {
+            return Math.max(
+                0,
+                safeTrendNumber(raised, 0) - safeTrendNumber(closed, 0));
+          }
           function niceDefectTrendScale(maximumCount) {
             var safeMaximum = Number(maximumCount);
             if (!isFinite(safeMaximum) || safeMaximum < 0) {
@@ -7064,11 +7069,11 @@
               renderedDensityWidth: -1
             };
             var latest = latestDefectTrendPoint();
-            var openedTotal = panel.querySelector("[data-defect-trend-opened-total]");
+            var openTotal = panel.querySelector("[data-defect-trend-open-total]");
             var closedTotal = panel.querySelector("[data-defect-trend-closed-total]");
             var closedContainer = panel.querySelector("[data-defect-trend-closed]");
-            if (openedTotal) {
-              openedTotal.textContent = String(latest.opened);
+            if (openTotal) {
+              openTotal.textContent = String(activeOpenDefectCount(latest.opened, latest.closed));
             }
             if (closedTotal) {
               closedTotal.textContent = String(latest.closed);

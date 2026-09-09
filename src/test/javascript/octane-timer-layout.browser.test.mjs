@@ -131,7 +131,7 @@ function timerCard(index, title) {
       ? `<div class="octane-flip-face octane-flip-face-metrics" data-card-view="metrics">
           <div class="octane-flip-face-header">
             <div>
-              <h2 class="octane-card-title">Test Metrics</h2>
+              <h2 class="octane-card-title">Test Insights</h2>
               <div class="octane-muted">Current Job Analytics</div>
             </div>
           </div>
@@ -1719,7 +1719,7 @@ test(
           assert.equal(
               testMetrics.allContentContained,
               true,
-              `${viewport.name}: Test Metrics content escaped its card: `
+              `${viewport.name}: Test Insights content escaped its card: `
                   + JSON.stringify(testMetrics));
           assert.ok(
               Math.abs(testMetrics.automationRatio - 34) <= 1,
@@ -1938,7 +1938,7 @@ test(
         assert.ok(
             testMetricSizes.wide.title > testMetricSizes.compact.title
                 && testMetricSizes.wide.subtitle > testMetricSizes.compact.subtitle,
-            `Test Metrics header typography did not scale: ${JSON.stringify(testMetricSizes)}`);
+            `Test Insights header typography did not scale: ${JSON.stringify(testMetricSizes)}`);
         assert.ok(
             testMetricSizes.compact.defectLabels.some(label => /^[A-Z] \(\d+\)$/.test(label)),
             `Compact defect labels were not abbreviated: ${JSON.stringify(testMetricSizes)}`);

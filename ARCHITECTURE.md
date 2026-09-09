@@ -436,7 +436,7 @@ is available.
 
 | Primary face | Secondary face |
 | --- | --- |
-| Testing Time | Test Metrics |
+| Testing Time | Test Insights |
 | Status Check | Risk Heat Map |
 | Execution Progress | All Testcase Status breakdown |
 | Execution Pass Rate | Defect analytics |

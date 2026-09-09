@@ -18,12 +18,17 @@ const context = {
   clamp: (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value)),
   defectTrendState: {durationMillis: 60000, startedAt: Date.parse("2026-07-17T08:00:00Z")},
   isFinite,
+  safeTrendNumber: (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  },
   trimNumber: value => value.toFixed(3).replace(/\.?0+$/, "")
 };
 vm.runInNewContext(
     `${densityMathSource}
 ${volumeMathSource}
 this.niceDefectDensityScale = niceDefectDensityScale;
+this.activeOpenDefectCount = activeOpenDefectCount;
 this.niceDefectTrendScale = niceDefectTrendScale;
 this.defectTrendYAxisValues = defectTrendYAxisValues;
 this.defectDensityYAxisValues = defectDensityYAxisValues;
@@ -36,6 +41,15 @@ this.densityYFor = densityYFor;
 this.defectDensityLinePath = defectDensityLinePath;
 this.defectDensityAreaPath = defectDensityAreaPath;`,
     context);
+
+test("derives header open defects without changing cumulative graph totals", () => {
+  assert.equal(context.activeOpenDefectCount(64, 4), 60);
+  assert.equal(context.activeOpenDefectCount(3, 1), 2);
+  assert.equal(context.activeOpenDefectCount(1, 3), 0);
+  assert.match(jelly, /defectTrendPath\(points, "opened", scale\)/);
+  assert.match(jelly, /defectTrendPath\(points, "closed", scale\)/);
+  assert.match(jelly, /total\.textContent = String\(latest\.opened\)/);
+});
 
 test("scales defect volume exactly one whole unit above its live maximum", () => {
   assert.deepEqual(

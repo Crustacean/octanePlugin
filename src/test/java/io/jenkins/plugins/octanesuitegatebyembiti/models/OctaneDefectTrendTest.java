@@ -22,7 +22,9 @@ public class OctaneDefectTrendTest {
     assertEquals(2, trend.getPoints().size());
     assertEquals(30_000L, trend.getPoints().get(1).getElapsedMillis());
     assertEquals(3, trend.getOpenedTotal());
+    assertEquals(2, trend.getOpenTotal());
     assertEquals(1, trend.getClosedTotal());
+    assertEquals(2, trend.getPoints().get(1).getOpen());
   }
 
   @Test
@@ -131,7 +133,21 @@ public class OctaneDefectTrendTest {
     assertEquals(50, buckets.get(1).getExecutedTests());
     assertEquals(0.8, buckets.get(1).getDensity(), 0.001);
     assertEquals(120, trend.getRaisedTotal());
+    assertEquals(60, trend.getOpenTotal());
     assertEquals(60, trend.getClosedTotal());
+  }
+
+  @Test
+  public void keepsCumulativeRaisedAndClosedLinesSeparateFromNetOpenHeader() {
+    OctaneDefectTrend trend =
+        OctaneDefectTrend.start(STARTED_AT, 60_000L).append(15_000L, 64, 4, 20);
+
+    OctaneDefectTrend.Point latest = trend.getPoints().get(1);
+    assertEquals(60, trend.getOpenTotal());
+    assertEquals(4, trend.getClosedTotal());
+    assertEquals(64, trend.getRaisedTotal());
+    assertEquals(64, latest.getOpened());
+    assertEquals(4, latest.getClosed());
   }
 
   @Test

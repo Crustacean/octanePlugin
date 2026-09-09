@@ -270,7 +270,7 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Testing progress per Tester Suite Runs_REGRESSIONS"));
     assertTrue(text.contains("Testing Session Monitor"));
     assertFalse(text.contains("Testing Time Remaining"));
-    assertTrue(text.contains("Test Metrics"));
+    assertTrue(text.contains("Test Insights"));
     assertTrue(text.contains("Current Job Analytics"));
     assertTrue(text.contains("Automation Usage"));
     assertTrue(text.contains("Success Rate"));
@@ -329,7 +329,8 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Defects"));
     assertTrue(xml.contains("octane-defect-density-axis-title"));
     assertTrue(xml.contains(">Defects / Test</div>"));
-    assertTrue(text.contains("Opened Defects"));
+    assertTrue(text.contains("Open Defects"));
+    assertTrue(xml.contains("data-defect-trend-open-total=\"true\""));
     assertTrue(text.contains("All Testcase Pass Rate (1 / 2)"));
     assertTrue(text.contains("Total test cases"));
     assertTrue(text.contains("Total Suiteruns: 1"));
