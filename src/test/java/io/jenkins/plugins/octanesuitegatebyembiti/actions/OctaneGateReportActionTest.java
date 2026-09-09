@@ -243,6 +243,8 @@ public class OctaneGateReportActionTest {
     request.setTimeoutMinutes(45);
     request.setBasePassrateFigure(70);
     request.setBaseExecutionFigure(90);
+    request.setDefinedScope(
+        "regressions: \"SMTSL, MMI\" - james, secure checkout - tom, mini apps");
 
     OctaneGateReportAction action = OctaneGateReportAction.attachTo(build, request);
     action.onFinal(
@@ -343,7 +345,12 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Suiterun Execution"));
     assertTrue(text.contains("Everything Good!"));
     assertTrue(text.contains("Defined Scope"));
-    assertTrue(text.contains("No defined scope!"));
+    assertFalse(text.contains("No defined scope!"));
+    assertTrue(text.contains("regressions: \"SMTSL, MMI\""));
+    assertTrue(text.contains("james"));
+    assertTrue(text.contains("secure checkout"));
+    assertTrue(text.contains("tom"));
+    assertTrue(text.contains("mini apps"));
     assertTrue(xml.contains("data-defined-scope-rows=\"true\""));
     assertTrue(xml.contains("grid-template-columns: repeat(3, minmax(0, 1fr))"));
     assertTrue(xml.contains("function replaceDefinedScopeRows(scopes)"));

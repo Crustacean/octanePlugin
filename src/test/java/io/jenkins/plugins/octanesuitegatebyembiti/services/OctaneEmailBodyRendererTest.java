@@ -486,7 +486,10 @@ public class OctaneEmailBodyRendererTest {
   public void rendersDefinedScopeImmediatelyAboveExecutionGraphAndOmitsEmptyScope() {
     OctaneGateReportSnapshot populated =
         snapshot(OctaneGateReportState.PASSED, "Gate passed.")
-            .withDefinedScope(OctaneDefinedScope.parse("ESA - imelda sanya, Digisoc"));
+            .withDefinedScope(
+                OctaneDefinedScope.parse(
+                    "regressions: \"SMTSL, MMI\" - james, security tests - "
+                        + "\"Mary, tom, bob\", mini apps"));
 
     String html =
         renderer.render(
@@ -502,10 +505,11 @@ public class OctaneEmailBodyRendererTest {
             "LIGHT");
 
     assertTrue(html.contains("data-octane-email-section=\"defined-scope\""));
-    assertTrue(html.contains(">ESA</td>"));
-    assertTrue(html.contains(">Imelda Sanya</td>"));
-    assertTrue(html.contains(">Digisoc</td>"));
-    assertTrue(html.contains(">-</td>"));
+    assertTrue(html.contains(">regressions: &quot;SMTSL, MMI&quot;</td>"));
+    assertTrue(html.contains(">james</td>"));
+    assertTrue(html.contains(">security tests</td>"));
+    assertTrue(html.contains(">&quot;Mary, tom, bob&quot;</td>"));
+    assertTrue(html.contains(">mini apps</td>"));
     int scopeTableStart = html.indexOf("data-octane-email-table=\"defined-scope\"");
     int scopeTableEnd = html.indexOf("</table>", scopeTableStart);
     String scopeTable = html.substring(scopeTableStart, scopeTableEnd);

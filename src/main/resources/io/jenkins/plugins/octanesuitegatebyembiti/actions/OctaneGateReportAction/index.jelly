@@ -5999,7 +5999,7 @@
               project.textContent = scope.project || "";
               var owner = document.createElement("td");
               owner.className = "octane-scope-owner";
-              owner.textContent = scope.owner || "-";
+              owner.textContent = scope.owner || "";
               row.appendChild(project);
               row.appendChild(owner);
               tableRows.appendChild(row);
