@@ -34,7 +34,7 @@
 
   <properties>
     <java.level>25</java.level>
-    <jenkins.version>2.568.1</jenkins.version>
+    <jenkins.version>2.568.3</jenkins.version>
     <jenkins-test-harness.version>2576.v081e5ee32e1d</jenkins-test-harness.version>
     <spotless.check.skip>false</spotless.check.skip>
   </properties>
@@ -44,7 +44,7 @@
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-2.568.x</artifactId>
-        <version>6783.v88c6c30f4b_db_</version>
+        <version>7002.v028a_3607ddc8</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -81,7 +81,7 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>script-security</artifactId>
-        <version>1402.v94c9ce464861</version>
+        <version>1415.v9a_f9b_3a_c253d</version>
       </dependency>
       <dependency>
         <groupId>org.mozilla</groupId>

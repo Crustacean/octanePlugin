@@ -46,19 +46,23 @@ Trust boundaries:
 ## Automated Security Evidence
 
 - SpotBugs 4.9.8.2: zero bug instances and zero analysis errors.
-- PMD 7.17 complexity gate: zero production methods above complexity 10 after remediation.
+- PMD 7.17: eight production complexity warnings remain documented for follow-up; the current Maven
+  configuration reports but does not fail the build on these warnings.
 - `SourceSecurityAuditTest`, URL validation, input bounds, XSS, authorization, response-size, and
-  deserialization tests: passed in the 287-test Java suite.
-- Official OSV Scanner 2.3.8: no unresolved findings after applying three documented exceptions in
-  `osv-scanner.toml`.
+  deserialization tests: passed in the 474-test Java suite with two intentional skips.
+- Official OSV Scanner 2.3.8: no unresolved findings after applying the documented provided-core
+  exception in `osv-scanner.toml`.
+- NVD-backed OWASP Dependency-Check scans HPI-owned compile/runtime dependencies, excludes Jenkins
+  core supplied by the controller and test-only dependencies, and fails on any reported CVSS score.
 - `.github/workflows/jenkins-security-scan.yml` and `dependency-security.yml` remain mandatory CI
   release gates, including OSV SARIF and NVD-backed OWASP Dependency-Check.
 
 ## Dependency Exceptions
 
 All exceptions are explicit and reviewable. `commons-lang:2.6` is provided by Jenkins core and is not
-packaged in this plugin HPI. The plugin baseline is Jenkins 2.568.1, which provides Spring Framework
-7.0.8 and Spring Security 7.1.0; the former Spring Framework exception is therefore no longer needed.
+packaged in this plugin HPI. The plugin baseline is Jenkins 2.568.3. Controller-provided libraries,
+including Spring Framework and Spring Security, are not overridden or packaged by this plugin;
+their security updates must be delivered by upgrading the Jenkins controller.
 
 ## Residual Risk
 
