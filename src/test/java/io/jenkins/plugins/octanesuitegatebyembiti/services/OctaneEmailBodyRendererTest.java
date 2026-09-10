@@ -505,11 +505,14 @@ public class OctaneEmailBodyRendererTest {
             "LIGHT");
 
     assertTrue(html.contains("data-octane-email-section=\"defined-scope\""));
-    assertTrue(html.contains(">regressions: &quot;SMTSL, MMI&quot;</td>"));
+    assertTrue(html.contains(">regressions: SMTSL, MMI</td>"));
     assertTrue(html.contains(">james</td>"));
     assertTrue(html.contains(">security tests</td>"));
-    assertTrue(html.contains(">&quot;Mary, tom, bob&quot;</td>"));
+    assertTrue(html.contains(">Mary, tom, bob</td>"));
+    assertFalse(html.contains("&quot;SMTSL, MMI&quot;"));
+    assertFalse(html.contains("&quot;Mary, tom, bob&quot;"));
     assertTrue(html.contains(">mini apps</td>"));
+    assertTrue(html.substring(html.indexOf(">mini apps</td>")).contains(">-</td>"));
     int scopeTableStart = html.indexOf("data-octane-email-table=\"defined-scope\"");
     int scopeTableEnd = html.indexOf("</table>", scopeTableStart);
     String scopeTable = html.substring(scopeTableStart, scopeTableEnd);

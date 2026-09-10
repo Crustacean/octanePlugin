@@ -14,8 +14,9 @@ public final class OctaneDefinedScope implements Serializable {
   private final String owner;
 
   public OctaneDefinedScope(String project, String owner) {
-    this.project = Util.trimToEmpty(project);
-    this.owner = Util.trimToEmpty(owner);
+    this.project = stripQuoteBlockDelimiters(project);
+    String normalizedOwner = stripQuoteBlockDelimiters(owner);
+    this.owner = normalizedOwner.isEmpty() ? null : normalizedOwner;
   }
 
   public static List<OctaneDefinedScope> parse(String configuredScope) {
@@ -48,10 +49,14 @@ public final class OctaneDefinedScope implements Serializable {
     return owner;
   }
 
+  public String getDisplayOwner() {
+    return owner == null ? "-" : owner;
+  }
+
   public Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("project", project);
-    values.put("owner", owner);
+    values.put("owner", getDisplayOwner());
     return values;
   }
 
@@ -62,12 +67,14 @@ public final class OctaneDefinedScope implements Serializable {
     for (int index = 0; index < value.length(); index++) {
       char character = value.charAt(index);
       if (activeQuote != 0) {
-        if (character == activeQuote && !isEscaped(value, index)) {
+        if (closesQuoteBlock(value, index, activeQuote)) {
           activeQuote = 0;
         }
         continue;
       }
-      if (isQuote(character) && isQuoteBlockStart(value, index, character)) {
+      if (isQuote(character)
+          && !isEscaped(value, index)
+          && isQuoteBlockStart(value, index, character)) {
         activeQuote = character;
       } else if (character == separator) {
         values.add(value.substring(start, index));
@@ -84,12 +91,14 @@ public final class OctaneDefinedScope implements Serializable {
     for (int index = 0; index < value.length(); index++) {
       char character = value.charAt(index);
       if (activeQuote != 0) {
-        if (character == activeQuote && !isEscaped(value, index)) {
+        if (closesQuoteBlock(value, index, activeQuote)) {
           activeQuote = 0;
         }
         continue;
       }
-      if (isQuote(character) && isQuoteBlockStart(value, index, character)) {
+      if (isQuote(character)
+          && !isEscaped(value, index)
+          && isQuoteBlockStart(value, index, character)) {
         activeQuote = character;
       } else if (character == separator) {
         lastSeparator = index;
@@ -103,7 +112,9 @@ public final class OctaneDefinedScope implements Serializable {
       return false;
     }
     for (int candidate = index + 1; candidate < value.length(); candidate++) {
-      if (value.charAt(candidate) == quote && !isEscaped(value, candidate)) {
+      if (value.charAt(candidate) == quote
+          && !isEscaped(value, candidate)
+          && !isEmbeddedApostrophe(value, candidate, quote)) {
         return true;
       }
     }
@@ -111,7 +122,44 @@ public final class OctaneDefinedScope implements Serializable {
   }
 
   private static boolean isQuote(char character) {
-    return character == '"' || character == '\'' || character == '`';
+    return character == '"' || character == '\'';
+  }
+
+  private static String stripQuoteBlockDelimiters(String value) {
+    String trimmed = Util.trimToEmpty(value);
+    StringBuilder normalized = new StringBuilder(trimmed.length());
+    char activeQuote = 0;
+    for (int index = 0; index < trimmed.length(); index++) {
+      char character = trimmed.charAt(index);
+      if (activeQuote != 0) {
+        if (closesQuoteBlock(trimmed, index, activeQuote)) {
+          activeQuote = 0;
+        } else {
+          normalized.append(character);
+        }
+      } else if (isQuote(character)
+          && !isEscaped(trimmed, index)
+          && isQuoteBlockStart(trimmed, index, character)) {
+        activeQuote = character;
+      } else {
+        normalized.append(character);
+      }
+    }
+    return normalized.toString().trim();
+  }
+
+  private static boolean closesQuoteBlock(String value, int index, char activeQuote) {
+    return value.charAt(index) == activeQuote
+        && !isEscaped(value, index)
+        && !isEmbeddedApostrophe(value, index, activeQuote);
+  }
+
+  private static boolean isEmbeddedApostrophe(String value, int index, char quote) {
+    return quote == '\''
+        && index > 0
+        && index + 1 < value.length()
+        && Character.isLetterOrDigit(value.charAt(index - 1))
+        && Character.isLetterOrDigit(value.charAt(index + 1));
   }
 
   private static boolean isEscaped(String value, int index) {

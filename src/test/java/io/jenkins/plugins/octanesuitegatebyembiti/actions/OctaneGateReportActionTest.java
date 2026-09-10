@@ -346,14 +346,19 @@ public class OctaneGateReportActionTest {
     assertTrue(text.contains("Everything Good!"));
     assertTrue(text.contains("Defined Scope"));
     assertFalse(text.contains("No defined scope!"));
-    assertTrue(text.contains("regressions: \"SMTSL, MMI\""));
+    assertTrue(text.contains("regressions: SMTSL, MMI"));
+    assertFalse(text.contains("regressions: \"SMTSL, MMI\""));
     assertTrue(text.contains("james"));
     assertTrue(text.contains("secure checkout"));
     assertTrue(text.contains("tom"));
     assertTrue(text.contains("mini apps"));
+    assertTrue(xml.contains("<td class=\"octane-scope-owner\">-</td>"));
     assertTrue(xml.contains("data-defined-scope-rows=\"true\""));
     assertTrue(xml.contains("grid-template-columns: repeat(3, minmax(0, 1fr))"));
     assertTrue(xml.contains("function replaceDefinedScopeRows(scopes)"));
+    assertTrue(
+        xml.contains("owner.textContent = scope.owner || &quot;-&quot;")
+            || xml.contains("owner.textContent = scope.owner || \"-\""));
     assertTrue(
         xml.indexOf("id=\"octane-execution-tracker-title\"")
             < xml.indexOf("id=\"octane-pass-rate-tracker-title\""));

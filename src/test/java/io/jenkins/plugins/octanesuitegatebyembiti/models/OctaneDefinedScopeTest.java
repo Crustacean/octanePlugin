@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.models;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -18,7 +19,9 @@ public class OctaneDefinedScopeTest {
     assertEquals("Bulk-data", scopes.get(1).getProject());
     assertEquals("Tony", scopes.get(1).getOwner());
     assertEquals("Digisoc", scopes.get(2).getProject());
-    assertEquals("", scopes.get(2).getOwner());
+    assertNull(scopes.get(2).getOwner());
+    assertEquals("-", scopes.get(2).getDisplayOwner());
+    assertEquals("-", scopes.get(2).toMap().get("owner"));
   }
 
   @Test
@@ -26,8 +29,8 @@ public class OctaneDefinedScopeTest {
     OctaneDefinedScope scope =
         OctaneDefinedScope.parse("regressions: \"SMTSL, MMI, LNM, Pochi\"").get(0);
 
-    assertEquals("regressions: \"SMTSL, MMI, LNM, Pochi\"", scope.getProject());
-    assertEquals("", scope.getOwner());
+    assertEquals("regressions: SMTSL, MMI, LNM, Pochi", scope.getProject());
+    assertNull(scope.getOwner());
   }
 
   @Test
@@ -35,7 +38,7 @@ public class OctaneDefinedScopeTest {
     OctaneDefinedScope scope =
         OctaneDefinedScope.parse("regressions: \"SMTSL, MMI, LNM, Pochi\" - james").get(0);
 
-    assertEquals("regressions: \"SMTSL, MMI, LNM, Pochi\"", scope.getProject());
+    assertEquals("regressions: SMTSL, MMI, LNM, Pochi", scope.getProject());
     assertEquals("james", scope.getOwner());
   }
 
@@ -45,31 +48,44 @@ public class OctaneDefinedScopeTest {
         OctaneDefinedScope.parse("security tests - \"Mary, tom, bob\"").get(0);
 
     assertEquals("security tests", scope.getProject());
-    assertEquals("\"Mary, tom, bob\"", scope.getOwner());
+    assertEquals("Mary, tom, bob", scope.getOwner());
   }
 
   @Test
   public void parsesMixedQuotedAndUnquotedScopeStream() {
     List<OctaneDefinedScope> scopes =
         OctaneDefinedScope.parse(
-            "regressions: \"SMTSL, MMI\" - james, secure checkout - tom, "
+            "regressions: 'SMTSL, MMI' - james, secure checkout - tom, "
                 + "security-alice, mini apps");
 
     assertEquals(4, scopes.size());
-    assertScope(scopes.get(0), "regressions: \"SMTSL, MMI\"", "james");
+    assertScope(scopes.get(0), "regressions: SMTSL, MMI", "james");
     assertScope(scopes.get(1), "secure checkout", "tom");
     assertScope(scopes.get(2), "security", "alice");
-    assertScope(scopes.get(3), "mini apps", "");
+    assertScope(scopes.get(3), "mini apps", null);
   }
 
   @Test
-  public void supportsSingleAndBacktickQuotedBlocksAndIgnoresTheirHyphens() {
-    List<OctaneDefinedScope> scopes =
-        OctaneDefinedScope.parse("'Core, API - v2' - jane, `Mobile, App - beta` - sam");
+  public void supportsSingleQuotedBlocksAndStripsTheirDelimiters() {
+    List<OctaneDefinedScope> scopes = OctaneDefinedScope.parse("'Core, API - v2' - jane");
 
-    assertEquals(2, scopes.size());
-    assertScope(scopes.get(0), "'Core, API - v2'", "jane");
-    assertScope(scopes.get(1), "`Mobile, App - beta`", "sam");
+    assertEquals(1, scopes.size());
+    assertScope(scopes.get(0), "Core, API - v2", "jane");
+  }
+
+  @Test
+  public void preservesApostrophesWhileStrippingSingleQuoteDelimiters() {
+    OctaneDefinedScope scope =
+        OctaneDefinedScope.parse("security tests - 'Mary O'Brien, Tom'").get(0);
+
+    assertScope(scope, "security tests", "Mary O'Brien, Tom");
+  }
+
+  @Test
+  public void preservesUnmatchedQuoteCharacters() {
+    OctaneDefinedScope scope = OctaneDefinedScope.parse("security tests - 'Mary O'Brien").get(0);
+
+    assertScope(scope, "security tests", "'Mary O'Brien");
   }
 
   @Test

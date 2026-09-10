@@ -777,7 +777,7 @@ public class OctaneEmailBodyRenderer {
           .append(TABLE_CELL_PADDING)
           .append("overflow-wrap:anywhere;text-align:left;vertical-align:middle;")
           .append("white-space:normal;word-break:break-word;\">")
-          .append(escape(scope.getOwner()))
+          .append(escape(scope.getDisplayOwner()))
           .append("</td></tr>");
     }
     html.append("</tbody></table>");

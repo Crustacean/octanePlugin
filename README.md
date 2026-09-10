@@ -310,6 +310,31 @@ while the absolute source path keeps `examples/octane_spaces_mapping.json` avail
 defaults live outside the Declarative `environment` directive so its inner `withEnv` scope cannot
 mask values selected from YAML.
 
+#### Defined scope YAML syntax
+
+`OCTANE_DEFINED_SCOPE` separates scope rows with commas and separates each project from its optional
+owner at the last unquoted hyphen. Put any project or owner containing commas or hyphens inside a
+single- or double-quoted block. The grouping quotes are removed before the scope appears in the live
+dashboard or email report. A scope without an owner displays a left-aligned `-` in the Owner cell.
+
+Use single quotes inside a double-quoted YAML scalar when an owner contains a comma:
+
+```yaml
+OCTANE_DEFINED_SCOPE: "Project A - 'user1, user2'"
+```
+
+For longer or quote-heavy definitions, use a YAML literal block. Keep the comma between scope rows:
+
+```yaml
+OCTANE_DEFINED_SCOPE: |
+  regressions: "SMTSL, MMI, LNM, Pochi" - james,
+  security tests - "Mary, tom, bob"
+```
+
+YAML supports single-quoted and double-quoted scalars; backticks are not YAML quote delimiters and
+are not supported for defined-scope grouping. Replace any backtick-delimited scope values with one
+of the forms above.
+
 The YAML identifies the target space with `OCTANE_SHARED_SPACE_NAME` and `OCTANE_WORKSPACE_NAME`.
 Each selector accepts either its numeric ID or a human-readable name; name matching ignores
 surrounding whitespace and letter case.
