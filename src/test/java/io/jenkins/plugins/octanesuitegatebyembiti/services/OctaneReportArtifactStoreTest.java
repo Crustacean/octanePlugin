@@ -122,7 +122,7 @@ public class OctaneReportArtifactStoreTest {
       assertFalse(body.contains("<"));
       assertFalse(body.contains(">"));
       assertFalse(body.contains("&"));
-      assertEquals(text, new ObjectMapper().readTree(body).path("name").asText());
+      assertEquals(text, new ObjectMapper().readTree(body).path("name").asString());
     }
     for (String invalid : List.of("<script>alert(1)</script>", "{} {}", "[]", "null")) {
       Files.writeString(directory.resolve(OctaneReportArtifactStore.INDEX_FILE), invalid);
