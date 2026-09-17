@@ -2,6 +2,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -14,10 +15,10 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.GateResult;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportState;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
+import io.jenkins.plugins.octanesuitegatebyembiti.security.OctaneTestHttpsServer;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -45,11 +46,11 @@ public class OctaneClientTest {
   private ExecutorService serverExecutor;
 
   @Before
-  public void startServer() throws IOException {
-    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+  public void startServer() throws Exception {
+    server = OctaneTestHttpsServer.create();
     serverExecutor = Executors.newCachedThreadPool();
     server.setExecutor(serverExecutor);
-    baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+    baseUrl = "https://127.0.0.1:" + server.getAddress().getPort();
     OctaneRequestCoordinator.resetForTests();
     OctaneSuiteTopologyCache.resetForTests();
     server.start();
@@ -62,6 +63,47 @@ public class OctaneClientTest {
     }
     if (serverExecutor != null) {
       serverExecutor.shutdownNow();
+    }
+  }
+
+  @Test
+  public void refusesPlaintextAndRedirectsWithoutForwardingCredentials() throws Exception {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new OctaneClient(
+                "http://127.0.0.1:" + server.getAddress().getPort(), "client", "secret"));
+    try (java.net.http.HttpClient redirecting =
+        java.net.http.HttpClient.newBuilder()
+            .followRedirects(java.net.http.HttpClient.Redirect.ALWAYS)
+            .build()) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new OctaneClient(redirecting, baseUrl, "client", "secret"));
+    }
+    HttpServer plaintext = HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    AtomicInteger leakedRequests = new AtomicInteger();
+    plaintext.createContext(
+        "/",
+        exchange -> {
+          leakedRequests.incrementAndGet();
+          json(exchange, 200, "{}");
+        });
+    plaintext.start();
+    server.createContext(
+        "/authentication/sign_in",
+        exchange -> {
+          exchange
+              .getResponseHeaders()
+              .set("Location", "http://127.0.0.1:" + plaintext.getAddress().getPort() + "/");
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      assertThrows(AbortException.class, client::authenticate);
+      assertEquals(0, leakedRequests.get());
+    } finally {
+      plaintext.stop(0);
     }
   }
 
@@ -1679,6 +1721,8 @@ public class OctaneClientTest {
             String id = ids.get(index);
             body.append("{\"id\":\"").append(id).append("\",\"name\":\"").append(id).append('"');
             if (topology) {
+              // Keep this topology-cache test independent of per-suite owner recovery and TTL.
+              body.append(",\"default_run_by\":{\"name\":\"Assigned Tester\"}");
               body.append(",\"runs_in_suite\":[{\"id\":\"run-")
                   .append(id.substring("suite-".length()))
                   .append("\"}]");

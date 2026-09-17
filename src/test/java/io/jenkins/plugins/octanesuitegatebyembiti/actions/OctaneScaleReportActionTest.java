@@ -74,6 +74,7 @@ public class OctaneScaleReportActionTest {
     URI reportUri = reportUrl.toURI();
     URL snapshotUrl = reportUri.resolve("snapshot").toURL();
     Page snapshot = jenkins.createWebClient().getPage(snapshotUrl);
+    assertJsonSecurityHeaders(snapshot);
     String snapshotEtag = snapshot.getWebResponse().getResponseHeaderValue("ETag");
     assertNotNull(snapshotEtag);
     assertTrue(snapshot.getWebResponse().getContentLength() < 250_000L);
@@ -82,9 +83,11 @@ public class OctaneScaleReportActionTest {
     unchangedRequest.setAdditionalHeader("If-None-Match", snapshotEtag);
     Page unchanged = jenkins.createWebClient().getPage(unchangedRequest);
     assertEquals(304, unchanged.getWebResponse().getStatusCode());
+    assertJsonSecurityHeaders(unchanged);
 
     URL dataUrl = reportUri.resolve("data").toURL();
     Page index = jenkins.createWebClient().getPage(dataUrl);
+    assertJsonSecurityHeaders(index);
     long indexBytes = index.getWebResponse().getContentLength();
     assertTrue(indexBytes < 250_000L);
     JsonNode indexData = new ObjectMapper().readTree(index.getWebResponse().getContentAsString());
@@ -97,9 +100,11 @@ public class OctaneScaleReportActionTest {
     unchangedDataRequest.setAdditionalHeader("If-None-Match", dataEtag);
     Page unchangedData = jenkins.createWebClient().getPage(unchangedDataRequest);
     assertEquals(304, unchangedData.getWebResponse().getStatusCode());
+    assertJsonSecurityHeaders(unchangedData);
 
     URL sectionUrl = reportUri.resolve("data?section=0&cursor=0&limit=80").toURL();
     Page section = jenkins.createWebClient().getPage(sectionUrl);
+    assertJsonSecurityHeaders(section);
     JsonNode sectionData =
         new ObjectMapper().readTree(section.getWebResponse().getContentAsString());
     assertEquals(1, sectionData.path("totalBars").asInt());
@@ -137,6 +142,13 @@ public class OctaneScaleReportActionTest {
     action.onAttached(build);
 
     assertEquals("2026-07-16T12:00:00Z", action.getSnapshot().getUpdatedAt());
+  }
+
+  private static void assertJsonSecurityHeaders(Page page) {
+    assertEquals("nosniff", page.getWebResponse().getResponseHeaderValue("X-Content-Type-Options"));
+    assertEquals(
+        "default-src 'none'; frame-ancestors 'none'; sandbox",
+        page.getWebResponse().getResponseHeaderValue("Content-Security-Policy"));
   }
 
   private static final class ScaleReportFixture {

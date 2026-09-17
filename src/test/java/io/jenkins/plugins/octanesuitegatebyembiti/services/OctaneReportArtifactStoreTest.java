@@ -14,14 +14,17 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.util.List;
 import java.util.zip.GZIPOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import tools.jackson.databind.ObjectMapper;
 
 public class OctaneReportArtifactStoreTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
@@ -60,7 +63,8 @@ public class OctaneReportArtifactStoreTest {
   public void rejectsUnexpectedClassesInPersistedSnapshotArtifact() throws Exception {
     FreeStyleProject project = jenkins.createFreeStyleProject();
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
-    String relativeDirectory = OctaneReportArtifactStore.ROOT_DIRECTORY + "/malicious";
+    String checksum = "a".repeat(64);
+    String relativeDirectory = OctaneReportArtifactStore.ROOT_DIRECTORY + "/" + checksum;
     Path directory = build.getRootDir().toPath().resolve(relativeDirectory);
     Files.createDirectories(directory);
     Path snapshotPath = directory.resolve(OctaneReportArtifactStore.SNAPSHOT_FILE);
@@ -73,7 +77,7 @@ public class OctaneReportArtifactStoreTest {
     }
     OctaneReportArtifactMetadata metadata =
         new OctaneReportArtifactMetadata(
-            1, relativeDirectory, "malicious", Instant.now().toString(), 1L, 0, false, false);
+            1, relativeDirectory, checksum, Instant.now().toString(), 1L, 0, false, false);
 
     IOException failure =
         assertThrows(
@@ -91,5 +95,101 @@ public class OctaneReportArtifactStoreTest {
     new OctaneReportArtifactStore().deleteRecursively(root);
 
     assertFalse(Files.exists(root));
+  }
+
+  @Test
+  public void servesOnlyValidatedHtmlSafeJsonAndPreservesDecodedText() throws Exception {
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(jenkins.createFreeStyleProject());
+    OctaneReportArtifactStore store = new OctaneReportArtifactStore();
+    OctaneReportArtifactMetadata metadata =
+        store.publish(build, OctaneScaleTestFixture.snapshot(0, 1, 1));
+    Path directory = build.getRootDir().toPath().resolve(metadata.getArtifactDirectory());
+    String text = "</script><img src=x onerror=alert('x')>&";
+    String json = new ObjectMapper().writeValueAsString(java.util.Map.of("name", text));
+    for (String file :
+        List.of(
+            OctaneReportArtifactStore.INDEX_FILE,
+            OctaneReportArtifactStore.RESULTS_FILE,
+            "section-0.json")) {
+      Files.writeString(directory.resolve(file), json);
+    }
+    for (byte[] response :
+        List.of(
+            store.readIndex(build, metadata),
+            store.readResults(build, metadata),
+            store.readSectionPage(build, metadata, 0, 0, 10))) {
+      String body = new String(response, StandardCharsets.UTF_8);
+      assertFalse(body.contains("<"));
+      assertFalse(body.contains(">"));
+      assertFalse(body.contains("&"));
+      assertEquals(text, new ObjectMapper().readTree(body).path("name").asText());
+    }
+    for (String invalid : List.of("<script>alert(1)</script>", "{} {}", "[]", "null")) {
+      Files.writeString(directory.resolve(OctaneReportArtifactStore.INDEX_FILE), invalid);
+      assertThrows(IOException.class, () -> store.readIndex(build, metadata));
+    }
+    assertThrows(IOException.class, () -> store.readSectionPage(build, metadata, -1, 0, 10));
+    assertThrows(
+        IOException.class,
+        () -> store.readSectionPage(build, metadata, metadata.getSectionCount(), 0, 10));
+  }
+
+  @Test
+  public void rejectsTraversalSymlinksAndOversizedArtifacts() throws Exception {
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(jenkins.createFreeStyleProject());
+    OctaneReportArtifactStore store = new OctaneReportArtifactStore();
+    OctaneReportArtifactMetadata metadata =
+        store.publish(build, OctaneScaleTestFixture.snapshot(0, 1, 1));
+    Path root = build.getRootDir().toPath();
+    Path directory = root.resolve(metadata.getArtifactDirectory());
+    for (String path :
+        List.of("../outside", directory.toString(), "octane-suite-gate/../outside")) {
+      OctaneReportArtifactMetadata invalid =
+          new OctaneReportArtifactMetadata(
+              1, path, metadata.getChecksum(), Instant.now().toString(), 1, 1, false, false);
+      assertThrows(IOException.class, () -> store.readIndex(build, invalid));
+      store.deleteGeneration(build, invalid);
+      assertTrue(Files.isDirectory(directory));
+    }
+    Path outside = root.resolve("outside.json");
+    Files.writeString(outside, "{}");
+    for (String file :
+        List.of(OctaneReportArtifactStore.INDEX_FILE, OctaneReportArtifactStore.SNAPSHOT_FILE)) {
+      Path artifact = directory.resolve(file);
+      Files.delete(artifact);
+      Files.createSymbolicLink(artifact, outside);
+      assertThrows(
+          IOException.class,
+          () -> {
+            if (file.equals(OctaneReportArtifactStore.INDEX_FILE)) {
+              store.readIndex(build, metadata);
+            } else {
+              store.loadSnapshot(build, metadata);
+            }
+          });
+      Files.delete(artifact);
+    }
+    Path index = directory.resolve(OctaneReportArtifactStore.INDEX_FILE);
+    try (java.nio.channels.FileChannel channel =
+        java.nio.channels.FileChannel.open(
+            index, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+      channel.position(OctaneReportArtifactStore.MAX_ARTIFACT_BYTES);
+      channel.write(java.nio.ByteBuffer.wrap(new byte[] {0}));
+    }
+    assertThrows(IOException.class, () -> store.readIndex(build, metadata));
+    Path moved = root.resolve("moved-generation");
+    Files.move(directory, moved);
+    Files.createSymbolicLink(directory, moved);
+    assertThrows(IOException.class, () -> store.readIndex(build, metadata));
+    store.deleteGeneration(build, metadata);
+    assertTrue(Files.exists(moved));
+    Files.delete(directory);
+    Path artifactRoot = root.resolve(OctaneReportArtifactStore.ROOT_DIRECTORY);
+    Files.delete(artifactRoot);
+    Files.createSymbolicLink(artifactRoot, moved);
+    assertThrows(IOException.class, () -> store.readIndex(build, metadata));
+    assertThrows(
+        IOException.class, () -> store.publish(build, OctaneScaleTestFixture.snapshot(0, 1, 1)));
+    assertEquals("{}", Files.readString(outside));
   }
 }

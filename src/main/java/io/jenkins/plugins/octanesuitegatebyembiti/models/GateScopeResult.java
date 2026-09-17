@@ -113,7 +113,7 @@ public class GateScopeResult implements Serializable {
   }
 
   public Map<String, Object> toMap() {
-    return toMap(Integer.MAX_VALUE);
+    return toMap(GateResult.PIPELINE_DETAIL_LIMIT);
   }
 
   Map<String, Object> toMap(int detailLimit) {
@@ -126,7 +126,7 @@ public class GateScopeResult implements Serializable {
     values.put("active", isActive());
     values.put("metrics", metrics.toMap());
 
-    int safeLimit = Math.max(0, detailLimit);
+    int safeLimit = Math.min(GateResult.PIPELINE_DETAIL_LIMIT, Math.max(0, detailLimit));
     int detailCount = Math.min(runs.size(), safeLimit);
     List<String> runIds = new ArrayList<>(detailCount);
     List<Map<String, Object>> runMaps = new ArrayList<>(detailCount);

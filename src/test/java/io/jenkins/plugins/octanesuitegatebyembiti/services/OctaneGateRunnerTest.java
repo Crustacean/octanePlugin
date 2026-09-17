@@ -1055,7 +1055,7 @@ public class OctaneGateRunnerTest {
     private final List<RunRecord> runs;
 
     FakeOctaneClient(List<RunRecord> runs) {
-      super("http://octane.example", "client-id", "client-secret");
+      super("https://octane.example", "client-id", "client-secret");
       this.runs = runs;
     }
 
@@ -1074,7 +1074,7 @@ public class OctaneGateRunnerTest {
 
   private static class FailingOctaneClient extends OctaneClient {
     FailingOctaneClient() {
-      super("http://octane.example", "client-id", "client-secret");
+      super("https://octane.example", "client-id", "client-secret");
     }
 
     @Override

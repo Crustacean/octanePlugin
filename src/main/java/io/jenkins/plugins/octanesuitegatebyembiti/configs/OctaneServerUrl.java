@@ -30,8 +30,9 @@ public final class OctaneServerUrl {
 
   private static void validateScheme(URI uri) {
     String scheme = uri.getScheme();
-    if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-      throw new IllegalArgumentException("Base URL must start with http:// or https://.");
+    if (!"https".equalsIgnoreCase(scheme)) {
+      throw new IllegalArgumentException(
+          "Base URL must use https:// to protect Octane credentials.");
     }
   }
 

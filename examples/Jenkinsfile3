@@ -162,6 +162,9 @@ def resolveOctaneConnection(
     throw new IllegalArgumentException(
         "Base URL missing for space: ${sharedSpaceName} in octane_spaces_mapping.json")
   }
+  if (!baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith('https://')) {
+    throw new IllegalArgumentException('Base URL must use https:// to protect Octane credentials.')
+  }
   String derivedIdentifier =
       sharedSpaceName.toLowerCase(java.util.Locale.ROOT).replaceAll(/\s+/, '_')
   String credentialsId =
@@ -592,9 +595,6 @@ pipeline {
           env.OCTANE_WORKSPACE_ID = octaneConnection.workspaceId
 
           echo "Loaded Octane configuration from ${configurationSource}."
-          if (octaneConnection.insecureTransport) {
-            echo 'Applied URL is insecure. Move to HTTPS for better security.'
-          }
           echo(
               "Resolved shared space '${env.OCTANE_SHARED_SPACE_NAME}' to "
                   + "'${octaneConnection.sharedSpaceName}' (${env.OCTANE_SHARED_SPACE_ID}) and "

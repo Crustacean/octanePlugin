@@ -11,8 +11,8 @@ import com.sun.net.httpserver.HttpServer;
 import hudson.AbortException;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
+import io.jenkins.plugins.octanesuitegatebyembiti.security.OctaneTestHttpsServer;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
@@ -28,11 +28,11 @@ public class OctaneDynamicConnectionTest {
   private String baseUrl;
 
   @Before
-  public void startServer() throws IOException {
-    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+  public void startServer() throws Exception {
+    server = OctaneTestHttpsServer.create();
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
     server.start();
-    baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+    baseUrl = "https://127.0.0.1:" + server.getAddress().getPort();
   }
 
   @After

@@ -8,6 +8,18 @@ import org.junit.jupiter.api.Test;
 
 class OctaneServerUrlTest {
   @Test
+  void rejectsPlaintextCredentialTransportIncludingLoopbackAndDowngrades() {
+    for (String url : new String[] {"http://octane.example.test", "http://127.0.0.1:8080"}) {
+      assertThrows(IllegalArgumentException.class, () -> OctaneServerUrl.normalize(url));
+    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            OctaneServerUrl.requireAllowedRequest(
+                "https://octane.example.test", URI.create("http://octane.example.test/api")));
+  }
+
+  @Test
   void normalizesConfiguredOctaneUrl() {
     assertEquals(
         "https://octane.example.test/api",

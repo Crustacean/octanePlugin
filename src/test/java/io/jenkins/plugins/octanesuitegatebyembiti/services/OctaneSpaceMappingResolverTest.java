@@ -38,7 +38,7 @@ public class OctaneSpaceMappingResolverTest {
     FilePath workspace =
         workspaceWithMapping(
             mapping(
-                    "\"specific_url\": \"http://octane-canary.example.test\",",
+                    "\"specific_url\": \"https://octane-canary.example.test\",",
                     "\"serverId\": \"octane-canary\",\n"
                         + "      \"apiCredentialId\": \"octane-canary-key\",")
                 .replace("\"1001\"", "1001")
@@ -50,8 +50,8 @@ public class OctaneSpaceMappingResolverTest {
 
     assertEquals("octane-canary", connection.serverId());
     assertEquals("octane-canary-key", connection.credentialsId());
-    assertEquals("http://octane-canary.example.test", connection.baseUrl());
-    assertTrue(connection.insecureTransport());
+    assertEquals("https://octane-canary.example.test", connection.baseUrl());
+    assertFalse(connection.insecureTransport());
   }
 
   @Test

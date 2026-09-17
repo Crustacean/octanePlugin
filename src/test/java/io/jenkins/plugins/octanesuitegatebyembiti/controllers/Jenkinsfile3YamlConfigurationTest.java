@@ -300,8 +300,7 @@ class Jenkinsfile3YamlConfigurationTest {
         jenkinsfile.contains("env.OCTANE_API_CREDENTIAL_ID = octaneConnection.credentialsId"));
     assertTrue(jenkinsfile.contains("env.OCTANE_SHARED_SPACE_ID = octaneConnection.sharedSpaceId"));
     assertTrue(jenkinsfile.contains("env.OCTANE_WORKSPACE_ID = octaneConnection.workspaceId"));
-    assertTrue(
-        jenkinsfile.contains("echo 'Applied URL is insecure. Move to HTTPS for better security.'"));
+    assertTrue(jenkinsfile.contains("Base URL must use https:// to protect Octane credentials."));
     String loadConfigurationStage =
         jenkinsfile.substring(
             jenkinsfile.indexOf("stage('Load Configuration')"),
@@ -407,7 +406,7 @@ class Jenkinsfile3YamlConfigurationTest {
   }
 
   @Test
-  void connectionResolutionAllowsHttpAndMarksItInsecure()
+  void connectionResolutionRejectsHttpBeforeCredentialsAreUsed()
       throws IOException, CompilationFailedException {
     groovy.lang.Script script =
         new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE, StandardCharsets.UTF_8));
@@ -425,11 +424,13 @@ class Jenkinsfile3YamlConfigurationTest {
                     "workspaces",
                     List.of(Map.of("workspaceId", "5002", "workspaceName", "Mail Service")))));
 
-    Map<?, ?> connection =
-        resolvedConnection(script, mapping, "Default Shared Space", "Mail Service", "mapping.json");
-
-    assertEquals("http://octane.internal.example.test", connection.get("baseUrl"));
-    assertEquals(true, connection.get("insecureTransport"));
+    IllegalArgumentException failure =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                resolvedConnection(
+                    script, mapping, "Default Shared Space", "Mail Service", "mapping.json"));
+    assertTrue(failure.getMessage().contains("https://"));
   }
 
   @Test

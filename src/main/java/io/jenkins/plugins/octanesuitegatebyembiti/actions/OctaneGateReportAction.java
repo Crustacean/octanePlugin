@@ -224,6 +224,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   public void doSnapshot(StaplerRequest2 request, StaplerResponse2 response) throws IOException {
     checkReadPermission();
+    setJsonSecurityHeaders(request, response);
     String etag = currentEtag();
     if (etagMatches(request, etag)) {
       response.setStatus(304);
@@ -298,6 +299,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
       @QueryParameter int limit)
       throws IOException {
     checkReadPermission();
+    setJsonSecurityHeaders(request, response);
     OctaneReportArtifactMetadata metadata = artifactMetadata;
     if (metadata == null || !metadata.isAvailable()) {
       response.sendError(404, "Octane report data is not available for this build.");
@@ -305,6 +307,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
     String etag = dataEtag(section, cursor, limit);
     if (etagMatches(request, etag)) {
+      setDataHeaders(response, etag, metadata.isBuilding());
       response.setStatus(304);
       return;
     }
@@ -609,6 +612,16 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     response.setHeader("ETag", etag);
     response.setHeader("Cache-Control", "private, no-cache" + (building ? ", no-store" : ""));
     response.setHeader("X-Content-Type-Options", "nosniff");
+  }
+
+  static void setJsonSecurityHeaders(StaplerRequest2 request, StaplerResponse2 response) {
+    response.setContentType("application/json;charset=UTF-8");
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    response.setHeader(
+        "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
+    if (request != null && request.isSecure()) {
+      response.setHeader("Strict-Transport-Security", "max-age=31536000");
+    }
   }
 
   private void configureTimers(GateRequest request) {

@@ -6,11 +6,13 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMet
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
@@ -21,9 +23,17 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.SerializableString;
+import tools.jackson.core.io.CharacterEscapes;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -36,6 +46,11 @@ public final class OctaneReportArtifactStore {
   private static final long MAX_DESERIALIZED_REFERENCES = 1_000_000L;
   private static final long MAX_ARRAY_LENGTH = 1_000_000L;
   private static final long MAX_DESERIALIZATION_DEPTH = 64L;
+  private static final Pattern GENERATION_CHECKSUM = Pattern.compile("[0-9a-f]{64}");
+  private static final ObjectMapper RESPONSE_MAPPER =
+      JsonMapper.builder(JsonFactory.builder().characterEscapes(new HtmlSafeJsonEscapes()).build())
+          .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+          .build();
 
   private final ObjectMapper objectMapper;
   private final OctaneReportDataMapper dataMapper;
@@ -56,9 +71,12 @@ public final class OctaneReportArtifactStore {
     byte[] indexBytes = objectMapper.writeValueAsBytes(reportData.index());
     String checksum = sha256(completeBytes);
     Path root = root(run);
+    Files.createDirectories(root);
+    requireDirectory(root);
     Path destination = root.resolve(checksum);
-    if (!Files.isDirectory(destination)) {
-      Files.createDirectories(root);
+    if (Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
+      requireDirectory(destination);
+    } else {
       Path temporary = root.resolve(".tmp-" + UUID.randomUUID());
       Files.createDirectories(temporary);
       boolean published = false;
@@ -97,13 +115,15 @@ public final class OctaneReportArtifactStore {
       return null;
     }
     Path path = artifactDirectory(run, metadata).resolve(SNAPSHOT_FILE);
-    if (!Files.isRegularFile(path)) {
+    if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
       return null;
     }
+    requireRegularFile(path);
     verifyArtifactSize(path);
     try (ObjectInputStream input =
         new ObjectInputStream(
-            new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path))))) {
+            new GZIPInputStream(
+                new BufferedInputStream(Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS))))) {
       input.setObjectInputFilter(OctaneReportArtifactStore::filterSnapshotObject);
       Object value = input.readObject();
       if (value instanceof OctaneGateReportSnapshot reportSnapshot) {
@@ -116,19 +136,21 @@ public final class OctaneReportArtifactStore {
   }
 
   public byte[] readIndex(Run<?, ?> run, OctaneReportArtifactMetadata metadata) throws IOException {
-    return readArtifact(run, metadata, INDEX_FILE);
+    return RESPONSE_MAPPER.writeValueAsBytes(readJsonArtifact(run, metadata, INDEX_FILE));
   }
 
   public byte[] readResults(Run<?, ?> run, OctaneReportArtifactMetadata metadata)
       throws IOException {
-    return readArtifact(run, metadata, RESULTS_FILE);
+    return RESPONSE_MAPPER.writeValueAsBytes(readJsonArtifact(run, metadata, RESULTS_FILE));
   }
 
   public byte[] readSectionPage(
       Run<?, ?> run, OctaneReportArtifactMetadata metadata, int section, int cursor, int limit)
       throws IOException {
-    byte[] sectionBytes = readArtifact(run, metadata, sectionFile(section));
-    ObjectNode source = (ObjectNode) objectMapper.readTree(sectionBytes);
+    if (section < 0 || section >= metadata.getSectionCount()) {
+      throw new IOException("Invalid Octane report section.");
+    }
+    ObjectNode source = readJsonArtifact(run, metadata, sectionFile(section));
     ArrayNode bars = source.withArray("bars");
     int safeCursor = Math.min(Math.max(0, cursor), bars.size());
     int safeLimit = Math.min(200, Math.max(1, limit));
@@ -141,7 +163,7 @@ public final class OctaneReportArtifactStore {
     source.put("cursor", safeCursor);
     source.put("nextCursor", end < bars.size() ? end : -1);
     source.put("totalBars", bars.size());
-    return objectMapper.writeValueAsBytes(source);
+    return RESPONSE_MAPPER.writeValueAsBytes(source);
   }
 
   public void deleteGeneration(Run<?, ?> run, OctaneReportArtifactMetadata metadata) {
@@ -160,13 +182,33 @@ public final class OctaneReportArtifactStore {
     if (run == null || metadata == null || !metadata.isAvailable()) {
       throw new IOException("Octane report data is not available for this build.");
     }
-    Path path = artifactDirectory(run, metadata).resolve(fileName).normalize();
-    Path directory = artifactDirectory(run, metadata).normalize();
-    if (!path.startsWith(directory) || !Files.isRegularFile(path)) {
+    Path directory = artifactDirectory(run, metadata);
+    Path path = directory.resolve(fileName).normalize();
+    if (!directory.equals(path.getParent())) {
       throw new IOException("Octane report data is incomplete for this build.");
     }
+    requireRegularFile(path);
     verifyArtifactSize(path);
-    return Files.readAllBytes(path);
+    try (InputStream input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
+      byte[] content = input.readNBytes((int) MAX_ARTIFACT_BYTES + 1);
+      if (content.length > MAX_ARTIFACT_BYTES) {
+        throw new IOException("Octane report artifact exceeds the byte safety limit.");
+      }
+      return content;
+    }
+  }
+
+  private ObjectNode readJsonArtifact(
+      Run<?, ?> run, OctaneReportArtifactMetadata metadata, String fileName) throws IOException {
+    try {
+      JsonNode data = RESPONSE_MAPPER.readTree(readArtifact(run, metadata, fileName));
+      if (data instanceof ObjectNode object) {
+        return object;
+      }
+    } catch (JacksonException e) {
+      throw new IOException("Invalid Octane JSON report artifact.", e);
+    }
+    throw new IOException("Octane report artifact must contain a JSON object.");
   }
 
   private static ObjectInputFilter.Status filterSnapshotObject(ObjectInputFilter.FilterInfo info) {
@@ -207,17 +249,34 @@ public final class OctaneReportArtifactStore {
     }
   }
 
-  private Path artifactDirectory(Run<?, ?> run, OctaneReportArtifactMetadata metadata) {
-    Path root = run.getRootDir().toPath().toAbsolutePath().normalize();
-    Path directory = root.resolve(metadata.getArtifactDirectory()).normalize();
-    if (!directory.startsWith(root)) {
-      throw new IllegalArgumentException("Invalid Octane report artifact path.");
+  private Path artifactDirectory(Run<?, ?> run, OctaneReportArtifactMetadata metadata)
+      throws IOException {
+    String checksum = metadata.getChecksum();
+    if (!GENERATION_CHECKSUM.matcher(checksum).matches()
+        || !(ROOT_DIRECTORY + "/" + checksum).equals(metadata.getArtifactDirectory())) {
+      throw new IOException("Invalid Octane report artifact path.");
     }
+    Path root = root(run);
+    requireDirectory(root);
+    Path directory = root.resolve(checksum);
+    requireDirectory(directory);
     return directory;
   }
 
-  private Path root(Run<?, ?> run) {
-    return run.getRootDir().toPath().resolve(ROOT_DIRECTORY);
+  private Path root(Run<?, ?> run) throws IOException {
+    return run.getRootDir().toPath().toRealPath().resolve(ROOT_DIRECTORY);
+  }
+
+  private static void requireDirectory(Path path) throws IOException {
+    if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+      throw new IOException("Octane report artifact directory is missing or symbolic.");
+    }
+  }
+
+  private static void requireRegularFile(Path path) throws IOException {
+    if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+      throw new IOException("Octane report artifact is missing, non-regular, or symbolic.");
+    }
   }
 
   private void writeSnapshot(Path path, OctaneGateReportSnapshot snapshot) throws IOException {
@@ -280,6 +339,27 @@ public final class OctaneReportArtifactStore {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value));
     } catch (NoSuchAlgorithmException e) {
       throw new IOException("SHA-256 is unavailable while writing Octane report data.", e);
+    }
+  }
+
+  private static final class HtmlSafeJsonEscapes extends CharacterEscapes {
+    private static final long serialVersionUID = 1L;
+    private final int[] escapes = CharacterEscapes.standardAsciiEscapesForJSON();
+
+    private HtmlSafeJsonEscapes() {
+      for (char character : new char[] {'<', '>', '&', '\''}) {
+        escapes[character] = CharacterEscapes.ESCAPE_STANDARD;
+      }
+    }
+
+    @Override
+    public int[] getEscapeCodesForAscii() {
+      return escapes.clone();
+    }
+
+    @Override
+    public SerializableString getEscapeSequence(int character) {
+      return null;
     }
   }
 }

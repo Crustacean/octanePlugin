@@ -78,7 +78,7 @@ public class OctaneSuiteGateStepTest {
         .write(
             """
             {
-              "shared_url": "http://octane.example.test",
+              "shared_url": "https://octane.example.test",
               "shared_spaces": [{
                 "sharedSpaceId": "1001",
                 "sharedSpaceName": "Default Space",
@@ -97,7 +97,7 @@ public class OctaneSuiteGateStepTest {
     GateRequest request = builder.createRequest(workspace, new EnvVars(), TaskListener.NULL);
 
     assertEquals("default_space", request.getServerId());
-    assertEquals("http://octane.example.test", request.getBaseUrl());
+    assertEquals("https://octane.example.test", request.getBaseUrl());
     assertEquals("default_space", request.getCredentialsId());
     assertEquals("1001", request.getSharedSpaceId());
     assertEquals("2002", request.getWorkspaceId());

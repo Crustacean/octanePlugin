@@ -14,6 +14,29 @@ import org.junit.Test;
 
 public class GateResultTest {
   @Test
+  public void scopeExportsBoundDefaultAndExplicitLimitsWithoutChangingTotals() {
+    List<RunRecord> runs = new ArrayList<>();
+    for (int index = 0; index <= GateResult.PIPELINE_DETAIL_LIMIT; index++) {
+      runs.add(new RunRecord(Integer.toString(index), "run", "passed"));
+    }
+    GateScopeResult scope =
+        new GateScopeResult(
+            "critical",
+            "",
+            List.of(),
+            new GateMetrics(runs.size(), runs.size(), runs.size(), 0, 0, 0),
+            runs);
+    for (Map<String, Object> exported : List.of(scope.toMap(), scope.toMap(Integer.MAX_VALUE))) {
+      assertEquals(GateResult.PIPELINE_DETAIL_LIMIT, ((List<?>) exported.get("runs")).size());
+      assertEquals(GateResult.PIPELINE_DETAIL_LIMIT, ((List<?>) exported.get("runIds")).size());
+      assertEquals(runs.size(), exported.get("runCount"));
+      assertEquals(true, exported.get("detailsTruncated"));
+    }
+    assertTrue(((List<?>) scope.toMap(-1).get("runs")).isEmpty());
+    assertEquals(5, ((List<?>) scope.toMap(5).get("runs")).size());
+  }
+
+  @Test
   public void exposesSuiteRunIdsInPipelineMap() {
     GateResult result =
         new GateResult(

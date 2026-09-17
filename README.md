@@ -8,11 +8,14 @@ flow, Octane API calls, metrics model, and criteria evaluation behavior.
 
 ## Requirements
 
-- Jenkins `2.568.3` or newer
+- Jenkins `2.582` or newer
 - Java 21 or newer for the Jenkins controller, agents, and plugin development
 
 The Jenkins minimum includes the core fixes published in the
 [2026-09-02 Jenkins security advisory](https://www.jenkins.io/security/advisory/2026-09-02/).
+The [September 16 Checkmarx remediation record](docs/audits/CHECKMARX_REMEDIATION_2026-09-16.md)
+details the updated API-plugin requirements, HTTPS/HSTS deployment steps, and remaining
+upstream Commons Collections finding.
 
 ## Pipeline
 
@@ -393,9 +396,9 @@ mapping file and space/workspace selectors in their build step.
 
 Set the root `shared_url` in `octane_spaces_mapping.json`. For rolling or canary deployments, set a
 shared space's `specific_url`; a blank value inherits the root URL. The centrally controlled mapping
-must not contain API secrets. Internal HTTP endpoints remain supported for VPN-hosted Octane
-deployments. When the effective mapped URL starts with `http://`, the Pipeline continues and prints
-`Applied URL is insecure. Move to HTTPS for better security.`; HTTPS is recommended for production.
+must not contain API secrets. HTTPS is required, including internal or VPN-hosted Octane
+deployments. HTTP URLs are rejected before credentials are sent. Install your internal CA in the
+Jenkins JVM truststore if needed; certificate and hostname verification must remain enabled.
 
 The base URL should be the host root used by Octane authentication and API requests, such as:
 

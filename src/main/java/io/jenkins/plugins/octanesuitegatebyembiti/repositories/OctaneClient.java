@@ -114,6 +114,10 @@ public class OctaneClient implements AutoCloseable {
   }
 
   public OctaneClient(HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
+    if (httpClient.followRedirects() != HttpClient.Redirect.NEVER) {
+      throw new IllegalArgumentException(
+          "Octane HTTP clients must not follow credential redirects.");
+    }
     this.httpClient = httpClient;
     this.baseUrl = OctaneServerUrl.normalize(baseUrl);
     this.clientId = clientId;
