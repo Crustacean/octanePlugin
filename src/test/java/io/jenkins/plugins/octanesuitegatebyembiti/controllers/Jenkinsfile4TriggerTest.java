@@ -1,5 +1,6 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -16,10 +17,13 @@ public class Jenkinsfile4TriggerTest {
     String source = Files.readString(JENKINSFILE, StandardCharsets.UTF_8);
 
     assertTrue(source.contains("agent none"));
-    assertTrue(source.contains("name: 'OCTANE_TEST_JOB'"));
-    assertTrue(source.contains("defaultValue: 'dashboardVariables'"));
-    assertTrue(source.contains("name: 'OCTANE_TEST_BRANCH'"));
-    assertTrue(source.contains("defaultValue: 'main'"));
+    assertTrue(source.contains("environment {"));
+    assertTrue(source.contains("OCTANE_TEST_JOB = 'dashboardVariables'"));
+    assertTrue(source.contains("OCTANE_TEST_BRANCH = 'main'"));
+    assertTrue(source.contains("env.OCTANE_TEST_JOB?.toString()?.trim()"));
+    assertTrue(source.contains("env.OCTANE_TEST_BRANCH?.toString()?.trim()"));
+    assertFalse(source.contains("parameters {"));
+    assertFalse(source.contains("params."));
     assertTrue(
         source.contains(
             "downstreamBranch ? \"${downstreamJob}/${downstreamBranch}\" : downstreamJob"));

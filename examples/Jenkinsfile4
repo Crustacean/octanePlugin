@@ -1,26 +1,21 @@
 pipeline {
   agent none
 
-  parameters {
-    string(
-        name: 'OCTANE_TEST_JOB',
-        defaultValue: 'dashboardVariables',
-        description: 'Jenkins job or Multibranch Pipeline name.')
-    string(
-        name: 'OCTANE_TEST_BRANCH',
-        defaultValue: 'main',
-        description: 'Multibranch child job to run. Leave blank for a regular Pipeline job.')
+  environment {
+    OCTANE_TEST_JOB = 'dashboardVariables'
+    // Leave blank for a regular Pipeline job.
+    OCTANE_TEST_BRANCH = 'main'
   }
 
   stages {
     stage('Trigger and poll Octane Tests results') {
       steps {
         script {
-          String downstreamJob = params.OCTANE_TEST_JOB?.toString()?.trim()
+          String downstreamJob = env.OCTANE_TEST_JOB?.toString()?.trim()
           if (!downstreamJob) {
             error 'OCTANE_TEST_JOB must identify the Jenkins job that runs the Octane tests.'
           }
-          String downstreamBranch = params.OCTANE_TEST_BRANCH?.toString()?.trim()
+          String downstreamBranch = env.OCTANE_TEST_BRANCH?.toString()?.trim()
           String downstreamTarget =
               downstreamBranch ? "${downstreamJob}/${downstreamBranch}" : downstreamJob
 
