@@ -16,6 +16,10 @@ The Jenkins minimum includes the core fixes published in the
 The [September 16 Checkmarx remediation record](docs/audits/CHECKMARX_REMEDIATION_2026-09-16.md)
 details the updated API-plugin requirements, HTTPS/HSTS deployment steps, and remaining
 upstream Commons Collections finding.
+The [September 22 follow-up](docs/audits/CHECKMARX_REMEDIATION_2026-09-22.md) covers
+Ivy 2.6.0, credential handling, safe report JSON, and HTTPS-only plugin response headers.
+Its HSTS policy includes subdomains: review HTTPS coverage for the entire Jenkins domain
+before deployment. Commons Collections remains a controller-provided upstream finding.
 
 ## Pipeline
 

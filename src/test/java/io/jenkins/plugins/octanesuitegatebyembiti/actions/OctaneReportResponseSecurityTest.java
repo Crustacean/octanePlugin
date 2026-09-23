@@ -55,7 +55,8 @@ public class OctaneReportResponseSecurityTest {
           "default-src 'none'; frame-ancestors 'none'; sandbox",
           headers.get("Content-Security-Policy"));
       if (secure) {
-        assertEquals("max-age=31536000", headers.get("Strict-Transport-Security"));
+        assertEquals(
+            "max-age=31536000; includeSubDomains", headers.get("Strict-Transport-Security"));
       } else {
         assertFalse(headers.containsKey("Strict-Transport-Security"));
       }

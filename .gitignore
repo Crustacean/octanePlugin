@@ -26,3 +26,4 @@ skills/
 docs/*
 !docs/audits/
 !docs/audits/*.md
+deployment/

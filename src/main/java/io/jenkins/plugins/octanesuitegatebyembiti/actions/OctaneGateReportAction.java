@@ -16,17 +16,18 @@ import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneTestManagementAna
 import io.jenkins.plugins.octanesuitegatebyembiti.models.StatusClassifier;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportArtifactStore;
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneReportJson;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import jenkins.model.Jenkins;
 import jenkins.model.RunAction2;
-import net.sf.json.JSONObject;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
@@ -206,7 +207,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   public String getTestManagementJson() {
-    return JSONObject.fromObject(getSnapshot().getTestManagement().toMap()).toString();
+    return OctaneReportJson.writeString(getSnapshot().getTestManagement().toMap());
   }
 
   public int getReportDataSchemaVersion() {
@@ -233,7 +234,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     OctaneGateReportSnapshot current = currentSnapshot();
     OctaneGateReportSnapshot safeSnapshot =
         current == null ? OctaneGateReportSnapshot.empty() : current;
-    JSONObject payload = new JSONObject();
+    Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("updatedAt", safeSnapshot.getUpdatedAt());
     payload.put("updatedAtText", safeSnapshot.getUpdatedAtText());
     payload.put("updatedAtDateTimeText", safeSnapshot.getUpdatedAtDateTimeText());
@@ -288,7 +289,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
     setDataHeaders(response, etag, safeSnapshot.isBuilding());
     response.setContentType("application/json;charset=UTF-8");
-    response.getWriter().print(payload.toString());
+    response.getWriter().print(OctaneReportJson.writeString(payload));
   }
 
   public void doData(
@@ -616,12 +617,9 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   static void setJsonSecurityHeaders(StaplerRequest2 request, StaplerResponse2 response) {
     response.setContentType("application/json;charset=UTF-8");
-    response.setHeader("X-Content-Type-Options", "nosniff");
+    OctaneReportSecurityHeaders.apply(request, response);
     response.setHeader(
         "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
-    if (request != null && request.isSecure()) {
-      response.setHeader("Strict-Transport-Security", "max-age=31536000");
-    }
   }
 
   private void configureTimers(GateRequest request) {

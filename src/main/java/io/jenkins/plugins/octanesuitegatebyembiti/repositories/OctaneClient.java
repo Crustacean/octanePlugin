@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 
 import hudson.AbortException;
+import hudson.util.Secret;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
@@ -98,7 +99,7 @@ public class OctaneClient implements AutoCloseable {
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final String baseUrl;
   private final String clientId;
-  private final String clientSecret;
+  private final Secret clientSecret;
   private final Object childRunFieldProfileLock = new Object();
   // Parent suite ownership is immutable for this client session. Child execution actors never
   // enter this map and are retained only on RunRecord for automation metrics.
@@ -107,13 +108,22 @@ public class OctaneClient implements AutoCloseable {
   private volatile String preferredDefectFields = "";
   private volatile String preferredRunSuiteFields = "";
   private volatile String preferredSuiteEntityFields = "";
-  private String cookieHeader = "";
+  private Secret cookieHeader;
 
   public OctaneClient(String baseUrl, String clientId, String clientSecret) {
     this(SHARED_HTTP_CLIENT, baseUrl, clientId, clientSecret);
   }
 
   public OctaneClient(HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
+    this(httpClient, baseUrl, clientId, Secret.fromString(clientSecret));
+  }
+
+  public static OctaneClient withCredentials(String baseUrl, String clientId, Secret clientSecret) {
+    return new OctaneClient(SHARED_HTTP_CLIENT, baseUrl, clientId, clientSecret);
+  }
+
+  private OctaneClient(
+      HttpClient httpClient, String baseUrl, String clientId, Secret clientSecret) {
     if (httpClient.followRedirects() != HttpClient.Redirect.NEVER) {
       throw new IllegalArgumentException(
           "Octane HTTP clients must not follow credential redirects.");
@@ -121,16 +131,17 @@ public class OctaneClient implements AutoCloseable {
     this.httpClient = httpClient;
     this.baseUrl = OctaneServerUrl.normalize(baseUrl);
     this.clientId = clientId;
-    this.clientSecret = clientSecret;
+    this.clientSecret = clientSecret == null ? Secret.fromString("") : clientSecret;
   }
 
   public void authenticate() throws IOException, InterruptedException {
+    HttpRequest.Builder authentication = requestBuilder(baseUrl + "/authentication/sign_in");
     ObjectNode payload = objectMapper.createObjectNode();
     payload.put("client_id", clientId);
-    payload.put("client_secret", clientSecret);
+    payload.put("client_secret", clientSecret.getPlainText());
 
     HttpRequest request =
-        requestBuilder(baseUrl + "/authentication/sign_in")
+        authentication
             .timeout(Duration.ofSeconds(60))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
@@ -142,7 +153,7 @@ public class OctaneClient implements AutoCloseable {
               + response.statusCode()
               + " for "
               + request.uri()
-              + responseBodyMessage(response.body()));
+              + ". Authentication response body omitted to protect credentials.");
     }
     rememberCookies(response.headers());
   }
@@ -485,7 +496,7 @@ public class OctaneClient implements AutoCloseable {
 
   @Override
   public void close() throws IOException {
-    if (cookieHeader.isEmpty()) {
+    if (cookieHeader == null) {
       return;
     }
 
@@ -1021,11 +1032,11 @@ public class OctaneClient implements AutoCloseable {
     try {
       return objectMapper.readTree(response.body());
     } catch (JacksonException e) {
+      // Parser exception messages can quote remote content, including reflected credentials.
       throw new IOException(
           "ALM Octane returned malformed JSON for "
               + response.request().uri()
-              + responseBodyMessage(response.body()),
-          e);
+              + responseBodyMessage(response.body()));
     }
   }
 
@@ -1089,14 +1100,15 @@ public class OctaneClient implements AutoCloseable {
             .timeout(Duration.ofSeconds(60))
             .header("Accept", "application/json")
             .header(TECH_PREVIEW_HEADER, "true");
-    if (!cookieHeader.isEmpty()) {
-      builder.header("Cookie", cookieHeader);
+    if (cookieHeader != null) {
+      builder.header("Cookie", cookieHeader.getPlainText());
     }
     return builder;
   }
 
   private <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> bodyHandler)
       throws IOException, InterruptedException {
+    OctaneServerUrl.requireAllowedRequest(baseUrl, request.uri());
     return OctaneRequestCoordinator.send(baseUrl, httpClient, request, bodyHandler);
   }
 
@@ -1134,12 +1146,29 @@ public class OctaneClient implements AutoCloseable {
     if (body == null || body.isBlank()) {
       return ". Response body: <empty>";
     }
+    body = redactValue(body, clientSecret.getPlainText());
+    if (cookieHeader != null) {
+      for (String cookie : cookieHeader.getPlainText().split(";")) {
+        int separator = cookie.indexOf('=');
+        if (separator >= 0) {
+          body = redactValue(body, cookie.substring(separator + 1).trim());
+        }
+      }
+    }
     String normalized =
         SENSITIVE_RESPONSE_VALUE.matcher(body).replaceAll("$1***$2").replaceAll("\\s+", " ").trim();
     if (normalized.length() > RESPONSE_BODY_LIMIT) {
       normalized = normalized.substring(0, RESPONSE_BODY_LIMIT) + "...";
     }
     return ". Response body: " + normalized;
+  }
+
+  private String redactValue(String body, String value) {
+    if (value.isEmpty()) {
+      return body;
+    }
+    String quoted = objectMapper.writeValueAsString(value);
+    return body.replace(value, "***").replace(quoted.substring(1, quoted.length() - 1), "***");
   }
 
   private void rememberCookies(HttpResponse<?> response) {
@@ -1152,8 +1181,8 @@ public class OctaneClient implements AutoCloseable {
       return;
     }
     Set<String> cookiePairs = new LinkedHashSet<>();
-    if (!cookieHeader.isEmpty()) {
-      for (String existingCookie : cookieHeader.split(";")) {
+    if (cookieHeader != null) {
+      for (String existingCookie : cookieHeader.getPlainText().split(";")) {
         String pair = existingCookie.trim();
         if (!pair.isEmpty()) {
           cookiePairs.add(pair);
@@ -1167,7 +1196,7 @@ public class OctaneClient implements AutoCloseable {
       }
     }
     if (!cookiePairs.isEmpty()) {
-      cookieHeader = String.join("; ", cookiePairs);
+      cookieHeader = Secret.fromString(String.join("; ", cookiePairs));
     }
   }
 

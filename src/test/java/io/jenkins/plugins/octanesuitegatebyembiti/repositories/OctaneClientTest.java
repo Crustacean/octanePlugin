@@ -19,6 +19,8 @@ import io.jenkins.plugins.octanesuitegatebyembiti.security.OctaneTestHttpsServer
 import io.jenkins.plugins.octanesuitegatebyembiti.services.OctaneReportZoneHtmlRenderer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -1237,11 +1239,68 @@ public class OctaneClientTest {
         client.authenticate();
       } catch (AbortException e) {
         assertFalse(e.getMessage().contains("server-echoed-secret"));
-        assertTrue(e.getMessage().contains("***"));
+        assertTrue(e.getMessage().contains("Authentication response body omitted"));
         return;
       }
     }
     throw new AssertionError("Expected authentication to fail.");
+  }
+
+  @Test
+  public void masksKnownCredentialsAndCookiesEvenWhenEchoedUnderUnrelatedFields() throws Exception {
+    String password = "test-secret-with-\"-quote";
+    String cookie = "test-session-token";
+    server.createContext(
+        "/authentication/sign_in",
+        exchange -> {
+          exchange.getResponseHeaders().set("Set-Cookie", "session=" + cookie + "; Path=/");
+          json(exchange, 200, "{}");
+        });
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/",
+        exchange ->
+            json(
+                exchange,
+                403,
+                new tools.jackson.databind.ObjectMapper()
+                    .writeValueAsString(Map.of("message", password + " " + cookie))));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", password)) {
+      client.authenticate();
+      var field = OctaneClient.class.getDeclaredField("cookieHeader");
+      assertEquals(hudson.util.Secret.class, field.getType());
+      field.setAccessible(true);
+      hudson.util.Secret storedCookie = (hudson.util.Secret) field.get(client);
+      assertFalse(storedCookie.getEncryptedValue().contains(cookie));
+      AbortException failure =
+          assertThrows(
+              AbortException.class, () -> client.fetchSuiteChildRuns("1001", "2002", "55"));
+      assertFalse(failure.getMessage().contains("test-secret"));
+      assertFalse(failure.getMessage().contains(cookie));
+      assertTrue(failure.getMessage(), failure.getMessage().contains("***"));
+    }
+  }
+
+  @Test
+  public void malformedResponsesCannotLeakCredentialsThroughParserExceptionCauses()
+      throws Exception {
+    String password = "ReflectedSecretNotValidJson";
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/api/shared_spaces/1001/workspaces/2002/defects",
+        exchange -> json(exchange, 200, password));
+    server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", password)) {
+      client.authenticate();
+      IOException failure =
+          assertThrows(
+              IOException.class, () -> client.fetchDefectsByIds("1001", "2002", List.of("123"), 1));
+      StringWriter stack = new StringWriter();
+      failure.printStackTrace(new PrintWriter(stack));
+      assertFalse(stack.toString().contains(password));
+      assertTrue(failure.getMessage().contains("malformed JSON"));
+      assertTrue(failure.getMessage().contains("***"));
+    }
   }
 
   @Test

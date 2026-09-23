@@ -3,6 +3,7 @@ package io.jenkins.plugins.octanesuitegatebyembiti.services;
 import hudson.model.Run;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneReportJson;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -26,14 +27,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.SerializableString;
-import tools.jackson.core.io.CharacterEscapes;
-import tools.jackson.core.json.JsonFactory;
-import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -47,10 +41,6 @@ public final class OctaneReportArtifactStore {
   private static final long MAX_ARRAY_LENGTH = 1_000_000L;
   private static final long MAX_DESERIALIZATION_DEPTH = 64L;
   private static final Pattern GENERATION_CHECKSUM = Pattern.compile("[0-9a-f]{64}");
-  private static final ObjectMapper RESPONSE_MAPPER =
-      JsonMapper.builder(JsonFactory.builder().characterEscapes(new HtmlSafeJsonEscapes()).build())
-          .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-          .build();
 
   private final ObjectMapper objectMapper;
   private final OctaneReportDataMapper dataMapper;
@@ -67,8 +57,8 @@ public final class OctaneReportArtifactStore {
   public OctaneReportArtifactMetadata publish(Run<?, ?> run, OctaneGateReportSnapshot snapshot)
       throws IOException {
     OctaneReportDataMapper.ReportData reportData = dataMapper.map(snapshot);
-    byte[] completeBytes = objectMapper.writeValueAsBytes(reportData.complete());
-    byte[] indexBytes = objectMapper.writeValueAsBytes(reportData.index());
+    byte[] completeBytes = OctaneReportJson.writeBytes(reportData.complete());
+    byte[] indexBytes = OctaneReportJson.writeBytes(reportData.index());
     String checksum = sha256(completeBytes);
     Path root = root(run);
     Files.createDirectories(root);
@@ -86,8 +76,7 @@ public final class OctaneReportArtifactStore {
         int sectionIndex = 0;
         for (Map<String, Object> section : reportData.sections()) {
           writeBytes(
-              temporary.resolve(sectionFile(sectionIndex++)),
-              objectMapper.writeValueAsBytes(section));
+              temporary.resolve(sectionFile(sectionIndex++)), OctaneReportJson.writeBytes(section));
         }
         writeSnapshot(temporary.resolve(SNAPSHOT_FILE), snapshot);
         moveDirectory(temporary, destination);
@@ -136,12 +125,12 @@ public final class OctaneReportArtifactStore {
   }
 
   public byte[] readIndex(Run<?, ?> run, OctaneReportArtifactMetadata metadata) throws IOException {
-    return RESPONSE_MAPPER.writeValueAsBytes(readJsonArtifact(run, metadata, INDEX_FILE));
+    return OctaneReportJson.writeBytes(readJsonArtifact(run, metadata, INDEX_FILE));
   }
 
   public byte[] readResults(Run<?, ?> run, OctaneReportArtifactMetadata metadata)
       throws IOException {
-    return RESPONSE_MAPPER.writeValueAsBytes(readJsonArtifact(run, metadata, RESULTS_FILE));
+    return OctaneReportJson.writeBytes(readJsonArtifact(run, metadata, RESULTS_FILE));
   }
 
   public byte[] readSectionPage(
@@ -163,7 +152,7 @@ public final class OctaneReportArtifactStore {
     source.put("cursor", safeCursor);
     source.put("nextCursor", end < bars.size() ? end : -1);
     source.put("totalBars", bars.size());
-    return RESPONSE_MAPPER.writeValueAsBytes(source);
+    return OctaneReportJson.writeBytes(source);
   }
 
   public void deleteGeneration(Run<?, ?> run, OctaneReportArtifactMetadata metadata) {
@@ -200,15 +189,7 @@ public final class OctaneReportArtifactStore {
 
   private ObjectNode readJsonArtifact(
       Run<?, ?> run, OctaneReportArtifactMetadata metadata, String fileName) throws IOException {
-    try {
-      JsonNode data = RESPONSE_MAPPER.readTree(readArtifact(run, metadata, fileName));
-      if (data instanceof ObjectNode object) {
-        return object;
-      }
-    } catch (JacksonException e) {
-      throw new IOException("Invalid Octane JSON report artifact.", e);
-    }
-    throw new IOException("Octane report artifact must contain a JSON object.");
+    return OctaneReportJson.readObject(readArtifact(run, metadata, fileName));
   }
 
   private static ObjectInputFilter.Status filterSnapshotObject(ObjectInputFilter.FilterInfo info) {
@@ -339,27 +320,6 @@ public final class OctaneReportArtifactStore {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value));
     } catch (NoSuchAlgorithmException e) {
       throw new IOException("SHA-256 is unavailable while writing Octane report data.", e);
-    }
-  }
-
-  private static final class HtmlSafeJsonEscapes extends CharacterEscapes {
-    private static final long serialVersionUID = 1L;
-    private final int[] escapes = CharacterEscapes.standardAsciiEscapesForJSON();
-
-    private HtmlSafeJsonEscapes() {
-      for (char character : new char[] {'<', '>', '&', '\''}) {
-        escapes[character] = CharacterEscapes.ESCAPE_STANDARD;
-      }
-    }
-
-    @Override
-    public int[] getEscapeCodesForAscii() {
-      return escapes.clone();
-    }
-
-    @Override
-    public SerializableString getEscapeSequence(int character) {
-      return null;
     }
   }
 }

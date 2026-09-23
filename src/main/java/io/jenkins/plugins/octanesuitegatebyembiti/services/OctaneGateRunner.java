@@ -1344,8 +1344,8 @@ public class OctaneGateRunner {
   OctaneClient createClient(GateRequest request) throws AbortException {
     ResolvedConnection connection = resolveConnection(request);
     StandardUsernamePasswordCredentials credentials = connection.credentials();
-    return new OctaneClient(
-        connection.baseUrl(), credentials.getUsername(), credentials.getPassword().getPlainText());
+    return OctaneClient.withCredentials(
+        connection.baseUrl(), credentials.getUsername(), credentials.getPassword());
   }
 
   private ResolvedConnection resolveConnection(GateRequest request) throws AbortException {

@@ -179,6 +179,27 @@ authoritative gate result and prove the complete Git path instead of testing str
   prove file creation and commit behavior, and simulate denied access to prove non-fatal handling.
 
 
+## Checkmarx Jenkins Report Guardrail
+
+When remediating this plugin's security reports, validate the actual source/sink and dependency
+scope before changing code. Keep the full scan POM: excluding a Jenkins-provided dependency does
+not patch the installed controller. Verify that a proposed fixed version exists and is binary
+compatible; document upstream residuals instead of suppressing them.
+
+- Use the shared `OctaneReportJson` encoder for report files and JSON endpoints, then `textContent`
+  for remote labels. JSON escaping does not authorize putting decoded strings into `innerHTML`.
+  Do not invent a browser `jenkins.security.encodeForHTML` API or replace safe DOM rendering with
+  a sanitizer. Test hostile labels through actual initial and refreshed browser rendering.
+- Preserve Jenkins `Secret` fields through credential resolution. Decrypt only at validated HTTPS
+  use boundaries; let Credentials/XStream encrypt at rest. Never log authentication response bodies.
+  Regression tests must inspect persisted credentials and complete exception traces containing
+  reflected secrets, including parser causes that may quote raw responses.
+- HSTS is a response/origin policy, not a JavaScript request header or runner responsibility. Use
+  the plugin HTTP filter for pages, scripts and API responses; trust container TLS state only.
+  `includeSubDomains` needs domain-wide deployment review. Keep JSON-only CSP off pages/scripts.
+- A successful build is not a clean SAST/SCA scan. Record tests, packaged contents, residual findings,
+  and any live proxy or scanner checks that could not be performed.
+
 ## Interpreting Browser Support & Fallbacks
 
 1. If the user provides an explicit browser support policy, follow it. Use the browser compatibility data in the guide to determine whether a fallback can be safely ignored.

@@ -42,6 +42,9 @@ public class OctaneScaleReportActionTest {
 
   @Test
   public void denseReportUsesSmallMetadataEtagAndInlineStatusAggregation() throws Exception {
+    assertTrue(
+        jenkins.jenkins.getExtensionList(jenkins.util.HttpServletFilter.class).stream()
+            .anyMatch(OctaneReportSecurityHeaders.class::isInstance));
     FreeStyleProject project = jenkins.createFreeStyleProject();
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
     GateRequest request = new GateRequest("octane-prod", "suite-0");
@@ -75,6 +78,11 @@ public class OctaneScaleReportActionTest {
     URL snapshotUrl = reportUri.resolve("snapshot").toURL();
     Page snapshot = jenkins.createWebClient().getPage(snapshotUrl);
     assertJsonSecurityHeaders(snapshot);
+    String snapshotBody = snapshot.getWebResponse().getContentAsString();
+    assertFalse(snapshotBody.contains("<"));
+    assertFalse(snapshotBody.contains(">"));
+    JsonNode decodedSnapshot = new ObjectMapper().readTree(snapshotBody);
+    assertTrue(decodedSnapshot.path("reportZoneHtml").asText().contains("<section"));
     String snapshotEtag = snapshot.getWebResponse().getResponseHeaderValue("ETag");
     assertNotNull(snapshotEtag);
     assertTrue(snapshot.getWebResponse().getContentLength() < 250_000L);
@@ -101,6 +109,16 @@ public class OctaneScaleReportActionTest {
     Page unchangedData = jenkins.createWebClient().getPage(unchangedDataRequest);
     assertEquals(304, unchangedData.getWebResponse().getStatusCode());
     assertJsonSecurityHeaders(unchangedData);
+
+    for (String scriptName : List.of("scaleReportScript", "testManagementScript")) {
+      Page script = jenkins.createWebClient().getPage(reportUri.resolve(scriptName).toURL());
+      assertEquals(
+          "nosniff", script.getWebResponse().getResponseHeaderValue("X-Content-Type-Options"));
+      assertTrue(script.getWebResponse().getContentType().contains("javascript"));
+      assertFalse(
+          String.valueOf(script.getWebResponse().getResponseHeaderValue("Content-Security-Policy"))
+              .contains("default-src 'none'"));
+    }
 
     URL sectionUrl = reportUri.resolve("data?section=0&cursor=0&limit=80").toURL();
     Page section = jenkins.createWebClient().getPage(sectionUrl);

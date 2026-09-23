@@ -1,6 +1,8 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.services;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.cloudbees.plugins.credentials.CredentialsScope;
@@ -9,12 +11,16 @@ import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import hudson.AbortException;
+import hudson.util.Secret;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateRequest;
 import io.jenkins.plugins.octanesuitegatebyembiti.repositories.OctaneClient;
 import io.jenkins.plugins.octanesuitegatebyembiti.security.OctaneTestHttpsServer;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicReference;
+import jenkins.model.Jenkins;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -128,6 +134,37 @@ public class OctaneDynamicConnectionTest {
       return;
     }
     throw new AssertionError("Expected the dynamic connection to reject a missing base URL.");
+  }
+
+  @Test
+  public void credentialsStayEncryptedAtRestAndAreNotDecryptedByTheRunner() throws Exception {
+    String password = "test-password-\"-not-for-disk";
+    addCredentials("octane-api-client", "client", password);
+    GateRequest request = new GateRequest("space", "1196");
+    request.setBaseUrl(baseUrl);
+    try (OctaneClient client = new OctaneGateRunner().createClient(request)) {
+      Field secretField = OctaneClient.class.getDeclaredField("clientSecret");
+      assertEquals(Secret.class, secretField.getType());
+      secretField.setAccessible(true);
+      Secret secret = (Secret) secretField.get(client);
+      assertEquals(password, secret.getPlainText());
+      assertEquals(password, Secret.fromString(secret.getEncryptedValue()).getPlainText());
+      String persisted = Jenkins.XSTREAM2.toXML(secret);
+      assertFalse(persisted.contains(password));
+      assertEquals(password, ((Secret) Jenkins.XSTREAM2.fromXML(persisted)).getPlainText());
+      assertFalse(
+          Files.readString(jenkins.jenkins.getRootDir().toPath().resolve("credentials.xml"))
+              .contains("test-password"));
+    }
+  }
+
+  @Test
+  public void runnerRejectsPlaintextBeforeResolvingOrSendingCredentials() {
+    GateRequest request = new GateRequest("space", "1196");
+    request.setBaseUrl("http://127.0.0.1:12345");
+    AbortException failure =
+        assertThrows(AbortException.class, () -> new OctaneGateRunner().createClient(request));
+    assertTrue(failure.getMessage().contains("https://"));
   }
 
   private void addCredentials(String id, String username, String password) throws Exception {
