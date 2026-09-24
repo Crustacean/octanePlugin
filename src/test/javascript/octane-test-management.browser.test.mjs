@@ -162,6 +162,38 @@ function fixtureHtml() {
       document.body.setAttribute(
           "data-unchanged-row-reused",
           String(refreshedRow === zone.querySelector(".octane-management-defect-row")));
+
+      var attack = ${JSON.stringify('</script><img src=x onerror="window.xss=1">\'"&').replaceAll("<", "\\u003c")};
+      var hostile = {
+        totalDefects: 2,
+        failureCategories: [
+          {key: attack, label: attack, open: 1, closed: 0, defects: [
+            {id: attack, description: attack, status: "Open", severity: attack, open: true}
+          ]},
+          {key: "safe", label: "Safe", open: 1, closed: 0, defects: [
+            {id: "safe", description: "Safe", status: "Open", severity: "High", open: true}
+          ]}
+        ]
+      };
+      OctaneTestManagement.update(zone, hostile);
+      OctaneTestManagement.render(zone);
+      function clickHostile(attribute) {
+        Array.from(zone.querySelectorAll("[" + attribute + "]"))
+            .find(function (node) { return node.getAttribute(attribute) === attack; }).click();
+        var rows = visibleRows();
+        return rows.length === 1
+            && rows[0].getAttribute("data-management-defect-category") === attack
+            && rows[0].querySelector(".octane-management-defect-description").textContent === attack;
+      }
+      var hostilePillSafe = clickHostile("data-management-category-filter");
+      var hostileBarSafe = clickHostile("data-management-category");
+      OctaneTestManagement.update(zone, JSON.parse(JSON.stringify(hostile)));
+      OctaneTestManagement.render(zone);
+      setTimeout(function () {
+        document.body.setAttribute("data-hostile-category-safe", String(
+            hostilePillSafe && hostileBarSafe && visibleRows().length === 1
+                && !window.xss && !zone.querySelector("img,script,iframe,[onerror],[onload]")));
+      }, 50);
     </script>
   </body></html>`;
 }
@@ -205,6 +237,7 @@ test(
         assert.match(result.stdout, /data-refresh-selected="true"/);
         assert.match(result.stdout, /data-unchanged-bar-reused="true"/);
         assert.match(result.stdout, /data-unchanged-row-reused="true"/);
+        assert.match(result.stdout, /data-hostile-category-safe="true"/);
       } finally {
         rmSync(directory, {force: true, recursive: true});
       }

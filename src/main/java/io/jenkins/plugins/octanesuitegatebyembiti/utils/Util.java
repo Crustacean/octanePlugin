@@ -57,7 +57,7 @@ public final class Util {
   }
 
   public static String normalizeStatus(String value) {
-    return trimToEmpty(value).toLowerCase().replace('-', '_').replace(' ', '_');
+    return trimToEmpty(value).toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
   }
 
   public static boolean isBlank(String value) {

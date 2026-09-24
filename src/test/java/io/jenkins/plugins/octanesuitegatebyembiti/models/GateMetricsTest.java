@@ -6,9 +6,36 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 class GateMetricsTest {
+  @Test
+  @ResourceLock(Resources.LOCALE)
+  void statusAndMetricNamesDoNotDependOnControllerLocale() {
+    Locale original = Locale.getDefault();
+    try {
+      Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+      GateMetrics metrics =
+          GateMetrics.fromRuns(
+              List.of(
+                  new RunRecord("1", "Passed", "PASSED"),
+                  new RunRecord("2", "Active", "IN PROGRESS"),
+                  new RunRecord("3", "Skipped", "SKIPPED")),
+              defaultClassifier());
+      assertEquals(1, metrics.getRunning());
+      assertEquals(1, metrics.getSkipped());
+      assertEquals("executionrate", GateMetrics.normalizeMetricName("EXECUTIONRATE"));
+      assertEquals("completionrate", GateMetrics.normalizeMetricName("COMPLETIONRATE"));
+      assertEquals(200.0 / 3, metrics.getCompletionRate(), 0.000001);
+      assertFalse(metrics.isTerminal());
+    } finally {
+      Locale.setDefault(original);
+    }
+  }
+
   @Test
   void centralizesExecutedCountAndRateCalculations() {
     assertEquals(4, GateMetrics.executedCount(2, 1, 1));

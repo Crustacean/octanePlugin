@@ -6,6 +6,7 @@ import io.jenkins.plugins.octanesuitegatebyembiti.utils.Util;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
 
@@ -171,7 +172,7 @@ public class GateMetrics implements Serializable {
 
   static String normalizeMetricName(String metricName) {
     String normalized = Util.trimToEmpty(metricName).replace("_", "").replace("-", "");
-    normalized = normalized.toLowerCase();
+    normalized = normalized.toLowerCase(Locale.ROOT);
     if ("execution".equals(normalized) || "executions".equals(normalized)) {
       return "executionrate";
     }

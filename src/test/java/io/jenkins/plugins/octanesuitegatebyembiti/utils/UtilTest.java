@@ -3,9 +3,26 @@ package io.jenkins.plugins.octanesuitegatebyembiti.utils;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 class UtilTest {
+  @Test
+  @ResourceLock(Resources.LOCALE)
+  void normalizesIdentifiersIndependentlyOfDefaultLocale() {
+    Locale original = Locale.getDefault();
+    try {
+      Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+      assertEquals("in_progress", Util.normalizeStatus(" IN PROGRESS "));
+      assertEquals("skipped", Util.normalizeStatus("SKIPPED"));
+      assertEquals("critical", Util.normalizeStatus("CRITICAL"));
+    } finally {
+      Locale.setDefault(original);
+    }
+  }
+
   @Test
   void logValuesAreSingleLineAndBounded() {
     assertEquals("release forged entry", Util.forLog("release\nforged\rentry"));

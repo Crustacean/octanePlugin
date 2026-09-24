@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -19,10 +21,14 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -36,7 +42,7 @@ public final class OctaneReportArtifactStore {
   static final String INDEX_FILE = "octane-index.json";
   static final String RESULTS_FILE = "octane-results.json";
   static final String SNAPSHOT_FILE = "octane-snapshot.bin.gz";
-  static final long MAX_ARTIFACT_BYTES = 64L * 1024L * 1024L;
+  static final int MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
   private static final long MAX_DESERIALIZED_REFERENCES = 1_000_000L;
   private static final long MAX_ARRAY_LENGTH = 1_000_000L;
   private static final long MAX_DESERIALIZATION_DEPTH = 64L;
@@ -61,14 +67,13 @@ public final class OctaneReportArtifactStore {
     byte[] indexBytes = OctaneReportJson.writeBytes(reportData.index());
     String checksum = sha256(completeBytes);
     Path root = root(run);
-    Files.createDirectories(root);
-    requireDirectory(root);
+    createPrivateDirectory(root);
     Path destination = root.resolve(checksum);
     if (Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
       requireDirectory(destination);
     } else {
       Path temporary = root.resolve(".tmp-" + UUID.randomUUID());
-      Files.createDirectories(temporary);
+      createPrivateDirectory(temporary);
       boolean published = false;
       try {
         writeBytes(temporary.resolve(RESULTS_FILE), completeBytes);
@@ -143,7 +148,7 @@ public final class OctaneReportArtifactStore {
     ArrayNode bars = source.withArray("bars");
     int safeCursor = Math.min(Math.max(0, cursor), bars.size());
     int safeLimit = Math.min(200, Math.max(1, limit));
-    int end = Math.min(bars.size(), safeCursor + safeLimit);
+    int end = safeCursor + Math.min(safeLimit, bars.size() - safeCursor);
     ArrayNode page = objectMapper.createArrayNode();
     for (int index = safeCursor; index < end; index++) {
       page.add(bars.get(index));
@@ -179,7 +184,7 @@ public final class OctaneReportArtifactStore {
     requireRegularFile(path);
     verifyArtifactSize(path);
     try (InputStream input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
-      byte[] content = input.readNBytes((int) MAX_ARTIFACT_BYTES + 1);
+      byte[] content = input.readNBytes(MAX_ARTIFACT_BYTES + 1);
       if (content.length > MAX_ARTIFACT_BYTES) {
         throw new IOException("Octane report artifact exceeds the byte safety limit.");
       }
@@ -260,19 +265,53 @@ public final class OctaneReportArtifactStore {
     }
   }
 
+  private static FileAttribute<?>[] privateAttributes(Path path, String permissions)
+      throws IOException {
+    Path parent = path.getParent();
+    if (parent == null) {
+      throw new IOException("Octane report artifact path must have a parent directory.");
+    }
+    if (Files.getFileStore(parent).supportsFileAttributeView(PosixFileAttributeView.class)) {
+      return new FileAttribute<?>[] {
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(permissions))
+      };
+    }
+    // Non-POSIX filesystems retain the Jenkins build directory's inherited ACL.
+    return new FileAttribute<?>[0];
+  }
+
+  private static void createPrivateDirectory(Path path) throws IOException {
+    Files.createDirectories(path, privateAttributes(path, "rwx------"));
+    requireDirectory(path);
+    PosixFileAttributeView permissions =
+        Files.getFileAttributeView(path, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+    if (permissions != null) {
+      // Also protect generations written before owner-only creation was introduced.
+      permissions.setPermissions(PosixFilePermissions.fromString("rwx------"));
+    }
+  }
+
+  private static OutputStream newArtifactOutput(Path path) throws IOException {
+    return Channels.newOutputStream(
+        Files.newByteChannel(
+            path,
+            Set.of(
+                StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS),
+            privateAttributes(path, "rw-------")));
+  }
+
   private void writeSnapshot(Path path, OctaneGateReportSnapshot snapshot) throws IOException {
     try (ObjectOutputStream output =
         new ObjectOutputStream(
-            new GZIPOutputStream(
-                new BufferedOutputStream(
-                    Files.newOutputStream(
-                        path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE))))) {
+            new GZIPOutputStream(new BufferedOutputStream(newArtifactOutput(path))))) {
       output.writeObject(snapshot);
     }
   }
 
   private void writeBytes(Path path, byte[] content) throws IOException {
-    Files.write(path, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+    try (OutputStream output = newArtifactOutput(path)) {
+      output.write(content);
+    }
   }
 
   private void moveDirectory(Path source, Path destination) throws IOException {

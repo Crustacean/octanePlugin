@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -421,7 +422,7 @@ public class OctaneGateReportSection implements Serializable {
     if (scopeName == null || scopeName.isBlank()) {
       return "Scope";
     }
-    return scopeName.substring(0, 1).toUpperCase() + scopeName.substring(1);
+    return scopeName.substring(0, 1).toUpperCase(Locale.ROOT) + scopeName.substring(1);
   }
 
   private static class RunByGroup {

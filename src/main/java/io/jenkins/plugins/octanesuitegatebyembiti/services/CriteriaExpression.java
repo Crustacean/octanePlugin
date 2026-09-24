@@ -982,7 +982,12 @@ public class CriteriaExpression implements Serializable {
 
     private NumericExpression parseUnaryExpression() {
       if (peek().type == TokenType.PLUS || peek().type == TokenType.MINUS) {
-        return new UnaryNumberNode(advance().type, parseUnaryExpression());
+        enterNesting();
+        try {
+          return new UnaryNumberNode(advance().type, parseUnaryExpression());
+        } finally {
+          nestingDepth--;
+        }
       }
       return parseNumericPrimary();
     }
@@ -1055,7 +1060,7 @@ public class CriteriaExpression implements Serializable {
       Token token = advance();
       if (token.type != expectedType) {
         throw new CriteriaException(
-            "Expected " + expectedType.name().toLowerCase() + " near: " + token.text);
+            "Expected " + expectedType.name().toLowerCase(Locale.ROOT) + " near: " + token.text);
       }
       return token;
     }

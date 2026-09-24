@@ -40,6 +40,9 @@ class SourceSecurityAuditTest {
     assertFalse(production.contains("new ProcessBuilder("));
     assertFalse(production.contains("setDefaultHostnameVerifier("));
     assertFalse(production.contains("setDefaultSSLSocketFactory("));
+    assertFalse(
+        Pattern.compile("\\.to(?:Lower|Upper)Case\\(\\s*\\)").matcher(production).find(),
+        "Protocol/status/metric identifiers must use an explicit locale.");
   }
 
   private static boolean isAuditedSource(Path path) {

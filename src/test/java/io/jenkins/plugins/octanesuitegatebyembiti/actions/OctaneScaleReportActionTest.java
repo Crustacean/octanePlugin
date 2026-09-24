@@ -147,6 +147,38 @@ public class OctaneScaleReportActionTest {
   }
 
   @Test
+  public void persistedAttackStringsStayEncodedAtTheHttpResponseBoundary() throws Exception {
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(jenkins.createFreeStyleProject());
+    OctaneGateReportAction action =
+        OctaneGateReportAction.attachTo(build, new GateRequest("octane-prod", "suite-0"));
+    action.onPoll(ScaleReportFixture.result(0, 1, 1), ScaleReportFixture.classifier());
+    var directory =
+        build
+            .getRootDir()
+            .toPath()
+            .resolve("octane-suite-gate")
+            .resolve(action.getReportDataChecksum());
+    String attack = "</script><img src=x onerror=alert('stored')>&";
+    String artifact =
+        new ObjectMapper()
+            .writeValueAsString(Map.of("name", attack, "bars", List.of(Map.of("name", attack))));
+    Files.writeString(directory.resolve("octane-index.json"), artifact);
+    Files.writeString(directory.resolve("section-0.json"), artifact);
+    URI report =
+        jenkins.getURL().toURI().resolve(build.getUrl() + OctaneGateReportAction.URL_NAME + "/");
+    for (String resource : List.of("data", "data?section=0&cursor=0&limit=80")) {
+      Page page = jenkins.createWebClient().getPage(report.resolve(resource).toURL());
+      assertJsonSecurityHeaders(page);
+      assertEquals("application/json", page.getWebResponse().getContentType());
+      String body = page.getWebResponse().getContentAsString();
+      assertFalse(body.contains("<"));
+      assertFalse(body.contains(">"));
+      assertFalse(body.contains("&"));
+      assertEquals(attack, new ObjectMapper().readTree(body).path("name").asText());
+    }
+  }
+
+  @Test
   public void readsLegacyInlineSnapshotWhenArtifactMetadataIsAbsent() throws Exception {
     FreeStyleProject project = jenkins.createFreeStyleProject();
     FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);

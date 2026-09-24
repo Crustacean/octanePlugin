@@ -110,6 +110,47 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void logoutSendsCookiesOnlyOverTlsAndNeverFollowsADowngrade() throws Exception {
+    HttpServer plaintext = HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    AtomicInteger leakedRequests = new AtomicInteger();
+    AtomicInteger secureLogouts = new AtomicInteger();
+    AtomicBoolean cookieReceivedSecurely = new AtomicBoolean();
+    plaintext.createContext(
+        "/",
+        exchange -> {
+          leakedRequests.incrementAndGet();
+          json(exchange, 200, "{}");
+        });
+    plaintext.start();
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    server.createContext(
+        "/authentication/sign_out",
+        exchange -> {
+          secureLogouts.incrementAndGet();
+          cookieReceivedSecurely.set(
+              exchange instanceof com.sun.net.httpserver.HttpsExchange
+                  && "POST".equals(exchange.getRequestMethod())
+                  && "LWSSO_COOKIE_KEY=test"
+                      .equals(exchange.getRequestHeaders().getFirst("Cookie")));
+          exchange
+              .getResponseHeaders()
+              .set("Location", "http://127.0.0.1:" + plaintext.getAddress().getPort() + "/");
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    try {
+      try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+        client.authenticate();
+      }
+      assertEquals(1, secureLogouts.get());
+      assertTrue(cookieReceivedSecurely.get());
+      assertEquals(0, leakedRequests.get());
+    } finally {
+      plaintext.stop(0);
+    }
+  }
+
+  @Test
   public void authenticatesAndFetchesSuiteChildRuns() throws Exception {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext(

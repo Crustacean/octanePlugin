@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class OctaneGateLogListener {
@@ -220,7 +221,7 @@ public class OctaneGateLogListener {
     if (scopeName == null || scopeName.isBlank()) {
       return "Scope";
     }
-    return scopeName.substring(0, 1).toUpperCase() + scopeName.substring(1);
+    return scopeName.substring(0, 1).toUpperCase(Locale.ROOT) + scopeName.substring(1);
   }
 
   private String describeIds(List<String> ids) {

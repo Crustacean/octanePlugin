@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -18,6 +19,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
@@ -57,6 +60,71 @@ public class OctaneReportArtifactStoreTest {
                 .toPath()
                 .resolve(metadata.getArtifactDirectory())
                 .resolve(OctaneReportArtifactStore.RESULTS_FILE)));
+  }
+
+  @Test
+  public void artifactsAreOwnerOnlyAndExistingArtifactRootIsHardened() throws Exception {
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(jenkins.createFreeStyleProject());
+    Path buildRoot = build.getRootDir().toPath();
+    assumeTrue(
+        Files.getFileStore(buildRoot).supportsFileAttributeView(PosixFileAttributeView.class));
+    Path root = buildRoot.resolve(OctaneReportArtifactStore.ROOT_DIRECTORY);
+    Files.createDirectory(root);
+    Files.setPosixFilePermissions(root, PosixFilePermissions.fromString("rwxr-xr-x"));
+    OctaneReportArtifactStore store = new OctaneReportArtifactStore();
+    OctaneGateReportSnapshot snapshot = OctaneScaleTestFixture.snapshot(0, 5, 1);
+    OctaneReportArtifactMetadata metadata = store.publish(build, snapshot);
+    Path generation = buildRoot.resolve(metadata.getArtifactDirectory());
+
+    try (var artifacts = Files.walk(root)) {
+      for (Path path : artifacts.toList()) {
+        assertEquals(
+            path.toString(),
+            PosixFilePermissions.fromString(Files.isDirectory(path) ? "rwx------" : "rw-------"),
+            Files.getPosixFilePermissions(path));
+      }
+    }
+    Files.setPosixFilePermissions(root, PosixFilePermissions.fromString("rwxr-xr-x"));
+    assertEquals(metadata.getChecksum(), store.publish(build, snapshot).getChecksum());
+    assertEquals(PosixFilePermissions.fromString("rwx------"), Files.getPosixFilePermissions(root));
+    assertTrue(Files.isRegularFile(generation.resolve(OctaneReportArtifactStore.SNAPSHOT_FILE)));
+    assertEquals(5, store.loadSnapshot(build, metadata).getProjectTestTotal());
+  }
+
+  @Test
+  public void paginationBoundsRejectInvalidSectionsAndClampExtremeIntegers() throws Exception {
+    FreeStyleBuild build = jenkins.buildAndAssertSuccess(jenkins.createFreeStyleProject());
+    OctaneReportArtifactStore store = new OctaneReportArtifactStore();
+    OctaneReportArtifactMetadata metadata =
+        store.publish(build, OctaneScaleTestFixture.snapshot(0, 1, 1));
+    Path section =
+        build
+            .getRootDir()
+            .toPath()
+            .resolve(metadata.getArtifactDirectory())
+            .resolve("section-0.json");
+    Files.writeString(section, "{\"bars\":[{\"id\":1},{\"id\":2},{\"id\":3}]}");
+    ObjectMapper mapper = new ObjectMapper();
+    for (int cursor : new int[] {Integer.MIN_VALUE, -1, 0, 2, 3, Integer.MAX_VALUE}) {
+      for (int limit : new int[] {Integer.MIN_VALUE, 0, 1, 200, Integer.MAX_VALUE}) {
+        var page = mapper.readTree(store.readSectionPage(build, metadata, 0, cursor, limit));
+        int start = Math.max(0, Math.min(cursor, 3));
+        int count = Math.min(3 - start, Math.max(1, Math.min(limit, 200)));
+        assertEquals(start, page.path("cursor").asInt());
+        assertEquals(count, page.path("bars").size());
+        assertEquals(3, page.path("totalBars").asInt());
+        assertEquals(start + count < 3 ? start + count : -1, page.path("nextCursor").asInt());
+      }
+    }
+    for (int invalid : new int[] {Integer.MIN_VALUE, -1, 1, Integer.MAX_VALUE}) {
+      assertThrows(IOException.class, () -> store.readSectionPage(build, metadata, invalid, 0, 10));
+    }
+    Files.writeString(section, "{\"bars\":[]}");
+    var empty =
+        mapper.readTree(
+            store.readSectionPage(build, metadata, 0, Integer.MAX_VALUE, Integer.MAX_VALUE));
+    assertEquals(0, empty.path("bars").size());
+    assertEquals(-1, empty.path("nextCursor").asInt());
   }
 
   @Test

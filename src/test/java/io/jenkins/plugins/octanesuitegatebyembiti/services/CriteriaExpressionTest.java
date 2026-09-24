@@ -483,6 +483,27 @@ public class CriteriaExpressionTest {
   }
 
   @Test
+  public void unaryOperatorsShareTheGroupNestingBudget() {
+    MetricsContext context = new MetricsContext(new GateMetrics(1, 1, 1, 0, 0, 0), Map.of());
+    assertTrue(
+        CriteriaExpression.parse(
+                "+".repeat(CriteriaExpression.MAX_NESTING_DEPTH) + "passRate == 100")
+            .evaluate(context));
+    assertTrue(CriteriaExpression.parse("--passRate == 100").evaluate(context));
+    for (String expression :
+        List.of(
+            "+".repeat(CriteriaExpression.MAX_NESTING_DEPTH + 1) + "passRate == 100",
+            "(" + "-".repeat(CriteriaExpression.MAX_NESTING_DEPTH) + "passRate) == 100")) {
+      try {
+        CriteriaExpression.parse(expression);
+        throw new AssertionError("Expected unary operators to respect the nesting limit.");
+      } catch (CriteriaException expected) {
+        assertTrue(expected.getMessage().contains("nesting limit"));
+      }
+    }
+  }
+
+  @Test
   public void acceptsTheTokenBoundaryAndRejectsTheNextEquivalencePartition() {
     String accepted = String.join(" AND ", java.util.Collections.nCopies(256, "passRate >= 0"));
     String rejected = String.join(" AND ", java.util.Collections.nCopies(257, "passRate >= 0"));
