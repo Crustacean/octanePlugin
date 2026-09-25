@@ -158,7 +158,7 @@ public class OctaneScaleReportActionTest {
             .toPath()
             .resolve("octane-suite-gate")
             .resolve(action.getReportDataChecksum());
-    String attack = "</script><img src=x onerror=alert('stored')>&";
+    String attack = "</script><img src=x onerror=alert('stored')>&\u00e9\uD83D\uDE00";
     String artifact =
         new ObjectMapper()
             .writeValueAsString(Map.of("name", attack, "bars", List.of(Map.of("name", attack))));

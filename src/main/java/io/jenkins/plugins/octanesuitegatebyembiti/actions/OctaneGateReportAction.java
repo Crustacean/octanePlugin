@@ -34,6 +34,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import tools.jackson.databind.node.ObjectNode;
 
 public class OctaneGateReportAction implements RunAction2, OctaneGateReportPublisher, Serializable {
   private static final long serialVersionUID = 1L;
@@ -224,8 +225,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
   }
 
   public void doSnapshot(StaplerRequest2 request, StaplerResponse2 response) throws IOException {
-    checkReadPermission();
     setJsonSecurityHeaders(request, response);
+    checkReadPermission();
     String etag = currentEtag();
     if (etagMatches(request, etag)) {
       response.setStatus(304);
@@ -289,7 +290,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
     setDataHeaders(response, etag, safeSnapshot.isBuilding());
     response.setContentType("application/json;charset=UTF-8");
-    response.getWriter().print(OctaneReportJson.writeString(payload));
+    OctaneReportJson.writeTo(response.getWriter(), payload);
   }
 
   public void doData(
@@ -299,8 +300,8 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
       @QueryParameter int cursor,
       @QueryParameter int limit)
       throws IOException {
-    checkReadPermission();
     setJsonSecurityHeaders(request, response);
+    checkReadPermission();
     OctaneReportArtifactMetadata metadata = artifactMetadata;
     if (metadata == null || !metadata.isAvailable()) {
       response.sendError(404, "Octane report data is not available for this build.");
@@ -312,7 +313,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
       response.setStatus(304);
       return;
     }
-    byte[] body;
+    ObjectNode body;
     OctaneReportArtifactStore store = new OctaneReportArtifactStore();
     if (section == null || section.isBlank()) {
       body = store.readIndex(run, metadata);
@@ -332,11 +333,12 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
     setDataHeaders(response, etag, metadata.isBuilding());
     response.setContentType("application/json;charset=UTF-8");
-    response.setContentLength(body.length);
-    response.getOutputStream().write(body);
+    OctaneReportJson.writeTo(response.getWriter(), body);
   }
 
-  public void doScaleReportScript(StaplerResponse2 response) throws IOException {
+  public void doScaleReportScript(StaplerRequest2 request, StaplerResponse2 response)
+      throws IOException {
+    setResponseSecurityHeaders(request, response);
     checkReadPermission();
     try (InputStream script =
         OctaneGateReportAction.class.getResourceAsStream("/js/octane-scale-report.js")) {
@@ -351,7 +353,9 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
     }
   }
 
-  public void doTestManagementScript(StaplerResponse2 response) throws IOException {
+  public void doTestManagementScript(StaplerRequest2 request, StaplerResponse2 response)
+      throws IOException {
+    setResponseSecurityHeaders(request, response);
     checkReadPermission();
     try (InputStream script =
         OctaneGateReportAction.class.getResourceAsStream("/js/octane-test-management.js")) {
@@ -617,9 +621,17 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   static void setJsonSecurityHeaders(StaplerRequest2 request, StaplerResponse2 response) {
     response.setContentType("application/json;charset=UTF-8");
-    OctaneReportSecurityHeaders.apply(request, response);
+    setResponseSecurityHeaders(request, response);
     response.setHeader(
         "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
+  }
+
+  private static void setResponseSecurityHeaders(
+      StaplerRequest2 request, StaplerResponse2 response) {
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    if (request != null && request.isSecure()) {
+      response.setHeader("Strict-Transport-Security", OctaneReportSecurityHeaders.HSTS_POLICY);
+    }
   }
 
   private void configureTimers(GateRequest request) {

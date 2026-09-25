@@ -129,16 +129,17 @@ public final class OctaneReportArtifactStore {
     }
   }
 
-  public byte[] readIndex(Run<?, ?> run, OctaneReportArtifactMetadata metadata) throws IOException {
-    return OctaneReportJson.writeBytes(readJsonArtifact(run, metadata, INDEX_FILE));
-  }
-
-  public byte[] readResults(Run<?, ?> run, OctaneReportArtifactMetadata metadata)
+  public ObjectNode readIndex(Run<?, ?> run, OctaneReportArtifactMetadata metadata)
       throws IOException {
-    return OctaneReportJson.writeBytes(readJsonArtifact(run, metadata, RESULTS_FILE));
+    return readJsonArtifact(run, metadata, INDEX_FILE);
   }
 
-  public byte[] readSectionPage(
+  public ObjectNode readResults(Run<?, ?> run, OctaneReportArtifactMetadata metadata)
+      throws IOException {
+    return readJsonArtifact(run, metadata, RESULTS_FILE);
+  }
+
+  public ObjectNode readSectionPage(
       Run<?, ?> run, OctaneReportArtifactMetadata metadata, int section, int cursor, int limit)
       throws IOException {
     if (section < 0 || section >= metadata.getSectionCount()) {
@@ -157,7 +158,7 @@ public final class OctaneReportArtifactStore {
     source.put("cursor", safeCursor);
     source.put("nextCursor", end < bars.size() ? end : -1);
     source.put("totalBars", bars.size());
-    return OctaneReportJson.writeBytes(source);
+    return source;
   }
 
   public void deleteGeneration(Run<?, ?> run, OctaneReportArtifactMetadata metadata) {

@@ -11,11 +11,11 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneGateReportSnapshot;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.OctaneReportArtifactMetadata;
+import io.jenkins.plugins.octanesuitegatebyembiti.utils.OctaneReportJson;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -28,6 +28,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 public class OctaneReportArtifactStoreTest {
   @Rule public JenkinsRule jenkins = new JenkinsRule();
@@ -44,7 +45,7 @@ public class OctaneReportArtifactStoreTest {
     assertTrue(metadata.isAvailable());
     assertEquals(OctaneReportDataMapper.SCHEMA_VERSION, metadata.getSchemaVersion());
     assertTrue(metadata.getJsonSize() < 5_000_000L);
-    assertTrue(store.readIndex(build, metadata).length < 250_000);
+    assertTrue(OctaneReportJson.writeBytes(store.readIndex(build, metadata)).length < 250_000);
     assertEquals(1, metadata.getSectionCount());
     OctaneGateReportSnapshot reloaded = store.loadSnapshot(build, metadata);
     assertNotNull(reloaded);
@@ -104,10 +105,9 @@ public class OctaneReportArtifactStoreTest {
             .resolve(metadata.getArtifactDirectory())
             .resolve("section-0.json");
     Files.writeString(section, "{\"bars\":[{\"id\":1},{\"id\":2},{\"id\":3}]}");
-    ObjectMapper mapper = new ObjectMapper();
     for (int cursor : new int[] {Integer.MIN_VALUE, -1, 0, 2, 3, Integer.MAX_VALUE}) {
       for (int limit : new int[] {Integer.MIN_VALUE, 0, 1, 200, Integer.MAX_VALUE}) {
-        var page = mapper.readTree(store.readSectionPage(build, metadata, 0, cursor, limit));
+        var page = store.readSectionPage(build, metadata, 0, cursor, limit);
         int start = Math.max(0, Math.min(cursor, 3));
         int count = Math.min(3 - start, Math.max(1, Math.min(limit, 200)));
         assertEquals(start, page.path("cursor").asInt());
@@ -120,9 +120,7 @@ public class OctaneReportArtifactStoreTest {
       assertThrows(IOException.class, () -> store.readSectionPage(build, metadata, invalid, 0, 10));
     }
     Files.writeString(section, "{\"bars\":[]}");
-    var empty =
-        mapper.readTree(
-            store.readSectionPage(build, metadata, 0, Integer.MAX_VALUE, Integer.MAX_VALUE));
+    var empty = store.readSectionPage(build, metadata, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
     assertEquals(0, empty.path("bars").size());
     assertEquals(-1, empty.path("nextCursor").asInt());
   }
@@ -181,12 +179,12 @@ public class OctaneReportArtifactStoreTest {
             "section-0.json")) {
       Files.writeString(directory.resolve(file), json);
     }
-    for (byte[] response :
+    for (ObjectNode response :
         List.of(
             store.readIndex(build, metadata),
             store.readResults(build, metadata),
             store.readSectionPage(build, metadata, 0, 0, 10))) {
-      String body = new String(response, StandardCharsets.UTF_8);
+      String body = OctaneReportJson.writeString(response);
       assertFalse(body.contains("<"));
       assertFalse(body.contains(">"));
       assertFalse(body.contains("&"));

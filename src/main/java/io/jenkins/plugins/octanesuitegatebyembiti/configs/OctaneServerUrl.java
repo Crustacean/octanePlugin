@@ -52,6 +52,9 @@ public final class OctaneServerUrl {
   }
 
   public static URI requireAllowedRequest(String configuredBaseUrl, URI requestUri) {
+    if (requestUri == null || !"https".equalsIgnoreCase(requestUri.getScheme())) {
+      throw new IllegalArgumentException("ALM Octane requests must use HTTPS.");
+    }
     URI baseUri = URI.create(normalize(configuredBaseUrl));
     if (!hasConfiguredOrigin(baseUri, requestUri)) {
       throw new IllegalArgumentException("ALM Octane request must use the mapped server origin.");

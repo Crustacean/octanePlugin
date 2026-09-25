@@ -1,8 +1,10 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.utils;
 
 import java.io.IOException;
+import java.io.Writer;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.SerializableString;
+import tools.jackson.core.StreamWriteFeature;
 import tools.jackson.core.io.CharacterEscapes;
 import tools.jackson.core.json.JsonFactory;
 import tools.jackson.databind.DeserializationFeature;
@@ -14,7 +16,11 @@ import tools.jackson.databind.node.ObjectNode;
 /** JSON encoding for persisted reports and HTTP responses, without changing decoded values. */
 public final class OctaneReportJson {
   private static final ObjectMapper MAPPER =
-      JsonMapper.builder(JsonFactory.builder().characterEscapes(new HtmlSafeEscapes()).build())
+      JsonMapper.builder(
+              JsonFactory.builder()
+                  .characterEscapes(new HtmlSafeEscapes())
+                  .disable(StreamWriteFeature.AUTO_CLOSE_TARGET)
+                  .build())
           .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
           .build();
 
@@ -26,6 +32,11 @@ public final class OctaneReportJson {
 
   public static String writeString(Object value) {
     return MAPPER.writeValueAsString(value);
+  }
+
+  /** Serializes structured data at the response boundary without closing the servlet's writer. */
+  public static void writeTo(Writer writer, Object value) {
+    MAPPER.writeValue(writer, value);
   }
 
   public static ObjectNode readObject(byte[] content) throws IOException {

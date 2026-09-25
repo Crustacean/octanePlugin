@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import hudson.AbortException;
+import hudson.util.Secret;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.RunRecord;
 import io.jenkins.plugins.octanesuitegatebyembiti.models.GateMetrics;
@@ -69,19 +70,29 @@ public class OctaneClientTest {
   }
 
   @Test
+  public void acceptsOnlySecretTypedCredentialInputs() {
+    for (var constructor : OctaneClient.class.getDeclaredConstructors()) {
+      Class<?>[] parameters = constructor.getParameterTypes();
+      assertEquals(Secret.class, parameters[parameters.length - 1]);
+    }
+  }
+
+  @Test
   public void refusesPlaintextAndRedirectsWithoutForwardingCredentials() throws Exception {
     assertThrows(
         IllegalArgumentException.class,
         () ->
             new OctaneClient(
-                "http://127.0.0.1:" + server.getAddress().getPort(), "client", "secret"));
+                "http://127.0.0.1:" + server.getAddress().getPort(),
+                "client",
+                Secret.fromString("secret")));
     try (java.net.http.HttpClient redirecting =
         java.net.http.HttpClient.newBuilder()
             .followRedirects(java.net.http.HttpClient.Redirect.ALWAYS)
             .build()) {
       assertThrows(
           IllegalArgumentException.class,
-          () -> new OctaneClient(redirecting, baseUrl, "client", "secret"));
+          () -> new OctaneClient(redirecting, baseUrl, "client", Secret.fromString("secret")));
     }
     HttpServer plaintext = HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
     AtomicInteger leakedRequests = new AtomicInteger();
@@ -101,7 +112,7 @@ public class OctaneClientTest {
           exchange.sendResponseHeaders(307, -1);
           exchange.close();
         });
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       assertThrows(AbortException.class, client::authenticate);
       assertEquals(0, leakedRequests.get());
     } finally {
@@ -139,14 +150,34 @@ public class OctaneClientTest {
           exchange.close();
         });
     try {
-      try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+      try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
         client.authenticate();
+        client.close();
+        var cookie = OctaneClient.class.getDeclaredField("cookieHeader");
+        cookie.setAccessible(true);
+        org.junit.Assert.assertNull(cookie.get(client));
       }
       assertEquals(1, secureLogouts.get());
       assertTrue(cookieReceivedSecurely.get());
       assertEquals(0, leakedRequests.get());
     } finally {
       plaintext.stop(0);
+    }
+  }
+
+  @Test
+  public void failedLogoutDropsTheRetainedCookieAndRepeatedCloseDoesNotRetry() throws Exception {
+    server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
+      client.authenticate();
+      server.stop(0);
+
+      assertThrows(IOException.class, client::close);
+
+      var cookie = OctaneClient.class.getDeclaredField("cookieHeader");
+      cookie.setAccessible(true);
+      org.junit.Assert.assertNull(cookie.get(client));
+      client.close();
     }
   }
 
@@ -192,7 +223,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
 
@@ -233,7 +264,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
 
@@ -277,7 +308,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
 
@@ -322,7 +353,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -373,7 +404,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -420,7 +451,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -487,7 +518,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -530,7 +561,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -584,7 +615,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -630,7 +661,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 200, "{\"id\":\"55\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -676,7 +707,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 200, "{\"id\":\"55\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       RunRecord planned =
@@ -724,7 +755,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 200, "{\"id\":\"55\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       RunRecord assigned =
@@ -764,7 +795,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       RunRecord firstPoll = client.fetchSuiteChildRuns("1001", "2002", "56").get(0);
@@ -806,7 +837,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 200, "{\"id\":\"57\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       RunRecord unresolved = client.fetchSuiteChildRuns("1001", "2002", "57").get(0);
@@ -848,7 +879,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       RunRecord unresolved =
@@ -891,7 +922,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
 
@@ -933,7 +964,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", List.of("55")).get("55");
 
@@ -973,7 +1004,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
 
@@ -1001,7 +1032,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       assertEquals(
@@ -1029,7 +1060,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       assertEquals(
@@ -1067,7 +1098,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       assertEquals(
@@ -1105,7 +1136,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 404, "{\"description\":\"HTTP 404 Not Found\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       Map<String, List<RunRecord>> runs =
@@ -1150,7 +1181,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       assertEquals(List.of("55"), discoverAvailableIds(client));
@@ -1193,7 +1224,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       assertEquals(List.of("55"), discoverAvailableIds(client));
@@ -1207,7 +1238,7 @@ public class OctaneClientTest {
     server.createContext("/authentication/sign_in", exchange -> json(exchange, 200, "{}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       try {
         client.fetchSuiteChildRuns("1001", "2002", "55) OR (id GT 0");
@@ -1241,7 +1272,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       assertTrue(client.fetchScopedRuns("1001", "2002", List.of("101"), "").isEmpty());
       assertEquals(1, requests.get());
@@ -1254,7 +1285,7 @@ public class OctaneClientTest {
         "/authentication/sign_in",
         exchange -> json(exchange, 200, "x".repeat(OctaneClient.MAX_JSON_RESPONSE_BYTES + 1)));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       try {
         client.authenticate();
       } catch (IOException e) {
@@ -1275,7 +1306,8 @@ public class OctaneClientTest {
                 401,
                 "{\"client_secret\":\"server-echoed-secret\",\"message\":\"denied\"}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "request-secret")) {
+    try (OctaneClient client =
+        new OctaneClient(baseUrl, "client", Secret.fromString("request-secret"))) {
       try {
         client.authenticate();
       } catch (AbortException e) {
@@ -1306,7 +1338,7 @@ public class OctaneClientTest {
                 new tools.jackson.databind.ObjectMapper()
                     .writeValueAsString(Map.of("message", password + " " + cookie))));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", password)) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString(password))) {
       client.authenticate();
       var field = OctaneClient.class.getDeclaredField("cookieHeader");
       assertEquals(hudson.util.Secret.class, field.getType());
@@ -1331,7 +1363,7 @@ public class OctaneClientTest {
         "/api/shared_spaces/1001/workspaces/2002/defects",
         exchange -> json(exchange, 200, password));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", password)) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString(password))) {
       client.authenticate();
       IOException failure =
           assertThrows(
@@ -1378,7 +1410,7 @@ public class OctaneClientTest {
                     + "\"native_status\":{\"logical_name\":\"passed\"}}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
 
@@ -1401,7 +1433,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       assertEquals(200, client.testWorkspaceAccess("1001", "2002"));
@@ -1426,7 +1458,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<RunRecord> records = client.fetchSuiteChildRuns("1001", "2002", "55");
 
@@ -1447,7 +1479,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 400, "{\"error\":\"bad suite run\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       try {
@@ -1476,7 +1508,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 404, "{\"description\":\"HTTP 404 Not Found\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       try {
@@ -1506,7 +1538,7 @@ public class OctaneClientTest {
         exchange -> json(exchange, 400, "{\"error\":\"unsupported suite fields\"}"));
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       try {
@@ -1564,7 +1596,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       Map<String, List<RunRecord>> first =
@@ -1595,7 +1627,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       List<RunRecord> records =
@@ -1631,7 +1663,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<DefectRecord> records =
           client.fetchDefectsByIds("1001", "2002", List.of("901", "902"), 1000);
@@ -1669,7 +1701,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       assertEquals(1, client.fetchDefectsByIds("1001", "2002", List.of("901"), 10).size());
@@ -1723,7 +1755,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       Map<String, List<RunRecord>> first =
@@ -1763,7 +1795,7 @@ public class OctaneClientTest {
             "suite-1",
             List.of(new RunRecord("run-1", "child", "failed", "Tester", "test-1", "Test", "", "")));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       List<DefectRecord> defects = client.fetchLinkedDefects("1001", "2002", suiteRuns, "", 100);
 
@@ -1784,7 +1816,7 @@ public class OctaneClientTest {
             "suite-1",
             List.of(new RunRecord("run-1", "child", "failed", "Tester", "test-1", "Test", "", "")));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       try {
         client.fetchLinkedDefects("1001", "2002", suiteRuns, "", 100);
@@ -1840,7 +1872,7 @@ public class OctaneClientTest {
       suiteIds.add("suite-" + index);
     }
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       Map<String, List<RunRecord>> first = client.fetchSuiteChildRuns("1001", "2002", suiteIds);
       int topologyAfterFirstFetch = topologyRequests.get();
@@ -1902,7 +1934,7 @@ public class OctaneClientTest {
         });
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
 
       Map<String, List<RunRecord>> records =
@@ -1968,7 +2000,7 @@ public class OctaneClientTest {
       suiteIds.add("suite-" + index);
     }
 
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       Map<String, List<RunRecord>> runs = client.fetchSuiteChildRuns("1001", "2002", suiteIds);
 
@@ -2063,7 +2095,7 @@ public class OctaneClientTest {
     server.createContext("/authentication/sign_out", exchange -> json(exchange, 200, "{}"));
 
     long startedAt = System.nanoTime();
-    try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+    try (OctaneClient client = new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
       client.authenticate();
       Map<String, List<RunRecord>> result =
           client.fetchSuiteChildRuns("1001", "2002", List.of("suite-current"));
@@ -2114,7 +2146,8 @@ public class OctaneClientTest {
         futures.add(
             clients.submit(
                 () -> {
-                  try (OctaneClient client = new OctaneClient(baseUrl, "client", "secret")) {
+                  try (OctaneClient client =
+                      new OctaneClient(baseUrl, "client", Secret.fromString("secret"))) {
                     return client.testWorkspaceAccess("1001", "2002");
                   }
                 }));

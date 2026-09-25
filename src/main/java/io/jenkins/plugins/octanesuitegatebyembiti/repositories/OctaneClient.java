@@ -110,20 +110,15 @@ public class OctaneClient implements AutoCloseable {
   private volatile String preferredSuiteEntityFields = "";
   private Secret cookieHeader;
 
-  public OctaneClient(String baseUrl, String clientId, String clientSecret) {
+  public OctaneClient(String baseUrl, String clientId, Secret clientSecret) {
     this(SHARED_HTTP_CLIENT, baseUrl, clientId, clientSecret);
-  }
-
-  public OctaneClient(HttpClient httpClient, String baseUrl, String clientId, String clientSecret) {
-    this(httpClient, baseUrl, clientId, Secret.fromString(clientSecret));
   }
 
   public static OctaneClient withCredentials(String baseUrl, String clientId, Secret clientSecret) {
     return new OctaneClient(SHARED_HTTP_CLIENT, baseUrl, clientId, clientSecret);
   }
 
-  private OctaneClient(
-      HttpClient httpClient, String baseUrl, String clientId, Secret clientSecret) {
+  public OctaneClient(HttpClient httpClient, String baseUrl, String clientId, Secret clientSecret) {
     if (httpClient.followRedirects() != HttpClient.Redirect.NEVER) {
       throw new IllegalArgumentException(
           "Octane HTTP clients must not follow credential redirects.");
@@ -509,6 +504,8 @@ public class OctaneClient implements AutoCloseable {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while signing out of ALM Octane.", e);
+    } finally {
+      cookieHeader = null;
     }
   }
 
