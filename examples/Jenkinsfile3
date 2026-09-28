@@ -162,7 +162,8 @@ def resolveOctaneConnection(
     throw new IllegalArgumentException(
         "Base URL missing for space: ${sharedSpaceName} in octane_spaces_mapping.json")
   }
-  if (!baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith('https://')) {
+  if (!(baseUrl ==~ /[A-Za-z0-9_.-]+/) &&
+      !baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith('https://')) {
     throw new IllegalArgumentException('Base URL must use https:// to protect Octane credentials.')
   }
   String derivedIdentifier =

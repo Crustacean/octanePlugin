@@ -398,8 +398,17 @@ mapping file and space/workspace selectors in their build step.
 
 ### 2. Configure the central mapping
 
-Set the root `shared_url` in `octane_spaces_mapping.json`. For rolling or canary deployments, set a
-shared space's `specific_url`; a blank value inherits the root URL. The centrally controlled mapping
+Create a Jenkins **Secret text** credential containing the HTTPS Octane base URL, then set
+`"shared_url": "octane-shared-url"` in `octane_spaces_mapping.json` using its credential ID.
+For rolling or canary deployments, set a shared space's `specific_url` to another Secret text
+credential ID; a blank value inherits the root credential. IDs use letters, digits, `_`, `-`, and `.`.
+Credentials must be accessible to the executing job (global or its containing folder).
+Missing or wrong-type credentials fail without switching to a different server.
+The examples pass the selected ID through `baseUrl` unchanged; the plugin resolves the secret
+when opening the connection and persists only the ID. No `withCredentials` wrapper is needed
+in the dashboard Pipeline. Existing literal HTTPS URLs remain supported for migration.
+URL credentials are separate from the username/password credentials used for API authentication.
+The centrally controlled mapping
 must not contain API secrets. HTTPS is required, including internal or VPN-hosted Octane
 deployments. HTTP URLs are rejected before credentials are sent. Install your internal CA in the
 Jenkins JVM truststore if needed; certificate and hostname verification must remain enabled.

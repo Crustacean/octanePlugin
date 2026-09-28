@@ -1,5 +1,5 @@
 {
-    "shared_url": "https://octane.example.com",
+    "shared_url": "octane-shared-url",
     "shared_spaces": [
         {
             "sharedSpaceId": "1001",

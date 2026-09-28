@@ -285,7 +285,7 @@ class Jenkinsfile3YamlConfigurationTest {
     assertEquals(sharedSpace, sharedSpaceById);
     assertEquals(workspace, workspaceById);
 
-    assertEquals("https://octane.example.com", mapping.get("shared_url"));
+    assertEquals("octane-shared-url", mapping.get("shared_url"));
     assertTrue(jenkinsfile.contains("serverId: env.OCTANE_SERVER_ID"));
     assertTrue(jenkinsfile.contains("baseUrl: env.OCTANE_BASE_URL"));
     assertTrue(jenkinsfile.contains("credentialsId: env.OCTANE_API_CREDENTIAL_ID"));
@@ -431,6 +431,31 @@ class Jenkinsfile3YamlConfigurationTest {
                 resolvedConnection(
                     script, mapping, "Default Shared Space", "Mail Service", "mapping.json"));
     assertTrue(failure.getMessage().contains("https://"));
+  }
+
+  @Test
+  void connectionResolutionPassesUrlCredentialReferencesWithoutDecrypting() throws Exception {
+    groovy.lang.Script script = new groovy.lang.GroovyShell().parse(Files.readString(JENKINSFILE));
+    for (String override : List.of("", "  ", "octane-specific-url")) {
+      Map<String, Object> mapping =
+          Map.of(
+              "shared_url",
+              "octane-shared-url",
+              "shared_spaces",
+              List.of(
+                  Map.of(
+                      "sharedSpaceId",
+                      "1001",
+                      "sharedSpaceName",
+                      "Example Space",
+                      "specific_url",
+                      override,
+                      "workspaces",
+                      List.of(
+                          Map.of("workspaceId", "5001", "workspaceName", "Example Workspace")))));
+      Map<?, ?> connection = resolvedConnection(script, mapping, "1001", "5001", "mapping.json");
+      assertEquals(override.isBlank() ? "octane-shared-url" : override, connection.get("baseUrl"));
+    }
   }
 
   @Test
