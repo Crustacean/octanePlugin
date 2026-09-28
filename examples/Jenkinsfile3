@@ -155,16 +155,18 @@ def resolveOctaneConnection(
             + "define names and numeric IDs in ${mappingPath}.")
   }
 
+  [mapping.shared_url, selectedSharedSpace.specific_url].each { configured ->
+    String credentialId = configured?.toString()?.trim()
+    if (credentialId && !(credentialId ==~ /[A-Za-z0-9_.-]+/)) {
+      throw new IllegalArgumentException('Octane URL configuration requires a Jenkins Secret Text credential ID; literal URLs are not accepted.')
+    }
+  }
   String baseUrl =
       selectedSharedSpace.specific_url?.toString()?.trim() ?:
           mapping.shared_url?.toString()?.trim()
   if (!baseUrl) {
     throw new IllegalArgumentException(
         "Base URL missing for space: ${sharedSpaceName} in octane_spaces_mapping.json")
-  }
-  if (!(baseUrl ==~ /[A-Za-z0-9_.-]+/) &&
-      !baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith('https://')) {
-    throw new IllegalArgumentException('Base URL must use https:// to protect Octane credentials.')
   }
   String derivedIdentifier =
       sharedSpaceName.toLowerCase(java.util.Locale.ROOT).replaceAll(/\s+/, '_')
@@ -175,7 +177,7 @@ def resolveOctaneConnection(
   return [
     baseUrl: baseUrl,
     credentialsId: credentialsId,
-    insecureTransport: baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith('http://'),
+    insecureTransport: false,
     serverId: serverId,
     sharedSpaceId: sharedSpaceId,
     sharedSpaceName: sharedSpaceName,

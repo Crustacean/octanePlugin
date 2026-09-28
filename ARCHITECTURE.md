@@ -161,13 +161,16 @@ The Java sources are organized under the base package into focused folders:
 ## Configuration Model
 
 The centrally managed Pipeline resolves its connection from
-`octane_spaces_mapping.json`. The root `shared_url` is the default endpoint, and a selected shared
-space may override it with `specific_url`. The same shared-space record may provide `serverId` and
+`octane_spaces_mapping.json`. The root `shared_url` is the default Jenkins Secret text credential ID,
+and a selected shared space may override it with another credential ID in `specific_url`.
+A blank `specific_url` inherits `shared_url`. Both fields reject literal URLs, including an
+overridden root value. The same shared-space record may provide `serverId` and
 `apiCredentialId`; otherwise both IDs are derived from the canonical shared-space name by lowercasing
 it and replacing whitespace with underscores. Only credential IDs belong in the mapping. The Octane
-client ID and secret remain Jenkins username/password credentials. Both HTTP and HTTPS endpoints are
-accepted for private deployments; an effective HTTP URL emits a console security recommendation but
-does not block the gate.
+client ID and secret remain Jenkins username/password credentials. The Pipeline `baseUrl` input
+also requires a Secret text credential ID. The plugin resolves the URL in the executing job's
+credential context immediately before creating the client and persists only the ID. The secret
+value must be a valid HTTPS base URL; HTTP is rejected before API credentials are sent.
 
 At runtime, dynamic connections try the shared `octane-api-client` Jenkins credential first and then
 the selected shared-space credential. This lets one controller use a common API client while still

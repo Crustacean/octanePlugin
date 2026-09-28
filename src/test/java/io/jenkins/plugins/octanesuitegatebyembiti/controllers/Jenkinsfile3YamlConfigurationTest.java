@@ -300,7 +300,7 @@ class Jenkinsfile3YamlConfigurationTest {
         jenkinsfile.contains("env.OCTANE_API_CREDENTIAL_ID = octaneConnection.credentialsId"));
     assertTrue(jenkinsfile.contains("env.OCTANE_SHARED_SPACE_ID = octaneConnection.sharedSpaceId"));
     assertTrue(jenkinsfile.contains("env.OCTANE_WORKSPACE_ID = octaneConnection.workspaceId"));
-    assertTrue(jenkinsfile.contains("Base URL must use https:// to protect Octane credentials."));
+    assertTrue(jenkinsfile.contains("literal URLs are not accepted."));
     String loadConfigurationStage =
         jenkinsfile.substring(
             jenkinsfile.indexOf("stage('Load Configuration')"),
@@ -353,23 +353,19 @@ class Jenkinsfile3YamlConfigurationTest {
             "sharedSpaceName",
             "Default Shared Space",
             "specific_url",
-            "https://octane-canary.example.test",
+            "octane-canary-url",
             "apiCredentialId",
             "octane-canary-key",
             "workspaces",
             List.of(workspace));
     Map<String, Object> mapping =
-        Map.of(
-            "shared_url",
-            "https://octane-primary.example.test",
-            "shared_spaces",
-            List.of(sharedSpace));
+        Map.of("shared_url", "octane-primary-url", "shared_spaces", List.of(sharedSpace));
 
     Map<?, ?> connection =
         resolvedConnection(
             script, mapping, " default shared space ", "4001", "octane_spaces_mapping.json");
 
-    assertEquals("https://octane-canary.example.test", connection.get("baseUrl"));
+    assertEquals("octane-canary-url", connection.get("baseUrl"));
     assertEquals("octane-canary-key", connection.get("credentialsId"));
     assertEquals(false, connection.get("insecureTransport"));
     assertEquals("default_shared_space", connection.get("serverId"));
@@ -385,7 +381,7 @@ class Jenkinsfile3YamlConfigurationTest {
     Map<String, Object> mapping =
         Map.of(
             "shared_url",
-            "https://octane-primary.example.test",
+            "octane-primary-url",
             "shared_spaces",
             List.of(
                 Map.of(
@@ -399,7 +395,7 @@ class Jenkinsfile3YamlConfigurationTest {
     Map<?, ?> connection =
         resolvedConnection(script, mapping, "1001", "Mail Service", "octane_spaces_mapping.json");
 
-    assertEquals("https://octane-primary.example.test", connection.get("baseUrl"));
+    assertEquals("octane-primary-url", connection.get("baseUrl"));
     assertEquals("default_shared_space", connection.get("credentialsId"));
     assertEquals(false, connection.get("insecureTransport"));
     assertEquals("default_shared_space", connection.get("serverId"));
@@ -430,7 +426,7 @@ class Jenkinsfile3YamlConfigurationTest {
             () ->
                 resolvedConnection(
                     script, mapping, "Default Shared Space", "Mail Service", "mapping.json"));
-    assertTrue(failure.getMessage().contains("https://"));
+    assertTrue(failure.getMessage().contains("Secret Text credential ID"));
   }
 
   @Test
@@ -455,6 +451,47 @@ class Jenkinsfile3YamlConfigurationTest {
                           Map.of("workspaceId", "5001", "workspaceName", "Example Workspace")))));
       Map<?, ?> connection = resolvedConnection(script, mapping, "1001", "5001", "mapping.json");
       assertEquals(override.isBlank() ? "octane-shared-url" : override, connection.get("baseUrl"));
+    }
+  }
+
+  @Test
+  void allPipelineExamplesRejectLiteralUrlsInBothMappingFields() throws Exception {
+    for (String file : List.of("Jenkinsfile", "Jenkinsfile2", "Jenkinsfile3")) {
+      groovy.lang.Script script =
+          new groovy.lang.GroovyShell().parse(Files.readString(Path.of("examples", file)));
+      for (String url : List.of("https://private.example.test", "http://private.example.test")) {
+        for (List<String> values :
+            List.of(List.of(url, ""), List.of("valid-id", url), List.of(url, "valid-override"))) {
+          Map<String, Object> mapping =
+              Map.of(
+                  "shared_url",
+                  values.get(0),
+                  "shared_spaces",
+                  List.of(
+                      Map.of(
+                          "sharedSpaceId",
+                          "1001",
+                          "sharedSpaceName",
+                          "Space",
+                          "specific_url",
+                          values.get(1),
+                          "workspaces",
+                          List.of(Map.of("workspaceId", "5001", "workspaceName", "Workspace")))));
+          IllegalArgumentException failure =
+              assertThrows(
+                  IllegalArgumentException.class,
+                  () -> {
+                    if (file.equals("Jenkinsfile3")) {
+                      resolvedConnection(script, mapping, "1001", "5001", "mapping.json");
+                    } else {
+                      script.invokeMethod(
+                          "resolveExampleOctaneConnection", new Object[] {mapping, "1001", "5001"});
+                    }
+                  });
+          assertTrue(failure.getMessage().contains("Secret Text credential ID"));
+          assertFalse(failure.getMessage().contains("private.example.test"));
+        }
+      }
     }
   }
 

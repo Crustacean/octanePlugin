@@ -406,7 +406,8 @@ Credentials must be accessible to the executing job (global or its containing fo
 Missing or wrong-type credentials fail without switching to a different server.
 The examples pass the selected ID through `baseUrl` unchanged; the plugin resolves the secret
 when opening the connection and persists only the ID. No `withCredentials` wrapper is needed
-in the dashboard Pipeline. Existing literal HTTPS URLs remain supported for migration.
+in the dashboard Pipeline. Literal URLs are rejected in both mapping fields and in the
+Pipeline `baseUrl` argument, including a literal `shared_url` overridden by `specific_url`.
 URL credentials are separate from the username/password credentials used for API authentication.
 The centrally controlled mapping
 must not contain API secrets. HTTPS is required, including internal or VPN-hosted Octane

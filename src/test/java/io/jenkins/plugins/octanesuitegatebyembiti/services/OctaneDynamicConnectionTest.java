@@ -65,7 +65,8 @@ public class OctaneDynamicConnectionTest {
           json(exchange, 200, "{}");
         });
     GateRequest request = new GateRequest("default_shared_space", "1196");
-    request.setBaseUrl(baseUrl);
+    addUrlCredential("octane-url", baseUrl);
+    request.setBaseUrl("octane-url");
     request.setCredentialsId("default_shared_space");
 
     try (OctaneClient client = new OctaneGateRunner().createClient(request)) {
@@ -90,7 +91,8 @@ public class OctaneDynamicConnectionTest {
           json(exchange, 200, "{}");
         });
     GateRequest request = new GateRequest("default_shared_space", "1196");
-    request.setBaseUrl(baseUrl);
+    addUrlCredential("octane-url", baseUrl);
+    request.setBaseUrl("octane-url");
     request.setCredentialsId("missing-space-credential");
 
     try (OctaneClient client = new OctaneGateRunner().createClient(request)) {
@@ -113,7 +115,8 @@ public class OctaneDynamicConnectionTest {
           json(exchange, 200, "{}");
         });
     GateRequest request = new GateRequest("default_shared_space", "1196");
-    request.setBaseUrl(baseUrl);
+    addUrlCredential("octane-url", baseUrl);
+    request.setBaseUrl("octane-url");
     request.setCredentialsId("default_shared_space");
 
     try (OctaneClient client = new OctaneGateRunner().createClient(request)) {
@@ -144,7 +147,8 @@ public class OctaneDynamicConnectionTest {
     String password = "test-password-\"-not-for-disk";
     addCredentials("octane-api-client", "client", password);
     GateRequest request = new GateRequest("space", "1196");
-    request.setBaseUrl(baseUrl);
+    addUrlCredential("octane-url", baseUrl);
+    request.setBaseUrl("octane-url");
     try (OctaneClient client = new OctaneGateRunner().createClient(request)) {
       Field secretField = OctaneClient.class.getDeclaredField("clientSecret");
       assertEquals(Secret.class, secretField.getType());
@@ -162,12 +166,15 @@ public class OctaneDynamicConnectionTest {
   }
 
   @Test
-  public void runnerRejectsPlaintextBeforeResolvingOrSendingCredentials() {
-    GateRequest request = new GateRequest("space", "1196");
-    request.setBaseUrl("http://127.0.0.1:12345");
-    AbortException failure =
-        assertThrows(AbortException.class, () -> new OctaneGateRunner().createClient(request));
-    assertTrue(failure.getMessage().contains("https://"));
+  public void runnerRejectsLiteralUrlsBeforeResolvingOrSendingCredentials() {
+    for (String url : new String[] {baseUrl, "http://127.0.0.1:12345", "//private.example.test"}) {
+      GateRequest request = new GateRequest("space", "1196");
+      request.setBaseUrl(url);
+      AbortException failure =
+          assertThrows(AbortException.class, () -> new OctaneGateRunner().createClient(request));
+      assertTrue(failure.getMessage().contains("Secret Text credential ID"));
+      assertFalse(failure.getMessage().contains(url));
+    }
   }
 
   @Test
