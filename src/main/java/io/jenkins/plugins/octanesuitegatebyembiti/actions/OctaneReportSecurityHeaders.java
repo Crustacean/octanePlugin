@@ -17,6 +17,9 @@ public final class OctaneReportSecurityHeaders implements HttpServletFilter {
         && (path.contains("/" + OctaneGateReportAction.URL_NAME + "/")
             || path.endsWith("/" + OctaneGateReportAction.URL_NAME)
             || path.startsWith("/plugin/octane-suite-gate-by-embiti/")
+            || (path.startsWith("/adjuncts/")
+                && (path.endsWith("/css/octane-dashboard.css")
+                    || path.endsWith("/js/octane-dashboard.js")))
             || (path.startsWith("/static/")
                 && path.contains("/plugin/octane-suite-gate-by-embiti/")))) {
       apply(request, response);

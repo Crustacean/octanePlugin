@@ -17,6 +17,8 @@ public class OctaneReportSecurityHeadersTest {
   public void coversEveryReportRouteWithoutChangingDispatchOrTrustingForwardingHeaders() {
     for (String path :
         List.of(
+            "/adjuncts/abc/css/octane-dashboard.css",
+            "/adjuncts/abc/js/octane-dashboard.js",
             "/job/demo/1/octaneSuiteGateReport",
             "/job/demo/1/octaneSuiteGateReport/",
             "/job/demo/1/octaneSuiteGateReport/data",
@@ -42,7 +44,14 @@ public class OctaneReportSecurityHeadersTest {
 
   @Test
   public void doesNotChangeOtherPluginsOrJenkinsPages() {
-    for (String path : List.of("/", "/login", "/job/demo/", "/octaneSuiteGateReportOther/data")) {
+    for (String path :
+        List.of(
+            "/",
+            "/login",
+            "/job/demo/",
+            "/octaneSuiteGateReportOther/data",
+            "/adjuncts/abc/js/other.js",
+            "/adjuncts/abc/js/octane-dashboard.js/other")) {
       assertEquals(Map.of(), filter(path, true));
     }
     assertEquals(Map.of(), filter(null, true));
