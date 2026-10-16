@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.cloudbees.hudson.plugins.folder.Folder;
 import com.cloudbees.hudson.plugins.folder.properties.FolderCredentialsProvider.FolderCredentialsProperty;
 import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.domains.DomainCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import hudson.model.FreeStyleProject;
 import hudson.model.Item;
@@ -36,14 +38,18 @@ class OctaneConfigurationUiTest {
     Folder folder = jenkins.createProject(Folder.class, "team");
     folder.addProperty(
         new FolderCredentialsProperty(
-            List.of(
-                new UsernamePasswordCredentialsImpl(
-                    CredentialsScope.GLOBAL, "team-api", "", "client", "secret"),
-                new StringCredentialsImpl(
-                    CredentialsScope.GLOBAL,
-                    "team-url",
-                    "",
-                    Secret.fromString("https://secret.invalid")))));
+            new DomainCredentials[] {
+              new DomainCredentials(
+                  Domain.global(),
+                  List.of(
+                      new UsernamePasswordCredentialsImpl(
+                          CredentialsScope.GLOBAL, "team-api", "", "client", "secret"),
+                      new StringCredentialsImpl(
+                          CredentialsScope.GLOBAL,
+                          "team-url",
+                          "",
+                          Secret.fromString("https://secret.invalid"))))
+            }));
     var job = folder.createProject(FreeStyleProject.class, "gate");
     var sibling = jenkins.createFreeStyleProject("sibling");
     var descriptor = jenkins.jenkins.getDescriptorByType(OctaneSuiteGateStep.DescriptorImpl.class);

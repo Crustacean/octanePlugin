@@ -9,6 +9,8 @@ import com.cloudbees.hudson.plugins.folder.properties.FolderCredentialsProvider.
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.domains.DomainCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import hudson.AbortException;
 import hudson.model.FreeStyleProject;
@@ -49,10 +51,14 @@ class OctaneFolderCredentialsTest {
               CredentialsScope.GLOBAL, "team-api", "", "team-client", "team-secret");
       folder.addProperty(
           new FolderCredentialsProperty(
-              List.of(
-                  api,
-                  new StringCredentialsImpl(
-                      CredentialsScope.GLOBAL, "team-url", "", Secret.fromString(url)))));
+              new DomainCredentials[] {
+                new DomainCredentials(
+                    Domain.global(),
+                    List.of(
+                        api,
+                        new StringCredentialsImpl(
+                            CredentialsScope.GLOBAL, "team-url", "", Secret.fromString(url))))
+              }));
       var run = jenkins.buildAndAssertSuccess(folder.createProject(FreeStyleProject.class, "gate"));
       GateRequest request = new GateRequest("space", "1196");
       request.setBaseUrl("team-url");
@@ -67,9 +73,13 @@ class OctaneFolderCredentialsTest {
       Folder sibling = jenkins.createProject(Folder.class, "other-team");
       sibling.addProperty(
           new FolderCredentialsProperty(
-              List.of(
-                  new StringCredentialsImpl(
-                      CredentialsScope.GLOBAL, "team-url", "", Secret.fromString(url)))));
+              new DomainCredentials[] {
+                new DomainCredentials(
+                    Domain.global(),
+                    List.of(
+                        new StringCredentialsImpl(
+                            CredentialsScope.GLOBAL, "team-url", "", Secret.fromString(url))))
+              }));
       var otherRun =
           jenkins.buildAndAssertSuccess(sibling.createProject(FreeStyleProject.class, "gate"));
       assertThrows(
@@ -79,12 +89,20 @@ class OctaneFolderCredentialsTest {
       folder.getProperties().remove(FolderCredentialsProperty.class);
       folder.addProperty(
           new FolderCredentialsProperty(
-              List.of(
-                  api,
-                  new UsernamePasswordCredentialsImpl(
-                      CredentialsScope.GLOBAL, "octane-api-client", "", "folder-shared", "secret"),
-                  new StringCredentialsImpl(
-                      CredentialsScope.GLOBAL, "team-url", "", Secret.fromString(url)))));
+              new DomainCredentials[] {
+                new DomainCredentials(
+                    Domain.global(),
+                    List.of(
+                        api,
+                        new UsernamePasswordCredentialsImpl(
+                            CredentialsScope.GLOBAL,
+                            "octane-api-client",
+                            "",
+                            "folder-shared",
+                            "secret"),
+                        new StringCredentialsImpl(
+                            CredentialsScope.GLOBAL, "team-url", "", Secret.fromString(url))))
+              }));
       SystemCredentialsProvider.getInstance()
           .getCredentials()
           .add(
