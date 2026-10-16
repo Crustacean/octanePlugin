@@ -1,13 +1,13 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
   <f:entry title="Octane connection ID" field="serverId">
     <f:textbox />
   </f:entry>
-  <f:entry title="Octane base URL" field="baseUrl">
-    <f:textbox placeholder="https://octane.example.com" />
+  <f:entry title="Octane URL Secret Text credential" field="baseUrl">
+    <c:select />
   </f:entry>
   <f:entry title="API credential ID" field="credentialsId">
-    <f:textbox placeholder="octane-api-client" />
+    <c:select />
   </f:entry>
   <f:entry title="Regression suite run ID(s), Release, or Release and Sprint (optional)" field="suiteRunId">
     <f:textbox placeholder="1196,1200" />
@@ -22,10 +22,14 @@
     <f:textarea />
   </f:entry>
   <f:entry title="Scopes">
-    <f:repeatableProperty field="scopes" />
+    <f:repeatableProperty field="scopes" header="Scope">
+      <f:repeatableDeleteButton />
+    </f:repeatableProperty>
   </f:entry>
   <f:entry title="Defect groups">
-    <f:repeatableProperty field="defectGroups" />
+    <f:repeatableProperty field="defectGroups" header="Defect group">
+      <f:repeatableDeleteButton />
+    </f:repeatableProperty>
   </f:entry>
   <f:advanced>
     <f:entry title="Poll interval seconds" field="pollIntervalSeconds">

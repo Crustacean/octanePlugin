@@ -414,10 +414,15 @@ must not contain API secrets. HTTPS is required, including internal or VPN-hoste
 deployments. HTTP URLs are rejected before credentials are sent. Install your internal CA in the
 Jenkins JVM truststore if needed; certificate and hostname verification must remain enabled.
 
-The base URL should be the host root used by Octane authentication and API requests, such as:
+Store the host root, such as `https://your-octane-host`, as the Secret text value, not an
+authentication or API endpoint. In the Pipeline Snippet Generator, **Octane URL Secret Text
+credential** selects that credential; **API credential ID** selects a Username with password
+credential. Both selectors are scoped to the job and require configuration permission.
+For example, `baseUrl: 'octane-shared-url'` passes an ID, not a decrypted URL.
 
-- `https://your-octane-host/authentication/sign_in`
-- `https://your-octane-host/api/...`
+Outbound Octane requests honor Jenkins' proxy, proxy authentication, and no-proxy hosts.
+Proxy changes take effect for the next gate connection. HTTPS verification remains enabled
+and redirects remain disabled to prevent forwarding credentials to another endpoint.
 
 ### 3. Pass the resolved connection from a Jenkinsfile
 

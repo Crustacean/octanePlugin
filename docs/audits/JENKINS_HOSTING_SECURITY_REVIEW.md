@@ -21,7 +21,9 @@ send email, or persist changes.
 
 - `doCheckCredentialsId` checks whether the submitted text is empty. It does not
   resolve the ID or reveal whether a credential exists.
-- `doCheckBaseUrl` parses URI syntax only. It performs no DNS lookup or HTTP call.
+- `doCheckBaseUrl` originally parsed URI syntax only. As of 2026-10-16 it validates
+  credential-ID syntax to match the Secret Text-only runtime contract. It still
+  performs no credential lookup, DNS lookup or HTTP call.
 - `doCheckSpacesMappingFile` normalizes and checks a relative path only. It does
   not open that file. Space/workspace selectors are also checked as text only.
 - Criteria parsing is already limited to 8,192 characters, 1,024 tokens and a
@@ -106,6 +108,10 @@ computation, or side effects, or if a field starts carrying secret material.
   rerun to confirm alert disposition; Maven/SpotBugs results are not a CodeQL scan.
 
 ## Sources
+
+The later hosting recommendations add credential dropdown endpoints with explicit
+permission and POST/crumb checks. They are not covered by the pure-validator suppressions.
+See [the follow-up review](JENKINS_HOSTING_RECOMMENDATIONS_2026-10-16.md).
 
 - [Jenkins form validation security](https://www.jenkins.io/doc/developer/security/form-validation/)
 - [Jenkins Security Scan](https://www.jenkins.io/doc/developer/security/scan/)

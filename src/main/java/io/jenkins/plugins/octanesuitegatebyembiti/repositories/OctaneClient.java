@@ -1,6 +1,7 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.repositories;
 
 import hudson.AbortException;
+import hudson.ProxyConfiguration;
 import hudson.util.Secret;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
 import io.jenkins.plugins.octanesuitegatebyembiti.entities.DefectRecord;
@@ -89,13 +90,9 @@ public class OctaneClient implements AutoCloseable {
   private static final String MINIMAL_DEFECT_FIELDS =
       "id,name,description,severity{logical_name,name},priority{logical_name,name},"
           + "phase{logical_name,name}";
-  private static final HttpClient SHARED_HTTP_CLIENT =
-      HttpClient.newBuilder()
-          .connectTimeout(Duration.ofSeconds(30))
-          .followRedirects(HttpClient.Redirect.NEVER)
-          .build();
 
   private final HttpClient httpClient;
+  private boolean ownsHttpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final String baseUrl;
   private boolean secretBaseUrl;
@@ -112,11 +109,19 @@ public class OctaneClient implements AutoCloseable {
   private Secret cookieHeader;
 
   public OctaneClient(String baseUrl, String clientId, Secret clientSecret) {
-    this(SHARED_HTTP_CLIENT, baseUrl, clientId, clientSecret);
+    this(
+        ProxyConfiguration.newHttpClientBuilder()
+            .connectTimeout(Duration.ofSeconds(30))
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .build(),
+        baseUrl,
+        clientId,
+        clientSecret);
+    ownsHttpClient = true;
   }
 
   public static OctaneClient withCredentials(String baseUrl, String clientId, Secret clientSecret) {
-    return new OctaneClient(SHARED_HTTP_CLIENT, baseUrl, clientId, clientSecret);
+    return new OctaneClient(baseUrl, clientId, clientSecret);
   }
 
   public static OctaneClient withCredentials(
@@ -499,6 +504,16 @@ public class OctaneClient implements AutoCloseable {
 
   @Override
   public void close() throws IOException {
+    try {
+      signOut();
+    } finally {
+      if (ownsHttpClient) {
+        httpClient.shutdown();
+      }
+    }
+  }
+
+  private void signOut() throws IOException {
     if (cookieHeader == null) {
       return;
     }

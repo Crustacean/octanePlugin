@@ -1,13 +1,20 @@
 package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
+import hudson.model.Item;
+import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.model.queue.Tasks;
+import hudson.security.ACL;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import io.jenkins.plugins.octanesuitegatebyembiti.actions.OctaneGateReportAction;
 import io.jenkins.plugins.octanesuitegatebyembiti.configs.OctaneServerUrl;
 import io.jenkins.plugins.octanesuitegatebyembiti.listeners.OctaneGateLogListener;
@@ -36,15 +43,19 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 public class OctaneSuiteGateStep extends Step {
   private final String serverId;
@@ -706,11 +717,11 @@ public class OctaneSuiteGateStep extends Step {
       return FormValidation.ok();
     }
 
-    // Parses only the submitted URI; no connection, DNS lookup, or configuration access.
+    // Checks only the submitted ID; does not resolve or decrypt a credential.
     @SuppressWarnings({"lgtm[jenkins/no-permission-check]", "lgtm[jenkins/csrf]"})
     public FormValidation doCheckBaseUrl(@QueryParameter String value) {
       try {
-        OctaneServerUrl.normalize(value);
+        OctaneServerUrl.requireCredentialId(value);
         return FormValidation.ok();
       } catch (IllegalArgumentException e) {
         return FormValidation.error(e.getMessage());
@@ -724,6 +735,42 @@ public class OctaneSuiteGateStep extends Step {
         return FormValidation.error("API credential ID is required.");
       }
       return FormValidation.ok();
+    }
+
+    @RequirePOST
+    public ListBoxModel doFillCredentialsIdItems(
+        @AncestorInPath Item item, @QueryParameter String credentialsId) {
+      if (item == null) {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+      } else {
+        item.checkPermission(Item.CONFIGURE);
+      }
+      return new StandardListBoxModel()
+          .includeEmptyValue()
+          .includeAs(
+              item instanceof Queue.Task task ? Tasks.getAuthenticationOf2(task) : ACL.SYSTEM2,
+              item,
+              StandardUsernamePasswordCredentials.class,
+              List.of())
+          .includeCurrentValue(credentialsId);
+    }
+
+    @RequirePOST
+    public ListBoxModel doFillBaseUrlItems(
+        @AncestorInPath Item item, @QueryParameter String baseUrl) {
+      if (item == null) {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+      } else {
+        item.checkPermission(Item.CONFIGURE);
+      }
+      return new StandardListBoxModel()
+          .includeEmptyValue()
+          .includeAs(
+              item instanceof Queue.Task task ? Tasks.getAuthenticationOf2(task) : ACL.SYSTEM2,
+              item,
+              StringCredentials.class,
+              List.of())
+          .includeCurrentValue(baseUrl);
     }
 
     // Validates only submitted values; no private data access, I/O, or state changes.

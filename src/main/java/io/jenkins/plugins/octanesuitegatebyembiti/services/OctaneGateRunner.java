@@ -1421,6 +1421,10 @@ public class OctaneGateRunner {
   }
 
   private StandardUsernamePasswordCredentials findCredentials(String credentialsId) {
+    if (credentialRun != null) {
+      return CredentialsProvider.findCredentialById(
+          credentialsId, StandardUsernamePasswordCredentials.class, credentialRun, List.of());
+    }
     return CredentialsMatchers.firstOrNull(
         CredentialsProvider.lookupCredentialsInItemGroup(
             StandardUsernamePasswordCredentials.class, Jenkins.get(), ACL.SYSTEM2, List.of()),

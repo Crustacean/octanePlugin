@@ -77,7 +77,7 @@ class HostingSecurityReviewTest {
       for (String[] entry :
           new String[][] {
             {"ServerId", "example"},
-            {"BaseUrl", "https://no-network.invalid/octane"},
+            {"BaseUrl", "octane-url-credential"},
             {"CredentialsId", "nonexistent-credential"}
           }) {
         assertValid(client, "controllers.OctaneSuiteGateStep", entry[0], entry[1]);
@@ -173,6 +173,57 @@ class HostingSecurityReviewTest {
     assertEquals(0, polls.get());
     assertFalse(action.isManualExitRequested());
     assertEquals(before, Files.readString(config));
+  }
+
+  @Test
+  void credentialSelectorsRequirePostCrumbAndConfigurationPermission() throws Exception {
+    var job = jenkins.createFreeStyleProject("credentials-gate");
+    jenkins.jenkins.setAuthorizationStrategy(
+        new MockAuthorizationStrategy()
+            .grant(Jenkins.READ, Item.READ)
+            .everywhere()
+            .to("reader", "editor", "admin")
+            .grant(Item.CONFIGURE)
+            .onItems(job)
+            .to("editor")
+            .grant(Jenkins.ADMINISTER)
+            .everywhere()
+            .to("admin"));
+    var credentials =
+        com.cloudbees.plugins.credentials.SystemCredentialsProvider.getInstance().getCredentials();
+    credentials.add(
+        new com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl(
+            com.cloudbees.plugins.credentials.CredentialsScope.GLOBAL,
+            "test-api",
+            "",
+            "client",
+            "api-secret"));
+    credentials.add(
+        new org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl(
+            com.cloudbees.plugins.credentials.CredentialsScope.GLOBAL,
+            "test-url",
+            "",
+            hudson.util.Secret.fromString("https://secret.invalid")));
+    String descriptor = "descriptorByName/" + PACKAGE + "controllers.OctaneSuiteGateStep/";
+    try (var reader = client("reader");
+        var editor = client("editor");
+        var admin = client("admin")) {
+      for (String field : List.of("CredentialsId", "BaseUrl")) {
+        String endpoint = descriptor + "fill" + field + "Items";
+        String path = job.getUrl() + endpoint;
+        assertEquals(405, request(editor, path, HttpMethod.GET, false).getStatusCode());
+        assertEquals(403, request(editor, path, HttpMethod.POST, false).getStatusCode());
+        assertEquals(403, request(reader, path, HttpMethod.POST, true).getStatusCode());
+        var result = request(editor, path, HttpMethod.POST, true);
+        assertEquals(200, result.getStatusCode());
+        String body = result.getContentAsString();
+        assertTrue(body.contains(field.equals("CredentialsId") ? "test-api" : "test-url"));
+        assertFalse(body.contains("api-secret"));
+        assertFalse(body.contains("https://secret.invalid"));
+        assertEquals(403, request(editor, endpoint, HttpMethod.POST, true).getStatusCode());
+        assertEquals(200, request(admin, endpoint, HttpMethod.POST, true).getStatusCode());
+      }
+    }
   }
 
   @Test

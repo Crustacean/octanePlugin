@@ -16,10 +16,14 @@
     <f:textarea />
   </f:entry>
   <f:entry title="Scopes">
-    <f:repeatableProperty field="scopes" />
+    <f:repeatableProperty field="scopes" header="Scope">
+      <f:repeatableDeleteButton />
+    </f:repeatableProperty>
   </f:entry>
   <f:entry title="Defect groups">
-    <f:repeatableProperty field="defectGroups" />
+    <f:repeatableProperty field="defectGroups" header="Defect group">
+      <f:repeatableDeleteButton />
+    </f:repeatableProperty>
   </f:entry>
   <f:advanced>
     <f:entry title="Poll interval seconds" field="pollIntervalSeconds">

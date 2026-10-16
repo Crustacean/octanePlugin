@@ -85,7 +85,7 @@ public class OctaneGateReportAction implements RunAction2, OctaneGateReportPubli
 
   @Override
   public String getIconFileName() {
-    return "graph.gif";
+    return "symbol-bar-chart-outline plugin-ionicons-api";
   }
 
   @Override
