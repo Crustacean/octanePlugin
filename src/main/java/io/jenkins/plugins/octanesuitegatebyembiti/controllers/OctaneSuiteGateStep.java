@@ -740,10 +740,10 @@ public class OctaneSuiteGateStep extends Step {
     @RequirePOST
     public ListBoxModel doFillCredentialsIdItems(
         @AncestorInPath Item item, @QueryParameter String credentialsId) {
-      if (item == null) {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-      } else {
-        item.checkPermission(Item.CONFIGURE);
+      if (item == null
+          ? !Jenkins.get().hasPermission(Jenkins.ADMINISTER)
+          : !item.hasPermission(Item.CONFIGURE)) {
+        return new StandardListBoxModel();
       }
       return new StandardListBoxModel()
           .includeEmptyValue()
@@ -758,10 +758,10 @@ public class OctaneSuiteGateStep extends Step {
     @RequirePOST
     public ListBoxModel doFillBaseUrlItems(
         @AncestorInPath Item item, @QueryParameter String baseUrl) {
-      if (item == null) {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-      } else {
-        item.checkPermission(Item.CONFIGURE);
+      if (item == null
+          ? !Jenkins.get().hasPermission(Jenkins.ADMINISTER)
+          : !item.hasPermission(Item.CONFIGURE)) {
+        return new StandardListBoxModel();
       }
       return new StandardListBoxModel()
           .includeEmptyValue()

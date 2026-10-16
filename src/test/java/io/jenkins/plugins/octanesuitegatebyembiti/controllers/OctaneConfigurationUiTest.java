@@ -3,7 +3,6 @@ package io.jenkins.plugins.octanesuitegatebyembiti.controllers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.cloudbees.hudson.plugins.folder.Folder;
@@ -25,11 +24,11 @@ import jenkins.model.Jenkins;
 import org.htmlunit.html.HtmlButton;
 import org.htmlunit.html.HtmlPage;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
-import org.springframework.security.access.AccessDeniedException;
 
 @WithJenkins
 class OctaneConfigurationUiTest {
@@ -84,18 +83,49 @@ class OctaneConfigurationUiTest {
             .onItems(job)
             .to("editor"));
     try (var context = ACL.as2(hudson.model.User.getById("reader", true).impersonate2())) {
-      assertThrows(AccessDeniedException.class, () -> descriptor.doFillCredentialsIdItems(job, ""));
-      assertThrows(AccessDeniedException.class, () -> descriptor.doFillBaseUrlItems(job, ""));
-      assertThrows(
-          AccessDeniedException.class, () -> descriptor.doFillCredentialsIdItems(null, ""));
-      assertThrows(AccessDeniedException.class, () -> descriptor.doFillBaseUrlItems(null, ""));
+      assertTrue(descriptor.doFillCredentialsIdItems(job, "team-api").isEmpty());
+      assertTrue(descriptor.doFillBaseUrlItems(job, "team-url").isEmpty());
+      assertTrue(descriptor.doFillCredentialsIdItems(null, "team-api").isEmpty());
+      assertTrue(descriptor.doFillBaseUrlItems(null, "team-url").isEmpty());
     }
     try (var context = ACL.as2(hudson.model.User.getById("editor", true).impersonate2())) {
       assertTrue(
           descriptor.doFillCredentialsIdItems(job, "").stream()
               .anyMatch(o -> o.value.equals("team-api")));
-      assertThrows(
-          AccessDeniedException.class, () -> descriptor.doFillCredentialsIdItems(sibling, ""));
+      assertTrue(
+          descriptor.doFillBaseUrlItems(job, "").stream()
+              .anyMatch(o -> o.value.equals("team-url")));
+      assertTrue(descriptor.doFillCredentialsIdItems(sibling, "").isEmpty());
+      assertTrue(descriptor.doFillBaseUrlItems(sibling, "").isEmpty());
+      assertTrue(descriptor.doFillCredentialsIdItems(null, "").isEmpty());
+      assertTrue(descriptor.doFillBaseUrlItems(null, "").isEmpty());
+    }
+  }
+
+  @Test
+  void extendedReadPipelineUsersGetEmptyCredentialSelectors(JenkinsRule jenkins) throws Exception {
+    var job = jenkins.createProject(WorkflowJob.class, "pipeline");
+    var descriptor = jenkins.jenkins.getDescriptorByType(OctaneSuiteGateStep.DescriptorImpl.class);
+    jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+    jenkins.jenkins.setAuthorizationStrategy(
+        new MockAuthorizationStrategy()
+            .grant(Jenkins.READ, Item.READ, Item.EXTENDED_READ)
+            .everywhere()
+            .to("reader"));
+    boolean extendedReadEnabled = Item.EXTENDED_READ.getEnabled();
+    Item.EXTENDED_READ.setEnabled(true);
+    try (var context = ACL.as2(hudson.model.User.getById("reader", true).impersonate2())) {
+      assertTrue(job.hasPermission(Item.EXTENDED_READ));
+      assertFalse(job.hasPermission(Item.CONFIGURE));
+      assertFalse(jenkins.jenkins.hasPermission(Jenkins.ADMINISTER));
+      for (String currentValue : List.of("", "existing-credential")) {
+        assertTrue(descriptor.doFillCredentialsIdItems(job, currentValue).isEmpty());
+        assertTrue(descriptor.doFillBaseUrlItems(job, currentValue).isEmpty());
+        assertTrue(descriptor.doFillCredentialsIdItems(null, currentValue).isEmpty());
+        assertTrue(descriptor.doFillBaseUrlItems(null, currentValue).isEmpty());
+      }
+    } finally {
+      Item.EXTENDED_READ.setEnabled(extendedReadEnabled);
     }
   }
 
