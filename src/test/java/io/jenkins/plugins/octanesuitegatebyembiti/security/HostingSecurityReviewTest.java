@@ -176,7 +176,8 @@ class HostingSecurityReviewTest {
   }
 
   @Test
-  void credentialSelectorsRequirePostCrumbAndConfigurationPermission() throws Exception {
+  void credentialSelectorsRequirePostCrumbAndHideCredentialsWithoutConfigurePermission()
+      throws Exception {
     var job = jenkins.createFreeStyleProject("credentials-gate");
     jenkins.jenkins.setAuthorizationStrategy(
         new MockAuthorizationStrategy()
@@ -213,14 +214,26 @@ class HostingSecurityReviewTest {
         String path = job.getUrl() + endpoint;
         assertEquals(405, request(editor, path, HttpMethod.GET, false).getStatusCode());
         assertEquals(403, request(editor, path, HttpMethod.POST, false).getStatusCode());
-        assertEquals(403, request(reader, path, HttpMethod.POST, true).getStatusCode());
+        for (var deniedResponse :
+            List.of(
+                request(reader, path, HttpMethod.POST, true),
+                request(reader, endpoint, HttpMethod.POST, true),
+                request(editor, endpoint, HttpMethod.POST, true))) {
+          assertEquals(200, deniedResponse.getStatusCode());
+          var options =
+              OctaneReportJson.readObject(
+                      deniedResponse.getContentAsString().getBytes(StandardCharsets.UTF_8))
+                  .get("values");
+          assertNotNull(options);
+          assertTrue(options.isArray());
+          assertEquals(0, options.size());
+        }
         var result = request(editor, path, HttpMethod.POST, true);
         assertEquals(200, result.getStatusCode());
         String body = result.getContentAsString();
         assertTrue(body.contains(field.equals("CredentialsId") ? "test-api" : "test-url"));
         assertFalse(body.contains("api-secret"));
         assertFalse(body.contains("https://secret.invalid"));
-        assertEquals(403, request(editor, endpoint, HttpMethod.POST, true).getStatusCode());
         assertEquals(200, request(admin, endpoint, HttpMethod.POST, true).getStatusCode());
       }
     }
